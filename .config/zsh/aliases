@@ -1,0 +1,90 @@
+#!/bin/zsh
+R=`echo -e '\e[0;31m'`
+G=`echo -e '\e[0;32m'`
+B=`echo -e '\e[0;36m'`
+W=`echo -e '\e[1m'`
+N=`echo -e '\e[0m'`
+
+# enable color support of ls and also add handy aliases
+if [ -x /usr/bin/dircolors ]; then
+	test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+	alias ls='ls --color=auto'
+	#alias dir='dir --color=auto'
+	#alias vdir='vdir --color=auto'
+
+	alias grep='grep --color=auto'
+	alias fgrep='fgrep --color=auto'
+	alias egrep='egrep --color=auto'
+
+	diff() {
+		/usr/bin/diff -utr $@ | sed -re "$(echo "$(cat $HOME/devel/scripts/colordiff.sed)")"
+	}
+fi
+
+# some more ls aliases
+alias ll='ls -alhF'
+alias la='ls -A'
+alias l='ls -FB'
+
+# rsync is better.
+alias cp='rsync -a'
+
+# USACO aliases
+genrun() {
+	name=`basename $(pwd)`
+	g++ -std=c++11 gen.cpp -o gen.o || exit 3
+	./gen.o || exit 3
+	g++ "$name.cpp" -g -o "$name.o" || exit 1
+	"./$name.o" || exit 2
+	diff "$name.out" "gen.out"
+}
+
+corun() {
+	name=`basename $(pwd)`
+	g++ "$name.cpp" -g -o "$name.o" || exit 1
+	"./$name.o" || exit 2
+	cat "$name.out"
+}
+
+# Add an "alert" alias for long running commands.  Use like so:
+#   sleep 10; alert
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias .....='cd ../../../..'
+alias ......='cd ../../../../..'
+
+alias cowfortune='fortune | cowsay'
+
+alias suspend='i3lock; systemctl suspend'
+gnight() {
+	cowsay "GNIGHT's Not IGHT"
+	i3lock
+	systemctl suspend
+}
+
+if [ $UID -ne 0 ]; then
+		alias update='sudo `aura -Syu; aura -Au`'
+		alias aura='EDITOR=/usr/bin/emacs sudo -E aura'
+		alias sctl='sudo systemctl'
+fi
+
+if non_gui; then
+	alias edit='/usr/bin/emacsclient -t'
+	sedit() { /usr/bin/emacs $(for f in $@; do "/sudo::${f:A}"; done) }
+else
+	edit() { /usr/bin/emacsclient "$@" &>/dev/null& disown }
+	sedit() { /usr/bin/emacsclient $(for f in $@; do /sudo::"${f:A}"; done) >&/dev/null& disown }
+fi
+
+putty() {
+	cowsay "So I guess I can store my system files in PuTTY
+
+PuTTY is so magical"
+}
+
+opendir() { terminator --working-directory="$1" }
+
+mvosz() {mv "$@" /opt/osu/Songs}

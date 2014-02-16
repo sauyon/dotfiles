@@ -1,0 +1,13 @@
+*
+!/.gitignore
+!/.zshenv
+!/.xinitrc
+!/.config/
+!/.config/zsh/
+!/.config/zsh/.zshrc
+!/.config/zsh/aliases
+!/.config/git/
+!/.config/git/*
+
+*~
+\#*\#

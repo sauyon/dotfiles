@@ -1,0 +1,14 @@
+[user]
+	name = Sauyon Lee
+	email = sauyonl@sauyon.com
+[color]
+	ui = auto
+[push]
+	default = current
+[core]
+	pager = less -x2
+	editor = emacsclient -t
+[merge]
+	tool = meld
+[branch]
+	autosetuprebase = always

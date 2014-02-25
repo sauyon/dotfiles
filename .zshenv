@@ -26,3 +26,6 @@ export WINEPREFIX="$XDG_DATA_HOME/wineprefixes/default"
 
 # Compilation flags
 export ARCHFLAGS="-arch x86_64"
+
+# Qt5 why u no like gtk
+export QT_STYLE_OVERRIDE=gtk

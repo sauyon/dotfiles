@@ -2,7 +2,7 @@
 # Oh My Zsh config
 ZSH=/usr/share/oh-my-zsh
 
-ZSH_THEME="sauyon"
+ZSH_THEME=
 DISABLE_AUTO_UPDATE="true"
 COMPLETION_WAITING_DOTS="true"
 DISABLE_UNTRACKED_FILES_DIRTY="true"
@@ -21,10 +21,9 @@ source $ZSH/oh-my-zsh.sh
 # PATH is path. DAMMIT OHMYZSH AGAIN GR
 export PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin:.
 
-# My aliases. Damn you, oh my zsh!
-if [[ -f $XDG_CONFIG_HOME/zsh/aliases ]]; then
-	source $XDG_CONFIG_HOME/zsh/aliases
-fi
+# Zsh preferences
+source $XDG_CONFIG_HOME/zsh/aliases
+source $XDG_CONFIG_HOME/zsh/prompt
 
 # Yay for syntax highlighting
 if [[ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]]; then

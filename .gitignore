@@ -6,6 +6,7 @@
 !/.config/zsh/
 !/.config/zsh/.zshrc
 !/.config/zsh/aliases
+!/.config/zsh/prompt
 !/.config/git/
 !/.config/git/*
 

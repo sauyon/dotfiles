@@ -75,7 +75,7 @@ if non_gui; then
 	alias edit='/usr/bin/emacsclient -t'
 	sedit() { /usr/bin/emacs $(for f in $@; do "/sudo::${f:A}"; done) }
 else
-	edit() { /usr/bin/emacsclient "$@" &>/dev/null& disown }
+	alias edit='/usr/bin/emacsclient -n'
 	sedit() { /usr/bin/emacsclient $(for f in $@; do /sudo::"${f:A}"; done) >&/dev/null& disown }
 fi
 

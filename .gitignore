@@ -1,3 +1,4 @@
+# Cherry-picking files
 *
 !/.gitignore
 !/.zshenv
@@ -9,6 +10,12 @@
 !/.config/zsh/prompt
 !/.config/git/
 !/.config/git/*
+!/.emacs.d/
+!/.emacs.d/**
 
+*.elc
+url
+ede-projects.el
+tramp
 *~
 \#*\#

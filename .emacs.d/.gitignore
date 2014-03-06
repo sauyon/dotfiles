@@ -1,0 +1,14 @@
+# Compiled files
+*.elc
+
+# Session files
+session.*
+
+# Machine-specific files
+url
+
+# EDE projects
+ede-projects.el
+
+# tramp stuff
+tramp

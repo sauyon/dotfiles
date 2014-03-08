@@ -3,8 +3,7 @@
 ;;; Code:
 
 
-;;;### (autoloads nil "solarized" "solarized.el" (21271 56227 193230
-;;;;;;  982000))
+;;;### (autoloads nil "solarized" "solarized.el" (21274 12262 0 0))
 ;;; Generated autoloads from solarized.el
 
 (when (and (boundp 'custom-theme-load-path) load-file-name) (add-to-list 'custom-theme-load-path (file-name-as-directory (file-name-directory load-file-name))))
@@ -13,7 +12,7 @@
 
 ;;;### (autoloads nil nil ("solarized-dark-theme.el" "solarized-light-theme.el"
 ;;;;;;  "solarized-theme-pkg.el" "solarized-theme-utils.el" "solarized-theme.el")
-;;;;;;  (21271 56227 227449 368000))
+;;;;;;  (21274 12262 623194 0))
 
 ;;;***
 

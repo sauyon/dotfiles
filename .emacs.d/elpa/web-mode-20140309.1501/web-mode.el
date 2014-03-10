@@ -3,7 +3,7 @@
 
 ;; Copyright 2011-2014 François-Xavier Bois
 
-;; Version: 8.0.37
+;; Version: 8.0.39
 ;; Author: François-Xavier Bois <fxbois AT Google Mail Service>
 ;; Maintainer: François-Xavier Bois
 ;; Created: July 2011
@@ -61,7 +61,7 @@
 ;;todo : commentaire d'une ligne ruby ou d'une ligne asp
 ;;todo : créer tag-token pour différentier de part-token : tag-token=attr,comment ???
 
-(defconst web-mode-version "8.0.37"
+(defconst web-mode-version "8.0.39"
   "Web Mode version.")
 
 (defgroup web-mode nil
@@ -692,6 +692,7 @@ The *first* thing between '\\(' '\\)' will be extracted as tag content
   '(("css"        . "\\.css\\'\\|\\.css\\.erb\\'")
     ("javascript" . "\\.js\\'\\|\\.js\\.erb\\'")
     ("json"       . "\\.\\(json\\|jsonld\\)\\'")
+    ("jsx"        . "\\.jsx\\'")
     ("html"       . "."))
   "content types")
 
@@ -2133,12 +2134,18 @@ The *first* thing between '\\(' '\\)' will be extracted as tag content
   (web-mode-on-engine-setted)
   (web-mode-scan-buffer))
 
+(defun web-mode-set-content-type (content-type)
+  "set engine"
+  (setq web-mode-content-type content-type)
+  ;;  (web-mode-on-engine-setted)
+  (web-mode-scan-buffer))
+
 (defun web-mode-on-engine-setted ()
   "engine setted"
   (let (elt elts engines)
     (when (string= web-mode-engine "razor") (setq web-mode-enable-block-face t))
     (cond
-     ((member web-mode-content-type '("css" "javascript" "json"))
+     ((member web-mode-content-type '("css" "javascript" "json" "jsx"))
       (setq web-mode-has-any-large-part t))
      ((member web-mode-content-type '("php"))
       (setq web-mode-has-any-large-block nil))
@@ -2265,6 +2272,15 @@ The *first* thing between '\\(' '\\)' will be extracted as tag content
             found t)
       )
 
+    (when (and (string= web-mode-content-type "javascript")
+               (string-match-p "@jsx"
+                                (buffer-substring-no-properties
+                                 (line-beginning-position)
+                                 (line-end-position))))
+;;      (message "jsx found")
+      (setq web-mode-content-type "jsx")
+      )
+
 ;;    (message "engine=%S" web-mode-engine)
 
     (web-mode-on-engine-setted)
@@ -2364,7 +2380,7 @@ The *first* thing between '\\(' '\\)' will be extracted as tag content
            (setq beg (if web-mode-is-narrowed 1 beg))
            (remove-text-properties beg end web-mode-scan-properties)
            (cond
-            ((member web-mode-content-type '("javascript" "json" "css"))
+            ((member web-mode-content-type '("javascript" "json" "jsx" "css"))
              (web-mode-scan-blocks beg end)
              (web-mode-scan-part beg end)
              )
@@ -2403,8 +2419,10 @@ The *first* thing between '\\(' '\\)' will be extracted as tag content
            (setq beg (if web-mode-is-narrowed 1 beg))
            (remove-text-properties beg end '(font-lock-face nil))
            (cond
-            ((member web-mode-content-type '("javascript" "json" "css"))
+            ((member web-mode-content-type '("javascript" "json" "jsx" "css"))
              (web-mode-highlight-part beg end)
+             (when (member web-mode-content-type '("jsx"))
+               (web-mode-highlight-tags beg end))
              (web-mode-highlight-blocks beg end))
             ((string= web-mode-engine "none")
              (web-mode-highlight-tags beg end)
@@ -4367,12 +4385,14 @@ The *first* thing between '\\(' '\\)' will be extracted as tag content
   "Scan client part (e.g. javascript, json, css)."
   (save-excursion
     (let (token-re ch-before ch-at ch-next token-type start continue content-type)
-;;      (message "reg-beg(%S) reg-end(%S) content-type(%S)" reg-beg reg-end content-type)
+
 
       (if (member web-mode-content-type '("javascript" "json" "jsx" "css"))
           (setq content-type web-mode-content-type)
         (setq content-type (symbol-name (get-text-property reg-beg 'part-side)))
         )
+
+;;      (message "reg-beg(%S) reg-end(%S) content-type(%S)" reg-beg reg-end content-type)
 
 ;;      (remove-text-properties reg-beg reg-end web-mode-scan-properties2)
 
@@ -5628,8 +5648,12 @@ The *first* thing between '\\(' '\\)' will be extracted as tag content
         (setq language "css"
               indent-offset web-mode-css-indent-offset))
 
-       ((member web-mode-content-type '("javascript" "json" "jsx"))
+       ((member web-mode-content-type '("javascript" "json"))
         (setq language "javascript"
+              indent-offset web-mode-code-indent-offset))
+
+       ((member web-mode-content-type '("jsx"))
+        (setq language "jsx"
               indent-offset web-mode-code-indent-offset))
 
        ((string= web-mode-content-type "php")
@@ -5729,7 +5753,7 @@ The *first* thing between '\\(' '\\)' will be extracted as tag content
                 indent-offset web-mode-code-indent-offset)
           )
          )
-        )
+        ) ; part-side
 
        (t
         (setq language "html"
@@ -5932,7 +5956,8 @@ BLOCK-BEGIN. Loops to start at INDENT-OFFSET."
 
        ;;       ((get-text-property pos 'tag-beg)
        ((and (get-text-property pos 'tag-beg)
-             (not (get-text-property pos 'part-side)))
+             (not (get-text-property pos 'part-side))
+             (not (member web-mode-content-type '("jsx"))))
         ;; (message "ici")
         (setq offset (web-mode-markup-indentation pos))
         )
@@ -6619,8 +6644,7 @@ BLOCK-BEGIN. Loops to start at INDENT-OFFSET."
           (setq char (aref match 0))
 ;;          (message "match:%S" match)
 
-;;          (when (member char '(?\{ ?\( ?\[ ?\} ?\) ?\]))
-;;            (message "(%S) c=%c" (point) char))
+;;          (when (member char '(?\{ ?\( ?\[ ?\} ?\) ?\])) (message "(%S) c=%c" (point) char))
 
           (cond
 
@@ -6698,51 +6722,6 @@ BLOCK-BEGIN. Loops to start at INDENT-OFFSET."
               )
             )
 
-;;            ((member match '("case" "default"))
-;;             ;;            (if (null is-breaked)
-;;             ;;                (setq is-breaked nil
-;;             ;;                      case-count (1- case-count)
-;;             ;;)
-;;             ;;                (setq is-breaked nil
-;;             ;;                      case-count (1- case-count))
-;; ;;            (when (null is-breaked)
-;; ;;              (setq is-breaked t
-;;                     ;;                    case-found t
-;; ;;                    case-count (1- case-count)
-;; ;;                    )
-;; ;;              ;;              ) ;if
-;;             ;;  )
-
-;; ;;            (when is-breaked
-
-;;             (setq case-num (1+ case-num))
-
-;;             (when (and (= case-num 1) (not is-breaked))
-;; ;;              (message "faked break = %S" (point))
-;;               (setq case-count (1- case-count))
-;;               )
-
-;; ;;            (setq is-breaked nil)
-
-;;             (setq case-count (1+ case-count))
-;;             ;;              )
-;; ;;            (message "%S: pt%S %S" match (point) is-breaked)
-
-;;             (cond
-;;              ((not (looking-back "\\(break[ ]*;\\|{\\)[ \t\n]*" limit t))
-;; ;;              (message "pas de break")
-;;               (setq case-count (1- case-count))
-;;               )
-;;              ) ;cond
-
-;;             )
-
-;;            ((string= match "break")
-;;             (setq is-breaked t
-;;                   case-count (1- case-count))
-;; ;;            (message "%S: pt%S %S" match (point) is-breaked)
-;;             )
-
            ) ;cond
 
           ) ;unless
@@ -6756,29 +6735,18 @@ BLOCK-BEGIN. Loops to start at INDENT-OFFSET."
 ;;             (message "%c : " char queue)
              (dolist (pair queue)
 ;;               (message "   %S" pair)
-               (setq n (cdr pair))
-               (unless (member n lines)
-                 (push n lines))
-               )
+               (if (not (web-mode-is-void-after (1+ (car pair))))
+                   ()
+                 (setq n (cdr pair))
+                 (unless (member n lines)
+                   (push n lines))
+                 ) ;if
+               ) ;dolist
              ) ;when
            )
          queues)
 ;;        (message "lines=%S switch-level=%S" lines switch-level)
         (setq opened-blocks (length lines))
-
-;;         (when (and case-found (> case-count 0))
-;;           (goto-char pos)
-;;           (back-to-indentation)
-;; ;;          (message "%S" (point))
-;; ;;          (when (not (looking-at-p "case\\|}"))
-;; ;;            (setq opened-blocks (1+ opened-blocks))
-;;           (setq opened-blocks (+ opened-blocks case-count))
-;; ;;            )
-;;           ) ;when case-count
-
-;;        (setq opened-blocks (+ opened-blocks case-count))
-
-;;        (message "opened-blocks=%S" opened-blocks)
 
         (goto-char pos)
         (when (and (> switch-level 0)
@@ -6795,8 +6763,6 @@ BLOCK-BEGIN. Loops to start at INDENT-OFFSET."
           (setq opened-blocks (+ opened-blocks (web-mode-count-opened-blocks pos))))
 
         ) ;unless
-
-
 
 ;;      (message "pos=%S ob=%S" pos (web-mode-count-opened-blocks pos))
 
@@ -8296,6 +8262,16 @@ BLOCK-BEGIN. Loops to start at INDENT-OFFSET."
                                         (line-end-position))))
         (web-mode-set-engine "php")
         )
+
+      (when (and (string= web-mode-content-type "javascript")
+                 (< (point) 8)
+                 (eq (char-after 1) ?\/)
+                 (string-match-p "@jsx" (buffer-substring-no-properties
+                                         (line-beginning-position)
+                                         (line-end-position))))
+        (web-mode-set-content-type "jsx")
+        )
+
 
       ) ;if narrowed
     ))
@@ -10836,6 +10812,52 @@ BLOCK-BEGIN. Loops to start at INDENT-OFFSET."
 ;;       (web-mode-highlight-region scan-beg scan-end)
 ;;       ) ;save-excursion
 ;;     ))
+
+;;            ((member match '("case" "default"))
+;;             ;;            (if (null is-breaked)
+;;             ;;                (setq is-breaked nil
+;;             ;;                      case-count (1- case-count)
+;;             ;;)
+;;             ;;                (setq is-breaked nil
+;;             ;;                      case-count (1- case-count))
+;; ;;            (when (null is-breaked)
+;; ;;              (setq is-breaked t
+;;                     ;;                    case-found t
+;; ;;                    case-count (1- case-count)
+;; ;;                    )
+;; ;;              ;;              ) ;if
+;;             ;;  )
+
+;; ;;            (when is-breaked
+
+;;             (setq case-num (1+ case-num))
+
+;;             (when (and (= case-num 1) (not is-breaked))
+;; ;;              (message "faked break = %S" (point))
+;;               (setq case-count (1- case-count))
+;;               )
+
+;; ;;            (setq is-breaked nil)
+
+;;             (setq case-count (1+ case-count))
+;;             ;;              )
+;; ;;            (message "%S: pt%S %S" match (point) is-breaked)
+
+;;             (cond
+;;              ((not (looking-back "\\(break[ ]*;\\|{\\)[ \t\n]*" limit t))
+;; ;;              (message "pas de break")
+;;               (setq case-count (1- case-count))
+;;               )
+;;              ) ;cond
+
+;;             )
+
+;;            ((string= match "break")
+;;             (setq is-breaked t
+;;                   case-count (1- case-count))
+;; ;;            (message "%S: pt%S %S" match (point) is-breaked)
+;;             )
+
 
 
 (provide 'web-mode)

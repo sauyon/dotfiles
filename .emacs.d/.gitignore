@@ -2,13 +2,19 @@
 *.elc
 
 # Session files
-session.*
+/session.*
 
-# Machine-specific files
-url
+# cookies and stuff
+/url/
 
 # EDE projects
 ede-projects.el
 
+# auto-saves
+/auto-save-list/
+
+# elpa archives
+/elpa/archives/
+
 # tramp stuff
-tramp
+/tramp

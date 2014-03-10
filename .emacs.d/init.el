@@ -22,7 +22,6 @@
  '(background-color nil)
  '(background-mode dark)
  '(cursor-color nil)
- '(custom-enabled-themes (quote (sanityinc-solarized-dark)))
  '(custom-safe-themes (quote ("4aee8551b53a43a883cb0b7f3255d6859d766b6c5e14bcb01bed572fcbef4328" "1e7e097ec8cb1f8c3a912d7e1e0331caeed49fef6cff220be63bd2a6ba4cc365" default)))
  '(foreground-color nil)
  '(send-mail-function (quote mailclient-send-it))

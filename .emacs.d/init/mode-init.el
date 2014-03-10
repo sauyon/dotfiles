@@ -1,4 +1,11 @@
 (require 'font-lock)
+(add-to-list 'load-path "~/.emacs.d/lisp")
+
+;; Ragel mode ------------------------------------------------------------------
+
+(autoload 'ragel-mode "ragel-mode" "Ragel mode" t)
+(add-to-list 'auto-mode-alist '("\\.rl\\'" . ragel-mode))
+
 
 ;; Multi-term mode -------------------------------------------------------------
 

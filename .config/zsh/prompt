@@ -6,8 +6,8 @@ NO_VCS_DIRS=(/var/aur $HOME)
 # A few utility functions to make it easy and re-usable to draw segmented prompts
 
 CURRENT_BG='NONE'
-SEGMENT_SEP='>'
-RSEGMENT_SEP='<'
+SEGMENT_SEP='▶'
+RSEGMENT_SEP='◀'
 
 # Begin a segment
 # Takes two arguments, background and foreground. Both can be omitted,

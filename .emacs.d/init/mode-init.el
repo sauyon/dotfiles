@@ -145,6 +145,7 @@
 ;; C++ mode -----------------------------------------------------------
 
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
+(add-to-list 'auto-mode-alist '("\\.cpp\\'" . c++-mode))
 
 (defun --copy-face (new-face face)
   "Define NEW-FACE from existing FACE."

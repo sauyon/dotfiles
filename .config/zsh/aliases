@@ -33,18 +33,16 @@ alias cp='rsync -a'
 # USACO aliases
 genrun() {
 	name=`basename $(pwd)`
-	g++ -std=c++11 gen.cpp -o gen.o || exit 3
-	./gen.o || exit 3
-	g++ "$name.cpp" -g -o "$name.o" || exit 1
-	"./$name.o" || exit 2
+	g++ -std=c++11 gen.cpp -o gen.o && ./gen.o
+	g++ "$name.cpp" -g -o "$name.o"
+	time "./$name.o"
 	diff "$name.out" "gen.out"
 }
 
 corun() {
 	name=`basename $(pwd)`
-	g++ "$name.cpp" -g -o "$name.o" || exit 1
-	"./$name.o" || exit 2
-	cat "$name.out"
+	g++ "$name.cpp" -g -o "$name.o"
+	time "./$name.o" && cat "$name.out"
 }
 
 # Add an "alert" alias for long running commands.  Use like so:

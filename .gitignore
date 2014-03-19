@@ -15,6 +15,7 @@
 !/.emacs.d/**
 
 # Stuff I always want to ignore
+.DS_Store
 *.elc
 url
 ede-projects.el

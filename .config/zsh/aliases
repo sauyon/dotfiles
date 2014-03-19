@@ -16,8 +16,9 @@ if [ -x /usr/bin/dircolors ]; then
 	alias fgrep='fgrep --color=auto'
 	alias egrep='egrep --color=auto'
 
+	DIFFBIN=$(which diff)
 	diff() {
-		/usr/bin/diff -utr $@ | sed -re "$(echo "$(cat $HOME/devel/scripts/colordiff.sed)")"
+		"$DIFFBIN" -utr $@ | sed -re "$(echo "$(cat $HOME/devel/scripts/colordiff.sed)")"
 	}
 fi
 
@@ -72,18 +73,12 @@ if [ $UID -ne 0 ]; then
 fi
 
 if non_gui; then
-	alias edit='/usr/bin/emacsclient -t'
-	sedit() { /usr/bin/emacs $(for f in $@; do "/sudo::${f:A}"; done) }
+	alias edit='emacsclient -t'
+	#sedit() { emacsclient -e $(for f in "$@"; do echo "(sudo-find-file ${f:A})"; done) }
 else
-	alias edit='/usr/bin/emacsclient -n'
-	sedit() { /usr/bin/emacsclient $(for f in $@; do /sudo::"${f:A}"; done) >&/dev/null& disown }
+	alias edit='emacsclient -n'
+	#sedit() { emacsclient -ne $(for f in "$@"; do echo "(sudo-find-file ${f:A})"; done) }
 fi
-
-putty() {
-	cowsay "So I guess I can store my system files in PuTTY
-
-PuTTY is so magical"
-}
 
 opendir() { terminator --working-directory="$1" }
 

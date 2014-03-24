@@ -71,9 +71,7 @@
 					 (setq buffer-read-only nil)
 					 (message (concat "File name set to " sudo-name)))))
 
-		 (add-hook 'find-file-hook
-							 (lambda () (local-set-key (kbd "C-x r") 'sudo-open-file)))
-
-		 (global-set-key (kbd "C-c o") 'sudo-reopen-file)))
+		 (global-set-key (kbd "C-x C-r") 'sudo-find-file)
+		 (global-set-key (kbd "C-c o s") 'sudo-reopen-file)))
 
 (load "tramp")

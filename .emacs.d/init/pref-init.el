@@ -7,6 +7,7 @@
 							indent-tabs-mode t
 							c-basic-offset 2
 							css-indent-offset 2
+							js-indent-level 2
 							js2-basic-offset 2
 							python-indent-offset 2)
 ;; miscellaneous stuff

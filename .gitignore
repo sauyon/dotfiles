@@ -3,6 +3,7 @@
 !/.gitignore
 !/.zshenv
 !/.xinitrc
+!/.Xresources
 !/.config/
 !/.config/zsh/
 !/.config/zsh/.zshrc

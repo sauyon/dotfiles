@@ -3,7 +3,7 @@
 ;;; Code:
 
 
-;;;### (autoloads nil "queue" "queue.el" (20899 63238 395013 942000))
+;;;### (autoloads nil "queue" "queue.el" (21365 41892 945550 822000))
 ;;; Generated autoloads from queue.el
 
 (defalias 'make-queue 'queue-create "\
@@ -11,7 +11,7 @@ Create an empty queue data structure.")
 
 ;;;***
 
-;;;### (autoloads nil nil ("queue-pkg.el") (20899 63238 469177 429000))
+;;;### (autoloads nil nil ("queue-pkg.el") (21365 41893 62741 331000))
 
 ;;;***
 

@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012 Magnar Sveen
 
 ;; Author: Magnar Sveen <magnars@gmail.com>
-;; Version: 20140505.208
+;; Version: 20140512.201
 ;; X-Original-Version: 2.6.0
 ;; Keywords: lists
 
@@ -79,10 +79,12 @@ special values."
   (let ((l (make-symbol "list"))
         (c (make-symbol "continue")))
     `(let ((,l ,list)
-           (,c t))
+           (,c t)
+           (it-index 0))
        (while (and ,l ,c)
          (let ((it (car ,l)))
            (if (not ,pred) (setq ,c nil) ,@body))
+         (setq it-index (1+ it-index))
          (!cdr ,l)))))
 
 (defun -each-while (list pred fn)
@@ -431,14 +433,19 @@ Returns `nil` both if all items match the predicate, and if none of the items ma
 (defalias '-only-some-p '-only-some?)
 (defalias '--only-some-p '--only-some?)
 
-(defun -slice (list from &optional to)
+(defun -slice (list from &optional to step)
   "Return copy of LIST, starting from index FROM to index TO.
-FROM or TO may be negative."
+
+FROM or TO may be negative.  These values are then interpreted
+modulo the length of the list.
+
+If STEP is a number, only each STEPth item in the resulting
+section is returned.  Defaults to 1."
   (let ((length (length list))
-        (new-list nil)
-        (index 0))
+        (new-list nil))
     ;; to defaults to the end of the list
     (setq to (or to length))
+    (setq step (or step 1))
     ;; handle negative indices
     (when (< from 0)
       (setq from (mod from length)))
@@ -446,11 +453,10 @@ FROM or TO may be negative."
       (setq to (mod to length)))
 
     ;; iterate through the list, keeping the elements we want
-    (while (< index to)
-      (when (>= index from)
-        (!cons (car list) new-list))
-      (!cdr list)
-      (setq index (1+ index)))
+    (--each-while list (< it-index to)
+      (when (and (>= it-index from)
+                 (= (mod (- from it-index) step) 0))
+        (push it new-list)))
     (nreverse new-list)))
 
 (defun -take (n list)

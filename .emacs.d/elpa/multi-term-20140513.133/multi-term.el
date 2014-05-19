@@ -5,12 +5,12 @@
 ;; Copyright (C) 2008, 2009, 2014 Andy Stewart, all rights reserved.
 ;; Copyright (C) 2010, ahei, all rights reserved.
 ;; Created: <2008-09-19 23:02:42>
-;; Version: 20140323.753
-;; X-Original-Version: 0.8.14
-;; Last-Updated: 2014-03-23 15:46:28
+;; Version: 20140513.133
+;; X-Original-Version: 0.8.15
+;; Last-Updated: 2014-05-12 18:31:15
 ;; URL: http://www.emacswiki.org/emacs/download/multi-term.el
 ;; Keywords: term, terminal, multiple buffer
-;; Compatibility: GNU Emacs 23.2.1, GNU Emacs 24.3.50
+;; Compatibility: GNU Emacs 23.2.1, GNU Emacs 24.4 (and prereleases)
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -127,6 +127,9 @@
 ;;
 
 ;;; Change log:
+;;
+;; 2014/05/12
+;;      * Make Emacs 24.4 compatibility cleaner by avoiding version sniffing.
 ;;
 ;; 2014/03/23
 ;;      * Add `term-send-esc' and binding with 'C-c C-e', send esc is useful for some program, such as vim. ;)
@@ -367,11 +370,10 @@ Default is nil."
   :set (lambda (symbol value)
          (set symbol value)
          ;; ad-advised-definition-p no longer exists on Emacs 24.4 as of 2014-01-03.
-         (if (or (and (>= emacs-major-version 24) (>= emacs-minor-version 4))
-                 (string-match "24\\.3\\.50\\..*" emacs-version))
-             (when (ad-is-advised 'other-window)
+         (if (fboundp 'ad-advised-definition-p)
+             (when (ad-advised-definition-p 'other-window)
                (multi-term-dedicated-handle-other-window-advice value))
-           (when (ad-advised-definition-p 'other-window)
+           (when (ad-is-advised 'other-window)
              (multi-term-dedicated-handle-other-window-advice value))))
   :group 'multi-term)
 

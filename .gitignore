@@ -5,15 +5,17 @@
 !/.xinitrc
 !/.Xresources
 !/.config/
+!/.config/git/
+!/.config/git/*
+!/.config/i3/
+!/.config/i3/config
+!/.config/terminator/
+!/.config/terminator/config
 !/.config/zsh/
 !/.config/zsh/.zshrc
 !/.config/zsh/.zlogin
 !/.config/zsh/aliases
 !/.config/zsh/prompt
-!/.config/git/
-!/.config/git/*
-!/.config/i3/
-!/.config/i3/config
 !/.emacs.d/
 !/.emacs.d/**
 

@@ -1,6 +1,13 @@
 (require 'font-lock)
 (add-to-list 'load-path "~/.emacs.d/lisp")
 
+;; Haskell mode ----------------------------------------------------------------
+
+(add-hook 'haskell-mode-hook
+					(lambda ()
+						(setq indent-tabs-mode nil)
+						(haskell-indentation-mode t))
+
 ;; Ragel mode ------------------------------------------------------------------
 
 (autoload 'ragel-mode "ragel-mode" "Ragel mode" t)

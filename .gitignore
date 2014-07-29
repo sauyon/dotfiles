@@ -6,11 +6,14 @@
 !/.Xresources
 !/.config/
 !/.config/git/
-!/.config/git/*
+!/.config/git/config
+!/.config/git/ignore
 !/.config/i3/
 !/.config/i3/config
 !/.config/terminator/
 !/.config/terminator/config
+!/.config/X11/
+!/.config/X11/resources
 !/.config/zsh/
 !/.config/zsh/.zshrc
 !/.config/zsh/.zlogin
@@ -18,6 +21,9 @@
 !/.config/zsh/prompt
 !/.emacs.d/
 !/.emacs.d/**
+!/.local/
+!/.local/bin/
+!/.local/bin/colordiff.sed
 
 # Stuff I always want to ignore
 .DS_Store

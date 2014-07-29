@@ -6,7 +6,7 @@
 (add-hook 'haskell-mode-hook
 					(lambda ()
 						(setq indent-tabs-mode nil)
-						(haskell-indentation-mode t))
+						(haskell-indentation-mode t)))
 
 ;; Ragel mode ------------------------------------------------------------------
 
@@ -108,19 +108,19 @@
 (add-to-list 'auto-mode-alist '("\\.cmake\\'" . cmake-mode))
 
 (defun cmake-rename-buffer ()
-  "Renames a CMakeLists.txt buffer to cmake-<directory name>."
-  (interactive)
-  ;(print (concat "buffer-filename = " (buffer-file-name)))
-  ;(print (concat "buffer-name     = " (buffer-name)))
-  (when (and (buffer-file-name) (string-match "CMakeLists.txt" (buffer-name)))
-      ;(setq file-name (file-name-nondirectory (buffer-file-name)))
-      (setq parent-dir (file-name-nondirectory (directory-file-name (file-name-directory (buffer-file-name)))))
-      ;(print (concat "parent-dir = " parent-dir))
-      (setq new-buffer-name (concat "cmake-" parent-dir))
-      ;(print (concat "new-buffer-name= " new-buffer-name))
-      (rename-buffer new-buffer-name t)
-      )
-  )
+	"Renames a CMakeLists.txt buffer to cmake-<directory name>."
+	(interactive)
+																				;(print (concat "buffer-filename = " (buffer-file-name)))
+																				;(print (concat "buffer-name     = " (buffer-name)))
+	(when (and (buffer-file-name) (string-match "CMakeLists.txt" (buffer-name)))
+																				;(setq file-name (file-name-nondirectory (buffer-file-name)))
+		(setq parent-dir (file-name-nondirectory (directory-file-name (file-name-directory (buffer-file-name)))))
+																				;(print (concat "parent-dir = " parent-dir))
+		(setq new-buffer-name (concat "cmake-" parent-dir))
+																				;(print (concat "new-buffer-name= " new-buffer-name))
+		(rename-buffer new-buffer-name t)
+		)
+	)
 
 (add-hook 'cmake-mode-hook 'cmake-rename-buffer)
 
@@ -136,6 +136,7 @@
 (add-to-list 'auto-mode-alist '("\\.mustache\\'" . web-mode))
 (add-to-list 'auto-mode-alist '("\\.djhtml\\'" . web-mode))
 (add-to-list 'auto-mode-alist '("\\.html?\\'" . web-mode))
+(add-to-list 'auto-mode-alist '("\\.handlebars\\'" . web-mode))
 
 (add-hook 'web-mode-hook (lambda ()
 													 (setq web-mode-markup-indent-offset 2
@@ -155,10 +156,10 @@
 (add-to-list 'auto-mode-alist '("\\.cpp\\'" . c++-mode))
 
 (defun --copy-face (new-face face)
-  "Define NEW-FACE from existing FACE."
-  (copy-face face new-face)
-  (eval `(defvar ,new-face nil))
-  (set new-face new-face))
+	"Define NEW-FACE from existing FACE."
+	(copy-face face new-face)
+	(eval `(defvar ,new-face nil))
+	(set new-face new-face))
 
 (--copy-face 'font-lock-label-face  ; labels, case, public, private, proteced, namespace-tags
 						 'font-lock-keyword-face)
@@ -174,20 +175,20 @@
 (add-hook
  'c++-mode-hook
  '(lambda()
-    ;; We could place some regexes into `c-mode-common-hook', but note that their evaluation order
-    ;; matters.
-    (font-lock-add-keywords
-     nil '(;;  new C++11 keywords
-           ("\\<\\(alignof\\|alignas\\|constexpr\\|decltype\\|noexcept\\|nullptr\\|static_assert\\|thread_local\\|override\\|final\\)\\>" . font-lock-keyword-face)
-           ;; hexadecimal numbers
-           ("\\<0[xX][0-9A-Fa-f]+\\>" . font-lock-constant-face)
-           ;; integer/float/scientific numbers
+		;; We could place some regexes into `c-mode-common-hook', but note that their evaluation order
+		;; matters.
+		(font-lock-add-keywords
+		 nil '(;;  new C++11 keywords
+					 ("\\<\\(alignof\\|alignas\\|constexpr\\|decltype\\|noexcept\\|nullptr\\|static_assert\\|thread_local\\|override\\|final\\)\\>" . font-lock-keyword-face)
+					 ;; hexadecimal numbers
+					 ("\\<0[xX][0-9A-Fa-f]+\\>" . font-lock-constant-face)
+					 ;; integer/float/scientific numbers
 					 ("\\<[-+]?[0-9]*\\.?[0-9]+\\([uUlL]{,3}\\|[eE][-+]?[0-9]+\\)?[fFlL]?\\>" . font-lock-constant-face)
-           ;; c++11 string literals
+					 ;; c++11 string literals
 					 ("\\([LuU]R?\\|u8R?\\)\".*?\"" 1 font-lock-keyword-face)
-           ("R\"\\([^ [:cntrl:]\\\\()]\\{0,16\\}\\)(\\(.\\|\\n\\)*?\\()\\1\\)\""
+					 ("R\"\\([^ [:cntrl:]\\\\()]\\{0,16\\}\\)(\\(.\\|\\n\\)*?\\()\\1\\)\""
 						(0 font-lock-string-face t) (3 font-lock-variable-name-face t))
-           ("\\(R\\)\"\\([^ [:cntrl:]\\\\()]\\{0,16\\}(\\)"
+					 ("\\(R\\)\"\\([^ [:cntrl:]\\\\()]\\{0,16\\}(\\)"
 						(1 font-lock-keyword-face t) (2 font-lock-variable-name-face t))
-           ))
-    ) t)
+					 ))
+		) t)

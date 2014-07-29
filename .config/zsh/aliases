@@ -18,7 +18,7 @@ if [ -x /usr/bin/dircolors ]; then
 
 	DIFFBIN=$(which diff)
 	diff() {
-		"$DIFFBIN" -utr $@ | sed -re "$(echo "$(cat $HOME/devel/scripts/colordiff.sed)")"
+		"$DIFFBIN" -utr $@ | sed -rf "$HOME/.local/bin/colordiff.sed"
 	}
 fi
 
@@ -58,14 +58,17 @@ alias ......='cd ../../../../..'
 alias cowfortune='fortune | cowsay'
 
 alias suspend='i3lock; systemctl suspend'
+
 gnight() {
 	cowsay "GNIGHT's Not IGHT"
 	i3lock
 	systemctl suspend
 }
 
+alias uctl='systemctl --user'
+
 if [ $UID -ne 0 ]; then
-		alias update='sudo `aura -Syu; aura -Au`'
+		alias update='sudo `aura -Syu; aura -Akua`'
 		alias aura='EDITOR=/usr/bin/emacs sudo -E aura'
 		alias sctl='sudo systemctl'
 fi
@@ -81,3 +84,5 @@ fi
 opendir() { terminator --working-directory="$1" }
 
 mvosz() {mv "$@" /opt/osu/Songs}
+
+alias -s exe="wine"

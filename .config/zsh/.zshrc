@@ -16,12 +16,11 @@ fi
 # Oh My Zsh config -------------------------------------------------------------------------
 ZSH=/usr/share/oh-my-zsh
 
-ZSH_THEME=
 DISABLE_AUTO_UPDATE="true"
 
 plugins=(archlinux git github go sudo)
 
-source $ZSH/oh-my-zsh.sh
+include $ZSH/oh-my-zsh.sh
 
 # User configuration -----------------------------------------------------------------------
 
@@ -31,8 +30,8 @@ PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin:.
 export PATH
 
 # Zsh preferences
-source $XDG_CONFIG_HOME/zsh/aliases
-source $XDG_CONFIG_HOME/zsh/prompt
+include $XDG_CONFIG_HOME/zsh/aliases
+include $XDG_CONFIG_HOME/zsh/prompt
 
 # Yay for syntax highlighting
 include /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh

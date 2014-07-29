@@ -2,7 +2,6 @@
 
 ;; Initializations ---------------------------------------------
 
-(server-start)
 (load "smart-tabs-init")
 (load "mode-init")
 (load "keybind-init")

@@ -68,7 +68,7 @@ gnight() {
 alias uctl='systemctl --user'
 
 if [ $UID -ne 0 ]; then
-		alias update='sudo `aura -Syu; aura -Akua`'
+		alias update='aura -Syu; aura -Akua'
 		alias aura='EDITOR=/usr/bin/emacs sudo -E aura'
 		alias sctl='sudo systemctl'
 fi

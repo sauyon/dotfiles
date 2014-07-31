@@ -4,6 +4,8 @@
 !/.zshenv
 !/.xinitrc
 !/.Xresources
+!/.ssh/
+!/.ssh/config
 !/.config/
 !/.config/git/
 !/.config/git/config

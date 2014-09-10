@@ -10,9 +10,11 @@
               js-indent-level 2
               js2-basic-offset 2
 							python-indent-offset 2)
+
 ;; miscellaneous stuff
 (setq-default show-trailing-whitespace t
 							fill-column 80)
+
 ;; Nobody needs this
 (global-unset-key "\C-z")
 
@@ -29,3 +31,4 @@
 																backward-char forward-char))
     (ding)))
 (setq ring-bell-function 'my-bell-function)
+

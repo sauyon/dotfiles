@@ -2,6 +2,7 @@
 
 ;; EDE - never use this, maybe I should get rid of it...
 (global-ede-mode t)
+
 ;; #2spacetabmasterrace
 (setq-default tab-width 2
               indent-tabs-mode t
@@ -9,7 +10,7 @@
               css-indent-offset 2
               js-indent-level 2
               js2-basic-offset 2
-							python-indent-offset 2)
+              python-indent-offset 2)
 
 ;; miscellaneous stuff
 (setq-default show-trailing-whitespace t
@@ -31,4 +32,3 @@
 																backward-char forward-char))
     (ding)))
 (setq ring-bell-function 'my-bell-function)
-

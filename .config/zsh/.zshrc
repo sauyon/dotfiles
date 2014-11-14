@@ -29,6 +29,9 @@ PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin:.
 [[ $platform == 'osx' ]] && PATH=/usr/local/bin:$PATH
 export PATH
 
+# Smart command-not-found with pkgfile
+include /usr/share/doc/pkgfile/command-not-found.zsh
+
 # Zsh preferences
 include $XDG_CONFIG_HOME/zsh/aliases
 include $XDG_CONFIG_HOME/zsh/prompt

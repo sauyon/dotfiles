@@ -116,7 +116,7 @@ bindsym Home exec "amixer -q set Master 2dB+ unmute; killall -USR1 i3status"
 bindsym XF86AudioLowerVolume exec "amixer -q set Master 2dB- unmute; killall -USR1 i3status"
 bindsym End exec "amixer -q set Master 2dB- unmute; killall -USR1 i3status"
 bindsym XF86AudioMute exec "amixer sset Master toggle; killall -USR1 i3status"
-bindsym Scroll_Lock exec "togglemute; killall -USR1 i3status"
+bindsym Scroll_Lock exec "amixer sset Master toggle; killall -USR1 i3status"
 
 bindsym $mod+Up exec "xbacklight -steps 1 -inc 13"
 bindsym $mod+Down exec "xbacklight -steps 1 -dec 12"
@@ -135,7 +135,6 @@ bindsym $mod+Shift+Print exec scrot '%s.png' -e 'simg -r $f' -s
 # finds out, if available)
 bar {
 	status_command i3status
-  tray_output LVDS1
 }
 
 assign [class="Emacs"] 2

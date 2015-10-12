@@ -21,6 +21,7 @@
 !/.config/zsh/.zlogin
 !/.config/zsh/aliases
 !/.config/zsh/prompt
+!/.config/user-dirs.dirs
 !/.emacs.d/
 !/.emacs.d/**
 !/.local/

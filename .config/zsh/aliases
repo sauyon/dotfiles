@@ -75,9 +75,11 @@ fi
 
 if non_gui; then
 	alias edit='emacsclient -t'
+	alias sedit='sudo emacs -nw'
 	#sedit() { emacsclient -e $(for f in "$@"; do echo "(sudo-find-file ${f:A})"; done) }
 else
-	alias edit='emacsclient -n'
+	edit() { emacsclient -n "$@" || emacsclient -t "$@" }
+	alias sedit='sudo emacs -nw'
 	#sedit() { emacsclient -ne $(for f in "$@"; do echo "(sudo-find-file ${f:A})"; done) }
 fi
 

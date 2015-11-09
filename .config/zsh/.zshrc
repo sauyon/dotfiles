@@ -17,7 +17,7 @@ fi
 ZSH=/usr/share/oh-my-zsh
 
 DISABLE_AUTO_UPDATE="true"
-ZSH_CACHE_DIR="$HOME/.cache/zsh"
+ZSH_CACHE_DIR="$XDG_CACHE_HOME/zsh"
 
 plugins=(archlinux git github go sudo)
 

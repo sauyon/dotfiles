@@ -145,6 +145,7 @@ for_window [class="Crossover"] floating enable
 for_window [class="Desmume"] floating enable
 for_window [class="feh"] floating enable
 for_window [class="Gvbam"] floating enable
+#for_window [instance="osu!.exe"] fullscreen
 for_window [class="Pidgin"] floating enable
 for_window [class="Steam"] floating enable
 for_window [class="Synapse"] border none
@@ -163,3 +164,4 @@ exec --no-startup-id nm-applet
 exec --no-startup-id emacsclient -c
 exec --no-startup-id xflux -z 94303
 exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+exec --no-startup-id compton

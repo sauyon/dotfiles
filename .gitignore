@@ -14,6 +14,7 @@
 !/.config/i3/config
 !/.config/terminator/
 !/.config/terminator/config
+!/.config/Trolltech.conf
 !/.config/X11/
 !/.config/X11/resources
 !/.config/zsh/

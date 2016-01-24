@@ -12,6 +12,8 @@
 !/.config/git/ignore
 !/.config/i3/
 !/.config/i3/config
+!/.config/pulse/
+!/.config/pulse/client.conf
 !/.config/terminator/
 !/.config/terminator/config
 !/.config/Trolltech.conf

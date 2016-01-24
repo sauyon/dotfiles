@@ -14,6 +14,8 @@
 !/.config/i3/config
 !/.config/pulse/
 !/.config/pulse/client.conf
+!/.config/synapse/
+!/.config/synapse/config.json
 !/.config/terminator/
 !/.config/terminator/config
 !/.config/Trolltech.conf

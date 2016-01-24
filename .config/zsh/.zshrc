@@ -26,7 +26,7 @@ include $ZSH/oh-my-zsh.sh
 # User configuration -----------------------------------------------------------------------
 
 # PATH is path. DAMMIT OHMYZSH AGAIN GR
-PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin:.
+PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
 [[ $platform == 'osx' ]] && PATH=/usr/local/bin:$PATH
 export PATH
 
@@ -48,3 +48,6 @@ non_gui && export EDITOR='emacsclient -t'
 
 # The greeting. Yeah, yeah, I'm unimaginative. :'(
 echo "Hello, $(hostname)"'!'
+
+# fuck
+eval $(thefuck --alias)

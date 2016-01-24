@@ -28,7 +28,7 @@ alias la='ls -A'
 alias l='ls -FB'
 
 # rsync is better.
-alias cp='rsync -a'
+alias cp='rsync -aP'
 
 # USACO aliases
 genrun() {
@@ -88,3 +88,5 @@ opendir() { terminator --working-directory="$1" }
 mvosz() {mv "$@" /opt/osu/Songs}
 
 alias -s exe="wine"
+
+alias i3cheatsheet='egrep ^bind ~/.config/i3/config | cut -d '\'' '\'' -f 2- | sed '\''s/ /\t/'\'' | column -ts $'\''\t'\'' | pr -2 -w 145 -t | less'

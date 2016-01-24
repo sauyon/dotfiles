@@ -1,35 +1,51 @@
 [global_config]
-  enabled_plugins = CustomCommandsMenu, LaunchpadCodeURLHandler, Logger, LaunchpadBugURLHandler
-  title_transmit_bg_color = "#000000"
+  broadcast_default = off
+  custom_url_handler = chromium
   dbus = True
+  enabled_plugins = CustomCommandsMenu, Logger
+  focus = mouse
   title_inactive_bg_color = "#000000"
+  title_transmit_bg_color = "#000000"
+  use_custom_url_handler = True
 [keybindings]
   hide_window = <Shift><Control>a
-[profiles]
-  [[default]]
-    scrollbar_position = hidden
-    palette = "#073642:#dc322f:#859900:#b58900:#268bd2:#d33682:#2aa198:#eee8d5:#002b36:#cb4b16:#586e75:#657b83:#839496:#6c71c4:#93a1a1:#fdf6e3"
-    background_darkness = 0.83
-    urgent_bell = True
-    background_image = None
-    cursor_color = "#d8d8d8"
-    foreground_color = "#839496"
-    scroll_on_output = False
-    show_titlebar = False
-    custom_command = /usr/bin/tmux
-    color_scheme = custom
-    font = Droid Sans Mono 10
-    background_color = "#002b36"
-    scrollback_lines = 5000
-    scrollback_infinite = True
-    audible_bell = True
 [layouts]
   [[default]]
     [[[child1]]]
-      type = Terminal
       parent = window0
       profile = default
+      type = Terminal
     [[[window0]]]
-      type = Window
       parent = ""
+      type = Window
 [plugins]
+[profiles]
+  [[default]]
+    audible_bell = True
+    background_color = "#002b36"
+    background_darkness = 0.83
+    background_image = None
+    color_scheme = custom
+    cursor_color = "#d8d8d8"
+    custom_command = /usr/bin/tmux
+    font = Droid Sans Mono Dotted for Powerline 11
+    foreground_color = "#839496"
+    palette = "#073642:#dc322f:#859900:#b58900:#268bd2:#d33682:#2aa198:#eee8d5:#002b36:#cb4b16:#586e75:#657b83:#839496:#6c71c4:#93a1a1:#fdf6e3"
+    scroll_on_output = False
+    scrollback_infinite = True
+    scrollback_lines = 5000
+    scrollbar_position = hidden
+    show_titlebar = False
+    urgent_bell = True
+    use_system_font = False
+  [[dropdown]]
+    background_color = "#002b36"
+    background_darkness = 1.08
+    background_image = None
+    cursor_color = "#d8d8d8"
+    font = Droid Sans Mono Dotted for Powerline 11
+    foreground_color = "#839496"
+    palette = "#073642:#dc322f:#859900:#b58900:#268bd2:#d33682:#2aa198:#eee8d5:#002b36:#cb4b16:#586e75:#657b83:#839496:#6c71c4:#93a1a1:#fdf6e3"
+    scrollbar_position = hidden
+    show_titlebar = False
+    use_system_font = False

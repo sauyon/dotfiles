@@ -1,0 +1,1 @@
+(define-package "auto-complete-sage" "20151201.1057" "An auto-complete source for sage-shell-mode." '((auto-complete "1.5.0") (sage-shell-mode "0.0.8")) :url "https://github.com/stakemori/auto-complete-sage" :keywords '("sage" "math" "auto-complete"))

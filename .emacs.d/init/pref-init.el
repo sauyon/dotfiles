@@ -19,6 +19,8 @@
 ;; Nobody needs this
 (global-unset-key "\C-z")
 
+(global-auto-complete-mode t)
+
 ;; Packages!
 (setq package-archives
 			'(("gnu" . "http://elpa.gnu.org/packages/")

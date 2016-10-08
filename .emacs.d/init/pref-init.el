@@ -19,13 +19,12 @@
 ;; Nobody needs this
 (global-unset-key "\C-z")
 
-(global-auto-complete-mode t)
+;; (global-auto-complete-mode t)
 
 ;; Packages!
-(setq package-archives
-			'(("gnu" . "http://elpa.gnu.org/packages/")
-				("marmalade" . "http://marmalade-repo.org/packages/")
-				("melpa" . "http://melpa.milkbox.net/packages/")))
+(add-to-list 'package-archives '("marmalade" . "http://marmalade-repo.org/packages/"))
+(add-to-list 'package-archives '("melpa" . "http://melpa.milkbox.net/packages/"))
+(package-initialize)
 
 (defun my-bell-function ()
   (unless (memq this-command

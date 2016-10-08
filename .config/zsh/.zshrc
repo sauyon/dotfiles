@@ -28,6 +28,8 @@ include $ZSH/oh-my-zsh.sh
 # PATH is path. DAMMIT OHMYZSH AGAIN GR
 PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
 [[ $platform == 'osx' ]] && PATH=/usr/local/bin:$PATH
+PATH=$PATH:$HOME/.local/bin
+PATH=$PATH:.
 export PATH
 
 # Smart command-not-found with pkgfile

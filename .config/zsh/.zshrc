@@ -15,6 +15,9 @@ fi
 
 # Oh My Zsh config -------------------------------------------------------------------------
 ZSH=/usr/share/oh-my-zsh
+if [[ ! -d $ZSH ]]; then
+	ZSH=~/.oh-my-zsh
+fi
 
 DISABLE_AUTO_UPDATE="true"
 ZSH_CACHE_DIR="$XDG_CACHE_HOME/zsh"

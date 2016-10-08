@@ -57,8 +57,6 @@ alias ......='cd ../../../../..'
 
 alias cowfortune='fortune | cowsay'
 
-alias suspend='i3lock; systemctl suspend'
-
 gnight() {
 	cowsay "GNIGHT's Not IGHT"
 	i3lock
@@ -66,11 +64,14 @@ gnight() {
 }
 
 alias uctl='systemctl --user'
+alias jctl='journalctl -flu'
 
 if [ $UID -ne 0 ]; then
-		alias update='aura -Syu; aura -Akua'
-		alias aura='EDITOR=/usr/bin/emacs sudo -E aura'
-		alias sctl='sudo systemctl'
+	alias update='aura -Syu; aura -Akua'
+	alias aura='EDITOR=/usr/bin/emacs sudo -E aura'
+	alias sctl='sudo systemctl'
+else
+	alias sctl='systemctl'
 fi
 
 if non_gui; then
@@ -78,7 +79,7 @@ if non_gui; then
 	alias sedit='sudo emacs -nw'
 	#sedit() { emacsclient -e $(for f in "$@"; do echo "(sudo-find-file ${f:A})"; done) }
 else
-	edit() { emacsclient -n "$@" || emacsclient -t "$@" }
+	edit() { (emacsclient -n "$@" && i3-msg workspace 2) || emacsclient -t "$@" }
 	alias sedit='sudo emacs -nw'
 	#sedit() { emacsclient -ne $(for f in "$@"; do echo "(sudo-find-file ${f:A})"; done) }
 fi

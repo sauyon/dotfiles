@@ -16,10 +16,11 @@ if [ -x /usr/bin/dircolors ]; then
 	alias fgrep='fgrep --color=auto'
 	alias egrep='egrep --color=auto'
 
-	DIFFBIN=$(which diff)
-	diff() {
-		"$DIFFBIN" -utr $@ | sed -rf "$HOME/.local/bin/colordiff.sed"
-	}
+#	DIFFBIN=$(which diff)
+#	diff() {
+#		"$DIFFBIN" -utr $@ | sed -rf "$HOME/.local/bin/colordiff.sed"
+	#	}
+	alias diff='diff -utr'
 fi
 
 # some more ls aliases

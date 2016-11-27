@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+# no more rprompt space!
+export ZLE_RPROMPT_INDENT=-1
+
 # make go work :D
 export GOPATH=$HOME/go
 

@@ -85,6 +85,8 @@ else
 	#sedit() { emacsclient -ne $(for f in "$@"; do echo "(sudo-find-file ${f:A})"; done) }
 fi
 
+clip() { scrot -s -e 'xclip $f' '~/images/screens/%Y-%m-%d_$wx$h.png'}
+
 opendir() { terminator --working-directory="$1" }
 
 mvosz() {mv "$@" /opt/osu/Songs}

@@ -9,7 +9,7 @@
 #
 # Please see http://i3wm.org/docs/userguide.html for a complete reference!
 
-set $mod Mod1
+set $mod Control
 
 # Font for window titles. Will also be used by the bar unless a different font
 # is used in the bar {} block below. ISO 10646 = Unicode
@@ -36,117 +36,131 @@ client.background       #ffffff
 
 new_window normal 1
 
+bindsym Control+i mode "cmd"
+
 # Use Mouse+$mod to drag floating windows to their wanted position
-floating_modifier $mod
+floating_modifier Mod1
 
-# start a terminal
-bindsym $mod+Return exec sakura
+mode "cmd" {
+  bindsym $mod+i mode "default"
+  bindsym $mod+g mode "default"
 
-# kill focused window
-bindsym $mod+Shift+q kill
+	# start a terminal
+	bindsym Return exec i3-sensible-terminal; mode "default"
 
-# start dmenu (a program launcher)
-bindcode 133 exec --no-startup-id synapse
-# There also is the (new) i3-dmenu-desktop which only displays applications
-# shipping a .desktop file. It is a wrapper around dmenu, so you need that
-# installed.
-# bindsym $mod+d exec --no-startup-id i3-dmenu-desktop
+	# kill focused window
+	bindsym $mod+k kill; mode "default"
 
-# change focus
-bindsym $mod+b focus left
-bindsym $mod+n focus down
-bindsym $mod+p focus up
-bindsym $mod+f focus right
+	# change focus
+	bindsym b focus left; mode "default"
+	bindsym n focus down; mode "default"
+	bindsym p focus up; mode "default"
+	bindsym f focus right; mode "default"
 
-# move focused window
-bindsym $mod+Shift+b move left
-bindsym $mod+Shift+n move down
-bindsym $mod+Shift+p move up
-bindsym $mod+Shift+f move right
+	# move focused window
+	bindsym $mod+b move left; mode "default"
+	bindsym $mod+n move down; mode "default"
+	bindsym $mod+p move up; mode "default"
+	bindsym $mod+f move right; mode "default"
 
-# move output
-bindsym $mod+comma move workspace to output left
-bindsym $mod+period move workspace to output right
+  # start dmenu (a program launcher)
+	# bindcode 133 exec --no-startup-id synapse
+	# There also is the (new) i3-dmenu-desktop which only displays applications
+	# shipping a .desktop file. It is a wrapper around dmenu, so you need that
+	# installed.
+	bindsym x exec --no-startup-id i3-dmenu-desktop; mode "default"
 
-# split in horizontal orientation
-bindsym $mod+Control+h split h
+	# move output
+	bindsym $mod+comma move workspace to output left
+	bindsym $mod+period move workspace to output right
 
-# split in vertical orientation
-bindsym $mod+Control+v split v
+	# split in horizontal orientation
+	bindsym $mod+Control+h split h
 
-# enter fullscreen mode for the focused container
-bindsym $mod+t fullscreen
+	# split in vertical orientation
+	bindsym $mod+Control+v split v
+
+	# enter fullscreen mode for the focused container
+	bindsym $mod+t fullscreen
+
+	# Make the currently focused window a scratchpad
+	# bindsym $mod+Shift+minus exec --no-startup-id terminator -b -c "dropdown" -p "dropdown", [con_mark="term"] scratchpad show
+	bindsym $mod+Shift+minus mark "scratch", move scratchpad
+
+	# Show the first scratchpad window
+	bindsym $mod+minus [con_mark="scratch"] scratchpad show
+
+	# Dropdown term
+	bindsym $mod+plus [con_mark="term"] scratchpad show
+
+	# change container layout (stacked, tabbed, toggle split)
+	bindsym $mod+s layout stacked
+	bindsym $mod+e layout toggle split
+
+	# toggle tiling / floating
+	bindsym $mod+Shift+space floating toggle
+
+	# change focus between tiling / floating windows
+	bindsym $mod+space focus mode_toggle
+
+	# focus the parent container
+	bindsym $mod+a focus parent
+
+	# focus the child container
+	bindsym $mod+d focus child
+
+	# switch to workspace
+	bindsym 1 workspace 1; mode "default"
+	bindsym 2 workspace 2; mode "default"
+	bindsym 3 workspace 3; mode "default"
+	bindsym 4 workspace 4; mode "default"
+	bindsym 5 workspace 5; mode "default"
+	bindsym 6 workspace 6; mode "default"
+	bindsym 7 workspace 7; mode "default"
+	bindsym 8 workspace 8; mode "default"
+	bindsym 9 workspace 9; mode "default"
+	bindsym 0 workspace 10; mode "default"
+
+	# move focused container to workspace
+	bindsym Shift+1 move container to workspace 1; mode "default"
+	bindsym Shift+2 move container to workspace 2; mode "default"
+	bindsym Shift+3 move container to workspace 3; mode "default"
+	bindsym Shift+4 move container to workspace 4; mode "default"
+	bindsym Shift+5 move container to workspace 5; mode "default"
+	bindsym Shift+6 move container to workspace 6; mode "default"
+	bindsym Shift+7 move container to workspace 7; mode "default"
+	bindsym Shift+8 move container to workspace 8; mode "default"
+	bindsym Shift+9 move container to workspace 9; mode "default"
+	bindsym Shift+0 move container to workspace 10; mode "default"
+
+	# reload the configuration file
+	Bindsym $mod+Shift+c reload
+	# restart i3 inplace (preserves your layout/session, can be used to upgrade i3)
+	bindsym $mod+r restart
+	# exit i3 (logs you out of your X session)
+	bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'You pressed the exit shortcut. Do you really want to exit i3? This will end your X session.' -b 'Yes, exit i3' 'i3-msg exit'"
+
+	bindsym Print exec shutter -f
+	bindsym $mod+Print exec shutter -s
+	bindsym Shift+Print exec scrot '%s.png' -e 'simg -r $f'
+	bindsym $mod+Shift+Print exec scrot '%s.png' -e 'simg -r $f' -s
+
+  # Sreen brightness controls
+  bindsym Up exec "xbacklight -inc 10"
+  bindsym Down exec "xbacklight -dec 10"
+
+}
 
 # Make the currently focused window a scratchpad
 # bindsym $mod+Shift+minus exec --no-startup-id terminator -b -c "dropdown" -p "dropdown", [con_mark="term"] scratchpad show
 bindsym $mod+Shift+minus mark "scratch", move scratchpad
 
 # Show the first scratchpad window
-bindsym $mod+minus [con_mark="scratch"] scratchpad show
-
-# Dropdown term
-bindsym $mod+plus [con_mark="term"] scratchpad show
-
-# change container layout (stacked, tabbed, toggle split)
-bindsym $mod+s layout stacked
-bindsym $mod+e layout toggle split
-
-# toggle tiling / floating
-bindsym $mod+Shift+space floating toggle
-
-# change focus between tiling / floating windows
-bindsym $mod+space focus mode_toggle
-
-# focus the parent container
-bindsym $mod+a focus parent
-
-# focus the child container
-bindsym $mod+d focus child
-
-# switch to workspace
-bindsym $mod+1 workspace 1
-bindsym $mod+2 workspace 2
-bindsym $mod+3 workspace 3
-bindsym $mod+4 workspace 4
-bindsym $mod+5 workspace 5
-bindsym $mod+6 workspace 6
-bindsym $mod+7 workspace 7
-bindsym $mod+8 workspace 8
-bindsym $mod+9 workspace 9
-bindsym $mod+0 workspace 10
-
-# move focused container to workspace
-bindsym $mod+Shift+1 move container to workspace 1
-bindsym $mod+Shift+2 move container to workspace 2
-bindsym $mod+Shift+3 move container to workspace 3
-bindsym $mod+Shift+4 move container to workspace 4
-bindsym $mod+Shift+5 move container to workspace 5
-bindsym $mod+Shift+6 move container to workspace 6
-bindsym $mod+Shift+7 move container to workspace 7
-bindsym $mod+Shift+8 move container to workspace 8
-bindsym $mod+Shift+9 move container to workspace 9
-bindsym $mod+Shift+0 move container to workspace 10
-
-# reload the configuration file
-bindsym $mod+Shift+c reload
-# restart i3 inplace (preserves your layout/session, can be used to upgrade i3)
-bindsym $mod+Shift+r restart
-# exit i3 (logs you out of your X session)
-bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'You pressed the exit shortcut. Do you really want to exit i3? This will end your X session.' -b 'Yes, exit i3' 'i3-msg exit'"
-
-bindsym XF86AudioRaiseVolume exec "amixer -q set Master 2dB+ unmute; killall -USR1 i3status"
-bindsym Home exec "amixer -q set Master 2dB+ unmute; killall -USR1 i3status"
-bindsym XF86AudioLowerVolume exec "amixer -q set Master 2dB- unmute; killall -USR1 i3status"
-bindsym End exec "amixer -q set Master 2dB- unmute; killall -USR1 i3status"
-bindsym XF86AudioMute exec "amixer sset Master toggle; killall -USR1 i3status"
-bindsym Scroll_Lock exec "amixer sset Master toggle; killall -USR1 i3status"
-
+bindsym Mod1+minus [con_mark="scratch"] scratchpad show
 
 # Sreen brightness controls
 bindsym XF86MonBrightnessUp exec "xbacklight -inc 10"
-bindsym $mod+Up exec "xbacklight -inc 10"
 bindsym XF86MonBrightnessDown exec "xbacklight -dec 10"
-bindsym $mod+Down exec "xbacklight -dec 10"
 
 # Touchpad controls
 bindsym XF86TouchpadToggle exec "$HOME/.local/bin/toggletouchpad.sh" # toggle touchpad
@@ -162,15 +176,17 @@ bindsym $mod+F10 exec "quodlibet --play-pause"
 bindsym $mod+F11 exec "quodlibet --stop"
 bindsym $mod+F12 exec "quodlibet --next"
 
-bindsym Print exec scrot '%Y-%m-%d-%T_$wx$h.png' -e 'mv $f ~/images/screens'
-bindsym $mod+Print exec scrot '%Y-%m-%d-%T_$wx$h.png' -e 'mv $f ~/images/screens' -s
-bindsym Shift+Print exec scrot '%s.png' -e 'simg -r $f'
-bindsym $mod+Shift+Print exec scrot '%s.png' -e 'simg -r $f' -s
+bindsym XF86AudioRaiseVolume exec "amixer -c 1 -q set Master 2dB+ unmute; killall -USR1 i3status"
+#bindsym Home exec "amixer -q set Master 2dB+ unmute; killall -USR1 i3status"
+bindsym XF86AudioLowerVolume exec "amixer -c 1 -q set Master 2dB- unmute; killall -USR1 i3status"
+#bindsym End exec "amixer -q set Master 2dB- unmute; killall -USR1 i3status"
+bindsym XF86AudioMute exec "amixer -c 1 sset Master toggle; killall -USR1 i3status"
+#bindsym Scroll_Lock exec "amixer sset Master toggle; killall -USR1 i3status"
 
 # Start i3bar to display a workspace bar (plus the system information i3status
 # finds out, if available)
 bar {
-	status_command i3status
+  status_command i3status
 }
 
 assign [class="Emacs"] 2
@@ -190,12 +206,11 @@ for_window [class="XMathematica"] floating enable
 for_window [instance="XMathematica"] floating enable
 for_window [class="KanColleTool"] floating enable
 for_window [class="Qjackctl"] floating enable
-for_window [class="chromium"] border none
 
+for_window [instance="chromium"] border none
 for_window [instance="crx_nckgahadagoaajjgafhacjanaoiihapd"] floating enable
 for_window [instance="crx_fahmaaghhglfmonjliepjlchgpgfmobi"] floating enable
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
-for_window [instance="terminator"] floating enable
 #for_window [instance="osu!.exe"] fullscreen
 
 exec --no-startup-id feh --bg-center /home/sauyon/images/wallpapers/$(hostname).jpg
@@ -204,4 +219,3 @@ exec --no-startup-id emacsclient -c
 exec --no-startup-id xflux -z 94303
 exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec --no-startup-id compton
-exec --no-startup-id terminator -c "dropdown" -p "dropdown"

@@ -36,6 +36,8 @@
 !/.local/
 !/.local/bin/
 !/.local/bin/colordiff.sed
+!/.local/share/
+!/.local/share/zsh
 
 # Stuff I always want to ignore
 .DS_Store

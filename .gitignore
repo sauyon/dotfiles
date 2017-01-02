@@ -32,7 +32,9 @@
 !/.config/zsh/prompt
 !/.config/user-dirs.dirs
 !/.emacs.d/
-!/.emacs.d/**
+!/.emacs.d/init.el
+!/.emacs.d/lisp/
+!/.emacs.d/lisp/*.el
 !/.local/
 !/.local/bin/
 !/.local/bin/colordiff.sed

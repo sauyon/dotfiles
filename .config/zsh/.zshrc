@@ -55,4 +55,6 @@ non_gui && export EDITOR='emacsclient -t'
 echo "Hello, $(hostname)"'!'
 
 # fuck
-eval $(thefuck --alias)
+if hash thefuck 2>/dev/null; then
+	eval $(thefuck --alias)
+fi

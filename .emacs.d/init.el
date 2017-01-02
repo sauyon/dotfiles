@@ -6,8 +6,7 @@
 (load "mode-init")
 (load "keybind-init")
 (load "pref-init")
-
-(package-initialize)
+(load "package-init")
 
 (load-theme 'solarized-dark t)
 

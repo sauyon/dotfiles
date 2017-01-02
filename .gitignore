@@ -32,6 +32,7 @@
 !/.config/zsh/prompt
 !/.config/user-dirs.dirs
 !/.emacs.d/
+!/.emacs.d/.achievements
 !/.emacs.d/init.el
 !/.emacs.d/lisp/
 !/.emacs.d/lisp/*.el

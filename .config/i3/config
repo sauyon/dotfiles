@@ -71,14 +71,14 @@ mode "cmd" {
 	bindsym x exec --no-startup-id i3-dmenu-desktop; mode "default"
 
 	# move output
-	bindsym $mod+comma move workspace to output left
-	bindsym $mod+period move workspace to output right
+	bindsym comma move workspace to output left; mode "default"
+	bindsym period move workspace to output right; mode "default"
 
 	# split in horizontal orientation
-	bindsym $mod+Control+h split h
+	bindsym $mod+h split h; mode "default"
 
 	# split in vertical orientation
-	bindsym $mod+Control+v split v
+	bindsym $mod+v split v; mode "default"
 
 	# enter fullscreen mode for the focused container
 	bindsym $mod+t fullscreen
@@ -216,6 +216,5 @@ for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 8
 exec --no-startup-id feh --bg-center /home/sauyon/images/wallpapers/$(hostname).jpg
 exec --no-startup-id nm-applet
 exec --no-startup-id emacsclient -c
-exec --no-startup-id xflux -z 94303
 exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec --no-startup-id compton

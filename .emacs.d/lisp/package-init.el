@@ -12,11 +12,30 @@ Return a list of installed packages or nil for every skipped package."
          package)))
    packages))
 
+;; Packages!
+;; (add-to-list 'package-archives '("marmalade" . "http://marmalade-repo.org/packages/"))
+(add-to-list 'package-archives '("melpa" . "http://melpa.milkbox.net/packages/"))
+
 ;; make sure to have downloaded archive description.
 ;; Or use package-archive-contents as suggested by Nicolas Dudebout
 (unless (file-exists-p package-user-dir)
 	(package-refresh-contents))
 
-(ensure-package-installed 'go-mode 'color-theme) ;  --> (nil nil) if iedit and magit are already installed
+(ensure-package-installed
+ 'achievements
+ 'android-mode
+ 'color-theme
+ 'edit-server
+ 'go-mode
+ 'json-mode
+ 'markdown-mode
+ 'pandoc-mode
+ 'pdf-tools
+ 'pkgbuild-mode
+ 'scala-mode2
+ 'scss-mode
+ 'smart-tabs-mode
+ 'solarized-theme
+ 'web-mode)
 
 (package-initialize)

@@ -43,7 +43,7 @@ include $XDG_CONFIG_HOME/zsh/aliases
 include $XDG_CONFIG_HOME/zsh/prompt
 
 # Yay for syntax highlighting
-include /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+include /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # Emacs ftw!
 non_gui && export EDITOR='emacsclient -t'

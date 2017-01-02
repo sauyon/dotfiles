@@ -1,3 +1,5 @@
+(package-initialize)
+
 (defun ensure-package-installed (&rest packages)
   "Assure every package is installed, ask for installation if it’s not.
 
@@ -12,7 +14,7 @@ Return a list of installed packages or nil for every skipped package."
          package)))
    packages))
 
-;; Packages!
+;; Other packages!
 (add-to-list 'package-archives '("marmalade" . "http://marmalade-repo.org/packages/"))
 (add-to-list 'package-archives '("melpa" . "http://melpa.milkbox.net/packages/"))
 
@@ -37,5 +39,3 @@ Return a list of installed packages or nil for every skipped package."
  'smart-tabs-mode
  'solarized-theme
  'web-mode)
-
-(package-initialize)

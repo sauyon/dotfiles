@@ -13,7 +13,7 @@ Return a list of installed packages or nil for every skipped package."
    packages))
 
 ;; Packages!
-;; (add-to-list 'package-archives '("marmalade" . "http://marmalade-repo.org/packages/"))
+(add-to-list 'package-archives '("marmalade" . "http://marmalade-repo.org/packages/"))
 (add-to-list 'package-archives '("melpa" . "http://melpa.milkbox.net/packages/"))
 
 ;; make sure to have downloaded archive description.

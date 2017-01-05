@@ -4,11 +4,6 @@
 
 (require 'achievements)
 
-;; eww -------------------------------------------------------------------------
-
-(add-hook 'eww-mode-hook
-					(lambda () (setq show-trailing-whitespace nil)))
-
 ;; Haskell mode ----------------------------------------------------------------
 
 (add-hook 'haskell-mode-hook
@@ -118,11 +113,27 @@
 (add-to-list 'auto-mode-alist '("\\.html?\\'" . web-mode))
 (add-to-list 'auto-mode-alist '("\\.handlebars\\'" . web-mode))
 
-;; CC mode ------------------------------------------------------------
+;; C mode ------------------------------------------------------------
 
-(setq c-default-style "linux")
+(require 'google-c-style)
+(setq c-default-style "user")
+(add-hook 'c-mode-common-hook 'google-set-c-style)
+(add-hook 'c-mode-common-hook
+					(lambda ()
+						(push '(">=" . ?≥) prettify-symbols-alist)
+						(push '("<=" . ?≤) prettify-symbols-alist)
+						(push '("!=" . ?≠) prettify-symbols-alist)))
 
 ;; C++ mode -----------------------------------------------------------
 
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
 (add-to-list 'auto-mode-alist '("\\.cpp\\'" . c++-mode))
+
+;; Modes where trailing whitespace being red is annoying --------------
+
+(add-hook 'eww-mode-hook
+					(lambda () (setq show-trailing-whitespace nil)))
+(add-hook 'compilation-mode-hook
+					(lambda () (setq show-trailing-whitespace nil)))
+(add-hook 'diff-mode-hook
+					(lambda () (setq show-trailing-whitespace nil)))

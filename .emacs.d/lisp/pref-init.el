@@ -3,6 +3,7 @@
 ;; EDE - never use this, maybe I should get rid of it...
 (global-ede-mode t)
 ;; (global-auto-complete-mode t)
+(global-prettify-symbols-mode t)
 
 (setq-default
 ;; #2spacetabmasterrace
@@ -28,6 +29,12 @@
 (global-unset-key "\C-z")
 ;; This doesn't need to be in a separate file :thinking:
 (global-set-key (kbd "<f8>") 'recompile)
+;; Why isn't this default? (??????)
+(global-set-key (kbd "M-p") 'backward-paragraph)
+(global-set-key (kbd "M-n") 'forward-paragraph)
+;; This makes sense in c-like languages (everything I write)
+(global-set-key (kbd "M-{") 'beginning-of-defun)
+(global-set-key (kbd "M-}") 'end-of-defun)
 
 ;; Don't fucking ring bells on things I do all the time
 (defun my-bell-function ()

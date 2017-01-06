@@ -51,9 +51,6 @@ non_gui && export EDITOR='emacsclient -t'
 # Ok, fine, sometimes emacs is stupid. But at least it knows it.
 [[ $TERM == "dumb" ]] && unsetopt zle && PS1='$ '
 
-# Goodbye rprompt space thingy
-ZLE_RPROMPT_INDENT=0
-
 # fuck
 if (( $+commands[thefuck] )); then
 	eval $(thefuck --alias)

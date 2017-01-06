@@ -173,7 +173,10 @@ build_rprompt() {
 	CURRENT_BG='NONE'
 }
 
-PROMPT='%{%f%b%k%}$(build_prompt) '
+# Apparently, the %{ %} at the end makes RPROMPT stick to the end of the
+# terminal like ZLE_RPROMPT_INDENT *should* but doesn't.
+# I have 0 clue why this works.
+PROMPT='%{%f%b%k%}$(build_prompt) %{ %}'
 RPROMPT='%{%f%b%k%}$(build_rprompt)'
 
 TRAPINT() {

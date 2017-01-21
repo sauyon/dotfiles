@@ -40,9 +40,11 @@ build_prompt() {
 	### Prompt components
 	# Each component will draw itself, and hide itself if no information needs to be shown
 
-	# Context: user@hostname (who am I and where am I)
+	# Context: where am I?
 	prompt_context() {
-		prompt_segment black default "%(!.%{%F{yellow}%}.)%n@%m"
+		if [ -n "$SSH_CLIENT" ]; then
+			prompt_segment blue black "%m"
+		fi
 	}
 
 	# Git: branch/detached head, dirty status
@@ -138,6 +140,7 @@ build_prompt() {
 	}
 
 	## Main prompt
+	prompt_context
 	prompt_status
 	prompt_virtualenv
 	prompt_segment white black '%c'
@@ -158,7 +161,7 @@ build_rprompt() {
 
 	[[ $RETVAL -ne 0 ]] && [[ ! -n $sigint ]] && rprompt_segment red white "%?"
 
-	rprompt_segment black default "%(!.%{%F{yellow}%}.)%n@%m"
+	rprompt_segment black default "%(!.%{%F{yellow}%}.)%n"
 	rprompt_segment blue black "%~"
 
 	if [[ -n $CURRENT_BG ]]; then
@@ -170,7 +173,10 @@ build_rprompt() {
 	CURRENT_BG='NONE'
 }
 
-PROMPT='%{%f%b%k%}$(build_prompt) '
+# Apparently, the %{ %} at the end makes RPROMPT stick to the end of the
+# terminal like ZLE_RPROMPT_INDENT *should* but doesn't.
+# I have 0 clue why this works.
+PROMPT='%{%f%b%k%}$(build_prompt) %{ %}'
 RPROMPT='%{%f%b%k%}$(build_rprompt)'
 
 TRAPINT() {

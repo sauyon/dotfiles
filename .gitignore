@@ -34,10 +34,15 @@
 !/.config/zsh/prompt
 !/.config/user-dirs.dirs
 !/.emacs.d/
-!/.emacs.d/**
+!/.emacs.d/.achievements
+!/.emacs.d/init.el
+!/.emacs.d/lisp/
+!/.emacs.d/lisp/*.el
 !/.local/
 !/.local/bin/
 !/.local/bin/colordiff.sed
+!/.local/share/
+!/.local/share/zsh
 
 # Stuff I always want to ignore
 .DS_Store

@@ -46,7 +46,7 @@ include $XDG_CONFIG_HOME/zsh/aliases
 include $XDG_CONFIG_HOME/zsh/prompt
 
 # Yay for syntax highlighting
-include /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+include /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 # Emacs ftw!
 non_gui && export EDITOR='emacsclient -t'
@@ -54,8 +54,10 @@ non_gui && export EDITOR='emacsclient -t'
 # Ok, fine, sometimes emacs is stupid. But at least it knows it.
 [[ $TERM == "dumb" ]] && unsetopt zle && PS1='$ '
 
+# fuck
+if (( $+commands[thefuck] )); then
+	eval $(thefuck --alias)
+fi
+
 # The greeting. Yeah, yeah, I'm unimaginative. :'(
 echo "Hello, $(hostname)"'!'
-
-# fuck
-eval $(thefuck --alias)

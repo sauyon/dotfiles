@@ -35,6 +35,9 @@ PATH=$PATH:$HOME/.local/bin
 PATH=$PATH:.
 export PATH
 
+# I should really check for hidpi before doing this...
+export QT_AUTO_SCREEN_SCALE_FACTOR=1
+
 # Smart command-not-found with pkgfile
 include /usr/share/doc/pkgfile/command-not-found.zsh
 

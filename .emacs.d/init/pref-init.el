@@ -3,7 +3,7 @@
 ;; EDE - never use this, maybe I should get rid of it...
 (global-ede-mode t)
 
-(set-face-attribute 'default t :font "Droid Sans Mono-10")
+;; (set-face-attribute 'default t :font "Droid Sans Mono-10")
 (add-to-list 'default-frame-alist '(font . "Droid Sans Mono-10" ))
 
 ;; #2spacetabmasterrace

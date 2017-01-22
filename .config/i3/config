@@ -176,12 +176,6 @@ bindsym XF86MonBrightnessDown exec "xbacklight -dec 10"
 # Touchpad controls
 bindsym XF86TouchpadToggle exec "$HOME/.local/bin/toggletouchpad.sh" # toggle touchpad
 
-# Media player controls
-bindsym XF86AudioPlay exec "quodlibet --play-pause"
-bindsym XF86AudioPause exec "quodlibet --stop"
-bindsym XF86AudioNext exec "quodlibet --next"
-bindsym XF86AudioPrev exec "quodlibet --previous"
-
 bindsym $mod+F9 exec "quodlibet --previous"
 bindsym $mod+F10 exec "quodlibet --play-pause"
 bindsym $mod+F11 exec "quodlibet --stop"

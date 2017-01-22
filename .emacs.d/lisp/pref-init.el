@@ -1,4 +1,6 @@
-(require 'package)
+;; Other packages!
+(add-to-list 'package-archives '("marmalade" . "http://marmalade-repo.org/packages/"))
+(add-to-list 'package-archives '("melpa" . "http://melpa.milkbox.net/packages/"))
 
 ;; EDE - never use this, maybe I should get rid of it...
 (global-ede-mode t)

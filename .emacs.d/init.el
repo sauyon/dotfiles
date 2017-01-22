@@ -1,14 +1,10 @@
-; fucking package.el
-;(package-initialize)
+(package-initialize)
 (add-to-list 'load-path "~/.emacs.d/lisp/")
 
 ;; Initializations ---------------------------------------------
 
-(load "package-init")
 (load "mode-init")
 (load "pref-init")
-
-(load-theme 'solarized-dark t)
 
 (setq inhibit-startup-screen t)
 (custom-set-variables
@@ -31,6 +27,9 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  )
+
+(load-theme 'solarized-dark t)
+
 (put 'narrow-to-region 'disabled nil)
 (put 'set-goal-column 'disabled nil)
 (put 'upcase-region 'disabled nil)

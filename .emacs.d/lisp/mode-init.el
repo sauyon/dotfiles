@@ -115,7 +115,7 @@
 
 ;; C mode ------------------------------------------------------------
 
-(require 'google-c-style)
+(autoload 'google-c-style "google-c-style" "Google C style." t)
 (setq c-default-style "user")
 (add-hook 'c-mode-common-hook 'google-set-c-style)
 (add-hook 'c-mode-common-hook

@@ -109,7 +109,7 @@ mode "cmd" {
 	bindsym $mod+e layout toggle split
 
 	# toggle tiling / floating
-	bindsym $mod+Shift+space floating toggle
+	bindsym $mod+space floating toggle
 
 	# change focus between tiling / floating windows
 	bindsym $mod+space focus mode_toggle
@@ -202,7 +202,6 @@ for_window [class="Crossover"] floating enable
 for_window [class="Desmume"] floating enable
 for_window [class="feh"] floating enable
 for_window [class="Gvbam"] floating enable
-#for_window [instance="osu!.exe"] fullscreen
 for_window [class="Pidgin"] floating enable
 for_window [class="Steam"] floating enable
 for_window [class="Synapse"] border none
@@ -216,7 +215,6 @@ for_window [instance="chromium"] border none
 for_window [instance="crx_nckgahadagoaajjgafhacjanaoiihapd"] floating enable
 for_window [instance="crx_fahmaaghhglfmonjliepjlchgpgfmobi"] floating enable
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
-#for_window [instance="osu!.exe"] fullscreen
 
 exec --no-startup-id feh --bg-center /home/sauyon/images/wallpapers/$(hostname).jpg
 exec --no-startup-id nm-applet

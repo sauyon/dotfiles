@@ -94,3 +94,7 @@ mvosz() {mv "$@" /opt/osu/Songs}
 alias -s exe="wine"
 
 alias i3cheatsheet='egrep ^bind ~/.config/i3/config | cut -d '\'' '\'' -f 2- | sed '\''s/ /\t/'\'' | column -ts $'\''\t'\'' | pr -2 -w 145 -t | less'
+
+if [[ $(hostname) == *'ox.ac.uk' ]]; then
+	alias print='enscript -G2r -d tp1hdup'
+fi

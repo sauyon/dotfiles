@@ -137,3 +137,16 @@
 					(lambda () (setq show-trailing-whitespace nil)))
 (add-hook 'diff-mode-hook
 					(lambda () (setq show-trailing-whitespace nil)))
+
+;; CSP mode -----------------------------------------------------------
+
+(autoload 'csp-mode "csp-mode" "CSP mode." t)
+(setq auto-mode-alist
+      (append '(("\\.csp$" . csp-mode)
+								("\\.fdr.?$" . csp-mode))
+							auto-mode-alist))
+(add-hook 'csp-mode-hook
+					(lambda ()
+						(push '("[]" . ?☐) prettify-symbols-alist)
+						(push '("->" . ?→) prettify-symbols-alist)
+						(push '("|~|" . ?⨅) prettify-symbols-alist)))

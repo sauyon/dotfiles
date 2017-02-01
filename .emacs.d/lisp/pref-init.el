@@ -23,6 +23,7 @@
  sh-basic-offset 2
  sh-indentation 2
  python-indent-offset 2
+ pascal-indent-level 2
  ;; miscellaneous stuff
  show-trailing-whitespace t
  fill-column 80)

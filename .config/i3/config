@@ -79,7 +79,7 @@ mode "cmd" {
 	# There also is the (new) i3-dmenu-desktop which only displays applications
 	# shipping a .desktop file. It is a wrapper around dmenu, so you need that
 	# installed.
-	bindsym x exec --no-startup-id i3-dmenu-desktop; mode "default"
+	bindsym x exec --no-startup-id j4-dmenu-desktop; mode "default"
 
 	# move output
 	bindsym comma move workspace to output left; mode "default"

@@ -150,3 +150,8 @@
 						(push '("[]" . ?☐) prettify-symbols-alist)
 						(push '("->" . ?→) prettify-symbols-alist)
 						(push '("|~|" . ?⨅) prettify-symbols-alist)))
+
+;; Rust mode ----------------------------------------------------------
+
+(autoload 'rust-mode "rust-mode" "Rust mode." t)
+(add-to-list 'auto-mode-alist '("\\.rs\\'" . rust-mode))

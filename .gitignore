@@ -1,7 +1,6 @@
 # Cherry-picking files
 *
 !/.gitignore
-!/.zshenv
 !/.xinitrc
 !/.Xresources
 !/.ssh/
@@ -30,11 +29,12 @@
 !/.config/zsh/
 !/.config/zsh/.zshrc
 !/.config/zsh/.zlogin
+!/.config/zsh/config
+!/.config/zsh/utils
 !/.config/zsh/aliases
 !/.config/zsh/prompt
 !/.config/user-dirs.dirs
 !/.emacs.d/
-!/.emacs.d/.achievements
 !/.emacs.d/init.el
 !/.emacs.d/lisp/
 !/.emacs.d/lisp/*.el

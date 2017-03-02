@@ -1,9 +1,4 @@
 #!/bin/zsh
-R=`echo -e '\e[0;31m'`
-G=`echo -e '\e[0;32m'`
-B=`echo -e '\e[0;36m'`
-W=`echo -e '\e[1m'`
-N=`echo -e '\e[0m'`
 
 # enable color support of ls and also add handy aliases
 if [ -x /usr/bin/dircolors ]; then
@@ -95,6 +90,5 @@ alias -s exe="wine"
 
 alias i3cheatsheet='egrep ^bind ~/.config/i3/config | cut -d '\'' '\'' -f 2- | sed '\''s/ /\t/'\'' | column -ts $'\''\t'\'' | pr -2 -w 145 -t | less'
 
-if [[ $(hostname) == *'ox.ac.uk' ]]; then
-	alias print='enscript -G2r -d tp1hdup'
-fi
+alias oxprt='CUPS_SERVER=cups.cs.ox.ac.uk:631 enscript -G2r -d tp1hdup'
+alias oxprm='CUPS_SERVER=cups.cs.ox.ac.uk:631 enscript -G2r -d mphdup'

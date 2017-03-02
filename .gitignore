@@ -1,7 +1,6 @@
 # Cherry-picking files
 *
 !/.gitignore
-!/.xinitrc
 !/.Xresources
 !/.ssh/
 !/.ssh/config

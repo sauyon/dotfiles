@@ -109,16 +109,16 @@ mode "cmd" {
 	bindsym $mod+e layout toggle split
 
 	# toggle tiling / floating
-	bindsym $mod+space floating toggle
+	bindsym $mod+space floating toggle; mode "default"
 
 	# change focus between tiling / floating windows
-	bindsym $mod+space focus mode_toggle
+	bindsym $mod+space focus mode_toggle; mode "default"
 
 	# focus the parent container
-	bindsym $mod+a focus parent
+	bindsym $mod+a focus parent; mode "default"
 
 	# focus the child container
-	bindsym $mod+d focus child
+	bindsym $mod+d focus child; mode "default"
 
 	# switch to workspace
 	bindsym 1 workspace 1; mode "default"
@@ -212,6 +212,8 @@ for_window [class="KanColleTool"] floating enable
 for_window [class="Qjackctl"] floating enable
 
 for_window [instance="chromium"] border none
+for_window [class="google-chrome"] border none
+for_window [instance="google-chrome"] border none
 for_window [instance="crx_nckgahadagoaajjgafhacjanaoiihapd"] floating enable
 for_window [instance="crx_fahmaaghhglfmonjliepjlchgpgfmobi"] floating enable
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0

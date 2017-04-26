@@ -1,6 +1,11 @@
 ;; Other packages!
-(add-to-list 'package-archives '("marmalade" . "http://marmalade-repo.org/packages/"))
-(add-to-list 'package-archives '("melpa" . "http://melpa.milkbox.net/packages/"))
+(add-to-list 'package-archives
+             '("marmalade" . "http://marmalade-repo.org/packages/"))
+(add-to-list 'package-archives
+             '("melpa" . "https://melpa.org/packages/") t)
+(when (< emacs-major-version 24)
+  ;; For important compatibility libraries like cl-lib
+  (add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/")))
 
 ;; EDE - never use this, maybe I should get rid of it...
 (global-ede-mode t)
@@ -8,13 +13,14 @@
 (global-prettify-symbols-mode t)
 
 (setq-default
-;; #2spacetabmasterrace
+ ;; #2spacetabmasterrace
  indent-tabs-mode t
- tab-width 2
  c-basic-offset 2
+ tab-width 2
  css-indent-offset 2
  js-indent-level 2
  js2-basic-offset 2
+ rust-indent-offset 2
  web-mode-markup-indent-offset 2
  web-mode-markup-indent-offset 2
  web-mode-css-indent-offset 2
@@ -38,6 +44,8 @@
 ;; This makes sense in c-like languages (everything I write)
 (global-set-key (kbd "M-{") 'beginning-of-defun)
 (global-set-key (kbd "M-}") 'end-of-defun)
+;; underscores
+(global-set-key (kbd "M-SPC") "_")
 
 ;; Don't fucking ring bells on things I do all the time
 (defun my-bell-function ()

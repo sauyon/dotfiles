@@ -52,12 +52,20 @@ bindsym Mod1+F8 workspace 8
 bindsym Mod1+F9 workspace 9
 bindsym Mod1+F10 workspace 10
 
+# Make the currently focused window a scratchpad
+# bindsym $mod+Shift+minus exec --no-startup-id terminator -b -c "dropdown" -p "dropdown", [con_mark="term"] scratchpad show
+bindsym Mod1+Shift+minus mark "scratch", move scratchpad
+
+# Show the first scratchpad window
+bindsym Mod1+minus [con_mark="scratch"] scratchpad show
+
 mode "cmd" {
   bindsym $mod+i mode "default"
   bindsym $mod+g mode "default"
 
 	# start a terminal
-	bindsym Return exec i3-sensible-terminal; mode "default"
+	#bindsym Return exec i3-sensible-terminal; mode "default"
+	bindsym Return exec alacritty; mode "default"
 
 	# kill focused window
 	bindsym $mod+k kill; mode "default"
@@ -96,13 +104,13 @@ mode "cmd" {
 
 	# Make the currently focused window a scratchpad
 	# bindsym $mod+Shift+minus exec --no-startup-id terminator -b -c "dropdown" -p "dropdown", [con_mark="term"] scratchpad show
-	bindsym $mod+Shift+minus mark "scratch", move scratchpad
+	bindsym Shift+minus mark "scratch", move scratchpad; mode "default"
 
 	# Show the first scratchpad window
-	bindsym $mod+minus [con_mark="scratch"] scratchpad show
+	bindsym minus [con_mark="scratch"] scratchpad show; mode "default"
 
 	# Dropdown term
-	bindsym $mod+plus [con_mark="term"] scratchpad show
+	bindsym $mod+plus [con_mark="term"] scratchpad show; mode "default"
 
 	# change container layout (stacked, tabbed, toggle split)
 	bindsym $mod+s layout stacked
@@ -162,13 +170,6 @@ mode "cmd" {
 
 }
 
-# Make the currently focused window a scratchpad
-# bindsym $mod+Shift+minus exec --no-startup-id terminator -b -c "dropdown" -p "dropdown", [con_mark="term"] scratchpad show
-bindsym $mod+Shift+minus mark "scratch", move scratchpad
-
-# Show the first scratchpad window
-bindsym Mod1+minus [con_mark="scratch"] scratchpad show
-
 # Sreen brightness controls
 bindsym XF86MonBrightnessUp exec "xbacklight -inc 10"
 bindsym XF86MonBrightnessDown exec "xbacklight -dec 10"
@@ -218,8 +219,4 @@ for_window [instance="crx_nckgahadagoaajjgafhacjanaoiihapd"] floating enable
 for_window [instance="crx_fahmaaghhglfmonjliepjlchgpgfmobi"] floating enable
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
 
-exec --no-startup-id feh --bg-center /home/sauyon/images/wallpapers/$(hostname).jpg
-exec --no-startup-id nm-applet
-exec --no-startup-id emacsclient -c
-exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
-exec --no-startup-id compton
+exec --no-startup-id ~/.local/bin/xinit

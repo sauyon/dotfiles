@@ -48,8 +48,8 @@
 (add-to-list 'auto-mode-alist '("\\.sage\\'" . python-mode))
 (add-hook 'python-mode-hook
 					(lambda ()
-						(setq indent-tabs-mode t
-									tab-width (default-value 'tab-width))))
+						(setq indent-tabs-mode nil
+									tab-width 4)))
 
 ;; Android mode ----------------------------------------------------------------
 

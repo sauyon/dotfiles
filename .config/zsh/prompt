@@ -146,7 +146,7 @@ build_prompt() {
 	prompt_virtualenv
 	prompt_segment white black '%c'
 	prompt_git
-	prompt_hg
+	#prompt_hg
 
 	if [[ -n $CURRENT_BG ]]; then
 		echo -n " %{%k%F{$CURRENT_BG}%}$SEGMENT_SEP"

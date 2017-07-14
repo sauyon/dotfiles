@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-# Oh My Zsh config -------------------------------------------------------------------------
+# Oh My Zsh config -------------------------------------------------------------
 ZSH=/usr/share/oh-my-zsh
 if [[ ! -d $ZSH ]]; then
 	ZSH=~/.oh-my-zsh
@@ -10,16 +10,18 @@ fi
 
 ZSH_CACHE_DIR="$XDG_CACHE_HOME/zsh"
 
-plugins=(archlinux git github go sudo)
+plugins=(archlinux git github golang sudo cargo thefuck adb)
 
 include $ZSH/oh-my-zsh.sh
 
-# User configuration -----------------------------------------------------------------------
+# User configuration -----------------------------------------------------------
 
-## Environment variables -------------------------------------------------------------------
+## Environment variables -------------------------------------------------------
+
+export ANDROID_HOME=/opt/android-sdk
 
 # make go work :D
-export GOPATH=$HOME/go
+export GOPATH=$HOME/devel/go
 
 # PATH is path. DAMMIT OHMYZSH AGAIN GR
 PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
@@ -64,7 +66,11 @@ export QUODLIBET_USERDIR="$XDG_CONFIG_HOME/quodlibet"
 export LESSHISTFILE="$XDG_DATA_HOME/less/history"
 export HISTFILE="$XDG_DATA_HOME/zsh/history"
 export WINEPREFIX="$XDG_DATA_HOME/wineprefixes/default"
+export CARGO_HOME="$XDG_DATA_HOME"/cargo
+export GNUPGHOME="$XDG_CONFIG_HOME"/gnupg
+export WEECHAT_HOME="$XDG_CONFIG_HOME"/weechat
 
+#export XAUTHORITY="$XDG_RUNTIME_DIR"/Xauthority
 
 # Compilation flags
 export ARCHFLAGS="-arch x86_64"
@@ -83,7 +89,7 @@ command_not_found_handler() {
   if [[ -n "$pkgs" ]]; then
     printf '%s may be found in the following packages:\n' "$cmd"
     printf '  %s\n' $pkgs[@]
-    return 0
+    return 127
   fi
 
 	printf 'zsh: command not found: %s\n' "$cmd"
@@ -93,7 +99,10 @@ command_not_found_handler() {
 fi
 
 # Yay for syntax highlighting
-include /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+include /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+# Autosuggestions!
+include /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # Ok, fine, sometimes emacs is stupid. But at least it knows it.
 [[ $TERM == "dumb" ]] && unsetopt zle && PS1='$ '

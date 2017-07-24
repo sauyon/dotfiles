@@ -1,21 +1,21 @@
 #!/bin/zsh
 
 # enable color support of ls and also add handy aliases
-if [ -x /usr/bin/dircolors ]; then
-	test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
-	alias ls='ls --color=auto'
-	#alias dir='dir --color=auto'
-	#alias vdir='vdir --color=auto'
+if exists dircolors; then
+  [[ -r ~/.config/dircolors ]] && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+  alias ls='ls --color=auto'
+  #alias dir='dir --color=auto'
+  #alias vdir='vdir --color=auto'
 
-	alias grep='grep --color=auto'
-	alias fgrep='fgrep --color=auto'
-	alias egrep='egrep --color=auto'
+  alias grep='grep --color=auto'
+  alias fgrep='fgrep --color=auto'
+  alias egrep='egrep --color=auto'
 
-#	DIFFBIN=$(which diff)
-#	diff() {
-#		"$DIFFBIN" -utr $@ | sed -rf "$HOME/.local/bin/colordiff.sed"
-	#	}
-	alias diff='diff -utr'
+# DIFFBIN=$(which diff)
+# diff() {
+#   "$DIFFBIN" -utr $@ | sed -rf "$HOME/.local/bin/colordiff.sed"
+# }
+  alias diff='diff -utr'
 fi
 
 # some more ls aliases
@@ -31,17 +31,17 @@ alias gpg=gpg2 --homedir "$XDG_CONFIG_HOME"/gnupg
 
 # USACO aliases
 genrun() {
-	name=`basename $(pwd)`
-	g++ -std=c++11 gen.cpp -o gen.o && ./gen.o
-	g++ "$name.cpp" -g -o "$name.o"
-	time "./$name.o"
-	diff "$name.out" "gen.out"
+  name=`basename $(pwd)`
+  g++ -std=c++11 gen.cpp -o gen.o && ./gen.o
+  g++ "$name.cpp" -g -o "$name.o"
+  time "./$name.o"
+  diff "$name.out" "gen.out"
 }
 
 corun() {
-	name=`basename $(pwd)`
-	g++ "$name.cpp" -g -o "$name.o"
-	time "./$name.o" && cat "$name.out"
+  name=`basename $(pwd)`
+  g++ "$name.cpp" -g -o "$name.o"
+  time "./$name.o" && cat "$name.out"
 }
 
 # Add an "alert" alias for long running commands.  Use like so:
@@ -59,34 +59,39 @@ alias ......='cd ../../../../..'
 alias cowfortune='fortune | cowsay'
 
 gnight() {
-	cowsay "GNIGHT's Not IGHT"
-	systemctl suspend
+  cowsay "GNIGHT's Not IGHT"
+  systemctl suspend
 }
 
 alias uctl='systemctl --user'
-alias jctl='journalctl -flu'
+alias jctl='journalctl -leu'
+alias jctlf='journalctl -flu'
+
+alias ne='nix-env'
+alias nei='nix-env -i'
 
 if [ $UID -ne 0 ]; then
-	alias update='aura -Syu; aura -Akua'
-	alias aura='EDITOR=/usr/bin/emacs sudo -E aura'
-	alias sctl='sudo systemctl'
+  alias update='aura -Syu; aura -Akua'
+  alias aura="EDITOR=$(which emacs) sudo -E aura"
+  alias sctl='sudo systemctl'
 else
-	alias sctl='systemctl'
+  alias sctl='systemctl'
 fi
 
 if non_gui; then
-	alias edit='emacsclient -t'
-	alias sedit='sudo emacs -nw'
-	#sedit() { emacsclient -e $(for f in "$@"; do echo "(sudo-find-file ${f:A})"; done) }
+  alias edit="emacsclient -t"
+  #sedit() { emacsclient -te $(for f in "$@"; do echo "(find-file-root \"${${f:A}//\"/\\\"})\""; done) }
+  sedit() { emacsclient -te "(find-file-root \"${${1:A}//\"/\\\"}\")" }
+elif exists i3-msg; then
+  edit() { emacsclient -n "$@" & i3-msg workspace 2 }
+  #sedit() { emacsclient -ne $(for f in "$@"; do echo "(find-file-root \"${${f:A}//\"/\\\"}\")"; done) }
+  sedit() { emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" & i3-msg workspace 2 }
 else
-	edit() { (emacsclient -n "$@" && i3-msg workspace 2) || emacsclient -t "$@" }
-	alias sedit='sudo emacs -nw'
-	#sedit() { emacsclient -ne $(for f in "$@"; do echo "(sudo-find-file ${f:A})"; done) }
+  edit() { emacsclient -n "$@" }
+  sedit() { emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" }
 fi
 
-clip() { scrot -s -e 'xclip $f' '~/images/screens/%Y-%m-%d_$wx$h.png'}
-
-opendir() { terminator --working-directory="$1" }
+opendir() { sakura -d "$1" }
 
 mvosz() {mv "$@" /opt/osu/Songs}
 

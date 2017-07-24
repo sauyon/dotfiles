@@ -10,7 +10,7 @@ fi
 
 ZSH_CACHE_DIR="$XDG_CACHE_HOME/zsh"
 
-plugins=(archlinux git github golang sudo cargo thefuck adb)
+plugins=(git github golang sudo cargo thefuck adb)
 
 include $ZSH/oh-my-zsh.sh
 
@@ -35,7 +35,7 @@ export PATH
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 
 # 2 space tabs are best tabs
-export PAGER='/usr/bin/less -x2'
+export PAGER="$(which less) -x2"
 
 # Emacs ftw!
 if non_gui; then
@@ -45,7 +45,7 @@ else
 fi
 
 # Yes, I'm a chromium user. Deal with it.
-export BROWSER='/usr/bin/chromium'
+export BROWSER='$(which chromium)'
 
 # Environment vars for use in scripts
 # I'm not actually sure this is meaningful...
@@ -81,21 +81,21 @@ export QT_STYLE_OVERRIDE=gtk
 ## Misc preferences ------------------------------------------------------------------------
 
 # Smart command-not-found with pkgfile
-if type "pkgfile" &> /dev/null; then
-command_not_found_handler() {
-  local pkgs cmd="$1"
+if exists pkgfile; then
+  command_not_found_handler() {
+    local pkgs cmd="$1"
 
-  pkgs=(${(f)"$(pkgfile -b -v -- "$cmd" 2>/dev/null)"})
-  if [[ -n "$pkgs" ]]; then
-    printf '%s may be found in the following packages:\n' "$cmd"
-    printf '  %s\n' $pkgs[@]
+    pkgs=(${(f)"$(pkgfile -b -v -- "$cmd" 2>/dev/null)"})
+    if [[ -n "$pkgs" ]]; then
+      printf '%s may be found in the following packages:\n' "$cmd"
+      printf '  %s\n' $pkgs[@]
+      return 127
+    fi
+
+	  printf 'zsh: command not found: %s\n' "$cmd"
+
     return 127
-  fi
-
-	printf 'zsh: command not found: %s\n' "$cmd"
-
-  return 127
-}
+  }
 fi
 
 # Yay for syntax highlighting

@@ -14,7 +14,7 @@
 
 (setq-default
  ;; #2spacetabmasterrace
- indent-tabs-mode t
+ indent-tabs-mode nil
  c-basic-offset 2
  tab-width 2
  css-indent-offset 2
@@ -46,6 +46,7 @@
 (global-set-key (kbd "M-}") 'end-of-defun)
 ;; underscores
 (global-set-key (kbd "M-SPC") "_")
+(global-set-key (kbd "C-x C-r") 'find-file-root)
 
 ;; Don't fucking ring bells on things I do all the time
 (defun my-bell-function ()

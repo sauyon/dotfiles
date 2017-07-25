@@ -160,6 +160,11 @@
 
 (autoload 'graphviz-dot-mode "dot-mode" "Dot mode." t)
 
+;; Nix mode -----------------------------------------------------------
+
+(autoload 'nix-mode "nix-mode" "Nix mode." t)
+(add-to-list 'auto-mode-alist '("\\.nix\\'" . nix-mode))
+
 ;; Org mode -----------------------------------------------------------
 
 (require 'ox-latex)

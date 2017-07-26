@@ -10,13 +10,15 @@ fi
 
 ZSH_CACHE_DIR="$XDG_CACHE_HOME/zsh"
 
-plugins=(git github golang sudo cargo thefuck adb)
+plugins=(git github golang sudo cargo adb)
 
 include $ZSH/oh-my-zsh.sh
 
 # User configuration -----------------------------------------------------------
 
 ## Environment variables -------------------------------------------------------
+
+export SAVEHIST=10000000000
 
 export ANDROID_HOME=/opt/android-sdk
 
@@ -106,11 +108,6 @@ include /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # Ok, fine, sometimes emacs is stupid. But at least it knows it.
 [[ $TERM == "dumb" ]] && unsetopt zle && PS1='$ '
-
-# fuck
-if (( $+commands[thefuck] )); then
-	eval $(thefuck --alias)
-fi
 
 # The greeting. Yeah, yeah, I'm unimaginative. :'(
 echo "Hello, $(hostname)"'!'

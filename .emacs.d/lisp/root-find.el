@@ -17,7 +17,8 @@
           ;; use a separate history list for "root" files.
           (file-name-history find-file-root-history)
           (name (or buffer-file-name default-directory))
-          (tramp (and (tramp-tramp-file-p name)
+          (tramp (and (fboundp 'tramp-tramp-file-p)
+                      (tramp-tramp-file-p name)
                       (tramp-dissect-file-name name)))
           path dir)
 

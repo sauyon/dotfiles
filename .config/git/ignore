@@ -50,3 +50,7 @@ install_manifest.txt
 *~
 \#*\#
 *.orig
+
+# Emacs #
+#########
+.dir-locals.el

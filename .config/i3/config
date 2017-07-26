@@ -149,6 +149,10 @@ bindsym $mod+F10 exec "quodlibet --play-pause"
 bindsym $mod+F11 exec "quodlibet --stop"
 bindsym $mod+F12 exec "quodlibet --next"
 
+bindsym XF86AudioNext exec --no-startup-id "quodlibet --next"
+bindsym XF86AudioPrev exec --no-startup-id "quodlibet --previous"
+bindsym XF86AudioPlay exec --no-startup-id "quodlibet --play-pause"
+
 bindsym XF86AudioRaiseVolume exec "pulseaudio-ctl up; killall -USR1 i3status"
 #bindsym Home exec "amixer -q set Master 2dB+ unmute; killall -USR1 i3status"
 bindsym XF86AudioLowerVolume exec "pulseaudio-ctl down; killall -USR1 i3status"
@@ -186,4 +190,4 @@ for_window [instance="crx_nckgahadagoaajjgafhacjanaoiihapd"] floating enable
 for_window [instance="crx_fahmaaghhglfmonjliepjlchgpgfmobi"] floating enable
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
 
-exec --no-startup-id ~/.local/bin/xinit
+exec --no-startup-id ~/.local/bin/i3init

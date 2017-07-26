@@ -45,7 +45,7 @@ else
 fi
 
 # Yes, I'm a chromium user. Deal with it.
-export BROWSER='$(which chromium)'
+export BROWSER="$(which chromium)"
 
 # Environment vars for use in scripts
 # I'm not actually sure this is meaningful...

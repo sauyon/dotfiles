@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+feh --bg-center /home/sauyon/images/wallpapers/$(hostname).png --no-fehbg &
+type nm-applet && nm-applet &
+emacsclient -c &
+/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+xflux -l 0 &
+[[ -f $HOME/.config/X11/resources ]] && xrdb --merge $HOME/.config/X11/resources &
+xhost +local:steam
+setxkbmap us colemak
+dunst &
+#compton

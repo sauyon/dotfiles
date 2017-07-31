@@ -64,8 +64,10 @@ gnight() {
 }
 
 alias uctl='systemctl --user'
-alias jctl='journalctl -leu'
-alias jctlf='journalctl -flu'
+alias jctl='journalctl -le'
+alias jctlu='journalctl -leu'
+alias jctlf='journalctl -fl'
+alias jctlfu='journalctl -flu'
 
 alias nb='nix-build'
 alias ne='nix-env'
@@ -106,3 +108,25 @@ alias i3cheatsheet='egrep ^bind ~/.config/i3/config | cut -d '\'' '\'' -f 2- | s
 
 alias oxprt='CUPS_SERVER=cups.cs.ox.ac.uk:631 enscript -G2r -d tp1hdup'
 alias oxprm='CUPS_SERVER=cups.cs.ox.ac.uk:631 enscript -G2r -d mphdup'
+alias oxpru='CUPS_SERVER=cups.cs.ox.ac.uk:631 enscript -G2r -d mfpugdup'
+
+if exists gist; then
+  up() {
+    local OUT
+    local MIME
+    while [[ $# > 0 ]]; do
+      MIME=$(file -b --mime-type "$1")
+      if [[ $MIME =~ "^text/" ]]; then # gist
+        if [[ -z $OUT ]]; then
+          OUT="$(gist "$1")"
+        else
+          OUT="${OUT}\n$(gist "$1")"
+        fi
+        #else # upload to satori
+      fi
+      shift
+    done
+    echo $OUT | xclip -selection clipboard
+    echo $OUT
+  }
+fi

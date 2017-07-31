@@ -20,7 +20,7 @@
  '(foreground-color nil)
  '(package-selected-packages
    (quote
-    (magit-gh-pulls magit-find-file magit mo-git-blame pretty-sha-path helm-nixos-options nixos-options flycheck flycheck-kotlin flycheck-rust systemd hardcore-mode haskell-mode jabber js2-mode graphviz-dot-mode zeitgeist yaml-mode web-mode solarized-theme smart-tabs- mode scss-mode scala-mode2 protobuf-mode pkgbuild-mode pdf-tools p4 oberon multi-term mmm-mode json-mod e go-mode go-autocomplete flycheck-haskell edit-server dict-tree csv-mode color-theme cmake-mode auto-dictionary au to-complete-sage android-mode achievements ac-python ac-mozc ac-math ac-js2 ac-ja ac-ispell ac-html ac-haskell-proc ess ac-emoji ac-clang 2048-game toml-mode smart-tabs-mode tuareg ensime scala-mode pkgbuild-mode go-autocomplete go-mode zeitgeist yaml-mode web-mode scala-mode2 multi-term mmm-mode json-mode)))
+    (2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode color-theme csv-mode dict-tree e edit-server ensime ess flycheck flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete go-mode graphviz-dot-mode hardcore-mode haskell-mode helm-nixos-options jabber js2-mode json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon p4 pdf-tools pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode solarized-theme systemd toml-mode tuareg web-mode yaml-mode zeitgeist)))
  '(user-full-name "Sauyon Lee"))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.

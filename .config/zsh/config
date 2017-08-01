@@ -44,12 +44,6 @@ else
 	export EDITOR='emacsclient'
 fi
 
-# History. Yes, it's also in zshenv.
-HISTFILESIZE=1000000000
-HISTSIZE=100000
-SAVEHIST=$HISTSIZE
-HISTFILE="$XDG_DATA_HOME/zsh/history"
-
 # Yes, I'm a chromium user. Deal with it.
 export BROWSER="$(which chromium)"
 
@@ -76,6 +70,12 @@ export GNUPGHOME="$XDG_CONFIG_HOME"/gnupg
 export WEECHAT_HOME="$XDG_CONFIG_HOME"/weechat
 
 #export XAUTHORITY="$XDG_RUNTIME_DIR"/Xauthority
+
+# History. Yes, it's also in zshenv.
+HISTFILESIZE=1000000000
+HISTSIZE=100000
+SAVEHIST=$HISTSIZE
+HISTFILE="$XDG_DATA_HOME/zsh/history"
 
 # Compilation flags
 export ARCHFLAGS="-arch x86_64"

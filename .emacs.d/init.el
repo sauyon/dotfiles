@@ -20,7 +20,7 @@
  '(foreground-color nil)
  '(package-selected-packages
    (quote
-    (2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode color-theme csv-mode dict-tree edit-server ensime ess flycheck flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete go-mode graphviz-dot-mode hardcore-mode haskell-mode helm-nixos-options jabber js2-mode json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon pdf-tools pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode solarized-theme systemd toml-mode tuareg web-mode yaml-mode zeitgeist)))
+    (smali-mode 2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode color-theme csv-mode dict-tree edit-server ensime ess flycheck flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete go-mode graphviz-dot-mode hardcore-mode haskell-mode helm-nixos-options jabber js2-mode json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon pdf-tools pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode solarized-theme systemd toml-mode tuareg web-mode yaml-mode zeitgeist)))
  '(user-full-name "Sauyon Lee"))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.

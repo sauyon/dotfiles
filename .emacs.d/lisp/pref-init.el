@@ -11,6 +11,8 @@
 (global-ede-mode t)
 ;; (global-auto-complete-mode t)
 (global-prettify-symbols-mode t)
+;; Fuck le toolbar
+(tool-bar-mode -1)
 
 (setq-default
  ;; #2spacetabmasterrace
@@ -47,6 +49,13 @@
 ;; underscores
 (global-set-key (kbd "M-SPC") "_")
 (global-set-key (kbd "C-x C-r") 'find-file-root)
+
+(global-set-key (kbd "C-.") 'other-window)
+(global-set-key (kbd "C-,") 'prev-window)
+
+(defun prev-window ()
+  (interactive)
+  (other-window -1))
 
 ;; Don't fucking ring bells on things I do all the time
 (defun my-bell-function ()

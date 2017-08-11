@@ -3,33 +3,33 @@
 ;; Haskell mode ----------------------------------------------------------------
 
 (add-hook 'haskell-mode-hook
-					(lambda ()
-						(setq indent-tabs-mode nil)
-						(haskell-indentation-mode t)))
+          (lambda ()
+            (setq indent-tabs-mode nil)
+            (haskell-indentation-mode t)))
 
 ;; Multi-term mode -------------------------------------------------------------
 
 (add-hook 'term-mode-hook
-					(lambda ()
-						(setq show-trailing-whitespace nil)
-						(setq term-bind-key-alist
-									(list
-									 (quote ("C-c C-c" . term-interrupt-subjob)
-													("C-p" . term-send-up)
-													("C-n" . term-send-down)
-													("C-s" . isearch-forward)
-													("C-r" . isearch-backward)
-													("C-m" . term-send-raw)
-													("M-f" . term-send-forward-word)
-													("M-b" . term-send-backward-word)
-													("M-o" . term-send-backspace)
-													("M-p" . term-send-up)
-													("M-n" . term-send-down)
-													("M-M" . term-send-forward-kill-word)
-													("M-N" . term-send-backward-kill-word)
-													("M-r" . term-send-reverse-search-history)
-													("M-," . term-send-input)
-													("M-." . comint-dynamic-complete))))))
+          (lambda ()
+            (setq show-trailing-whitespace nil)
+            (setq term-bind-key-alist
+                  (list
+                   (quote ("C-c C-c" . term-interrupt-subjob)
+                          ("C-p" . term-send-up)
+                          ("C-n" . term-send-down)
+                          ("C-s" . isearch-forward)
+                          ("C-r" . isearch-backward)
+                          ("C-m" . term-send-raw)
+                          ("M-f" . term-send-forward-word)
+                          ("M-b" . term-send-backward-word)
+                          ("M-o" . term-send-backspace)
+                          ("M-p" . term-send-up)
+                          ("M-n" . term-send-down)
+                          ("M-M" . term-send-forward-kill-word)
+                          ("M-N" . term-send-backward-kill-word)
+                          ("M-r" . term-send-reverse-search-history)
+                          ("M-," . term-send-input)
+                          ("M-." . comint-dynamic-complete))))))
 
 ;; Markdown mode ---------------------------------------------------------------
 
@@ -41,15 +41,15 @@
 (autoload 'go-mode "go-mode" "Go mode" t)
 (add-to-list 'auto-mode-alist '("\\.go\\'" . go-mode))
 (add-hook 'go-mode-hook
-					(lambda () (add-hook 'before-save-hook #'gofmt-before-save)))
+          (lambda ()
+            (add-hook 'before-save-hook #'gofmt-before-save)
+            (setq indent-tabs-mode t)))
 
 ;; Python mode -----------------------------------------------------------------
 
 (add-to-list 'auto-mode-alist '("\\.sage\\'" . python-mode))
 (add-hook 'python-mode-hook
-					(lambda ()
-						(setq indent-tabs-mode nil
-									tab-width 4)))
+          (lambda () (setq tab-width 4)))
 
 ;; Android mode ----------------------------------------------------------------
 
@@ -58,11 +58,11 @@
 ;; Flyspell mode ---------------------------------------------------------------
 
 (dolist (hook '(text-mode-hook
-								latex-mode-hook))
-	(add-hook hook (lambda () (flyspell-mode 1))))
+                latex-mode-hook))
+  (add-hook hook (lambda () (flyspell-mode 1))))
 (dolist (hook '(change-log-mode-hook
-								log-edit-mode-hook))
-	(add-hook hook (lambda () (flyspell-mode -1))))
+                log-edit-mode-hook))
+  (add-hook hook (lambda () (flyspell-mode -1))))
 
 ;; YAML mode ----------------------------------------------------------
 
@@ -115,10 +115,10 @@
 (setq c-default-style "user")
 (add-hook 'c-mode-common-hook 'google-set-c-style)
 (add-hook 'c-mode-common-hook
-					(lambda ()
-						(push '(">=" . ?≥) prettify-symbols-alist)
-						(push '("<=" . ?≤) prettify-symbols-alist)
-						(push '("!=" . ?≠) prettify-symbols-alist)))
+          (lambda ()
+            (push '(">=" . ?≥) prettify-symbols-alist)
+            (push '("<=" . ?≤) prettify-symbols-alist)
+            (push '("!=" . ?≠) prettify-symbols-alist)))
 
 ;; C++ mode -----------------------------------------------------------
 
@@ -128,33 +128,36 @@
 ;; Modes where trailing whitespace being red is annoying --------------
 
 (add-hook 'eww-mode-hook
-					(lambda () (setq show-trailing-whitespace nil)))
+          (lambda () (setq show-trailing-whitespace nil)))
 (add-hook 'compilation-mode-hook
-					(lambda () (setq show-trailing-whitespace nil)))
+          (lambda () (setq show-trailing-whitespace nil)))
 (add-hook 'diff-mode-hook
-					(lambda () (setq show-trailing-whitespace nil)))
+          (lambda () (setq show-trailing-whitespace nil)))
 (add-hook 'fundamental-mode-hook
-					(lambda () (setq show-trailing-whitespace nil)))
+          (lambda () (setq show-trailing-whitespace nil)))
 
 ;; CSP mode -----------------------------------------------------------
 
 (autoload 'csp-mode "csp-mode" "CSP mode." t)
 (setq auto-mode-alist
       (append '(("\\.csp$" . csp-mode)
-								("\\.fdr.?$" . csp-mode))
-							auto-mode-alist))
+                ("\\.fdr.?$" . csp-mode))
+              auto-mode-alist))
 (add-hook 'csp-mode-hook
-					(lambda ()
-						(push '("[]" . ?☐) prettify-symbols-alist)
-						(push '("->" . ?→) prettify-symbols-alist)
-						(push '("|~|" . ?⨅) prettify-symbols-alist)
-						(push '("[>" . ?▷) prettify-symbols-alist)))
+          (lambda ()
+            (push '("[]" . ?☐) prettify-symbols-alist)
+            (push '("->" . ?→) prettify-symbols-alist)
+            (push '("|~|" . ?⨅) prettify-symbols-alist)
+            (push '("[>" . ?▷) prettify-symbols-alist)))
 
 
 ;; Rust mode ----------------------------------------------------------
 
 (autoload 'rust-mode "rust-mode" "Rust mode." t)
 (add-to-list 'auto-mode-alist '("\\.rs\\'" . rust-mode))
+(add-hook 'rust-mode-hook
+          (lambda () (setq indent-tabs-mode t
+                      rust-format-on-save t)))
 
 ;; Dot mode -----------------------------------------------------------
 
@@ -169,33 +172,33 @@
 
 (require 'ox-latex)
 (add-hook 'org-mode-hook
-					(lambda ()
-						(setq org-src-fontify-natively t
-									org-latex-listings t
-									indent-tabs-mode nil
-									show-trailing-whitespace nil
-									org-latex-listings 'minted
-									org-latex-pdf-process '("sed -i 's/	/  /g' %f"
-																					"pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
-																					"pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
-																					"pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f")
-									org-src-preserve-indentation nil
-									org-edit-src-content-indentation 2
-									org-src-tab-acts-natively t
-									org-list-allow-alphabetical t
-									indent-tabs-mode nil)
-						(add-to-list 'org-latex-packages-alist '("" "minted"))
-																				;(add-to-list 'org-latex-packages-alist '("" "listings"))
-																				;(add-to-list 'org-latex-packages-alist '("" "color"))
-						))
+          (lambda ()
+            (setq org-src-fontify-natively t
+                  org-latex-listings t
+                  indent-tabs-mode nil
+                  show-trailing-whitespace nil
+                  org-latex-listings 'minted
+                  org-latex-pdf-process '("sed -i 's/ /  /g' %f"
+                                          "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
+                                          "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
+                                          "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f")
+                  org-src-preserve-indentation nil
+                  org-edit-src-content-indentation 2
+                  org-src-tab-acts-natively t
+                  org-list-allow-alphabetical t
+                  indent-tabs-mode nil)
+            (add-to-list 'org-latex-packages-alist '("" "minted"))
+                                        ;(add-to-list 'org-latex-packages-alist '("" "listings"))
+                                        ;(add-to-list 'org-latex-packages-alist '("" "color"))
+            ))
 (add-hook 'org-mode-hook 'latex-unicode-simplified)
 (org-babel-do-load-languages
  'org-babel-load-languages
  '((C . t)
-	 (scala . t)
-	 (python . t)
-	 (ocaml . t)
-	 (dot . t)))
+   (scala . t)
+   (python . t)
+   (ocaml . t)
+   (dot . t)))
 
 ;; latex stuff
 

@@ -2,7 +2,7 @@
 # Any customization should be done in ~/.gtkrc-2.0.mine instead.
 
 include "/home/sauyon/.gtkrc-2.0.mine"
-gtk-theme-name="Numix-SX-Light"
+gtk-theme-name="Numix-SX-FullDark"
 gtk-icon-theme-name="Flat-Grey-Aurora"
 gtk-font-name="Droid Sans 11"
 gtk-cursor-theme-size=0

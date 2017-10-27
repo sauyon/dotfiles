@@ -1,11 +1,12 @@
 #!/usr/bin/env sh
+echo $XDG_CONFIG_HOME > ~/log
 feh --bg-center /home/sauyon/images/wallpapers/$(hostname).png --no-fehbg &
 type nm-applet && nm-applet &
 emacsclient -c &
 /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 xflux -l 0 &
-[[ -f $HOME/.config/X11/resources ]] && xrdb --merge $HOME/.config/X11/resources &
+[[ -f "$XDG_CONFIG_HOME/X11/resources" ]] && xrdb --merge "$XDG_CONFIG_HOME/X11/resources" &
+[[ -f "$XDG_CONFIG_HOME/X11/xkb/sauyon.xkb" ]] && xkbcomp "$XDG_CONFIG_HOME/X11/xkb/sauyon.xkb" "$DISPLAY" &
 xhost +local:steam
-setxkbmap us colemak
 dunst &
 #compton

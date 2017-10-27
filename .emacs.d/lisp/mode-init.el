@@ -186,6 +186,7 @@
                   org-edit-src-content-indentation 2
                   org-src-tab-acts-natively t
                   org-list-allow-alphabetical t
+                  org-latex-packages-alist '(("margin=2cm" "geometry" nil))
                   indent-tabs-mode nil)
             (add-to-list 'org-latex-packages-alist '("" "minted"))
                                         ;(add-to-list 'org-latex-packages-alist '("" "listings"))

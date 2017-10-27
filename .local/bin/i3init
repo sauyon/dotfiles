@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-echo $XDG_CONFIG_HOME > ~/log
+[[ -z $XDG_CONFIG_HOME ]] && XDG_CONFIG_HOME=$HOME/.config
 feh --bg-center /home/sauyon/images/wallpapers/$(hostname).png --no-fehbg &
 type nm-applet && nm-applet &
 emacsclient -c &

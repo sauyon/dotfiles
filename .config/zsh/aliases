@@ -72,18 +72,16 @@ alias jctlfu='journalctl -flu'
 alias nb='nix-build'
 alias ne='nix-env'
 alias nei='nix-env -i'
+alias nee='nix-env -e'
+alias neu='nix-env -u'
 alias nsh='nix-shell'
 alias nshp='nix-shell -p'
 
-if [ $UID -ne 0 ]; then
-  alias update='aura -Syu; aura -Akua'
-  alias aura="EDITOR=$(which emacs) sudo -E aura"
-  alias sctl='sudo systemctl'
-  alias nre='sudo nixos-rebuild switch'
-else
-  alias sctl='systemctl'
-  alias nre='nixos-rebuild switch'
-fi
+alias update='aura -Syu; aura -Akua'
+alias aura="EDITOR=$(which emacs) sudo -E aura"
+alias sctl='sudo systemctl'
+alias nre='sudo nixos-rebuild switch'
+alias nreu='sudo nixos-rebuild switch --upgrade'
 
 if non_gui; then
   alias edit="emacsclient -t"

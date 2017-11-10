@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-[ $_SAUYON_CONF_RUN ] && exit 0
+if [ -z $_SAUYON_CONF_RUN ]; then
 _SAUYON_CONF_RUN=true
 
 # Oh My Zsh config -------------------------------------------------------------
@@ -119,3 +119,5 @@ include /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 
 # The greeting. Yeah, yeah, I'm unimaginative. :'(
 echo "Hello, $(hostname)"'!'
+
+fi

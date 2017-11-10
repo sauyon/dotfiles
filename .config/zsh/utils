@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+[ $_SAUYON_UTILS_RUN ] && exit 0
+_SAUYON_UTILS_RUN=true
+
 include() { [[ -f "$@" ]] && source "$@" }
 
 is_ssh() { [[ -n $SSH_CONNECTION ]] || [[ -n $SSH_CLIENT ]] || [[ -n $SSH_TTY ]] }

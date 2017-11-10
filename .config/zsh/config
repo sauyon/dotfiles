@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+[ $_SAUYON_CONF_RUN ] && exit 0
+_SAUYON_CONF_RUN=true
+
 # Oh My Zsh config -------------------------------------------------------------
 ZSH=/usr/share/oh-my-zsh
 if [[ ! -d $ZSH ]]; then

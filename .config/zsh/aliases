@@ -48,6 +48,8 @@ corun() {
 #   sleep 10; alert
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
+alias chat='LUA_CPATH=.config/weechat/lua/cjson.so dtach -A chat weechat'
+
 alias copy='xclip -selection clipboard'
 
 alias ..='cd ..'

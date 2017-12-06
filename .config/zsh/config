@@ -35,6 +35,7 @@ export PATH
 
 # I should really check for hidpi before doing this... (but parsing is a pita)
 export GDK_SCALE=2
+export GDK_DPI_SCALE=0.5
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 
 # 2 space tabs are best tabs

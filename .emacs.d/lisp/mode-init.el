@@ -189,9 +189,10 @@
                   org-latex-packages-alist '(("margin=2cm" "geometry" nil))
                   indent-tabs-mode nil)
             (add-to-list 'org-latex-packages-alist '("" "minted"))
-                                        ;(add-to-list 'org-latex-packages-alist '("" "listings"))
-                                        ;(add-to-list 'org-latex-packages-alist '("" "color"))
-            ))
+            (lambda ()
+              (push '("\vee" . ?∨) prettify-symbols-alist)
+              (push '("\wedge" . ?∧) prettify-symbols-alist)
+            )))
 (add-hook 'org-mode-hook 'latex-unicode-simplified)
 (org-babel-do-load-languages
  'org-babel-load-languages
@@ -200,6 +201,8 @@
    (python . t)
    (ocaml . t)
    (dot . t)))
+(add-to-list 'org-src-lang-modes
+             '("dot" . graphviz-dot))
 
 ;; latex stuff
 

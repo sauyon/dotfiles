@@ -34,8 +34,7 @@ PATH=$PATH:.
 export PATH
 
 # I should really check for hidpi before doing this... (but parsing is a pita)
-export GDK_SCALE=2
-export GDK_DPI_SCALE=0.5
+export GDK_SCALE=1
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 
 # 2 space tabs are best tabs
@@ -72,6 +71,8 @@ export WINEPREFIX="$XDG_DATA_HOME/wineprefixes/default"
 export CARGO_HOME="$XDG_DATA_HOME"/cargo
 export GNUPGHOME="$XDG_CONFIG_HOME"/gnupg
 export WEECHAT_HOME="$XDG_CONFIG_HOME"/weechat
+
+export NIX_PATH="$NIX_PATH:nixpkgs=$HOME/devel/nixpkgs"
 
 #export XAUTHORITY="$XDG_RUNTIME_DIR"/Xauthority
 

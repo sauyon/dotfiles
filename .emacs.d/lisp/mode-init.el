@@ -173,22 +173,7 @@
 (require 'ox-latex)
 (add-hook 'org-mode-hook
           (lambda ()
-            (setq org-src-fontify-natively t
-                  org-latex-listings t
-                  indent-tabs-mode nil
-                  show-trailing-whitespace nil
-                  org-latex-listings 'minted
-                  org-latex-pdf-process '("sed -i 's/ /  /g' %f"
-                                          "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
-                                          "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f"
-                                          "pdflatex -shell-escape -interaction nonstopmode -output-directory %o %f")
-                  org-src-preserve-indentation nil
-                  org-edit-src-content-indentation 2
-                  org-src-tab-acts-natively t
-                  org-list-allow-alphabetical t
-                  org-latex-packages-alist '(("margin=2cm" "geometry" nil))
-                  indent-tabs-mode nil)
-            (add-to-list 'org-latex-packages-alist '("" "minted"))
+            (setq show-trailing-whitespace nil)
             (lambda ()
               (push '("\vee" . ?∨) prettify-symbols-alist)
               (push '("\wedge" . ?∧) prettify-symbols-alist)
@@ -201,8 +186,6 @@
    (python . t)
    (ocaml . t)
    (dot . t)))
-(add-to-list 'org-src-lang-modes
-             '("dot" . graphviz-dot))
 
 ;; latex stuff
 

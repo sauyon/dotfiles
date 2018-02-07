@@ -1,5 +1,8 @@
 ;; Nobody needs this
-(global-unset-key "\C-z")
+(global-unset-key (kbd "C-z"))
+
+(global-set-key (kbd "C-z C-z") 'my-suspend-frame)
+
 ;; This doesn't need to be in a separate file :thinking:
 (global-set-key (kbd "<f8>") 'recompile)
 ;; Why isn't this default? (??????)
@@ -15,6 +18,22 @@
 ;; this should also be default
 (global-set-key (kbd "C-.") 'other-window)
 (global-set-key (kbd "C-,") 'prev-window)
+
+(setq skeleton-further-elements '((abbrev-mode nil)))
+
+(define-skeleton mathop-skeleton
+  "something"
+  "ignored"
+  ("something" "#+LATEX_HEADER: \\DeclareMathOperator{\\" (setq skeletonmathop (skeleton-read "op: "))
+  "}{\\mathsf{" skeletonmathop "}}\n"_))
+(global-set-key (kbd "C-c o") 'mathop-skeleton)
+
+(defun my-suspend-frame ()
+  "In a GUI environment, do nothing; otherwise `suspend-frame'."
+  (interactive)
+  (if (display-graphic-p)
+      (message "suspend-frame disabled for graphical displays.")
+    (suspend-frame)))
 
 (defun prev-window ()
   (interactive)

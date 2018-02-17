@@ -156,7 +156,7 @@ bindsym $mod+F12 exec "QUODLIBET_USERDIR=$HOME/.config/quodlibet quodlibet --nex
 
 bindsym XF86AudioRaiseVolume exec "pactl set-sink-volume combined +5%; killall -USR1 i3status"
 bindsym XF86AudioLowerVolume exec "pactl set-sink-volume combined -5%; killall -USR1 i3status"
-bindsym XF86AudioMute exec "pactl set-sink-mute toggle; killall -USR1 i3status"
+bindsym XF86AudioMute exec "pactl set-sink-mute combined toggle; killall -USR1 i3status"
 # bindsym XF86AudioRaiseVolume exec "pulseaudio-ctl up; killall -USR1 i3status"
 # bindsym Home exec "amixer -q set Master 2dB+ unmute; killall -USR1 i3status"
 # bindsym XF86AudioLowerVolume exec "pulseaudio-ctl down; killall -USR1 i3status"

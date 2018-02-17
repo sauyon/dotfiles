@@ -79,8 +79,9 @@ alias nbd='nix-build -E '"'"'with import <nixpkgs> {}; callPackage ./default.nix
 alias ns='nix-shell'
 alias nsp='nix-shell -p'
 alias neu='nix-env -u'
-alias nsh='nix-shell'
-alias nshp='nix-shell -p'
+alias ns='nix-shell'
+alias nsp='nix-shell -p'
+alias nsr='nix-shell --run'
 
 alias update='aura -Syu; aura -Akua'
 alias aura="EDITOR=$(which emacs) sudo -E aura"

@@ -187,8 +187,17 @@
    (ocaml . t)
    (dot . t)))
 
-;; latex stuff
+;; LaTeX mode ---------------------------------------------------------
 
 (add-hook 'latex-mode-hook 'latex-unicode-simplified)
 (autoload 'latex-pretty-symbols "latex-pretty-symbols")
 (autoload 'latex-unicode-simplified "latex-pretty-symbols")
+
+;; HideShow mode ------------------------------------------------------
+
+(add-hook 'hs-minor-mode-hook
+          (lambda ()
+            (local-set-key (kbd "C-c S") 'hs-show-all)
+            (local-set-key (kbd "C-c H") 'hs-hide-all)
+            (local-set-key (kbd "C-c s") 'hs-show-block)
+            (local-set-key (kbd "C-c h") 'hs-hide-block)))

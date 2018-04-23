@@ -179,13 +179,6 @@
               (push '("\wedge" . ?∧) prettify-symbols-alist)
             )))
 (add-hook 'org-mode-hook 'latex-unicode-simplified)
-(org-babel-do-load-languages
- 'org-babel-load-languages
- '((C . t)
-   (scala . t)
-   (python . t)
-   (ocaml . t)
-   (dot . t)))
 
 ;; LaTeX mode ---------------------------------------------------------
 

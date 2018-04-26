@@ -82,6 +82,10 @@ alias neu='nix-env -u'
 alias ns='nix-shell'
 alias nsp='nix-shell -p'
 alias nsr='nix-shell --run'
+nix-clean() {
+  nix-env --delete-generations old
+  nix-store --gc
+}
 
 alias update='aura -Syu; aura -Akua'
 alias aura="EDITOR=$(which emacs) sudo -E aura"

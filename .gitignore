@@ -16,6 +16,8 @@
 !/.config/i3status/config
 !/.config/pulse/
 !/.config/pulse/client.conf
+!/.config/quodlibet/
+!/.config/quodlibet/config
 !/.config/sakura/
 !/.config/sakura/sakura.conf
 !/.config/synapse/

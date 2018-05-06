@@ -65,7 +65,6 @@ export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_CACHE_HOME="$HOME/.cache"
 
 # Unclutter home directory
-export QUODLIBET_USERDIR="$XDG_CONFIG_HOME/quodlibet"
 export LESSHISTFILE="$XDG_DATA_HOME/less/history"
 export WINEPREFIX="$XDG_DATA_HOME/wineprefixes/default"
 export CARGO_HOME="$XDG_DATA_HOME"/cargo

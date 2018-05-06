@@ -145,10 +145,10 @@ bindsym XF86MonBrightnessDown exec "xbacklight -dec 10"
 # Touchpad controls
 bindsym XF86TouchpadToggle exec "$HOME/.local/bin/toggletouchpad.sh" # toggle touchpad
 
-bindsym $mod+F9 exec "QUODLIBET_USERDIR=$HOME/.config/quodlibet quodlibet --previous"
-bindsym $mod+F10 exec "QUODLIBET_USERDIR=$HOME/.config/quodlibet quodlibet --play-pause"
-bindsym $mod+F11 exec "QUODLIBET_USERDIR=$HOME/.config/quodlibet quodlibet --stop"
-bindsym $mod+F12 exec "QUODLIBET_USERDIR=$HOME/.config/quodlibet quodlibet --next"
+bindsym $mod+F9  exec "quodlibet --previous"
+bindsym $mod+F10 exec "quodlibet --play-pause"
+bindsym $mod+F11 exec "quodlibet --stop"
+bindsym $mod+F12 exec "quodlibet --next"
 
 # bindsym XF86AudioNext exec --no-startup-id "quodlibet --next"
 # bindsym XF86AudioPrev exec --no-startup-id "quodlibet --previous"

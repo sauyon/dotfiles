@@ -6,7 +6,5 @@ emacsclient -nc
 /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 xflux -l 0 &
 [[ -f "$XDG_CONFIG_HOME/X11/resources" ]] && xrdb --merge "$XDG_CONFIG_HOME/X11/resources" &
-[[ -f "$XDG_CONFIG_HOME/X11/xkb/sauyon.xkb" ]] && xkbcomp "$XDG_CONFIG_HOME/X11/xkb/sauyon.xkb" "$DISPLAY" &
 xhost +local:steam
-dunst &
 #compton

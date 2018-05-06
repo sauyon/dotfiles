@@ -195,4 +195,4 @@ for_window [instance="crx_nckgahadagoaajjgafhacjanaoiihapd"] floating enable
 for_window [instance="crx_fahmaaghhglfmonjliepjlchgpgfmobi"] floating enable
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
 
-exec --no-startup-id ~/.local/bin/i3init
+exec --no-startup-id ~/.local/bin/i3init &> ~/.local/share/i3init.log

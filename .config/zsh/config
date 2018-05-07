@@ -33,6 +33,9 @@ PATH=$PATH:$HOME/.local/bin
 PATH=$PATH:.
 export PATH
 
+# LD_LIBRARY_PATH?!
+LD_LIBRARY_PATH=$HOME/.rustc/rust/rustc/lib:$LD_LIBRARY_PATH
+
 # I should really check for hidpi before doing this... (but parsing is a pita)
 export GDK_SCALE=1
 export QT_AUTO_SCREEN_SCALE_FACTOR=1

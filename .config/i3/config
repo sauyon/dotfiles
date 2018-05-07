@@ -96,15 +96,14 @@ bindsym $mod+Shift+space floating toggle; mode "default"
 bindsym $mod+space focus mode_toggle; mode "default"
 
 # start a terminal
-#bindsym $mod+Return exec i3-sensible-terminal
-bindsym $mod+Return exec sakura
+bindsym $mod+Return exec xfce4-terminal
 
 # start dmenu (a program launcher)
 # bindcode 133 exec --no-startup-id synapse
 # There also is the (new) i3-dmenu-desktop which only displays applications
 # shipping a .desktop file. It is a wrapper around dmenu, so you need that
 # installed.
-bindsym $mod+r exec --no-startup-id j4-dmenu-desktop --term="sakura"
+bindsym $mod+r exec --no-startup-id j4-dmenu-desktop
 # bindsym $mod+r exec --no-startup-id i3-dmenu-desktop
 
 # move output

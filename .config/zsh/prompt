@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-NO_VCS_DIRS=(/var/aur $HOME)
+NO_VCS_DIRS=(/var/aur $(readlink -m $HOME))
 
 ### Segment drawing
 # A few utility functions to make it easy and re-usable to draw segmented prompts
@@ -52,7 +52,7 @@ build_prompt() {
 		local ref dirty
 		if $(git rev-parse --is-inside-work-tree &>/dev/null) &&
 		   [[ ${NO_VCS_DIRS[(i)$(git rev-parse --show-toplevel)]} -gt ${#NO_VCS_DIRS} ]] &&
-		   [[ ${NO_VCS_DIRS[(i)$(cd $(git rev-parse --show-toplevel); pwd -P)]} -gt ${#NO_VCS_DIRS} ]]; then
+		   [[ ${NO_VCS_DIRS[(i)$(readlink -m $(git rev-parse --show-toplevel))]} -gt ${#NO_VCS_DIRS} ]]; then
 			dirty=$(parse_git_dirty)
 			ref=$(git symbolic-ref HEAD 2> /dev/null) || ref="➦ $(git show-ref --head -s --abbrev |head -n1 2> /dev/null)"
 			if [[ -n $dirty ]]; then

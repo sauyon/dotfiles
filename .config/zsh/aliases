@@ -24,7 +24,7 @@ alias la='ls -A'
 alias l='ls -FB'
 
 # rsync is better.
-alias cp='rsync -aP'
+alias cp='rsync -rgoP'
 
 # fucking gpg
 alias gpg=gpg2 --homedir "$XDG_CONFIG_HOME"/gnupg

@@ -26,12 +26,12 @@ export ANDROID_HOME=/opt/android-sdk
 # make go work :D
 export GOPATH=$HOME/devel/go
 
-# # PATH is path. DAMMIT OHMYZSH AGAIN GR
-# PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
-# [[ $platform == 'osx' ]] && PATH=/usr/local/bin:$PATH
-# PATH=$PATH:$HOME/.local/bin
-# PATH=$PATH:.
-# export PATH
+# PATH is path. DAMMIT OHMYZSH AGAIN GR
+PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
+[[ $platform == 'osx' ]] && PATH=/usr/local/bin:$PATH
+PATH=$PATH:$HOME/.local/bin
+PATH=$PATH:.
+export PATH
 
 # I should really check for hidpi before doing this... (but parsing is a pita)
 export GDK_SCALE=1

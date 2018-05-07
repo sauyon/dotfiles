@@ -41,7 +41,12 @@
 !/.emacs.d/lisp/*.el
 !/.local/
 !/.local/bin/
+!/.local/bin/bootstrap.sh
 !/.local/bin/colordiff.sed
+!/.local/bin/i3init
+!/.local/bin/rotate_desktop
+!/.local/bin/shot
+!/.local/bin/upload
 !/.local/share/
 !/.local/share/zsh
 

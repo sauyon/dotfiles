@@ -75,7 +75,8 @@ export GNUPGHOME="$XDG_CONFIG_HOME"/gnupg
 export WEECHAT_HOME="$XDG_CONFIG_HOME"/weechat
 export ASPELL_CONF="per-conf $XDG_CONFIG_HOME/aspell/aspell.conf; personal $XDG_CONFIG_HOME/aspell/en.personal; repl $XDG_CONFIG_HOME/aspell/en.prepl"
 
-export NIX_PATH="$NIX_PATH:nixpkgs=$HOME/devel/nixpkgs"
+export NIXPKGS="$HOME/devel/nixpkgs"
+export NIX_PATH="$NIX_PATH:nixpkgs=$NIXPKGS"
 
 #export XAUTHORITY="$XDG_RUNTIME_DIR"/Xauthority
 
@@ -90,6 +91,10 @@ export ARCHFLAGS="-arch x86_64"
 
 # Qt5 why u no like gtk
 export QT_STYLE_OVERRIDE=gtk
+
+export QT_IM_MODULE=ibus
+export XMODIFIERS=@im=ibus
+export GTK_IM_MODULE=ibus
 
 ## Misc preferences ------------------------------------------------------------------------
 

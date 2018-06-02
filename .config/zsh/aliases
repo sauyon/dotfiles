@@ -90,8 +90,8 @@ nix-clean() {
 alias update='aura -Syu; aura -Akua'
 alias aura="EDITOR=$(which emacs) sudo -E aura"
 alias sctl='sudo systemctl'
-alias nre='sudo nixos-rebuild switch'
-alias nreu='sudo nixos-rebuild switch --upgrade'
+alias nre='sudo -i nixos-rebuild switch'
+alias nreu='sudo -i nixos-rebuild switch --upgrade'
 
 if non_gui; then
   alias edit="emacsclient -t"

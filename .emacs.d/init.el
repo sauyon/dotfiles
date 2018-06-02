@@ -58,6 +58,10 @@
       ("\\chapter{%s}" . "\\chapter*{%s}")
       ("\\section{%s}" . "\\section*{%s}")
       ("\\subsection{%s}" . "\\subsection*{%s}")
+      ("\\subsubsection{%s}" . "\\subsubsection*{%s}"))
+     ("thesis" "\\documentclass[titlepage,a4paper,12pt]{article}"
+      ("\\section{%s}" . "\\section*{%s}")
+      ("\\subsection{%s}" . "\\subsection*{%s}")
       ("\\subsubsection{%s}" . "\\subsubsection*{%s}"))))
  '(org-latex-default-packages-alist
    '(("AUTO" "inputenc" t)
@@ -78,7 +82,15 @@
      ("" "enumitem" nil)
      "\\tolerance=1000"))
  '(org-latex-listings 'minted)
- '(org-latex-packages-alist '(("" "minted" t) ("margin=2cm" "geometry" nil)))
+ '(org-latex-minted-langs
+   '((emacs-lisp "common-lisp")
+     (cc "c++")
+     (cperl "perl")
+     (shell-script "bash")
+     (caml "ocaml")
+     (csp "text")))
+ '(org-latex-minted-options '(("fontsize" "\\footnotesize")))
+ '(org-latex-packages-alist '(("" "minted" t)))
  '(org-latex-pdf-process
    '("latexmk -bibtex -shell-escape -pdf -pdflatex=lualatex -view=none -f %f"))
  '(org-list-allow-alphabetical t)

@@ -173,11 +173,12 @@
 (require 'ox-latex)
 (add-hook 'org-mode-hook
           (lambda ()
+            (setcar (nthcdr 2 org-emphasis-regexp-components) " \t\r\n,\"")
+            (org-set-emph-re 'org-emphasis-regexp-components org-emphasis-regexp-components)
             (setq show-trailing-whitespace nil)
-            (lambda ()
-              (push '("\vee" . ?∨) prettify-symbols-alist)
-              (push '("\wedge" . ?∧) prettify-symbols-alist)
-            )))
+            (push '("\vee" . ?∨) prettify-symbols-alist)
+            (push '("\wedge" . ?∧) prettify-symbols-alist)
+            ))
 (add-hook 'org-mode-hook 'latex-unicode-simplified)
 
 ;; LaTeX mode ---------------------------------------------------------

@@ -1,5 +1,6 @@
 ;; Nobody needs this
 (global-unset-key (kbd "C-z"))
+(global-unset-key (kbd "C-x C-z"))
 
 (global-set-key (kbd "C-z C-z") 'my-suspend-frame)
 

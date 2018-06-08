@@ -96,7 +96,7 @@ bindsym $mod+Shift+space floating toggle; mode "default"
 bindsym $mod+space focus mode_toggle; mode "default"
 
 # start a terminal
-bindsym $mod+Return exec xfce4-terminal
+bindsym $mod+Return exec sakura
 
 # start dmenu (a program launcher)
 # bindcode 133 exec --no-startup-id synapse

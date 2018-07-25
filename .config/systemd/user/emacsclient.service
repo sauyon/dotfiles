@@ -1,0 +1,12 @@
+[Unit]
+Description=Emacsclient on login
+After=emacs.service
+#After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/emacsclient -c
+Output=journal
+
+[Install]
+WantedBy=default.target

@@ -2,7 +2,7 @@
 [[ -z $XDG_CONFIG_HOME ]] && XDG_CONFIG_HOME=$HOME/.config
 feh --bg-center /home/sauyon/images/wallpapers/$(hostname).png --no-fehbg &
 type nm-applet && nm-applet &
-emacsclient -nc
+systemctl --user start emacsclient
 /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 xflux -l 0 &
 [[ -f "$XDG_CONFIG_HOME/X11/resources" ]] && xrdb --merge "$XDG_CONFIG_HOME/X11/resources" &

@@ -19,6 +19,8 @@
 ;; this should also be default
 (global-set-key (kbd "C-.") 'other-window)
 (global-set-key (kbd "C-,") 'prev-window)
+;; this should also be the default (thanks `technomancy/better-defaults')
+(global-set-key (kbd "C-x C-b") 'ibuffer)
 
 (advice-add 'custom-save-all :around
             (lambda (orig)

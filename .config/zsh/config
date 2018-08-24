@@ -28,8 +28,9 @@ export GOPATH=$HOME/devel/go
 
 # PATH is path. DAMMIT OHMYZSH AGAIN GR
 PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
-[[ $platform == 'osx' ]] && PATH=/usr/local/bin:$PATH
+[[ $platform == 'osx' ]] && PATH=/opt/local/bin:/opt/local/sbin:/usr/local/bin:$PATH
 PATH=$PATH:$HOME/.local/bin
+PATH=$PATH:$HOME/.local/share/cargo/bin
 PATH=$PATH:.
 export PATH
 
@@ -74,6 +75,7 @@ export CARGO_HOME="$XDG_DATA_HOME"/cargo
 export GNUPGHOME="$XDG_CONFIG_HOME"/gnupg
 export WEECHAT_HOME="$XDG_CONFIG_HOME"/weechat
 export ASPELL_CONF="per-conf $XDG_CONFIG_HOME/aspell/aspell.conf; personal $XDG_CONFIG_HOME/aspell/en.personal; repl $XDG_CONFIG_HOME/aspell/en.prepl"
+export RIPGREP_CONFIG_PATH="$XDG_CONFIG_HOME/ripgrep.conf"
 
 export NIXPKGS="$HOME/devel/nixpkgs"
 export NIX_PATH="$NIX_PATH:nixpkgs=$NIXPKGS"

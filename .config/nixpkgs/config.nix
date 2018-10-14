@@ -2,10 +2,9 @@
   allowUnfree = true;
 
   packageOverrides = pkgs: rec {
-    # chromium = pkgs.chromium.overrideAttrs (oldAttrs: rec {
-    #   buildCommand = oldAttrs.buildCommand + ''
-    #     wrapProgram $out/bin/chromium --add-flags "--device-scale-factor=1.5"
-    #   '';
-    # });
+    nix = super.nix.override {
+      storeDir = "/users/ug15sl/.local/nix/store";
+      storeDir = "/users/ug15sl/.local/nix/var";
+    };
   };
 }

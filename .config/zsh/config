@@ -29,6 +29,7 @@ export GOPATH=$HOME/devel/go
 # PATH is path. DAMMIT OHMYZSH AGAIN GR
 PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
 [[ $platform == 'osx' ]] && PATH=/opt/local/bin:/opt/local/sbin:/usr/local/bin:$PATH
+PATH=$PATH:$XDG_DATA_HOME/cargo/bin
 PATH=$PATH:$HOME/.local/bin
 PATH=$PATH:$HOME/.local/share/cargo/bin
 PATH=$PATH:.
@@ -51,8 +52,7 @@ else
 	export EDITOR='emacsclient'
 fi
 
-# Yes, I'm a chromium user. Deal with it.
-export BROWSER="$(which chromium)"
+export BROWSER="$(which firefox)"
 
 # Environment vars for use in scripts
 # I'm not actually sure this is meaningful...

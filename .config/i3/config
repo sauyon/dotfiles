@@ -14,7 +14,7 @@ set $mod Mod4
 # Font for window titles. Will also be used by the bar unless a different font
 # is used in the bar {} block below. ISO 10646 = Unicode
 #font -misc-fixed-medium-r-normal--13-120-75-75-C-70-iso10646-1
-font pango:Droid Sans 9
+font pango:Noto Sans 10
 # The font above is very space-efficient, that is, it looks good, sharp and
 # clear in small sizes. However, if you need a lot of unicode glyphs or
 # right-to-left text rendering, you should instead use pango for rendering and
@@ -153,9 +153,9 @@ bindsym $mod+F12 exec "quodlibet --next"
 # bindsym XF86AudioPrev exec --no-startup-id "quodlibet --previous"
 # bindsym XF86AudioPlay exec --no-startup-id "quodlibet --play-pause"
 
-bindsym XF86AudioRaiseVolume exec "pactl set-sink-volume combined +5%; killall -USR1 i3status"
-bindsym XF86AudioLowerVolume exec "pactl set-sink-volume combined -5%; killall -USR1 i3status"
-bindsym XF86AudioMute exec "pactl set-sink-mute combined toggle; killall -USR1 i3status"
+bindsym XF86AudioRaiseVolume exec "pactl set-sink-volume @DEFAULT_SINK@ +5%; killall -USR1 i3status"
+bindsym XF86AudioLowerVolume exec "pactl set-sink-volume @DEFAULT_SINK@ -5%; killall -USR1 i3status"
+bindsym XF86AudioMute exec "pactl set-sink-mute @DEFAULT_SINK@ toggle; killall -USR1 i3status"
 # bindsym XF86AudioRaiseVolume exec "pulseaudio-ctl up; killall -USR1 i3status"
 # bindsym Home exec "amixer -q set Master 2dB+ unmute; killall -USR1 i3status"
 # bindsym XF86AudioLowerVolume exec "pulseaudio-ctl down; killall -USR1 i3status"

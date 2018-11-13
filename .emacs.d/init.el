@@ -30,7 +30,9 @@
  '(custom-enabled-themes '(solarized-dark))
  '(custom-safe-themes
    '("8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" default))
- '(display-line-numbers 'relative)
+ '(display-line-numbers 'visual)
+ '(display-line-numbers-type 'visual)
+ '(display-line-numbers-width 4)
  '(fill-column 80)
  '(foreground-color nil)
  '(global-display-line-numbers-mode t)

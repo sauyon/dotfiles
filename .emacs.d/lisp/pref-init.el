@@ -7,8 +7,10 @@
 ;; This doesn't need to be in a separate file :thinking:
 (global-set-key (kbd "<f8>") 'recompile)
 ;; Why isn't this default? (??????)
-(global-set-key (kbd "M-p") (lambda () (interactive) (previous-line 10)))
-(global-set-key (kbd "M-n") (lambda () (interactive) (next-line 10)))
+(global-set-key (kbd "M-p") 'backward-paragraph)
+(global-set-key (kbd "M-n") 'forward-paragraph)
+;; (global-set-key (kbd "M-p") (lambda () (interactive) (previous-line 10)))
+;; (global-set-key (kbd "M-n") (lambda () (interactive) (next-line 10)))
 ;; This makes sense in c-like languages (everything I write)
 (global-set-key (kbd "M-{") 'beginning-of-defun)
 (global-set-key (kbd "M-}") 'end-of-defun)

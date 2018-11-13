@@ -10,3 +10,5 @@ PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
 [[ $platform == 'osx' ]] && PATH=/usr/local/bin:$PATH
 PATH=$PATH:$HOME/.local/bin
 export PATH
+
+export MOZ_USE_XINPUT2=1

@@ -24,6 +24,7 @@
 ;; this should also be the default (thanks `technomancy/better-defaults')
 (global-set-key (kbd "C-x C-b") 'ibuffer)
 
+;; print 'blah instead of (quote blah) in customize
 (advice-add 'custom-save-all :around
             (lambda (orig)
               (let ((print-quoted t))

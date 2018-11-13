@@ -35,3 +35,8 @@ xscreensaver.Dialog.shadowThickness:    2
 xscreensaver.passwd.thermometer.foreground:  #101010
 xscreensaver.passwd.thermometer.background:  #2E2E2E
 xscreensaver.passwd.thermometer.width:       8
+
+! emacs ---------------------------------------------------------------------
+
+!fonts settings
+emacs.font: Noto Mono for Powerline-12

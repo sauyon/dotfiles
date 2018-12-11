@@ -165,7 +165,9 @@ bindsym XF86AudioMicMute exec "pactl set-source-mute @DEFAULT_SOURCE@ toggle"
 # bindsym Scroll_Lock exec "amixer sset Master toggle; killall -USR1 i3status"
 
 assign [class="Emacs"] 2
+# assign [class="Firefox"] 3
 assign [class="Quodlibet"] 10
+assign [instance="steam"] 4
 assign [instance="osu!.exe"] 4
 
 for_window [class="Crossover"] floating enable
@@ -181,12 +183,7 @@ for_window [instance="XMathematica"] floating enable
 for_window [class="KanColleTool"] floating enable
 for_window [class="Qjackctl"] floating enable
 
-for_window [instance="chromium"] border none
-for_window [class="google-chrome"] border none
 for_window [class="Firefox"] border none
-for_window [instance="google-chrome"] border none
-for_window [instance="crx_nckgahadagoaajjgafhacjanaoiihapd"] floating enable
-for_window [instance="crx_fahmaaghhglfmonjliepjlchgpgfmobi"] floating enable
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
 
 exec --no-startup-id ~/.local/bin/i3init &> ~/.local/share/i3init.log

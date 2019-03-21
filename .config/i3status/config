@@ -62,6 +62,7 @@ load {
 }
 
 cpu_temperature 0 {
+  path = "/sys/class/hwmon/hwmon1/temp1_input"
 	format = "T: %degrees °C"
 }
 

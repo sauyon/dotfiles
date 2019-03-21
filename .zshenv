@@ -11,4 +11,8 @@ PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
 PATH=$PATH:$HOME/.local/bin
 export PATH
 
+export GTK_IM_MODULE=ibus
+export XMODIFIERS=@im=ibus
+export QT_IM_MOUDLE=ibus
+
 export MOZ_USE_XINPUT2=1

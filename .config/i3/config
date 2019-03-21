@@ -26,7 +26,7 @@ font pango:Noto Sans 10
 client.focused          #eeeeee #eeeeee #666666 #2e9ef4
 #client.focused          #4c7899 #285577 #ffffff #2e9ef4
 client.focused_inactive #333333 #5f676a #ffffff #484e50
-client.unfocused        #d1d1d1 #d1d1d1 #666666 #292d2e
+client.unfocused        #d1d1d1 #aaaaaa #666666 #292d2e
 #client.unfocused        #333333 #222222 #888888 #292d2e
 client.urgent           #cc0000 #cc0000 #ffffff #900000
 #client.urgent           #2f343a #900000 #ffffff #900000
@@ -164,6 +164,10 @@ bindsym XF86AudioMicMute exec "pactl set-source-mute @DEFAULT_SOURCE@ toggle"
 # bindsym XF86AudioMute exec "pulseaudio-ctl mute; killall -USR1 i3status"
 # bindsym Scroll_Lock exec "amixer sset Master toggle; killall -USR1 i3status"
 
+bar {
+  status_command i3status
+}
+
 assign [class="Emacs"] 2
 # assign [class="Firefox"] 3
 assign [class="Quodlibet"] 10
@@ -187,3 +191,4 @@ for_window [class="Firefox"] border none
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
 
 exec --no-startup-id ~/.local/bin/i3init &> ~/.local/share/i3init.log
+exec --no-startup-id emacsclient -nc

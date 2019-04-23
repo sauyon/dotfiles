@@ -11,8 +11,8 @@
 #
 
 # Configure these to match your hardware (names taken from `xinput` output).
-TOUCHPAD='15'
-TOUCHSCREEN='ELAN Touchscreen'
+TOUCHPAD='18'
+TOUCHSCREEN='14'
 
 if [ -z "$1" ]; then
   echo "Missing orientation."

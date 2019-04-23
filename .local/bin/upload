@@ -44,8 +44,11 @@ SERVER="upload@lyrica.sio.pw"
 PORT=59049
 if command -v xclip &> /dev/null; then
   CLIP='xclip -selection clipboard'
-else
+elif command -v pbcopy &> /dev/null; then
   CLIP=pbcopy
+else
+  echo "xclip or pbcopy not found, echoing result"
+  CLIP=cat
 fi
 
 if [ $# -eq 0 ]; then

@@ -191,4 +191,4 @@ for_window [class="Firefox"] border none
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
 
 exec --no-startup-id ~/.local/bin/i3init &> ~/.local/share/i3init.log
-exec --no-startup-id emacsclient -nc
+exec --no-startup-id emacsclient -c

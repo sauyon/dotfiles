@@ -87,8 +87,6 @@ nix-clean() {
   nix-store --gc
 }
 
-alias update='aura -Syu; aura -Akua'
-alias aura="EDITOR=$(which emacs) sudo -E aura"
 alias sctl='sudo systemctl'
 alias nre='sudo -i nixos-rebuild switch'
 alias nreu='sudo -i nixos-rebuild switch --upgrade'

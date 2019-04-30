@@ -23,6 +23,8 @@
 (global-set-key (kbd "C-,") 'prev-window)
 ;; this should also be the default (thanks `technomancy/better-defaults')
 (global-set-key (kbd "C-x C-b") 'ibuffer)
+;; ebib
+(global-set-key (kbd "C-c e") 'ebib)
 
 ;; print 'blah instead of (quote blah) in customize
 (advice-add 'custom-save-all :around

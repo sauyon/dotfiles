@@ -171,6 +171,8 @@
 ;; Org mode -----------------------------------------------------------
 
 (require 'ox-latex)
+(require 'org-ref)
+;; (define-key org-mode-map (kbd "C-c [") 'org-reftex-citation)
 (add-hook 'org-mode-hook
           (lambda ()
             (setcar (nthcdr 2 org-emphasis-regexp-components) " \t\r\n,\"")

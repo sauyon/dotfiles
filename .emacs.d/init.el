@@ -73,6 +73,7 @@
       ("\\section{%s}" . "\\section*{%s}")
       ("\\subsection{%s}" . "\\subsection*{%s}")
       ("\\subsubsection{%s}" . "\\subsubsection*{%s}"))))
+ '(org-latex-compiler "lualatex")
  '(org-latex-default-packages-alist
    '(("AUTO" "inputenc" t)
      ("T1" "fontenc" t)
@@ -102,8 +103,9 @@
  '(org-latex-minted-options '(("fontsize" "\\footnotesize")))
  '(org-latex-packages-alist '(("" "minted" t)))
  '(org-latex-pdf-process
-   '("latexmk -bibtex -shell-escape -pdf -pdflatex=lualatex -view=none -f %f"))
+   '("latexmk -shell-escape -pdf -pdflatex=%latex -view=none -f %f"))
  '(org-list-allow-alphabetical t)
+ '(org-pretty-entities t)
  '(org-src-fontify-natively t)
  '(org-src-lang-modes
    '(("dot" . graphviz-dot)

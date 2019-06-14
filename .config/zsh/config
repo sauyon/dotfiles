@@ -26,6 +26,9 @@ export ANDROID_HOME=/opt/android-sdk
 # make go work :D
 export GOPATH=$HOME/devel/go
 
+# Java tooling is terrible
+export JAVA_HOME=/usr/lib/jvm/default
+
 # PATH is path. DAMMIT OHMYZSH AGAIN GR
 PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
 [[ $platform == 'osx' ]] && PATH=/opt/local/bin:/opt/local/sbin:/usr/local/bin:$PATH
@@ -98,9 +101,9 @@ export ARCHFLAGS="-arch x86_64"
 # Qt5 why u no like gtk
 export QT_STYLE_OVERRIDE=gtk
 
-export QT_IM_MODULE=ibus
-export XMODIFIERS=@im=ibus
-export GTK_IM_MODULE=ibus
+# export QT_IM_MODULE=ibus
+# export XMODIFIERS=@im=ibus
+# export GTK_IM_MODULE=ibus
 
 ## Misc preferences ------------------------------------------------------------------------
 
@@ -136,10 +139,14 @@ include /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 # The greeting. Yeah, yeah, I'm unimaginative. :'(
 echo "Hello, $(hostname)"'!'
 
-fi
-
 # The next line updates PATH for the Google Cloud SDK.
 if [ -f '/home/sauyon/downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/home/sauyon/downloads/google-cloud-sdk/path.zsh.inc'; fi
 
 # The next line enables shell command completion for gcloud.
 if [ -f '/home/sauyon/downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/sauyon/downloads/google-cloud-sdk/completion.zsh.inc'; fi
+
+export SEMMLE_DIST="$HOME/devel/maxcode/target/intree/standard"
+export SEMMLE_HOME="$HOME/semmle"
+export SEMMLE_DATA="$HOME/semmle/data"
+
+fi

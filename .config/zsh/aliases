@@ -24,7 +24,7 @@ alias la='ls -A'
 alias l='ls -FB'
 
 # rsync is better.
-alias cp='rsync -rgoP'
+alias rcp='rsync -rgoP'
 
 # fucking gpg
 alias gpg=gpg2 --homedir "$XDG_CONFIG_HOME"/gnupg
@@ -136,3 +136,14 @@ if exists gist; then
     echo $OUT
   }
 fi
+
+# Semmle thingies
+oda() {
+  odasa addLatestSnapshot --project "$SEMMLE_HOME/projects/$1"
+}
+
+alias odb='odasa buildSnapshot'
+alias ode='odasa export'
+
+DIST_COMPARE=/home/sauyon/devel/dist-compare
+alias gocomp="\"$DIST_COMPARE/dist-compare.sh\" \"$DIST_COMPARE/slugs/go/default.slugs\""

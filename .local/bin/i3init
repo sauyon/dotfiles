@@ -8,5 +8,5 @@ nm-applet &
 #emacsclient -nc
 /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
 xhost +local:steam
-ibus-daemon -drx
-#compton
+dunst
+#ibus-daemon -drx

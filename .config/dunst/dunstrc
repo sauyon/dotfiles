@@ -272,7 +272,7 @@
     # history = ctrl+grave
 
     # Context menu.
-    mod4+shift+grave
+    context = mod4+shift+grave
     # context = ctrl+shift+period
 
 [urgency_low]

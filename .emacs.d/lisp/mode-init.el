@@ -40,10 +40,6 @@
 
 (autoload 'go-mode "go-mode" "Go mode" t)
 (add-to-list 'auto-mode-alist '("\\.go\\'" . go-mode))
-(add-hook 'go-mode-hook
-          (lambda ()
-            (add-hook 'before-save-hook #'gofmt-before-save)
-            (setq indent-tabs-mode t)))
 
 ;; Python mode -----------------------------------------------------------------
 
@@ -170,11 +166,12 @@
 
 ;; Org mode -----------------------------------------------------------
 
-(require 'ox-latex)
-(require 'org-ref)
 ;; (define-key org-mode-map (kbd "C-c [") 'org-reftex-citation)
 (add-hook 'org-mode-hook
           (lambda ()
+            (require 'ox-latex)
+            (require 'org-ref)
+
             (setcar (nthcdr 2 org-emphasis-regexp-components) " \t\r\n,\"")
             (org-set-emph-re 'org-emphasis-regexp-components org-emphasis-regexp-components)
             (setq show-trailing-whitespace nil)
@@ -197,3 +194,10 @@
             (local-set-key (kbd "C-c H") 'hs-hide-all)
             (local-set-key (kbd "C-c s") 'hs-show-block)
             (local-set-key (kbd "C-c h") 'hs-hide-block)))
+
+;; Semmle QL mode -----------------------------------------------------
+
+(autoload 'ql-mode "semmle" "Semmle QL mode." t)
+(add-to-list 'auto-mode-alist '("\\.qll?\\'" . ql-mode))
+
+;; (smart-jump-register :modes '(ql-mode))

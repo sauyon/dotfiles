@@ -29,17 +29,22 @@
  '(cursor-color nil)
  '(custom-enabled-themes '(solarized-dark))
  '(custom-safe-themes
-   '("8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" default))
+   '("0598c6a29e13e7112cfbc2f523e31927ab7dce56ebb2016b567e1eff6dc1fd4f" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" default))
  '(default-frame-alist
     '((vertical-scroll-bars)
       (font . "Noto Mono for Powerline-12")))
  '(display-line-numbers 'relative)
  '(display-line-numbers-width 4)
+ '(dumb-jump-mode nil)
  '(fill-column 80)
  '(font-use-system-font t)
  '(foreground-color nil)
  '(global-display-line-numbers-mode t)
  '(global-prettify-symbols-mode t)
+ '(go-mode-hook
+   '((lambda nil
+       (add-hook 'before-save-hook #'gofmt-before-save)
+       (setq indent-tabs-mode t))))
  '(ido-mode 'both nil (ido))
  '(indent-tabs-mode nil)
  '(inhibit-startup-screen t)
@@ -126,8 +131,11 @@
      ("gnu" . "http://elpa.gnu.org/packages/")
      ("melpa" . "https://melpa.org/packages/")))
  '(package-selected-packages
-   '(ebib lua-mode graphviz-dot-mode pcap-mode rustic dumb-jump org-ref ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode rust-mode go-errcheck go-dlv go-complete latex-pretty-symbols smali-mode 2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode csv-mode dict-tree edit-server ensime flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete hardcore-mode haskell-mode helm-nixos-options jabber json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode solarized-theme systemd toml-mode tuareg web-mode yaml-mode zeitgeist))
+   '(fill-column-indicator smart-jump lsp-mode semmle ebib lua-mode graphviz-dot-mode pcap-mode rustic dumb-jump org-ref ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode rust-mode go-errcheck go-dlv go-complete latex-pretty-symbols smali-mode 2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode csv-mode dict-tree edit-server ensime flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete hardcore-mode haskell-mode helm-nixos-options jabber json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode solarized-theme systemd toml-mode tuareg web-mode yaml-mode zeitgeist))
  '(pcap-mode-tshark-executable nil)
+ '(ql-mode-hook nil)
+ '(ql-mode-target-language "go")
+ '(ql-ql-location "/home/sauyon/devel/maxcode/ql")
  '(require-final-newline t)
  '(ring-bell-function 'my-bell-function)
  '(rust-indent-offset 2)
@@ -138,6 +146,7 @@
  '(show-trailing-whitespace t)
  '(standard-indent 2)
  '(tab-width 2)
+ '(test-hook nil)
  '(tool-bar-mode nil)
  '(tool-bar-style 'text)
  '(user-full-name "Sauyon Lee")
@@ -148,6 +157,10 @@
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  )
+
+(package-initialize)
+(unless package-archive-contents (package-refresh-contents))
+(package-install-selected-packages)
 
 (put 'narrow-to-region 'disabled nil)
 (put 'set-goal-column 'disabled nil)

@@ -21,22 +21,30 @@ font pango:Noto Sans 10
 # chose a FreeType font, such as:
 # font pango:DejaVu Sans Mono 10
 
-input * xkb_layout "us"
-input * xkb_variant "colemak"
-input * xkb_options "ctrl:nocaps,ctrl:swapcaps"
-input "65261:4871:ErgoDox_EZ_ErgoDox_EZ" xkb_variant ""
-input "65261:4871:ErgoDox_EZ_ErgoDox_EZ" xkb_options ""
+input * {
+  xkb_layout "us"
+  xkb_variant "colemak"
+  xkb_options "ctrl:nocaps,ctrl:swapcaps,level3:ralt_switch"
+}
+
+input "65261:4871:ErgoDox_EZ_ErgoDox_EZ" {
+  xkb_variant ""
+  xkb_options ""
+}
+
+input "4176:1031:Yubico_YubiKey_OTP+FIDO+CCID" {
+  xkb_variant ""
+  xkb_options ""
+}
+
 input "Logitech USB Receiver Mouse" xkb_variant ""
 
 # colors
 # class                 border  backgr. text    indicator child_border
 client.focused          #eeeeee #eeeeee #666666 #2e9ef4 #eeeeee
-#client.focused          #4c7899 #285577 #ffffff #2e9ef4
-client.focused_inactive #333333 #5f676a #ffffff #484e50 #333333
-client.unfocused        #d1d1d1 #aaaaaa #666666 #292d2e #d1d1d1
-#client.unfocused        #333333 #222222 #888888 #292d2e
+client.focused_inactive #cccccc #cccccc #666666 #484e50 #d7d7d7
+client.unfocused        #aaaaaa #aaaaaa #666666 #292d2e #d1d1d1
 client.urgent           #cc0000 #cc0000 #ffffff #900000 #cc0000
-#client.urgent           #2f343a #900000 #ffffff #900000
 client.placeholder      #000000 #0c0c0c #ffffff #000000 #000000
 
 client.background       #ffffff
@@ -90,11 +98,11 @@ bindsym $mod+t fullscreen
 
 # Make the currently focused window a scratchpad
 bindsym $mod+Shift+minus mark "scratch0", move scratchpad
-bindsym $mod+Shift+plus mark "scratch1", move scratchpad
+bindsym $mod+Shift+equal mark "scratch1", move scratchpad
 
 # Show the first scratchpad window
-bindsym $mod+minus [con_mark="scratch0"] scratchpad show
-bindsym $mod+plus [con_mark="scratch1"] scratchpad show
+bindsym $mod+minus [con_mark="scratch0"] scratchpad show, resize set 1800 1000
+bindsym $mod+equal [con_mark="scratch1"] scratchpad show
 
 # toggle tiling / floating
 bindsym $mod+Shift+space floating toggle
@@ -156,9 +164,9 @@ bindsym $mod+F10 exec "quodlibet --play-pause"
 bindsym $mod+F11 exec "quodlibet --stop"
 bindsym $mod+F12 exec "quodlibet --next"
 
-# bindsym XF86AudioNext exec --no-startup-id "quodlibet --next"
-# bindsym XF86AudioPrev exec --no-startup-id "quodlibet --previous"
-# bindsym XF86AudioPlay exec --no-startup-id "quodlibet --play-pause"
+bindsym XF86AudioNext exec --no-startup-id "quodlibet --next"
+bindsym XF86AudioPrev exec --no-startup-id "quodlibet --previous"
+bindsym XF86AudioPlay exec --no-startup-id "quodlibet --play-pause"
 
 bindsym XF86AudioRaiseVolume exec "pactl set-sink-volume @DEFAULT_SINK@ +5%; killall -USR1 i3status"
 bindsym XF86AudioLowerVolume exec "pactl set-sink-volume @DEFAULT_SINK@ -5%; killall -USR1 i3status"
@@ -199,3 +207,4 @@ for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 8
 
 exec --no-startup-id ~/.local/bin/i3init &> ~/.local/share/i3init.log
 exec --no-startup-id emacsclient -c
+exec --no-startup-id ibus-daemon -rx

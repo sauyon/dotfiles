@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+[[ -z $XDG_CONFIG_HOME ]] && XDG_CONFIG_HOME=$HOME/.config
+feh --bg-center /home/sauyon/images/wallpapers/$(hostname).png --no-fehbg &
+#killall -q polybar; polybar i3bar &
+nm-applet &
+[[ -f "$XDG_CONFIG_HOME/X11/resources" ]] && \
+  xrdb -merge "$XDG_CONFIG_HOME/X11/resources" &
+#emacsclient -nc
+/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 &
+xhost +local:steam &
+mako &
+#ibus-daemon -drx

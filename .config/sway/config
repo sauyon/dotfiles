@@ -102,7 +102,7 @@ bindsym $mod+Shift+equal mark "scratch1", move scratchpad
 
 # Show the first scratchpad window
 bindsym $mod+minus [con_mark="scratch0"] scratchpad show, resize set 1800 1000
-bindsym $mod+equal [con_mark="scratch1"] scratchpad show
+bindsym $mod+equal [con_mark="scratch1"] scratchpad show, resize set 1800 1000
 
 # toggle tiling / floating
 bindsym $mod+Shift+space floating toggle
@@ -205,6 +205,11 @@ for_window [class="Qjackctl"] floating enable
 for_window [class="Firefox"] border none
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
 
-exec --no-startup-id ~/.local/bin/i3init &> ~/.local/share/i3init.log
+exec --no-startup-id ~/.local/bin/swayinit &> ~/.local/share/swayinit.log
 exec --no-startup-id emacsclient -c
 exec --no-startup-id ibus-daemon -rx
+exec swayidle -w \
+       timeout 300 'swaylock -f' \
+       timeout 600 'swaymsg "output * dpms off"' \
+       resume 'swaymsg "output * dpms on"' \
+       before-sleep 'swaylock -f'

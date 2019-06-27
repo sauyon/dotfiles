@@ -206,8 +206,11 @@ for_window [class="Firefox"] border none
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
 
 exec --no-startup-id ~/.local/bin/swayinit &> ~/.local/share/swayinit.log
-exec --no-startup-id emacsclient -c
-exec --no-startup-id ibus-daemon -rx
+exec feh --bg-center "$HOME/images/wallpapers/$(hostname).png" --no-fehbg
+# exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+exec emacsclient -c
+exec ibus-daemon -rx
+exec mako
 exec swayidle -w \
        timeout 300 'swaylock -f' \
        timeout 600 'swaymsg "output * dpms off"' \

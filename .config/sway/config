@@ -118,7 +118,7 @@ bindsym $mod+Return exec alacritty
 # There also is the (new) i3-dmenu-desktop which only displays applications
 # shipping a .desktop file. It is a wrapper around dmenu, so you need that
 # installed.
-bindsym $mod+r exec --no-startup-id j4-dmenu-desktop
+bindsym $mod+r exec alacritty --title 'Launcher' -e j4-dmenu-desktop --dmenu="(cat ; (stest -flx $(echo $PATH | tr : ' ') | sort -u)) | fzf" --term='alacritty'
 # bindsym $mod+r exec --no-startup-id i3-dmenu-desktop
 
 # move output
@@ -146,11 +146,14 @@ Bindsym $mod+Shift+c reload
 # restart i3 inplace (preserves your layout/session, can be used to upgrade i3)
 bindsym $mod+Shift+r restart
 # exit i3 (logs you out of your X session)
-bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'You pressed the exit shortcut. Do you really want to exit i3? This will end your X session.' -b 'Yes, exit i3' 'i3-msg exit'"
+bindsym $mod+Shift+e exec "swaynag -t warning -m 'You pressed the exit shortcut. Do you really want to exit sway? This will end your X session.' -b 'Yes, exit sway' 'swaymsg exit'"
 
-bindsym --release $mod+Print exec "~/.local/bin/shot"
-#bindsym Shift+Print exec scrot '%s.png' -e 'simg -r $f'
-#bindsym $mod+Shift+Print exec scrot '%s.png' -e 'simg -r $f' -s
+bindsym $mod+x exec makoctl dismiss
+bindsym $mod+o exec makoctl invoke
+
+# bindsym --release $mod+Print exec "~/.local/bin/shot"
+# bindsym Shift+Print exec scrot '%s.png' -e 'simg -r $f'
+# bindsym $mod+Shift+Print exec scrot '%s.png' -e 'simg -r $f' -s
 
 # Sreen brightness controls
 bindsym XF86MonBrightnessUp exec "xbacklight -inc 10"
@@ -168,16 +171,10 @@ bindsym XF86AudioNext exec --no-startup-id "quodlibet --next"
 bindsym XF86AudioPrev exec --no-startup-id "quodlibet --previous"
 bindsym XF86AudioPlay exec --no-startup-id "quodlibet --play-pause"
 
-bindsym XF86AudioRaiseVolume exec "pactl set-sink-volume @DEFAULT_SINK@ +5%; killall -USR1 i3status"
-bindsym XF86AudioLowerVolume exec "pactl set-sink-volume @DEFAULT_SINK@ -5%; killall -USR1 i3status"
-bindsym XF86AudioMute exec "pactl set-sink-mute @DEFAULT_SINK@ toggle; killall -USR1 i3status"
+bindsym XF86AudioRaiseVolume exec "pactl set-sink-volume @DEFAULT_SINK@ +5%"
+bindsym XF86AudioLowerVolume exec "pactl set-sink-volume @DEFAULT_SINK@ -5%"
+bindsym XF86AudioMute exec "pactl set-sink-mute @DEFAULT_SINK@ toggle"
 bindsym XF86AudioMicMute exec "pactl set-source-mute @DEFAULT_SOURCE@ toggle"
-# bindsym XF86AudioRaiseVolume exec "pulseaudio-ctl up; killall -USR1 i3status"
-# bindsym Home exec "amixer -q set Master 2dB+ unmute; killall -USR1 i3status"
-# bindsym XF86AudioLowerVolume exec "pulseaudio-ctl down; killall -USR1 i3status"
-# bindsym End exec "amixer -q set Master 2dB- unmute; killall -USR1 i3status"
-# bindsym XF86AudioMute exec "pulseaudio-ctl mute; killall -USR1 i3status"
-# bindsym Scroll_Lock exec "amixer sset Master toggle; killall -USR1 i3status"
 
 bar {
   status_command i3status
@@ -201,13 +198,17 @@ for_window [class="XMathematica"] floating enable
 for_window [instance="XMathematica"] floating enable
 for_window [class="KanColleTool"] floating enable
 for_window [class="Qjackctl"] floating enable
+for_window [title="Launcher"] floating enable, resize set 800 400
 
 for_window [class="Firefox"] border none
 for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
 
-exec --no-startup-id ~/.local/bin/swayinit &> ~/.local/share/swayinit.log
+exec systemctl --user import-environment DISPLAY
+exec systemctl --user import-environment WAYLAND_DISPLAY
+exec systemctl --user import-environment GNUPGHOME
+
 exec feh --bg-center "$HOME/images/wallpapers/$(hostname).png" --no-fehbg
-# exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
+exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec emacsclient -c
 exec ibus-daemon -rx
 exec mako
@@ -215,4 +216,4 @@ exec swayidle -w \
        timeout 300 'swaylock -f' \
        timeout 600 'swaymsg "output * dpms off"' \
        resume 'swaymsg "output * dpms on"' \
-       before-sleep 'swaylock -f'
+       before-sleep "$HOME/.local/bin/lock"

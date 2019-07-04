@@ -42,13 +42,13 @@ if getrep "Run first-time setup? [Y/n]: "; then
   echo "Setting password for root:"
   passwd
 
-  # useradd "$1" -s /bin/zsh -g users -G wheel network video
-  # echo "Setting password for $1:"
-  # passwd "$1"
+  useradd "$1" -s /bin/zsh -g users -G wheel network video
+  echo "Setting password for $1:"
+  passwd "$1"
 
-  # mkdir -p "/home/$1"
-  # chown "$1":users "/home/$1"
-  # git clone https://github.com/sauyon/dotfiles "/home/$1"
+  mkdir -p "/home/$1"
+  chown "$1":users "/home/$1"
+  git clone https://github.com/sauyon/dotfiles "/home/$1"
 
   echo -n "Building yay..."
   git clone https://aur.archlinux.org/yay
@@ -57,7 +57,7 @@ if getrep "Run first-time setup? [Y/n]: "; then
   echo " Done."
   cd ..
   rm -rf yay
-done
+fi
 
 if getrep "Install xorg/dm/etc? [Y/n] "; then
   echo -n "Installing packages..."

@@ -48,7 +48,8 @@ export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export WINIT_HIDPI_FACTOR=1
 
 # 2 space tabs are best tabs
-export PAGER="$(which less) -x2"
+export LESS='-Rx2'
+export PAGER="$(which less)"
 
 # Emacs ftw!
 if non_gui; then
@@ -59,33 +60,16 @@ fi
 
 export BROWSER="$(which firefox)"
 
-# Environment vars for use in scripts
-# I'm not actually sure this is meaningful...
-export XDG_DESKTOP_DIR="$HOME/desktop"
-export XDG_DOCUMENTS_DIR="$HOME/documents"
-export XDG_DOWNLOAD_DIR="$HOME/downloads"
-export XDG_MUSIC_DIR="$HOME/music"
-export XDG_PICTURES_DIR="$HOME/images"
-export XDG_PUBLICSHARE_DIR="$HOME/public"
-export XDG_TEMPLATES_DIR="$HOME/.local/templates"
-export XDG_VIDEOS_DIR="$HOME/videos"
-export XDG_DATA_HOME="$HOME/.local/share"
-export XDG_CONFIG_HOME="$HOME/.config"
-export XDG_CACHE_HOME="$HOME/.cache"
+# Semmle env vars
+export SEMMLE_CODE="$HOME/devel/maxcode"
+export SEMMLE_DIST="$HOME/devel/maxcode/target/intree/standard"
+export SEMMLE_HOME="$HOME/semmle"
+export SEMMLE_DATA="$HOME/semmle/data"
 
-# Unclutter home directory
-export LESSHISTFILE="$XDG_DATA_HOME/less/history"
-export GTK2_RC_FILES="$XDG_DATA_HOME/gtk-2.0/gtkrc"
-export WINEPREFIX="$XDG_DATA_HOME/wineprefixes/default"
-export CARGO_HOME="$XDG_DATA_HOME"/cargo
-export RUSTUP_HOME="$XDG_DATA_HOME"/rustup
-export GNUPGHOME="$XDG_CONFIG_HOME"/gnupg
-export WEECHAT_HOME="$XDG_CONFIG_HOME"/weechat
-export ASPELL_CONF="per-conf $XDG_CONFIG_HOME/aspell/aspell.conf; personal $XDG_CONFIG_HOME/aspell/en.personal; repl $XDG_CONFIG_HOME/aspell/en.prepl"
-export RIPGREP_CONFIG_PATH="$XDG_CONFIG_HOME/ripgrep.conf"
-
-export NIXPKGS="$HOME/devel/nixpkgs"
-export NIX_PATH="$NIX_PATH:nixpkgs=$NIXPKGS"
+# GPG for SSH
+export GPG_TTY="$(tty)"
+export SSH_AGENT_PID=
+export SSH_AUTH_SOCK="${XDG_RUNTIME_DIR}/gnupg/S.gpg-agent.ssh"
 
 #export XAUTHORITY="$XDG_RUNTIME_DIR"/Xauthority
 
@@ -101,9 +85,9 @@ export ARCHFLAGS="-arch x86_64"
 # Qt5 why u no like gtk
 export QT_STYLE_OVERRIDE=gtk
 
-# export QT_IM_MODULE=ibus
-# export XMODIFIERS=@im=ibus
-# export GTK_IM_MODULE=ibus
+export QT_IM_MODULE=ibus
+export XMODIFIERS=@im=ibus
+export GTK_IM_MODULE=ibus
 
 ## Misc preferences ------------------------------------------------------------------------
 
@@ -139,16 +123,8 @@ include /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 # The greeting. Yeah, yeah, I'm unimaginative. :'(
 echo "Hello, $(hostname)"'!'
 
-# The next line updates PATH for the Google Cloud SDK.
-if [ -f '/home/sauyon/downloads/google-cloud-sdk/path.zsh.inc' ]; then . '/home/sauyon/downloads/google-cloud-sdk/path.zsh.inc'; fi
-
-# The next line enables shell command completion for gcloud.
-if [ -f '/home/sauyon/downloads/google-cloud-sdk/completion.zsh.inc' ]; then . '/home/sauyon/downloads/google-cloud-sdk/completion.zsh.inc'; fi
-
-export SEMMLE_DIST="$HOME/devel/maxcode/target/intree/standard"
-export SEMMLE_HOME="$HOME/semmle"
-export SEMMLE_DATA="$HOME/semmle/data"
-
-export SSH_AUTH_SOCK="${XDG_RUNTIME_DIR}/gnupg/S.gpg-agent.ssh"
+if [[ -f /tmp/checkupdates.log ]]; then
+  cat /tmp/checkupdates.log
+fi
 
 fi

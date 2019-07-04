@@ -14,7 +14,7 @@ set $mod Mod4
 # Font for window titles. Will also be used by the bar unless a different font
 # is used in the bar {} block below. ISO 10646 = Unicode
 #font -misc-fixed-medium-r-normal--13-120-75-75-C-70-iso10646-1
-font pango:Noto Sans 10
+font pango:Noto Sans 12
 # The font above is very space-efficient, that is, it looks good, sharp and
 # clear in small sizes. However, if you need a lot of unicode glyphs or
 # right-to-left text rendering, you should instead use pango for rendering and
@@ -157,7 +157,7 @@ bindsym $mod+Shift+e exec "swaynag -t warning -m 'You pressed the exit shortcut.
 bindsym $mod+x exec makoctl dismiss
 bindsym $mod+o exec makoctl invoke
 
-# bindsym --release $mod+Print exec "~/.local/bin/shot"
+bindsym $mod+Print exec grim -g "$(slurp)" - | tee "$HOME/images/screenshots/screenshot-$(date -uIns).png" | wl-copy
 # bindsym Shift+Print exec scrot '%s.png' -e 'simg -r $f'
 # bindsym $mod+Shift+Print exec scrot '%s.png' -e 'simg -r $f' -s
 

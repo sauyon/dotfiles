@@ -1,3 +1,4 @@
+// -*- mode: json -*-
 {
 	"layer": "bottom", // Waybar at top layer
 	"position": "top", // Waybar position (top|bottom|left|right)
@@ -6,22 +7,31 @@
 	"modules-left": ["sway/workspaces", "sway/mode", "sway/window"],
 	"modules-center": [],
 	"modules-right": [
-    "custom/vpn", "network", "battery",
-    "pulseaudio", "cpu", "clock", "tray"
+    // "custom/vpn",
+    "network",
+    "battery",
+    "pulseaudio",
+    "cpu",
+    "clock",
+    "tray"
   ],
 	// Module config
+  "sway/workspaces": {
+    "disable-scroll-wraparound": true
+    // "enable-bar-scroll": true
+  },
 	"sway/mode": {
 		"tooltip": false,
 		"format": "<span weight=\"bold\">{}</span>"
 	},
-	"custom/vpn": {
-		"interval": 5,
-		"tooltip": false,
-		"format": "{}",
-		"return-type": "json",
-		// Script at https://gitlab.com/krathalan/miscellaneous-scripts
-		"exec": "vpn_detect mullvad-us5"
-	},
+	// "custom/vpn": {
+	// 	"interval": 5,
+	// 	"tooltip": false,
+	// 	"format": "{}",
+	// 	"return-type": "json",
+	// 	// Script at https://gitlab.com/krathalan/miscellaneous-scripts
+	// 	"exec": "vpn_detect mullvad-us5"
+	// },
 	"network": {
 		"tooltip": false,
 		// "interface": "wlp2*", // (Optional) To force the use of this interface
@@ -49,10 +59,10 @@
 	"pulseaudio": {
 		"tooltip": false,
 		// "scroll-step": 1, // %, can be a float
-		"format": "vol{volume}% {icon}",
-		"format-bluetooth": "vol{volume}% {icon}\uf0b1",
+		"format": "{volume}% {icon}",
+		"format-bluetooth": "{volume}% {icon}\uf0b1",
 		"format-muted": "",
-		"format-source": "vol{volume}% {icon}",
+		"format-source": "{volume}% {icon}",
 		"format-source-muted": "\uf75e",
 		"format-icons": {
 			"headphones": "",

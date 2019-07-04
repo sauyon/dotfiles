@@ -39,6 +39,8 @@ input "4176:1031:Yubico_YubiKey_OTP+FIDO+CCID" {
 
 input "Logitech USB Receiver Mouse" xkb_variant ""
 
+output * background "$HOME/images/wallpapers/$(hostname).png" center #1e174f
+
 # colors
 # class                 border  backgr. text    indicator child_border
 client.focused          #eeeeee #eeeeee #666666 #2e9ef4 #eeeeee
@@ -208,7 +210,6 @@ exec systemctl --user import-environment DISPLAY
 exec systemctl --user import-environment WAYLAND_DISPLAY
 exec systemctl --user import-environment GNUPGHOME
 
-exec feh --bg-center "$HOME/images/wallpapers/$(hostname).png" --no-fehbg
 exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec emacsclient -c
 exec ibus-daemon -rx

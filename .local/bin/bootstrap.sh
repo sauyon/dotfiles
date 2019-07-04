@@ -27,7 +27,7 @@ These steps must be done outside this bootstrap script:
  - generated and set locales
  - setup the bootloader
 EOF
-if !getrep "Continue? [Y/n]: "; then
+if ! getrep "Continue? [Y/n]: "; then
   exit 1
 fi
 
@@ -61,28 +61,39 @@ fi
 
 if getrep "Install xorg/dm/etc? [Y/n] "; then
   echo -n "Installing packages..."
+  # needs to be first to install before gdm dependencies
+  sudo -u "$1" \
+  yay -S ttf-google-fonts-git --needed
+
+  sudo -u "$1" \
   yay -S alacritty dunst gdm grim emacs feh firefox noto-fonts sway swayidle \
          swaylock lxappearance mako network-manager-applet networkmanager \
          noto-fonts pam-u2f pavucontrol pcscd polkit-gnome pulseaudio \
-         quodlibet scrot slurp sxiv \
+         quodlibet scrot slurp sxiv yubikey-manager yubikey-personalization \
       --noconfirm --needed
 
   # AUR packages
   sudo -u "$1" \
   yay -S acpilight dmenu-wayland-git gtk-theme-numix-sx j4-dmenu-desktop \
          lightdm-settings lightdm-slick-greeter numix-icon-theme-git \
-         powerline-fonts-git siji-git ttf-google-fonts-git \
-      --noconfirm --needed
+         powerline-fonts-git siji-git \
+         --noconfirm --needed
 
-	systemctl enable lightdm
+	systemctl enable gdm.service
+  systemctl enable pcscd.service
 else
   echo -n "Installing packages..."
+  sudo -u "$1" \
 	yay -S emacs-nox --noconfirm --needed
 fi
+
+sudo -u "$1" \
 yay -S cowsay htop mlocate openssh p7zip pkgfile ripgrep rsync sudo tldr \
     --noconfirm --needed
 sudo -u "$1" \
 yay -S oh-my-zsh-git --noconfirm --needed
+
+sudo -u "$1" systemctl --user enable emacs.service
 
 echo " Done."
 

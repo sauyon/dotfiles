@@ -37,6 +37,11 @@ input "4176:1031:Yubico_YubiKey_OTP+FIDO+CCID" {
   xkb_options ""
 }
 
+input "4176:1025:Yubico_YubiKey_OTP" {
+  xkb_variant ""
+  xkb_options ""
+}
+
 input "Logitech USB Receiver Mouse" xkb_variant ""
 
 output * background "$HOME/images/wallpapers/$(hostname).png" center #1e174f

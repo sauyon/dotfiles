@@ -61,10 +61,10 @@ fi
 
 if getrep "Install xorg/dm/etc? [Y/n] "; then
   echo -n "Installing packages..."
-  yay -S alacritty dunst grim emacs feh firefox noto-fonts sway swayidle \
-      swaylock lightdm lightdm-gtk-greeter lxappearance mako \
-      network-manager-applet networkmanager noto-fonts pam-u2f pavucontrol \
-      pcscd polkit-gnome pulseaudio quodlibet scrot slurp sxiv \
+  yay -S alacritty dunst gdm grim emacs feh firefox noto-fonts sway swayidle \
+         swaylock lxappearance mako network-manager-applet networkmanager \
+         noto-fonts pam-u2f pavucontrol pcscd polkit-gnome pulseaudio \
+         quodlibet scrot slurp sxiv \
       --noconfirm --needed
 
   # AUR packages

@@ -1,11 +1,14 @@
 {
-	"layer": "top", // Waybar at top layer
-	"position": "bottom", // Waybar position (top|bottom|left|right)
+	"layer": "bottom", // Waybar at top layer
+	"position": "top", // Waybar position (top|bottom|left|right)
 	"height": 30, // Waybar height (to be removed for auto height)
 	// Choose the order of the modules
 	"modules-left": ["sway/workspaces", "sway/mode", "sway/window"],
 	"modules-center": [],
-	"modules-right": ["custom/vpn", "network", "battery", "pulseaudio", "cpu", "clock", "tray"],
+	"modules-right": [
+    "custom/vpn", "network", "battery",
+    "pulseaudio", "cpu", "clock", "tray"
+  ],
 	// Module config
 	"sway/mode": {
 		"tooltip": false,
@@ -17,23 +20,23 @@
 		"format": "{}",
 		"return-type": "json",
 		// Script at https://gitlab.com/krathalan/miscellaneous-scripts
-		"exec": "bash $HOME/Git/miscellaneous-scripts/vpn_detect mullvad-us5"
+		"exec": "vpn_detect mullvad-us5"
 	},
 	"network": {
 		"tooltip": false,
 		// "interface": "wlp2*", // (Optional) To force the use of this interface
-		"format-wifi": "{essid} ({signalStrength}%) 蠟",
+		"format-wifi": "{essid} ({signalStrength:2}%) 蠟",
 		"format-ethernet": "{ifname}: {ipaddr}/{cidr}",
 		"format-linked": "{ifname} (No IP)",
-		"format-alt": "{ifname}: {ipaddr}",
+		"format-alt": "{ifname}: {ipaddr}/{cidr}",
 		"format-disconnected": "No internet"
 	},
 	"battery": {
 		"tooltip": false,
 		"states": {
-				// "good": 95,
-				"warning": 30,
-				"critical": 15
+			// "good": 95,
+			"warning": 30,
+			"critical": 15
 		},
 		"format": "{capacity}% {icon}",
 		"format-alt": "{time} {icon}",
@@ -46,30 +49,37 @@
 	"pulseaudio": {
 		"tooltip": false,
 		// "scroll-step": 1, // %, can be a float
-		"format": "{volume}% {icon}",
-		"format-bluetooth": "{volume}% {icon}",
+		"format": "vol{volume}% {icon}",
+		"format-bluetooth": "vol{volume}% {icon}\uf0b1",
 		"format-muted": "",
-		"format-source": "{volume}% {icon}",
-		"format-source-muted": "",
+		"format-source": "vol{volume}% {icon}",
+		"format-source-muted": "\uf75e",
 		"format-icons": {
-				"headphones": "",
-				"handsfree": "",
-				"headset": "",
-				"phone": "",
-				"portable": "",
-				"car": "",
-				"default": ["", "", ""]
+			"headphones": "",
+			"handsfree": "",
+			"headset": "",
+			"phone": "",
+			"portable": "",
+			"car": "",
+			"default": ["", "", ""]
 		},
 		"on-click": "pavucontrol"
 	},
 	"cpu": {
 		"interval": 5,
 		"tooltip": false,
-		"format": "{usage}% "
+		"format": "{usage:2}% \uf35b"
+	},
+	"idle_inhibitor": {
+		"format": "{icon}",
+		"format-icons": {
+			"activated": "\uf0b1",
+			"deactivated": "\ue857"
+		}
 	},
 	"clock": {
 		"tooltip": false,
-		"format": "{:%a, %b %d %Y %I:%M%P}"
+		"format": "{:%a, %F %T}"
 	},
 	"tray": {
 		"tooltip": false,

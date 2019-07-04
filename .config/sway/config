@@ -118,7 +118,8 @@ bindsym $mod+Return exec alacritty
 # There also is the (new) i3-dmenu-desktop which only displays applications
 # shipping a .desktop file. It is a wrapper around dmenu, so you need that
 # installed.
-bindsym $mod+r exec alacritty --title 'Launcher' -e j4-dmenu-desktop --dmenu="(cat ; (stest -flx $(echo $PATH | tr : ' ') | sort -u)) | fzf" --term='alacritty'
+# bindsym $mod+r exec alacritty --title 'Launcher' -e j4-dmenu-desktop --dmenu="(cat ; (stest -flx $(echo $PATH | tr : ' ') | sort -u)) | fzf" --term='alacritty'
+bindsym $mod+r exec j4-dmenu-desktop --dmenu='dmenu-wl' --term='alacritty'
 # bindsym $mod+r exec --no-startup-id i3-dmenu-desktop
 
 # move output
@@ -177,7 +178,7 @@ bindsym XF86AudioMute exec "pactl set-sink-mute @DEFAULT_SINK@ toggle"
 bindsym XF86AudioMicMute exec "pactl set-source-mute @DEFAULT_SOURCE@ toggle"
 
 bar {
-  status_command i3status
+  swaybar_command waybar
 }
 
 assign [class="Emacs"] 2

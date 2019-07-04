@@ -149,4 +149,6 @@ export SEMMLE_DIST="$HOME/devel/maxcode/target/intree/standard"
 export SEMMLE_HOME="$HOME/semmle"
 export SEMMLE_DATA="$HOME/semmle/data"
 
+export SSH_AUTH_SOCK="${XDG_RUNTIME_DIR}/gnupg/S.gpg-agent.ssh"
+
 fi

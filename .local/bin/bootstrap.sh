@@ -37,7 +37,7 @@ if getrep "Run first-time setup? [Y/n]: "; then
   hostname "$REPLY"
 
   pacman -Syu --noconfirm
-  pacman -S zsh git base-devel --noconfirm --needed
+  pacman -S zsh git sudo base-devel --noconfirm --needed
 
   echo "Setting password for root:"
   passwd
@@ -63,20 +63,21 @@ if getrep "Install xorg/dm/etc? [Y/n] "; then
   echo -n "Installing packages..."
   # needs to be first to install before gdm dependencies
   sudo -u "$1" \
-  yay -S ttf-google-fonts-git --needed
+  yay -S ttf-google-fonts-git --noconfirm --needed
 
   sudo -u "$1" \
   yay -S alacritty dunst gdm grim emacs feh firefox noto-fonts sway swayidle \
          swaylock lxappearance mako network-manager-applet networkmanager \
          noto-fonts pam-u2f pavucontrol pcscd polkit-gnome pulseaudio \
-         quodlibet scrot slurp sxiv yubikey-manager yubikey-personalization \
+         quodlibet scrot slurp sxiv waybar yubikey-manager \
+         yubikey-personalization \
       --noconfirm --needed
 
   # AUR packages
   sudo -u "$1" \
   yay -S acpilight dmenu-wayland-git gtk-theme-numix-sx j4-dmenu-desktop \
          lightdm-settings lightdm-slick-greeter numix-icon-theme-git \
-         powerline-fonts-git siji-git \
+         powerline-fonts-git siji-git ttf-material-design-icons-webfont \
          --noconfirm --needed
 
 	systemctl enable gdm.service
@@ -88,7 +89,7 @@ else
 fi
 
 sudo -u "$1" \
-yay -S cowsay htop mlocate openssh p7zip pkgfile ripgrep rsync sudo tldr \
+yay -S cowsay htop mlocate openssh p7zip pkgfile ripgrep rsync tldr \
     --noconfirm --needed
 sudo -u "$1" \
 yay -S oh-my-zsh-git --noconfirm --needed

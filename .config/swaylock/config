@@ -1,0 +1,20 @@
+ignore-empty-password
+show-failed-attempts
+show-keyboard-layout
+color=002b36
+font=Noto Sans 12
+# inside-color=
+# inside-clear-color=
+# inside-ver-color=
+# inside-wrong-color=
+# key-hl-color=
+# line-color=
+line-clear-color=00000000
+line-caps-lock-color=00000000
+line-ver-color=00000000
+line-wrong-color=00000000
+inside-caps-lock-color=dc322f
+layout-bg-color=00000000
+layout-border-color=00000000
+layout-text-color=839496
+indicator-radius=100

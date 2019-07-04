@@ -31,49 +31,58 @@ if !getrep "Continue? [Y/n]: "; then
   exit 1
 fi
 
-read -p "Enter hostname: "
-echo "$REPLY" > /etc/hostname
-hostname "$REPLY"
+if getrep "Run first-time setup? [Y/n]: "; then
+  read -p "Enter hostname: "
+  echo "$REPLY" > /etc/hostname
+  hostname "$REPLY"
 
-pacman -Syu --noconfirm
-pacman -S zsh git base-devel --noconfirm
+  pacman -Syu --noconfirm
+  pacman -S zsh git base-devel --noconfirm --needed
 
-echo "Setting password for root:"
-passwd
+  echo "Setting password for root:"
+  passwd
 
-useradd "$1" -s /bin/zsh -g users -G wheel network video
-echo "Setting password for $1:"
-passwd "$1"
+  # useradd "$1" -s /bin/zsh -g users -G wheel network video
+  # echo "Setting password for $1:"
+  # passwd "$1"
 
-mkdir -p "/home/$1"
-chown "$1":users "/home/$1"
-git clone https://github.com/sauyon/dotfiles "/home/$1"
+  # mkdir -p "/home/$1"
+  # chown "$1":users "/home/$1"
+  # git clone https://github.com/sauyon/dotfiles "/home/$1"
 
-sudo -u "$1" ssh-keygen -f id_ed25519 -t ed25519 -N ''
-
-echo -n "Building aura-bin..."
-git clone https://aur.archlinux.org/aura-bin
-cd aura-bin
-sudo -u "$1" makepkg -si
-echo " Done."
+  echo -n "Building yay..."
+  git clone https://aur.archlinux.org/yay
+  cd yay
+  sudo -u "$1" makepkg -si
+  echo " Done."
+  cd ..
+  rm -rf yay
+done
 
 if getrep "Install xorg/dm/etc? [Y/n] "; then
   echo -n "Installing packages..."
-	aura -S alacritty dunst emacs feh firefox i3-wm i3blocks i3status \
-       lightdm lxappearance network-manager-applet \
-       networkmanager pavucontrol polkit-gnome pulseaudio scrot sxiv \
-       xorg-xhost xorg-xrdb --noconfirm
-  aura -A acpilight gtk-theme-numix-sx j4-dmenu-desktop \
-       lightdm-settings lightdm-slick-greeter numix-icon-theme-git \
-       powerline-fonts-git siji-git ttf-google-fonts-git --noconfirm
+  yay -S alacritty dunst grim emacs feh firefox noto-fonts sway swayidle \
+      swaylock lightdm lightdm-gtk-greeter lxappearance mako \
+      network-manager-applet networkmanager noto-fonts pam-u2f pavucontrol \
+      pcscd polkit-gnome pulseaudio quodlibet scrot slurp sxiv \
+      --noconfirm --needed
+
+  # AUR packages
+  sudo -u "$1" \
+  yay -S acpilight dmenu-wayland-git gtk-theme-numix-sx j4-dmenu-desktop \
+         lightdm-settings lightdm-slick-greeter numix-icon-theme-git \
+         powerline-fonts-git siji-git ttf-google-fonts-git \
+      --noconfirm --needed
 
 	systemctl enable lightdm
 else
   echo -n "Installing packages..."
-	aura -S emacs-nox --noconfirm
+	yay -S emacs-nox --noconfirm --needed
 fi
-aura -S cowsay htop mlocate openssh pkgfile ripgrep rsync sudo --noconfirm
-aura -A oh-my-zsh --noconfirm
+yay -S cowsay htop mlocate openssh p7zip pkgfile ripgrep rsync sudo tldr \
+    --noconfirm --needed
+sudo -u "$1" \
+yay -S oh-my-zsh-git --noconfirm --needed
 
 echo " Done."
 

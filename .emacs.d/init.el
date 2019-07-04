@@ -26,6 +26,7 @@
  '(background-color nil)
  '(background-mode dark)
  '(c-basic-offset 2)
+ '(css-indent-offset 2)
  '(cursor-color nil)
  '(custom-enabled-themes '(solarized-dark))
  '(custom-safe-themes
@@ -49,6 +50,7 @@
  '(indent-tabs-mode nil)
  '(inhibit-startup-screen t)
  '(ispell-program-name "/usr/bin/hunspell")
+ '(js-indent-level 2)
  '(load-prefer-newer t)
  '(org-babel-load-languages '((dot . t) (ditaa . t) (emacs-lisp . t)))
  '(org-confirm-babel-evaluate nil)
@@ -131,7 +133,7 @@
      ("gnu" . "http://elpa.gnu.org/packages/")
      ("melpa" . "https://melpa.org/packages/")))
  '(package-selected-packages
-   '(fill-column-indicator smart-jump lsp-mode semmle ebib lua-mode graphviz-dot-mode pcap-mode rustic dumb-jump org-ref ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode rust-mode go-errcheck go-dlv go-complete latex-pretty-symbols smali-mode 2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode csv-mode dict-tree edit-server ensime flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete hardcore-mode haskell-mode helm-nixos-options jabber json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode solarized-theme systemd toml-mode tuareg web-mode yaml-mode zeitgeist))
+   '(fill-column-indicator smart-jump semmle ebib lua-mode graphviz-dot-mode pcap-mode rustic dumb-jump org-ref ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode rust-mode go-errcheck go-dlv go-complete latex-pretty-symbols smali-mode 2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode csv-mode dict-tree edit-server ensime flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete hardcore-mode haskell-mode helm-nixos-options jabber json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode solarized-theme systemd toml-mode tuareg web-mode yaml-mode zeitgeist))
  '(pcap-mode-tshark-executable nil)
  '(ql-mode-hook nil)
  '(ql-mode-target-language "go")
@@ -158,9 +160,8 @@
  ;; If there is more than one, they won't work right.
  )
 
-(package-initialize)
-(unless package-archive-contents (package-refresh-contents))
-(package-install-selected-packages)
+;; (unless package-archive-contents (package-refresh-contents))
+;; (package-install-selected-packages)
 
 (put 'narrow-to-region 'disabled nil)
 (put 'set-goal-column 'disabled nil)

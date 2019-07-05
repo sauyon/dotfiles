@@ -42,12 +42,14 @@ shift $((OPTIND-1))
 BASEURL="https://lyrica.sio.pw/uploads"
 SERVER="upload@lyrica.sio.pw"
 PORT=59049
-if command -v xclip &> /dev/null; then
+if command -v wl-copy &> /dev/null; then
+  CLIP=wl-copy
+elif command -v xclip &> /dev/null; then
   CLIP='xclip -selection clipboard'
 elif command -v pbcopy &> /dev/null; then
   CLIP=pbcopy
 else
-  echo "xclip or pbcopy not found, echoing result"
+  echo "xclip, pbcopy, and wl-copy not found, echoing result"
   CLIP=cat
 fi
 

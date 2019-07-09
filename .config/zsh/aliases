@@ -27,7 +27,7 @@ alias l='ls -FB'
 alias rcp='rsync -rgoP'
 
 # fucking gpg
-alias gpg=gpg2 --homedir "$XDG_CONFIG_HOME"/gnupg
+# alias gpg=gpg2 --homedir "$XDG_CONFIG_HOME"/gnupg
 
 # USACO aliases
 genrun() {
@@ -75,10 +75,13 @@ alias nb='nix-build'
 alias ne='nix-env'
 alias nei='nix-env -i'
 alias nee='nix-env -e'
-alias nbd='nix-build -E '"'"'with import <nixpkgs> {}; callPackage ./default.nix {}'"'"
+alias neu='nix-env -u'
+alias nee='nix-env -q'
+alias nbd='nix build -f ./default.nix'
 alias ns='nix-shell'
 alias nsp='nix-shell -p'
-alias neu='nix-env -u'
+alias nf='nix search'
+alias nfu='nix search -u'
 alias ns='nix-shell'
 alias nsp='nix-shell -p'
 alias nsr='nix-shell --run'
@@ -104,13 +107,9 @@ else
   sedit() { emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" }
 fi
 
-opendir() { sakura -d "$1" }
+opendir() { alacritty --working-directory "$1" }
 
-mvosz() {mv "$@" /opt/osu/Songs}
-
-alias -s exe="wine"
-
-alias i3cheatsheet='egrep ^bind ~/.config/i3/config | cut -d '\'' '\'' -f 2- | sed '\''s/ /\t/'\'' | column -ts $'\''\t'\'' | pr -2 -w 145 -t | less'
+alias swaycheatsheet='egrep ^bind ~/.config/sway/config | cut -d '\'' '\'' -f 2- | sed '\''s/ /\t/'\'' | column -ts $'\''\t'\'' | pr -2 -w 145 -t | less'
 
 alias oxprt='CUPS_SERVER=cups.cs.ox.ac.uk:631 enscript -G2r -d tp1hdup'
 alias oxprm='CUPS_SERVER=cups.cs.ox.ac.uk:631 enscript -G2r -d mphdup'
@@ -139,11 +138,31 @@ fi
 
 # Semmle thingies
 oda() {
-  odasa addLatestSnapshot --project "$SEMMLE_HOME/projects/$1"
+  if [[ $(dirname $(pwd)) -ef "$SEMMLE_HOME/projects" ]]; then
+    odasa addLatestSnapshot
+  else
+    odasa addLatestSnapshot --project "$SEMMLE_HOME/projects/$1"
+  fi
 }
 
-alias odb='odasa buildSnapshot'
-alias ode='odasa export'
+odb() {
+  if [[ $(dirname $(pwd)) -ef "$SEMMLE_HOME/projects" ]]; then
+    odasa buildSnapshot --latest
+  else
+    odasa buildSnapshot --latest --project "$SEMMLE_HOME/projects/$1"
+  fi
+}
 
-DIST_COMPARE=/home/sauyon/devel/dist-compare
-alias gocomp="\"$DIST_COMPARE/dist-compare.sh\" \"$DIST_COMPARE/slugs/go/default.slugs\""
+ode() {
+  if [[ $(dirname $(pwd)) -ef "$SEMMLE_HOME/projects" ]]; then
+    odasa export --latest
+  else
+    odasa export --latest --project "$SEMMLE_HOME/projects/$1"
+  fi
+}
+
+odbe() {
+  oda "$1"
+  odb "$1"
+  ode "$1"
+}

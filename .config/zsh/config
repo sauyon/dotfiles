@@ -30,17 +30,19 @@ export GOPATH=$HOME/devel/go
 export JAVA_HOME=/usr/lib/jvm/default
 
 # PATH is path. DAMMIT OHMYZSH AGAIN GR
-PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
+PATH=$HOME/.nix-profile/bin:$PATH
+PATH=$PATH:$GOPATH/bin:$XDG_DATA_HOME/cargo/bin
 [[ $platform == 'osx' ]] && PATH=/opt/local/bin:/opt/local/sbin:/usr/local/bin:$PATH
-PATH=$PATH:$XDG_DATA_HOME/cargo/bin
 PATH=$PATH:$HOME/.local/bin
-PATH=$PATH:$HOME/.local/share/cargo/bin
 # to dot or not to dot?
 # PATH=$PATH:.
 export PATH
 
 # LD_LIBRARY_PATH?!
 LD_LIBRARY_PATH=$HOME/.rustc/rust/rustc/lib:$LD_LIBRARY_PATH
+
+# Nix!
+export NIX_PATH=nixpkgs=channel:nixpkgs-unstable:home-manager=https://github.com/rycee/home-manager/archive/master.tar.gz
 
 # I should really check for hidpi before doing this... (but parsing is a pita)
 export GDK_SCALE=1

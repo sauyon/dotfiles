@@ -211,7 +211,6 @@ for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 8
 
 exec systemctl --user import-environment DISPLAY
 exec systemctl --user import-environment WAYLAND_DISPLAY
-exec systemctl --user import-environment GNUPGHOME
 
 exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec emacsclient -c

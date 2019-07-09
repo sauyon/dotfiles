@@ -11,10 +11,6 @@ if exists dircolors; then
   alias fgrep='fgrep --color=auto'
   alias egrep='egrep --color=auto'
 
-# DIFFBIN=$(which diff)
-# diff() {
-#   "$DIFFBIN" -utr $@ | sed -rf "$HOME/.local/bin/colordiff.sed"
-# }
   alias diff='diff -utr'
 fi
 
@@ -29,28 +25,11 @@ alias rcp='rsync -rgoP'
 # fucking gpg
 # alias gpg=gpg2 --homedir "$XDG_CONFIG_HOME"/gnupg
 
-# USACO aliases
-genrun() {
-  name=`basename $(pwd)`
-  g++ -std=c++11 gen.cpp -o gen.o && ./gen.o
-  g++ "$name.cpp" -g -o "$name.o"
-  time "./$name.o"
-  diff "$name.out" "gen.out"
-}
-
-corun() {
-  name=`basename $(pwd)`
-  g++ "$name.cpp" -g -o "$name.o"
-  time "./$name.o" && cat "$name.out"
-}
-
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
-alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert\s*$//'\'')"'
 
 alias chat='LUA_CPATH=.config/weechat/lua/cjson.so dtach -A chat weechat'
-
-alias copy='xclip -selection clipboard'
 
 alias ..='cd ..'
 alias ...='cd ../..'

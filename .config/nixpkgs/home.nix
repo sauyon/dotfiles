@@ -57,5 +57,23 @@
     };
 
     gpg.enable = true;
+
+    ssh = {
+      enable = true;
+      matchBlocks = {
+        "aur" = {
+          hostname = "aur.archlinux.org";
+          user = "aur";
+        };
+        "lyrica" = {
+          host = "lyrica,lyrica.sjl.re";
+          port = 59049;
+        };
+        "shizuku" = {
+          host = "shizuku,shizuku.sjl.re";
+          port = 59049;
+        };
+      };
+    };
   };
 }

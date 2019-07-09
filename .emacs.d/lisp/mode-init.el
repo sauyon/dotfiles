@@ -200,4 +200,10 @@
 (autoload 'ql-mode "semmle" "Semmle QL mode." t)
 (add-to-list 'auto-mode-alist '("\\.qll?\\'" . ql-mode))
 
+(add-to-list 'auto-mode-alist
+             '("\\.qhelp\\'" . robin/qhelp-mode))
+(defun robin/qhelp-mode ()
+  (sgml-mode)
+  (auto-fill-mode))
+
 ;; (smart-jump-register :modes '(ql-mode))

@@ -40,15 +40,17 @@
  '(fill-column 80)
  '(font-use-system-font t)
  '(foreground-color nil)
+ '(global-auto-revert-mode t)
  '(global-display-line-numbers-mode t)
  '(global-prettify-symbols-mode t)
  '(go-mode-hook
    '((lambda nil
        (add-hook 'before-save-hook #'gofmt-before-save)
        (setq indent-tabs-mode t))))
- '(ido-mode 'both nil (ido))
+ '(ido-mode nil nil (ido))
  '(indent-tabs-mode nil)
  '(inhibit-startup-screen t)
+ '(ispell-dictionary "en_US")
  '(ispell-program-name "/usr/bin/hunspell")
  '(js-indent-level 2)
  '(load-prefer-newer t)
@@ -133,7 +135,7 @@
      ("gnu" . "http://elpa.gnu.org/packages/")
      ("melpa" . "https://melpa.org/packages/")))
  '(package-selected-packages
-   '(fill-column-indicator smart-jump semmle ebib lua-mode graphviz-dot-mode pcap-mode rustic dumb-jump org-ref ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode rust-mode go-errcheck go-dlv go-complete latex-pretty-symbols smali-mode 2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode csv-mode dict-tree edit-server ensime flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete hardcore-mode haskell-mode helm-nixos-options jabber json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode solarized-theme systemd toml-mode tuareg web-mode yaml-mode zeitgeist))
+   '(nix-mode fill-column-indicator smart-jump semmle ebib lua-mode graphviz-dot-mode pcap-mode rustic dumb-jump org-ref ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode rust-mode go-errcheck go-dlv go-complete latex-pretty-symbols smali-mode 2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode csv-mode dict-tree edit-server ensime flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete hardcore-mode haskell-mode helm-nixos-options jabber json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode solarized-theme systemd toml-mode tuareg web-mode yaml-mode zeitgeist))
  '(pcap-mode-tshark-executable nil)
  '(ql-mode-hook nil)
  '(ql-mode-target-language "go")

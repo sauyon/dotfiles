@@ -70,14 +70,10 @@
           hostname = "aur.archlinux.org";
           user = "aur";
         };
-        "lyrica" = {
-          host = "lyrica,lyrica.sjl.re";
-          port = 59049;
-        };
-        "shizuku" = {
-          host = "shizuku,shizuku.sjl.re";
-          port = 59049;
-        };
+        "lyrica" = { port = 59049; };
+        "lyrica.sjl.re" = { port = 59049; };
+        "shizuku" = { port = 59049; };
+        "shizuku.sjl.re" = { port = 59049; };
       };
     };
   };

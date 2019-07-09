@@ -13,6 +13,11 @@
     };
   };
 
+  qt = {
+    enable = true;
+    platformTheme = "gnome";
+  };
+
   services = {
     # gpg-agent = {
     #   enable = true;

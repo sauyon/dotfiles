@@ -37,9 +37,12 @@ export GTK2_RC_FILES="$XDG_DATA_HOME/gtk-2.0/gtkrc"
 export WINEPREFIX="$XDG_DATA_HOME/wineprefixes/default"
 export CARGO_HOME="$XDG_DATA_HOME/cargo"
 export RUSTUP_HOME="$XDG_DATA_HOME/rustup"
-export GNUPGHOME="$XDG_CONFIG_HOME/gnupg"
+# fuck gnupg it's stupid
+# export GNUPGHOME="$XDG_CONFIG_HOME/gnupg"
 export WEECHAT_HOME="$XDG_CONFIG_HOME/weechat"
 export ASPELL_CONF="per-conf $XDG_CONFIG_HOME/aspell/aspell.conf; personal $XDG_CONFIG_HOME/aspell/en.personal; repl $XDG_CONFIG_HOME/aspell/en.prepl"
 export RIPGREP_CONFIG_PATH="$XDG_CONFIG_HOME/ripgrep.conf"
 
 export XDG_CURRENT_DESKTOP=Unity
+
+export __HM_SESS_VARS_SOURCED=1

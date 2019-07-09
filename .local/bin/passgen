@@ -1,3 +1,0 @@
-#!/bin/sh
-#strings /dev/urandom | tr -d '\n' 2>&1 | head -c 30; echo | tee /dev/tty | xclip -selection clipboard
-strings /dev/urandom | tr -d '\n\t\b\a' | head -c 30 | tee /dev/tty | xclip -selection clipboard; echo

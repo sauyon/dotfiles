@@ -1,4 +1,0 @@
-#!/bin/sh
-#scrot -s -e 'echo "<img src='"'"'data:image/png;base64,"\$(base64 -w0 "$f")"'"'"' />" | \
-#  xclip -selection clipboard -t text/html; rm "$f"'
-scrot -s -e 'xclip -selection clipboard -t image/png "$f"; rm "$f"'

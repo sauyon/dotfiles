@@ -59,10 +59,10 @@
 	"pulseaudio": {
 		"tooltip": false,
 		// "scroll-step": 1, // %, can be a float
-		"format": "{volume}% {icon}",
-		"format-bluetooth": "{volume}% {icon}\uf0b1",
+		"format": "{volume:2}% {icon}",
+		"format-bluetooth": "{volume:2}% {icon}\uf0b1",
 		"format-muted": "",
-		"format-source": "{volume}% {icon}",
+		"format-source": "{volume:2}%",
 		"format-source-muted": "\uf75e",
 		"format-icons": {
 			"headphones": "",

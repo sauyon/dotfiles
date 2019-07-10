@@ -64,7 +64,7 @@ export BROWSER="$(which firefox)"
 
 # Semmle env vars
 export SEMMLE_CODE="$HOME/devel/maxcode"
-export SEMMLE_DIST="$HOME/devel/maxcode/target/intree/standard"
+export SEMMLE_DIST="$HOME/devel/maxcode/target/intree/go"
 export SEMMLE_HOME="$HOME/semmle"
 export SEMMLE_DATA="$HOME/semmle/data"
 

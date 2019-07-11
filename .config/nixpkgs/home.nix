@@ -70,6 +70,14 @@
           hostname = "aur.archlinux.org";
           user = "aur";
         };
+        "semmle" = {
+          hostname = "git.semmle.com";
+          user = "git";
+        };
+        "github" = {
+          hostname = "github.com";
+          user = "git";
+        };
         "lyrica" = { port = 59049; };
         "lyrica.sjl.re" = { port = 59049; };
         "shizuku" = { port = 59049; };

@@ -6,8 +6,9 @@ HISTFILE="$XDG_DATA_HOME/zsh/history"
 export ZDOTDIR="$HOME/.config/zsh"
 
 # PATH is path.
-PATH=$PATH:/usr/local/heroku/bin:~/.gem/ruby/2.1.0/bin:$GOPATH/bin
-[[ $platform == 'osx' ]] && PATH=/usr/local/bin:$PATH
+PATH=$HOME/.nix-profile/bin:$PATH
+PATH=$PATH:$GOPATH/bin:$XDG_DATA_HOME/cargo/bin
+[[ $platform == 'osx' ]] && PATH=/opt/local/bin:/opt/local/sbin:/usr/local/bin:$PATH
 PATH=$PATH:$HOME/.local/bin
 export PATH
 

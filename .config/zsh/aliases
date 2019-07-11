@@ -50,12 +50,14 @@ alias jctlu='journalctl -leu'
 alias jctlf='journalctl -fl'
 alias jctlfu='journalctl -flu'
 
+man() { env man $@ 2>/dev/null || /usr/bin/man $@ }
+
 alias nb='nix-build'
 alias ne='nix-env'
 alias nei='nix-env -i'
 alias nee='nix-env -e'
 alias neu='nix-env -u'
-alias nee='nix-env -q'
+alias neq='nix-env -q'
 alias nbd='nix build -f ./default.nix'
 alias ns='nix-shell'
 alias nsp='nix-shell -p'

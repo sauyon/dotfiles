@@ -43,6 +43,8 @@
     alacritty = import ./alacritty.nix;
     firefox.enable = true;
 
+    emacs.enable = true;
+
     git = {
       enable = true;
       userName = "Sauyon Lee";

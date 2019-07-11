@@ -118,7 +118,7 @@ bindsym $mod+Shift+space floating toggle
 bindsym $mod+space focus mode_toggle
 
 # start a terminal
-bindsym $mod+Return exec alacritty
+bindsym $mod+Return exec term
 
 # start dmenu (a program launcher)
 # bindcode 133 exec --no-startup-id synapse
@@ -126,7 +126,7 @@ bindsym $mod+Return exec alacritty
 # shipping a .desktop file. It is a wrapper around dmenu, so you need that
 # installed.
 # bindsym $mod+r exec alacritty --title 'Launcher' -e j4-dmenu-desktop --dmenu="(cat ; (stest -flx $(echo $PATH | tr : ' ') | sort -u)) | fzf" --term='alacritty'
-bindsym $mod+r exec j4-dmenu-desktop --dmenu='dmenu-wl' --term='alacritty'
+bindsym $mod+r exec j4-dmenu-desktop --dmenu='dmenu-wl' --term='term'
 # bindsym $mod+r exec --no-startup-id i3-dmenu-desktop
 
 # move output

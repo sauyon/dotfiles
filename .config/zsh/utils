@@ -6,7 +6,7 @@ _SAUYON_UTILS_RUN=true
 include() { [[ -f "$@" ]] && source "$@" }
 
 is_ssh() { [[ -n $SSH_CONNECTION ]] || [[ -n $SSH_CLIENT ]] || [[ -n $SSH_TTY ]] }
-non_gui() { ! xhost &> /dev/null }
+non_gui() { ! xhost &> /dev/null && [ -z $WAYLAND_DISPLAY ] }
 
 platform=unknown
 local unamestr=`uname`

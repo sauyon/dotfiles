@@ -79,10 +79,10 @@ if non_gui; then
   alias edit="emacsclient -t"
   #sedit() { emacsclient -te $(for f in "$@"; do echo "(find-file-root \"${${f:A}//\"/\\\"})\""; done) }
   sedit() { emacsclient -te "(find-file-root \"${${1:A}//\"/\\\"}\")" }
-elif exists i3-msg; then
-  edit() { i3-msg workspace 2; emacsclient -n "$@" }
+elif exists swaymsg; then
+  edit() { swaymsg workspace 2; emacsclient -n "$@" }
   #sedit() { emacsclient -ne $(for f in "$@"; do echo "(find-file-root \"${${f:A}//\"/\\\"}\")"; done) }
-  sedit() { i3-msg workspace 2; emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" }
+  sedit() { swaymsg workspace 2; emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" }
 else
   edit() { emacsclient -n "$@" }
   sedit() { emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" }

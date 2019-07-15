@@ -314,29 +314,29 @@
     #   - ~AppKeypad
     #   - AppKeypad
     key_bindings = [
-      { key = "V";        mods = "Control|Shift";    action = "Paste";               }
-      { key = "C";        mods = "Control|Shift";    action = "Copy";                }
-      { key = "Paste";                      action = "Paste";                        }
-      { key = "Copy";                       action = "Copy";                         }
-      { key = "Q";        mods = "Command"; action = "Quit";                         }
-      { key = "W";        mods = "Command"; action = "Quit";                         }
-      { key = "Insert";   mods = "Shift";   action = "PasteSelection";               }
-      { key = "Key0";     mods = "Control"; action = "ResetFontSize";                }
-      { key = "Equals";   mods = "Control"; action = "IncreaseFontSize";             }
-      { key = "Subtract"; mods = "Control"; action = "DecreaseFontSize";             }
+      { key = "V";        mods = "Control|Shift";    action = "Paste";                }
+      { key = "C";        mods = "Control|Shift";    action = "Copy";                 }
+      { key = "Paste";                      action = "Paste";                         }
+      { key = "Copy";                       action = "Copy";                          }
+      { key = "Q";        mods = "Command"; action = "Quit";                          }
+      { key = "W";        mods = "Command"; action = "Quit";                          }
+      { key = "Insert";   mods = "Shift";   action = "PasteSelection";                }
+      { key = "Key0";     mods = "Control"; action = "ResetFontSize";                 }
+      { key = "Equals";   mods = "Control"; action = "IncreaseFontSize";              }
+      { key = "Subtract"; mods = "Control"; action = "DecreaseFontSize";              }
       { key = "Home";                       chars = "\\x1bOH";   mode = "AppCursor";  }
       { key = "Home";                       chars = "\\x1b[H";   mode = "~AppCursor"; }
       { key = "End";                        chars = "\\x1bOF";   mode = "AppCursor";  }
       { key = "End";                        chars = "\\x1b[F";   mode = "~AppCursor"; }
-      { key = "PageUp";   mods = "Shift";   chars = "\\x1b[5;2~";                     }
+      { key = "PageUp";   mods = "Shift";   action = "ScrollPageUp";                  }
       { key = "PageUp";   mods = "Control"; chars = "\\x1b[5;5~";                     }
       { key = "PageUp";                     chars = "\\x1b[5~";                       }
-      { key = "PageDown"; mods = "Shift";   chars = "\\x1b[6;2~";                     }
+      { key = "PageDown"; mods = "Shift";   action = "ScrollPageDown";                }
       { key = "PageDown"; mods = "Control"; chars = "\\x1b[6;5~";                     }
       { key = "PageDown";                   chars = "\\x1b[6~";                       }
       { key = "Tab";      mods = "Shift";   chars = "\\x1b[Z";                        }
       { key = "Back";                       chars = "\\x7f";                          }
-      { key = "Back";     mods = "Alt";     chars = "\\x1b\\x7f";                      }
+      { key = "Back";     mods = "Alt";     chars = "\\x1b\\x7f";                     }
       { key = "Insert";                     chars = "\\x1b[2~";                       }
       { key = "Delete";                     chars = "\\x1b[3~";                       }
       { key = "Left";     mods = "Shift";   chars = "\\x1b[1;2D";                     }

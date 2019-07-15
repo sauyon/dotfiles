@@ -1,0 +1,96 @@
+[settings]
+columns = ~#track,~people,~title~version,~album~discsubtitle,~#length,~rating
+
+default_rating = 0.5
+ratings = 2
+scan = /home/sauyon/drive/music
+
+[memory]
+browser = PanedBrowser
+chooser_dir = /home/sauyon/drive
+column_expands = ~people,1,~title~version,1,~album~discsubtitle,1
+
+column_widths = ~people,-1,~title~version,-1,~album~discsubtitle,-1
+
+open_browsers =
+plugin_prefs_maximized = 0
+plugin_prefs_position = 12 11
+plugin_prefs_size_ = 1019 1019
+plugin_selection = Force Write
+prefs_page = tagging
+queue = True
+queue_expanded = False
+quodlibet_information_maximized = 0
+quodlibet_information_position = 0 0
+quodlibet_information_size_ = 897 524
+quodlibet_last_active_version = 4.2.1
+quodlibet_maximized = 4
+quodlibet_position = 0 0
+quodlibet_properties_maximized = 0
+quodlibet_properties_pos = 0.07790143084260731
+quodlibet_properties_position = 0 0
+quodlibet_properties_size_ = 613 400
+quodlibet_properties_size_single = 629 403
+quodlibet_size_ = 1798 972
+seek = 0
+shuffle = True
+shuffle_mode = Playcount Equalizer
+sidebar_pos = 0.25027808676307006
+song = /home/sauyon/drive/music/やなぎなぎ/終わりの惑星のLoveSong/05. 無敵のSoldier.mp3
+sortby = 0~album~discsubtitle
+
+volume = 1.0
+
+[player]
+gst_buffer = 3.0
+replaygain = true
+replaygain_mode = auto
+
+[browsers]
+pane_selection = 1	.
+	1	.
+panedbrowser_pane_widths = 0.5334029227557411
+
+panedbrowser_pos = 0.47694174757281554
+query_text =
+
+[__config__]
+version = 0
+
+[editing]
+save_email = s@uyon.co
+
+[display]
+duration_format = numeric
+
+[plugins]
+active_plugins = Duplicates
+	HeadphoneMonitor
+	Notify
+	ReplayGain
+	QLScrobbler
+	playcounteq
+	Tap BPM
+	refresh-songs
+icon_tooltip = <album|<album~discnumber~part~tracknumber~title~version>|<artist~title~version>>
+missing_query_include_empty = True
+notify_bodypattern = <~length>
+	<album|<album><discsubtitle| - <discsubtitle>>
+	><~year|<~year>>
+notify_show_notifications = all
+quodlibet.fake.plugins.gajim_status_accounts =
+quodlibet.fake.plugins.gajim_status_pattern = <artist> - <title>
+quodlibet.fake.plugins.gajim_status_paused = True
+quodlibet.fake.plugins.gajim_status_statuses = online chat
+quodlibet.fake.plugins.visualisations_executable = projectM-pulseaudio
+randomalbum_use_weights = 0
+replaygain_process_if = album_tags_missing
+scrobbler_password = m457urch33f
+scrobbler_service = Last.fm
+scrobbler_username = moon00dragon
+squeezebox_debug = False
+titlecase_allow_all_caps = True
+titlecase_human_title_case = True
+
+[rename]
+windows = true

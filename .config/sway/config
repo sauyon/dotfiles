@@ -126,7 +126,7 @@ bindsym $mod+Return exec term
 # shipping a .desktop file. It is a wrapper around dmenu, so you need that
 # installed.
 # bindsym $mod+r exec alacritty --title 'Launcher' -e j4-dmenu-desktop --dmenu="(cat ; (stest -flx $(echo $PATH | tr : ' ') | sort -u)) | fzf" --term='alacritty'
-bindsym $mod+r exec j4-dmenu-desktop --dmenu='dmenu-wl' --term='term'
+bindsym $mod+r exec bemenu-run
 # bindsym $mod+r exec --no-startup-id i3-dmenu-desktop
 
 # move output
@@ -188,26 +188,14 @@ bar {
 
 assign [class="Emacs"] 2
 # assign [class="Firefox"] 3
-assign [class="Quodlibet"] 10
-assign [instance="steam"] 4
+assign [app_id="io.github.quodlibet.QuodLibet"] 10
 assign [instance="osu!.exe"] 4
 
-for_window [class="Crossover"] floating enable
-for_window [class="Desmume"] floating enable
-for_window [class="feh"] floating enable
-for_window [class="Gvbam"] floating enable
-for_window [class="Pidgin"] floating enable
-for_window [class="Steam"] floating enable
-for_window [class="Synapse"] border none
-for_window [class="Wine"] floating enable
-for_window [class="XMathematica"] floating enable
-for_window [instance="XMathematica"] floating enable
-for_window [class="KanColleTool"] floating enable
-for_window [class="Qjackctl"] floating enable
-for_window [title="Launcher"] floating enable, resize set 800 400
+assign [class="Steam"] 4
+
+for_window [app_id="pavucontrol"] floating enable
 
 for_window [class="Firefox"] border none
-for_window [instance="dropdown"] mark "term", move scratchpad, resize set 1920 810, move absolute position 0 0
 
 exec systemctl --user import-environment DISPLAY
 exec systemctl --user import-environment WAYLAND_DISPLAY

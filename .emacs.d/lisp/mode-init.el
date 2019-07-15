@@ -206,4 +206,4 @@
   (sgml-mode)
   (auto-fill-mode))
 
-;; (smart-jump-register :modes '(ql-mode))
+(smart-jump-setup-default-registers)

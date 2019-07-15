@@ -26,6 +26,8 @@
  '(background-color nil)
  '(background-mode dark)
  '(c-basic-offset 2)
+ '(company-idle-delay 0.3)
+ '(company-tooltip-limit 15)
  '(css-indent-offset 2)
  '(cursor-color nil)
  '(custom-enabled-themes '(solarized-dark))
@@ -40,13 +42,16 @@
  '(fill-column 80)
  '(font-use-system-font t)
  '(foreground-color nil)
+ '(global-auto-complete-mode nil)
  '(global-auto-revert-mode t)
+ '(global-company-mode t)
  '(global-display-line-numbers-mode t)
  '(global-prettify-symbols-mode t)
  '(go-mode-hook
    '((lambda nil
        (add-hook 'before-save-hook #'gofmt-before-save)
        (setq indent-tabs-mode t))))
+ '(helm-mode t)
  '(ido-mode nil nil (ido))
  '(indent-tabs-mode nil)
  '(inhibit-startup-screen t)
@@ -54,6 +59,7 @@
  '(ispell-program-name "/usr/bin/hunspell")
  '(js-indent-level 2)
  '(load-prefer-newer t)
+ '(nix-prettify-global-mode t)
  '(org-babel-load-languages '((dot . t) (ditaa . t) (emacs-lisp . t)))
  '(org-confirm-babel-evaluate nil)
  '(org-default-notes-file "~/org/notes.org")
@@ -135,7 +141,7 @@
      ("gnu" . "http://elpa.gnu.org/packages/")
      ("melpa" . "https://melpa.org/packages/")))
  '(package-selected-packages
-   '(nix-mode fill-column-indicator smart-jump semmle ebib lua-mode graphviz-dot-mode pcap-mode rustic dumb-jump org-ref ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode rust-mode go-errcheck go-dlv go-complete latex-pretty-symbols smali-mode 2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode csv-mode dict-tree edit-server ensime flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete hardcore-mode haskell-mode helm-nixos-options jabber json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode solarized-theme systemd toml-mode tuareg web-mode yaml-mode zeitgeist))
+   '(go-guru company-go helm-company nix-mode fill-column-indicator smart-jump semmle ebib lua-mode graphviz-dot-mode pcap-mode rustic dumb-jump org-ref ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode rust-mode go-errcheck go-dlv go-complete latex-pretty-symbols smali-mode 2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode csv-mode dict-tree edit-server ensime flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete hardcore-mode haskell-mode helm-nixos-options jabber json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode solarized-theme systemd toml-mode tuareg web-mode yaml-mode zeitgeist))
  '(pcap-mode-tshark-executable nil)
  '(ql-mode-hook nil)
  '(ql-mode-target-language "go")
@@ -148,6 +154,10 @@
  '(sh-indentation 2)
  '(show-paren-mode t)
  '(show-trailing-whitespace t)
+ '(smart-jump-default-mode-list
+   '(cc-mode csharp-mode clojure-mode eglot elisp-mode elixir-mode elm-mode erlang-mode go-mode haskell-mode
+             (js2-mode rjsx-mode)
+             lisp-mode lispy lua-mode lsp-mode python ruby-mode rust-mode scala-mode scheme swift-mode typescript-mode web-mode))
  '(standard-indent 2)
  '(tab-width 2)
  '(test-hook nil)

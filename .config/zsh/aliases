@@ -44,6 +44,7 @@ gnight() {
   systemctl suspend
 }
 
+alias sctl='systemctl'
 alias uctl='systemctl --user'
 alias jctl='journalctl -le'
 alias jctlu='journalctl -leu'
@@ -71,18 +72,23 @@ nix-clean() {
   nix-store --gc
 }
 
-alias sctl='sudo systemctl'
 alias nre='sudo -i nixos-rebuild switch'
 alias nreu='sudo -i nixos-rebuild switch --upgrade'
+
+if exists swaymsg; then
+  function workspace() {
+    sleep 0.05 && swaymsg workspace $1
+  }
+fi
 
 if non_gui; then
   alias edit="emacsclient -t"
   #sedit() { emacsclient -te $(for f in "$@"; do echo "(find-file-root \"${${f:A}//\"/\\\"})\""; done) }
   sedit() { emacsclient -te "(find-file-root \"${${1:A}//\"/\\\"}\")" }
 elif exists swaymsg; then
-  edit() { swaymsg workspace 2; emacsclient -n "$@" }
+  edit() { emacsclient -n "$@"; workspace 2 }
   #sedit() { emacsclient -ne $(for f in "$@"; do echo "(find-file-root \"${${f:A}//\"/\\\"}\")"; done) }
-  sedit() { swaymsg workspace 2; emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" }
+  sedit() { emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")"; workspace 2 }
 else
   edit() { emacsclient -n "$@" }
   sedit() { emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" }
@@ -143,7 +149,5 @@ ode() {
 }
 
 odbe() {
-  oda "$1"
-  odb "$1"
-  ode "$1"
+  oda "$1" && odb "$1" && ode "$1"
 }

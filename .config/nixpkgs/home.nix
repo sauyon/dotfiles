@@ -57,8 +57,15 @@
         commit = { verbose = true; gpgsign = true; };
         push = { default = "current"; };
         color = { ui = "auto"; };
-        core = { pager = "less -x2"; editor = "emacsclient -t"; };
-        merge.tool = "meld";
+        core = {
+          pager = "${pkgs.gitAndTools.diff-so-fancy}/bin/diff-so-fancy | ${pkgs.less}/bin/less -RFXx4";
+          editor = "emacsclient";
+        };
+        diff-so-fancy = {
+          markEmptyLines = false;
+          stripLeadingSymbols = false;
+        };
+        merge.tool = "${pkgs.meld}/bin/meld";
         pull.rebase = true;
       };
     };

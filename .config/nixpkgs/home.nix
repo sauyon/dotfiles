@@ -59,7 +59,7 @@
         color = { ui = "auto"; };
         core = {
           pager = "${pkgs.gitAndTools.diff-so-fancy}/bin/diff-so-fancy | ${pkgs.less}/bin/less -RFXx4";
-          editor = "emacsclient";
+          editor = "${pkgs.emacs}/bin/emacsclient -t";
         };
         diff-so-fancy = {
           markEmptyLines = false;

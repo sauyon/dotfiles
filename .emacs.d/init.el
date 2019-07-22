@@ -26,6 +26,8 @@
  '(background-color nil)
  '(background-mode dark)
  '(c-basic-offset 2)
+ '(company-dabbrev-downcase nil)
+ '(company-dabbrev-ignore-case nil)
  '(company-idle-delay 0.3)
  '(company-tooltip-limit 15)
  '(css-indent-offset 2)

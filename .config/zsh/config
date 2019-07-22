@@ -38,8 +38,15 @@ PATH=$PATH:$HOME/.local/bin
 # PATH=$PATH:.
 export PATH
 
+# completions
+fpath=("$HOME/.config/zsh/completions" $fpath)
+compinit -u
+
 # LD_LIBRARY_PATH?!
 LD_LIBRARY_PATH=$HOME/.rustc/rust/rustc/lib:$LD_LIBRARY_PATH
+
+# Needed for nix :(
+export LOCALE_ARCHIVE=/usr/lib/locale/locale-archive
 
 # Nix!
 export NIX_PATH=nixpkgs=channel:nixpkgs-unstable:home-manager=https://github.com/rycee/home-manager/archive/master.tar.gz
@@ -50,8 +57,9 @@ export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export WINIT_HIDPI_FACTOR=1
 
 # 2 space tabs are best tabs
-export LESS='-Rx2'
 export PAGER="$(which less)"
+
+export LESS='-Rx4'
 
 # Emacs ftw!
 if non_gui; then
@@ -90,6 +98,9 @@ export QT_STYLE_OVERRIDE=gtk
 export QT_IM_MODULE=ibus
 export XMODIFIERS=@im=ibus
 export GTK_IM_MODULE=ibus
+
+# GTK is dumb sometimes
+export GTK_OVERLAY_SCROLLING=0
 
 ## Misc preferences ------------------------------------------------------------------------
 

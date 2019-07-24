@@ -195,7 +195,7 @@ assign [class="Steam"] 4
 
 for_window [app_id="pavucontrol"] floating enable
 
-for_window [class="Firefox"] border none
+for_window [app_id="firefox"] border none
 
 exec systemctl --user import-environment DISPLAY
 exec systemctl --user import-environment WAYLAND_DISPLAY

@@ -69,21 +69,27 @@
       userEmail = "s@uyon.co";
       ignores = [ "*~" "\#*\#" "*.orig" ".\#*" ".dir-locals.el" ];
 
-      # signing.signByDefault = true;
+      signing = {
+        signByDefault = true;
+        key = "5842 D2C4 8C3C BBC0 65C0 DB8F 74A6 DD28 4BF8 A1D7";
+      };
 
       extraConfig = {
-        commit = { verbose = true; gpgsign = true; };
+        commit = { verbose = true; };
         push = { default = "current"; };
         color = { ui = "auto"; };
         core = {
-          pager = "${pkgs.gitAndTools.diff-so-fancy}/bin/diff-so-fancy | ${pkgs.less}/bin/less -RFXx4";
+          pager = "${pkgs.gitAndTools.diff-so-fancy}/bin/diff-so-fancy | ${pkgs.less}/bin/less -RFx4";
           editor = "${pkgs.emacs}/bin/emacsclient -t";
+          whitespace = "trailing-space,space-before-tab";
         };
+        diff.algorithm = "histogram";
         diff-so-fancy = {
           markEmptyLines = false;
           stripLeadingSymbols = false;
         };
-        merge.tool = "${pkgs.meld}/bin/meld";
+        merge.tool = "meld1";
+        merge.meld1.cmd = "${pkgs.meld}/bin/meld";
         pull.rebase = true;
       };
     };
@@ -107,6 +113,7 @@
         };
         "lyrica" = { port = 59049; };
         "lyrica.sjl.re" = { port = 59049; };
+        "s6.vc" = { port = 59049; };
         "shizuku" = { port = 59049; };
         "shizuku.sjl.re" = { port = 59049; };
       };

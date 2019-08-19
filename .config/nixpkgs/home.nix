@@ -42,7 +42,7 @@
 
     alacritty = import ./alacritty.nix;
     firefox = {
-      package = pkgs.firefox-wayland;
+      package = pkgs.firefox-beta-bin;
       enable = true;
       profiles.default = {
         userChrome = ''
@@ -114,8 +114,8 @@
         "lyrica" = { port = 59049; };
         "lyrica.sjl.re" = { port = 59049; };
         "s6.vc" = { port = 59049; };
-        "shizuku" = { port = 59049; };
-        "shizuku.sjl.re" = { port = 59049; };
+        "shizuka" = { port = 59049; };
+        "shizuka.sjl.re" = { port = 59049; };
       };
     };
   };

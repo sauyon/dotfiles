@@ -32,6 +32,13 @@
               (let ((print-quoted t))
                 (funcall orig))))
 
+(put 'narrow-to-region 'disabled nil)
+(put 'set-goal-column 'disabled nil)
+(put 'upcase-region 'disabled nil)
+(put 'downcase-region 'disabled nil)
+
+(autoload 'use-package "use-package" "Use package" t)
+
 (setq skeleton-further-elements '((abbrev-mode nil)))
 
 (define-skeleton mathop-skeleton

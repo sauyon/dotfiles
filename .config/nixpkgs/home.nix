@@ -42,7 +42,6 @@
 
     alacritty = import ./alacritty.nix;
     firefox = {
-      package = pkgs.firefox-beta-bin;
       enable = true;
       profiles.default = {
         userChrome = ''
@@ -91,6 +90,7 @@
         merge.tool = "meld1";
         merge.meld1.cmd = "${pkgs.meld}/bin/meld";
         pull.rebase = true;
+        url."semmle:".insteadOf = "https://git.semmle.com/";
       };
     };
 
@@ -112,10 +112,7 @@
           user = "git";
         };
         "lyrica" = { port = 59049; };
-        "lyrica.sjl.re" = { port = 59049; };
-        "s6.vc" = { port = 59049; };
         "shizuka" = { port = 59049; };
-        "shizuka.sjl.re" = { port = 59049; };
       };
     };
   };

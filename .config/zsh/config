@@ -59,7 +59,7 @@ export WINIT_HIDPI_FACTOR=1
 # 2 space tabs are best tabs
 export PAGER="$(which less)"
 
-export LESS='-Rx4'
+export LESS='-RFx4'
 
 # Emacs ftw!
 if non_gui; then
@@ -71,10 +71,11 @@ fi
 export BROWSER="$(which firefox)"
 
 # Semmle env vars
-export SEMMLE_CODE="$HOME/devel/maxcode"
-export SEMMLE_DIST="$HOME/devel/maxcode/target/intree/go"
+export SEMMLE_CODE="$HOME/devel/code"
+export SEMMLE_DIST="$HOME/devel/code/target/intree/go"
 export SEMMLE_HOME="$HOME/semmle"
 export SEMMLE_DATA="$HOME/semmle/data"
+export SEMMLE_CACHE="$XDG_CONFIG_HOME/semmle"
 
 # GPG for SSH
 export GPG_TTY="$(tty)"

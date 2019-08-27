@@ -3,33 +3,7 @@
 ;; Haskell mode ----------------------------------------------------------------
 
 (add-hook 'haskell-mode-hook
-          (lambda ()
-            (setq indent-tabs-mode nil)
-            (haskell-indentation-mode t)))
-
-;; Multi-term mode -------------------------------------------------------------
-
-(add-hook 'term-mode-hook
-          (lambda ()
-            (setq show-trailing-whitespace nil)
-            (setq term-bind-key-alist
-                  (list
-                   (quote ("C-c C-c" . term-interrupt-subjob)
-                          ("C-p" . term-send-up)
-                          ("C-n" . term-send-down)
-                          ("C-s" . isearch-forward)
-                          ("C-r" . isearch-backward)
-                          ("C-m" . term-send-raw)
-                          ("M-f" . term-send-forward-word)
-                          ("M-b" . term-send-backward-word)
-                          ("M-o" . term-send-backspace)
-                          ("M-p" . term-send-up)
-                          ("M-n" . term-send-down)
-                          ("M-M" . term-send-forward-kill-word)
-                          ("M-N" . term-send-backward-kill-word)
-                          ("M-r" . term-send-reverse-search-history)
-                          ("M-," . term-send-input)
-                          ("M-." . comint-dynamic-complete))))))
+          (lambda () (haskell-indentation-mode t)))
 
 ;; Markdown mode ---------------------------------------------------------------
 
@@ -198,12 +172,7 @@
 ;; Semmle QL mode -----------------------------------------------------
 
 (autoload 'ql-mode "semmle" "Semmle QL mode." t)
-(add-to-list 'auto-mode-alist '("\\.qll?\\'" . ql-mode))
-
 (add-to-list 'auto-mode-alist
-             '("\\.qhelp\\'" . robin/qhelp-mode))
-(defun robin/qhelp-mode ()
-  (sgml-mode)
-  (auto-fill-mode))
+             '("\\.qll?\\'" . ql-mode))
 
-(smart-jump-setup-default-registers)
+;; (smart-jump-setup-default-registers)

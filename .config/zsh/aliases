@@ -104,7 +104,6 @@ alias oxpru='CUPS_SERVER=cups.cs.ox.ac.uk:631 enscript -G2r -d mfpugdup'
 
 if exists gist; then
   up() {
-    local OUT
     local MIME
     while [[ $# > 0 ]]; do
       MIME=$(file -b --mime-type "$1")
@@ -122,6 +121,10 @@ if exists gist; then
     echo $OUT
   }
 fi
+
+# seems useful
+alias gcf='git commit --fixup'
+alias gcaf='git commit -a --fixup'
 
 # Semmle thingies
 oda() {

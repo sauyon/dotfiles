@@ -37,10 +37,10 @@ seek = 0
 shuffle = True
 shuffle_mode = weighted
 sidebar_pos = 0.25027808676307006
-song = /home/sauyon/drive/music/RADWIMPS/君の名は。/14. 消えた町.flac
+song = /home/sauyon/drive/music/CHiCO/世界は恋に落ちている/01. 世界は恋に落ちている.flac
 sortby = 0~album~discsubtitle
 	
-volume = 0.9999084500595643
+volume = 0.1589309816427651
 
 [player]
 gst_buffer = 3.0
@@ -50,9 +50,9 @@ replaygain_mode = auto
 [browsers]
 pane_selection = 1	.
 	1	.
-panedbrowser_pane_widths = 0.5271398747390397
+panedbrowser_pane_widths = 0.5291970802919708
 	
-panedbrowser_pos = 0.4776500638569604
+panedbrowser_pos = 0.475765306122449
 query_text = 
 
 [__config__]
@@ -60,19 +60,20 @@ version = 0
 
 [editing]
 save_email = s@uyon.co
+save_to_songs = false
 
 [display]
 duration_format = numeric
 
 [plugins]
-active_plugins = QLScrobbler
-	refresh-songs
-	Duplicates
+active_plugins = Notify
 	Tap BPM
-	WaveformSeekBar
+	Duplicates
+	refresh-songs
+	QLScrobbler
 	HeadphoneMonitor
+	WaveformSeekBar
 	playcounteq
-	Notify
 	ReplayGain
 icon_tooltip = <album|<album~discnumber~part~tracknumber~title~version>|<artist~title~version>>
 missing_query_include_empty = True

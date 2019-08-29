@@ -61,6 +61,10 @@ default_border normal 1
 # Use Mouse+$mod to drag floating windows to their wanted position
 floating_modifier $mod
 
+# scroll workspaces
+bindsym --whole-window --border $mod+button4 workspace prev
+bindsym --whole-window --border $mod+button5 workspace next
+
 # switch to workspace
 bindsym $mod+1 workspace 1
 bindsym $mod+2 workspace 2
@@ -196,7 +200,10 @@ assign [class="Steam"] 4
 for_window [app_id="pavucontrol"] floating enable
 
 for_window [app_id="firefox"] border none
-for_window [app_id="firefox"] inhibit_idle fullscreen
+
+for_window [title=".*"] inhibit_idle fullscreen
+
+for_window [app_id="nm-connection-editor"] floating enable
 
 exec systemctl --user import-environment DISPLAY
 exec systemctl --user import-environment WAYLAND_DISPLAY

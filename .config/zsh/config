@@ -96,12 +96,13 @@ export ARCHFLAGS="-arch x86_64"
 # Qt5 why u no like gtk
 export QT_STYLE_OVERRIDE=gtk
 
-export QT_IM_MODULE=ibus
-export XMODIFIERS=@im=ibus
-export GTK_IM_MODULE=ibus
+# export QT_IM_MODULE=ibus
+# export XMODIFIERS=@im=ibus
+# export GTK_IM_MODULE=ibus
 
 # GTK is dumb sometimes
 export GTK_OVERLAY_SCROLLING=0
+export GDK_BACKEND=wayland
 
 ## Misc preferences ------------------------------------------------------------------------
 

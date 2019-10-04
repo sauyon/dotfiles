@@ -39,7 +39,7 @@ PATH=$PATH:$HOME/.local/bin
 export PATH
 
 # completions
-fpath=("$HOME/.config/zsh/completions" $fpath)
+fpath=("$XDG_CONFIG_HOME/zsh/completions" $fpath)
 compinit -u
 
 # LD_LIBRARY_PATH?!
@@ -74,7 +74,7 @@ export BROWSER="$(which firefox)"
 export SEMMLE_CODE="$HOME/devel/code"
 export SEMMLE_DIST="$HOME/devel/code/target/intree/go"
 export SEMMLE_HOME="$HOME/semmle"
-export SEMMLE_DATA="$HOME/semmle/data"
+export SEMMLE_DATA="/data"
 export SEMMLE_CACHE="$XDG_CONFIG_HOME/semmle"
 
 # GPG for SSH
@@ -102,7 +102,8 @@ export QT_STYLE_OVERRIDE=gtk
 
 # GTK is dumb sometimes
 export GTK_OVERLAY_SCROLLING=0
-export GDK_BACKEND=wayland
+
+export MOZ_ENABLE_WAYLAND=1
 
 ## Misc preferences ------------------------------------------------------------------------
 
@@ -136,7 +137,7 @@ include /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 [[ $TERM == "dumb" ]] && unsetopt zle && PS1='$ '
 
 # The greeting. Yeah, yeah, I'm unimaginative. :'(
-echo "Hello, $(hostname)"'!'
+echo "Hello, $(hostname -s)"'!'
 
 if [[ -f /tmp/checkupdates.log ]]; then
   cat /tmp/checkupdates.log

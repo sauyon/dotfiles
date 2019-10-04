@@ -75,7 +75,7 @@ export SEMMLE_CODE="$HOME/devel/code"
 export SEMMLE_DIST="$HOME/devel/code/target/intree/go"
 export SEMMLE_HOME="$HOME/semmle"
 export SEMMLE_DATA="/data"
-export SEMMLE_CACHE="$XDG_CONFIG_HOME/semmle"
+export SEMMLE_CACHE="$XDG_CACHE_HOME/semmle"
 
 # GPG for SSH
 export GPG_TTY="$(tty)"

@@ -200,8 +200,12 @@ assign [class="Steam"] 4
 for_window [app_id="pavucontrol"] floating enable
 
 for_window [app_id="firefox"] border none
+for_window [title="Firefox - Sharing Indicator"] floating enable
+
+for_window [class="Yubico Authenticator"] floating enable
 
 for_window [title=".*"] inhibit_idle fullscreen
+for_window [app_id=".*"] inhibit_idle fullscreen
 
 for_window [app_id="nm-connection-editor"] floating enable
 

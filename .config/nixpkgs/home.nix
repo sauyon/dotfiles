@@ -24,10 +24,7 @@
       enableSshSupport = true;
       defaultCacheTtl = 600;
       maxCacheTtl = 1200;
-      sshKeys = [
-        "8F517C9DB64C3501E026B4375F1F39329F92D634"
-        "5971188B0E62D499E1F6D72C80C776AB8D6ACC2C"
-      ];
+      sshKeys = [ "FDC94CC535DF2557" ];
       extraConfig = ''
         pinentry-program ${pkgs.pinentry}/bin/pinentry
       '';
@@ -65,12 +62,12 @@
     git = {
       enable = true;
       userName = "Sauyon Lee";
-      userEmail = "s@uyon.co";
+      userEmail = "sauyon@semmle.com";
       ignores = [ "*~" "\#*\#" "*.orig" ".\#*" ".dir-locals.el" ];
 
       signing = {
         signByDefault = true;
-        key = "5842 D2C4 8C3C BBC0 65C0 DB8F 74A6 DD28 4BF8 A1D7";
+        key = "142D 8892 6B57 DD7D 7000  6647 7181 1ABC 7EF1 15B2";
       };
 
       extraConfig = {

@@ -126,8 +126,8 @@
 (autoload 'rust-mode "rust-mode" "Rust mode." t)
 (add-to-list 'auto-mode-alist '("\\.rs\\'" . rust-mode))
 (add-hook 'rust-mode-hook
-          (lambda () (setq indent-tabs-mode nil
-                      rust-format-on-save nil)))
+          (lambda () (setq indent-tabs-mode t
+                      rust-format-on-save t)))
 
 ;; Dot mode -----------------------------------------------------------
 

@@ -46,7 +46,7 @@ compinit -u
 LD_LIBRARY_PATH=$HOME/.rustc/rust/rustc/lib:$LD_LIBRARY_PATH
 
 # Needed for nix :(
-export LOCALE_ARCHIVE=/usr/lib/locale/locale-archive
+[[ -z $LOCALE_ARCHIVE ]] && export LOCALE_ARCHIVE=/usr/lib/locale/locale-archive
 
 # Nix!
 export NIX_PATH=nixpkgs=channel:nixpkgs-unstable:home-manager=https://github.com/rycee/home-manager/archive/master.tar.gz

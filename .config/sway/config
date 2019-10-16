@@ -12,7 +12,7 @@
 set $mod Mod4
 
 set $left b
-set $down j
+set $right f
 set $up p
 set $down n
 

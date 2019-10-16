@@ -1,6 +1,38 @@
 { config, pkgs, ... }:
 
 {
+  home.stateVersion = "19.09";
+
+  home.sessionVariables = {
+    EDITOR = "emacsclient";
+
+    # Environment vars for use in scripts
+    # I'm not actually sure this is meaningful...
+    XDG_DESKTOP_DIR = "$HOME/desktop";
+    XDG_DOCUMENTS_DIR = "$HOME/documents";
+    XDG_DOWNLOAD_DIR = "$HOME/downloads";
+    XDG_MUSIC_DIR = "$HOME/music";
+    XDG_PICTURES_DIR = "$HOME/images";
+    XDG_PUBLICSHARE_DIR = "$HOME/public";
+    XDG_TEMPLATES_DIR = "$HOME/.local/templates";
+    XDG_VIDEOS_DIR = "$HOME/videos";
+    XDG_DATA_HOME = "$HOME/.local/share";
+    XDG_CONFIG_HOME = "$HOME/.config";
+    XDG_CACHE_HOME = "$HOME/.cache";
+
+    # Unclutter home directory
+    LESSHISTFILE = "$XDG_DATA_HOME/less/history";
+    GTK2_RC_FILES = "$XDG_DATA_HOME/gtk-2.0/gtkrc";
+    WINEPREFIX = "$XDG_DATA_HOME/wineprefixes/default";
+    CARGO_HOME = "$XDG_DATA_HOME/cargo";
+    RUSTUP_HOME = "$XDG_DATA_HOME/rustup";
+    WEECHAT_HOME = "$XDG_CONFIG_HOME/weechat";
+    ASPELL_CONF = "per-conf $XDG_CONFIG_HOME/aspell/aspell.conf; personal $XDG_CONFIG_HOME/aspell/en.personal; repl $XDG_CONFIG_HOME/aspell/en.prepl";
+    RIPGREP_CONFIG_PATH = "$XDG_CONFIG_HOME/ripgrep.conf";
+
+    XDG_CURRENT_DESKTOP = "Unity";
+  };
+
   gtk = {
     enable = true;
     theme = {
@@ -54,6 +86,10 @@
             }
           }
         '';
+        settings = {
+          "extensions.webextensions.restrictedDomains" = "";
+          # "general.useragent.override" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36";
+        };
       };
     };
 
@@ -84,8 +120,8 @@
           markEmptyLines = false;
           stripLeadingSymbols = false;
         };
-        merge.tool = "meld1";
-        merge.meld1.cmd = "${pkgs.meld}/bin/meld";
+        merge.tool = "nixmeld";
+        mergetool.nixmeld.cmd = "${pkgs.meld}/bin/meld";
         pull.rebase = true;
         url."semmle:".insteadOf = "https://git.semmle.com/";
       };
@@ -108,9 +144,14 @@
           hostname = "github.com";
           user = "git";
         };
-        "lyrica" = { port = 59049; };
-        "shizuka" = { port = 59049; };
+        "shizuka" = {
+          hostname = "shizuka.ko.ag";
+          user = "sauyon";
+          proxyCommand = "${pkgs.cloudflared}/bin/cloudflared access ssh --hostname %h";
+        };
       };
     };
+
+    zsh = import ./zsh.nix pkgs;
   };
 }

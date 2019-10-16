@@ -1,25 +1,6 @@
 #!/bin/zsh
 
-# enable color support of ls and also add handy aliases
-if exists dircolors; then
-  [[ -r ~/.config/dircolors ]] && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
-  alias ls='ls --color=auto'
-  #alias dir='dir --color=auto'
-  #alias vdir='vdir --color=auto'
 
-  alias grep='grep --color=auto'
-  alias fgrep='fgrep --color=auto'
-  alias egrep='egrep --color=auto'
-
-  alias diff='diff -utr'
-fi
-
-# some more ls aliases
-alias ll='ls -alhF'
-alias la='ls -A'
-alias l='ls -FB'
-
-# rsync is better.
 alias rcp='rsync -rgoP'
 
 # fucking gpg
@@ -28,15 +9,6 @@ alias rcp='rsync -rgoP'
 # Add an "alert" alias for long running commands.  Use like so:
 #   sleep 10; alert
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert\s*$//'\'')"'
-
-alias chat='LUA_CPATH=.config/weechat/lua/cjson.so abduco -A chat weechat'
-
-alias ..='cd ..'
-alias ...='cd ../..'
-alias ....='cd ../../..'
-alias .....='cd ../../../..'
-alias ......='cd ../../../../..'
-
 alias cowfortune='fortune | cowsay'
 
 gnight() {
@@ -44,36 +16,18 @@ gnight() {
   systemctl suspend
 }
 
-alias sctl='systemctl'
-alias uctl='systemctl --user'
-alias jctl='journalctl -le'
-alias jctlu='journalctl -leu'
-alias jctlf='journalctl -fl'
-alias jctlfu='journalctl -flu'
-
 man() { env man $@ 2>/dev/null || /usr/bin/man $@ }
 
-alias nb='nix-build'
-alias ne='nix-env'
-alias nei='nix-env -i'
-alias nee='nix-env -e'
-alias neu='nix-env -u'
-alias neq='nix-env -q'
-alias nbd='nix build -f ./default.nix'
-alias ns='nix-shell'
-alias nsp='nix-shell -p'
-alias nf='nix search'
-alias nfu='nix search -u'
-alias ns='nix-shell'
-alias nsp='nix-shell -p'
-alias nsr='nix-shell --run'
-nix-clean() {
-  nix-env --delete-generations old
-  nix-store --gc
+nsk() {
+  mkdir .gcroots
+  if [[ -f shell.nix ]]; then
+    nix-instantiate shell.nix --indirect --add-root $(pwd)/.gcroots/shell.drv
+    nix-shell $(readlink $(pwd)/.gcroots/shell.drv) "$@"
+  elif [[ -f default.nix ]]; then
+    nix-instantiate default.nix --indirect --add-root $(pwd)/.gcroots/default.drv
+    nix-shell $(readlink $(pwd)/.gcroots/default.drv) "$@"
+  fi
 }
-
-alias nre='sudo -i nixos-rebuild switch'
-alias nreu='sudo -i nixos-rebuild switch --upgrade'
 
 if exists swaymsg; then
   function workspace() {
@@ -94,14 +48,6 @@ else
   sedit() { emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" }
 fi
 
-opendir() { alacritty --working-directory "$1" }
-
-alias swaycheatsheet='egrep ^bind ~/.config/sway/config | cut -d '\'' '\'' -f 2- | sed '\''s/ /\t/'\'' | column -ts $'\''\t'\'' | pr -2 -w 145 -t | less'
-
-alias oxprt='CUPS_SERVER=cups.cs.ox.ac.uk:631 enscript -G2r -d tp1hdup'
-alias oxprm='CUPS_SERVER=cups.cs.ox.ac.uk:631 enscript -G2r -d mphdup'
-alias oxpru='CUPS_SERVER=cups.cs.ox.ac.uk:631 enscript -G2r -d mfpugdup'
-
 if exists gist; then
   up() {
     local MIME
@@ -121,10 +67,6 @@ if exists gist; then
     echo $OUT
   }
 fi
-
-# seems useful
-alias gcf='git commit --fixup'
-alias gcaf='git commit -a --fixup'
 
 # Semmle thingies
 oda() {

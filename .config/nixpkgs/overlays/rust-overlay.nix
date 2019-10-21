@@ -1,0 +1,1 @@
+/home/sauyon/devel/nixpkgs-mozilla/rust-overlay.nix

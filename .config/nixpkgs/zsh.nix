@@ -11,7 +11,7 @@ pkgs: {
   history = {
     expireDuplicatesFirst = true;
     ignoreDups = true;
-    path = "$XDG_DATA_HOME/zsh/history";
+    path = ".local/share/zsh/history";
     save = 100000;
     size = 100000;
   };
@@ -31,6 +31,11 @@ pkgs: {
     fi
 
     man() { ${pkgs.man}/bin/man $@ 2>/dev/null || /usr/bin/man $@ }
+
+    fpath=("$XDG_CONFIG_HOME/zsh/completions" $fpath)
+    compinit -u
+
+    PAGER="${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --"
   '';
 
   oh-my-zsh = {

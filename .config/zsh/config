@@ -1,45 +1,8 @@
 #!/bin/zsh
 
-if [ -z $_SAUYON_CONF_RUN ]; then
-_SAUYON_CONF_RUN=true
-
-# Oh My Zsh config -------------------------------------------------------------
-ZSH=/usr/share/oh-my-zsh
-if [[ ! -d $ZSH ]]; then
-	ZSH=~/.oh-my-zsh
-else
-	DISABLE_AUTO_UPDATE="true"
-fi
-
-ZSH_CACHE_DIR="$XDG_CACHE_HOME/zsh"
-
-plugins=(git github golang sudo cargo adb)
-
-include $ZSH/oh-my-zsh.sh
-
-# User configuration -----------------------------------------------------------
-
 ## Environment variables -------------------------------------------------------
 
-export ANDROID_HOME=/opt/android-sdk
-
-# make go work :D
-export GOPATH=$HOME/devel/go
-
-# Java tooling is terrible
-export JAVA_HOME=/usr/lib/jvm/default
-
-# PATH is path. DAMMIT OHMYZSH AGAIN GR
-PATH=$HOME/.nix-profile/bin:$PATH
-PATH=$PATH:$GOPATH/bin:$XDG_DATA_HOME/cargo/bin
-[[ $platform == 'osx' ]] && PATH=/opt/local/bin:/opt/local/sbin:/usr/local/bin:$PATH
-PATH=$PATH:$HOME/.local/bin
-# to dot or not to dot?
-# PATH=$PATH:.
-export PATH
-
 # completions
-fpath=("$XDG_CONFIG_HOME/zsh/completions" $fpath)
 compinit -u
 
 # LD_LIBRARY_PATH?!
@@ -51,16 +14,6 @@ LD_LIBRARY_PATH=$HOME/.rustc/rust/rustc/lib:$LD_LIBRARY_PATH
 # Nix!
 export NIX_PATH=nixpkgs=channel:nixpkgs-unstable:home-manager=https://github.com/rycee/home-manager/archive/master.tar.gz
 
-# I should really check for hidpi before doing this... (but parsing is a pita)
-export GDK_SCALE=1
-export QT_AUTO_SCREEN_SCALE_FACTOR=1
-export WINIT_HIDPI_FACTOR=1
-
-# 2 space tabs are best tabs
-export PAGER="$(which less)"
-
-export LESS='-RFx4'
-
 # Emacs ftw!
 if non_gui; then
 	export EDITOR='emacsclient -t'
@@ -68,27 +21,7 @@ else
 	export EDITOR='emacsclient'
 fi
 
-export BROWSER="$(which firefox)"
-
-# Semmle env vars
-export SEMMLE_CODE="$HOME/devel/code"
-export SEMMLE_DIST="$HOME/devel/code/target/intree/go"
-export SEMMLE_HOME="$HOME/semmle"
-export SEMMLE_DATA="/data"
-export SEMMLE_CACHE="$XDG_CACHE_HOME/semmle"
-
-# GPG for SSH
-export GPG_TTY="$(tty)"
-export SSH_AGENT_PID=
-export SSH_AUTH_SOCK="${XDG_RUNTIME_DIR}/gnupg/S.gpg-agent.ssh"
-
 #export XAUTHORITY="$XDG_RUNTIME_DIR"/Xauthority
-
-# History. Yes, it's also in zshenv.
-HISTFILESIZE=1000000000
-HISTSIZE=100000
-SAVEHIST=$HISTSIZE
-HISTFILE="$XDG_DATA_HOME/zsh/history"
 
 # Compilation flags
 export ARCHFLAGS="-arch x86_64"
@@ -141,6 +74,4 @@ echo "Hello, $(hostname -s)"'!'
 
 if [[ -f /tmp/checkupdates.log ]]; then
   cat /tmp/checkupdates.log
-fi
-
 fi

@@ -21,7 +21,7 @@ pkgs: {
     source "$XDG_CONFIG_HOME/zsh/utils"
     source "$XDG_CONFIG_HOME/zsh/config"
     source "$XDG_CONFIG_HOME/zsh/aliases"
-    source "$XDG_CONFIG_HOME/zsh/prompt"
+    source "$XDG_CONFIG_HOME/zsh/prompt" # now only rprompt
 
     if [[ -r "$XDG_CONFIG_HOME/dircolors" ]]; then
       eval "$(dircolors -b "$XDG_CONFIG_HOME/dircolors")"
@@ -29,6 +29,7 @@ pkgs: {
       eval "$(dircolors -b)"
     fi
 
+    eval "$(${pkgs.starship}/bin/starship init zsh)"
     man() { ${pkgs.man}/bin/man $@ 2>/dev/null || /usr/bin/man $@ }
   '';
 

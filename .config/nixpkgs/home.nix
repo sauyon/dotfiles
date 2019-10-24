@@ -105,7 +105,7 @@
     git = {
       enable = true;
       userName = "Sauyon Lee";
-      userEmail = "sauyon@semmle.com";
+      userEmail = "sauyon@github.com";
       ignores = [ "*~" "\#*\#" "*.orig" ".\#*" ".dir-locals.el" ];
 
       signing = {

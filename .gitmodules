@@ -1,3 +1,6 @@
 [submodule ".config/zsh/powerlevel10k"]
 	path = .config/zsh/powerlevel10k
 	url = https://github.com/sauyon/powerlevel10k
+[submodule ".config/nixpkgs/nixpkgs-mozilla"]
+	path = .config/nixpkgs/nixpkgs-mozilla
+	url = https://github.com/mozilla/nixpkgs-mozilla

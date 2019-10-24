@@ -1,0 +1,3 @@
+[submodule ".config/zsh/powerlevel10k"]
+	path = .config/zsh/powerlevel10k
+	url = https://github.com/sauyon/powerlevel10k

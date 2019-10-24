@@ -72,6 +72,13 @@
     alacritty = import ./alacritty.nix;
     firefox = {
       enable = true;
+
+      package = pkgs.wrapFirefox pkgs.latest.firefox-bin {
+        browserName = "firefox";
+        name = "firefox-" + (builtins.parseDrvName pkgs.latest.firefox-bin.name).version;
+        desktopName = "Firefox";
+      };
+
       profiles.default = {
         userChrome = ''
           /* Hide tab bar in FF Quantum */

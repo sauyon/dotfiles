@@ -1,1 +1,1 @@
-/home/sauyon/devel/nixpkgs-mozilla/firefox-overlay.nix
+../nixpkgs-mozilla/firefox-overlay.nix

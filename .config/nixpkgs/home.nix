@@ -94,10 +94,7 @@ in {
   };
 
   programs = {
-    home-manager = {
-      enable = true;
-      path = "/home/sauyon/devel/home-manager";
-    };
+    home-manager = { enable = true; };
 
     alacritty = import ./alacritty.nix;
     firefox = {

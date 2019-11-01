@@ -6,7 +6,7 @@ ratings = 2
 scan = /home/sauyon/drive/music
 
 [memory]
-browser = PanedBrowser
+browser = Paned
 chooser_dir = /home/sauyon/drive
 column_expands = ~people,1,~title~version,1,~album~discsubtitle,1
 	
@@ -16,11 +16,11 @@ open_browsers =
 plugin_prefs_maximized = 0
 plugin_prefs_position = 12 11
 plugin_prefs_size_ = 964 804
-plugin_selection = Burn CD
-prefs_page = tagging
-queue = False
-queue_expanded = True
-queue_position = 0.6744791666666666
+plugin_selection = mpris
+prefs_page = library
+queue = True
+queue_expanded = False
+queue_position = 0.6271604938271605
 quodlibet_information_maximized = 0
 quodlibet_information_position = 0 0
 quodlibet_information_size_ = 897 524
@@ -28,19 +28,19 @@ quodlibet_last_active_version = 4.2.1
 quodlibet_maximized = 4
 quodlibet_position = 0 0
 quodlibet_properties_maximized = 0
-quodlibet_properties_pos = 0.10015898251192369
+quodlibet_properties_pos = 0.10048780487804879
 quodlibet_properties_position = 0 0
-quodlibet_properties_size_ = 696 403
-quodlibet_properties_size_single = 629 403
+quodlibet_properties_size_ = 1179 754
+quodlibet_properties_size_single = 1025 752
 quodlibet_size_ = 1798 972
-seek = 0
+seek = 52254
 shuffle = True
 shuffle_mode = weighted
 sidebar_pos = 0.25027808676307006
-song = /home/sauyon/drive/music/CHiCO/世界は恋に落ちている/01. 世界は恋に落ちている.flac
-sortby = 0~album~discsubtitle
+song = /home/sauyon/drive/music/無力P/Eschatology/09. Hour of Execution.mp3
+sortby = 0~#track
 	
-volume = 0.1589309816427651
+volume = 1.0
 
 [player]
 gst_buffer = 3.0
@@ -50,15 +50,18 @@ replaygain_mode = auto
 [browsers]
 pane_selection = 1	.
 	1	.
-panedbrowser_pane_widths = 0.5291970802919708
+panedbrowser_pane_widths = 0.5234375
 	
-panedbrowser_pos = 0.475765306122449
+panedbrowser_pos = 0.4805194805194805
+playlistsbrowser_pos = 0.399895724713243
 query_text = 
+soundcloud_pos = 0.399895724713243
 
 [__config__]
 version = 0
 
 [editing]
+alltags = true
 save_email = s@uyon.co
 save_to_songs = false
 
@@ -66,15 +69,18 @@ save_to_songs = false
 duration_format = numeric
 
 [plugins]
-active_plugins = Notify
-	Tap BPM
-	Duplicates
-	refresh-songs
-	QLScrobbler
-	HeadphoneMonitor
-	WaveformSeekBar
+active_plugins = HeadphoneMonitor
 	playcounteq
+	QLScrobbler
+	Duplicates
+	Notify
+	WaveformSeekBar
+	mpris
 	ReplayGain
+	refresh-songs
+	Tap BPM
+cover_engine_amazon = True
+cover_engine_discogs = True
 icon_tooltip = <album|<album~discnumber~part~tracknumber~title~version>|<artist~title~version>>
 missing_query_include_empty = True
 notify_bodypattern = <~length>
@@ -88,7 +94,7 @@ quodlibet.fake.plugins.gajim_status_statuses = online chat
 quodlibet.fake.plugins.visualisations_executable = projectM-pulseaudio
 randomalbum_use_weights = 0
 replaygain_process_if = album_tags_missing
-scrobbler_password = m457urch33f
+scrobbler_password = cbVT62!3k4wGt^
 scrobbler_service = Last.fm
 scrobbler_username = moon00dragon
 squeezebox_debug = False

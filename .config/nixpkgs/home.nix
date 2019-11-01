@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   firefoxPkg = pkgs.wrapFirefox pkgs.latest.firefox-bin {
@@ -48,8 +48,6 @@ in {
     BAT_PAGER = "${pkgs.less}/bin/less";
     LESS = "-RFx4";
 
-    BROWSER = "${firefoxPkg}/bin/firefox";
-
     # SEMMLE
     SEMMLE_CODE = "$HOME/devel/code";
     SEMMLE_DIST = "$HOME/devel/code/target/intree/go";
@@ -61,6 +59,8 @@ in {
     GPG_TTY = "$(tty)";
     SSH_AGENT_PID = "";
     SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/gnupg/S.gpg-agent.ssh";
+  } // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
+    BROWSER = "${firefoxPkg}/bin/firefox";
   };
 
   gtk = {
@@ -81,7 +81,7 @@ in {
   };
 
   services = {
-    gpg-agent = {
+    gpg-agent = lib.optionalAttrs (! pkgs.stdenv.isDarwin) {
       enable = true;
       enableSshSupport = true;
       defaultCacheTtl = 600;
@@ -97,7 +97,7 @@ in {
     home-manager = { enable = true; };
 
     alacritty = import ./alacritty.nix;
-    firefox = {
+    firefox = lib.optionalAttrs (! pkgs.stdenv.isDarwin) {
       enable = true;
 
       package = firefoxPkg;
@@ -105,15 +105,12 @@ in {
       profiles.default = {
         userChrome = ''
           /* Hide tab bar in FF Quantum */
-          @-moz-document url("chrome://browser/content/browser.xul") {
-          #TabsToolbar {
+          #main-window[tabsintitlebar="true"]:not([extradragspace="true"]) #TabsToolbar > .toolbar-items {
+            opacity: 0;
+            pointer-events: none;
+          }
+          #main-window:not([tabsintitlebar="true"]) #TabsToolbar {
             visibility: collapse !important;
-              margin-bottom: 21px !important;
-            }
-
-          #sidebar-box[sidebarcommand="treestyletab_piro_sakura_ne_jp-sidebar-action"] #sidebar-header {
-            visibility: collapse !important;
-            }
           }
         '';
         settings = {

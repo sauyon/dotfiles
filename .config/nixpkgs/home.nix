@@ -50,6 +50,7 @@ in {
 
     # SEMMLE
     SEMMLE_CODE = "$HOME/devel/code";
+    SEMMLE_DIST_COMPARE_CODE = "$HOME/devel/dist-compare-code";
     SEMMLE_DIST = "$HOME/devel/code/target/intree/go";
     SEMMLE_HOME = "$HOME/semmle";
     SEMMLE_DATA = "/data";

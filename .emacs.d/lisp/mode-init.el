@@ -175,4 +175,25 @@
 (add-to-list 'auto-mode-alist
              '("\\.qll?\\'" . ql-mode))
 
+
+(defun semmle--enable-flyspell()
+  (flyspell-prog-mode)
+  (ispell-change-dictionary "american" t)
+  )
+
+(defun semmle--infer-indentation-style ()
+  ;; if our source file uses tabs, we use tabs, if spaces spaces, and if
+  ;; neither, we use the current indent-tabs-mode
+  (let ((space-count (how-many "^  " (point-min) (point-max)))
+        (tab-count (how-many "^\t" (point-min) (point-max))))
+    (if (> space-count tab-count) (setq-local indent-tabs-mode nil))
+    (if (> tab-count space-count) (setq-local indent-tabs-mode t))))
+
+
+(add-hook 'qhelp-mode-hook 'semmle--infer-indentation-style)
+(add-hook 'qhelp-mode-hook 'semmle--enable-flyspell)
+
+(add-hook 'ql-mode-hook 'semmle--infer-indentation-style)
+(add-hook 'ql-mode-hook 'semmle--enable-flyspell)
+
 ;; (smart-jump-setup-default-registers)

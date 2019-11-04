@@ -62,6 +62,9 @@
 ;;             (quail-defrule (cadr x) (car (cddr x)))))
 ;;       (append math-symbol-list-basic math-symbol-list-extended))
 
+(define-globalized-minor-mode global-fci-mode fci-mode (lambda () (fci-mode 1)))
+(global-fci-mode 1)
+
 (defun my-suspend-frame ()
   "In a GUI environment, do nothing; otherwise `suspend-frame'."
   (interactive)

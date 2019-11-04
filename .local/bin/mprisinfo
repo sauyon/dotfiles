@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+function printsong() {
+  title=$(playerctl -p "$1" metadata xesam:title)
+  album=$(playerctl -p "$1" metadata xesam:album)
+  artist=$(playerctl -p "$1" metadata xesam:artist)
+
+  echo "$2 $artist - $title"
+  exit 0
+}
+
+declare -a players=(quodlibet spotify)
+for player in "${players[@]}"; do
+  [[ $(playerctl -p "$player" status 2>/dev/null) == "Playing" ]] && printsong "$player" '▶'
+done
+
+for player in "${players[@]}"; do
+  [[ -n $(playerctl -p "$player" status 2>/dev/null) ]] && printsong "$player" "⏸"
+done
+
+echo "No music playing"

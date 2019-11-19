@@ -98,5 +98,7 @@
 
     gcf = "git commit --fixup";
     gcaf = "git commit -a --fixup";
+
+    ykoath = "yubioath-desktop";
   };
 }

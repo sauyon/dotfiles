@@ -1,4 +1,4 @@
-{ pkgs, lib, firefoxPkg }: rec {
+{ pkgs, lib, firefoxPkg, ... }: rec {
   EDITOR = "emacsclient";
 
   # Environment vars for use in scripts

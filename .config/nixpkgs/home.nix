@@ -6,10 +6,12 @@ let
     name = "firefox-" + (builtins.parseDrvName pkgs.latest.firefox-bin.name).version;
     desktopName = "Firefox";
   };
+
+  args = { inherit config lib pkgs firefoxPkg; };
 in {
   home.stateVersion = "19.09";
 
-  home.sessionVariables = import ./env.nix { inherit lib pkgs firefoxPkg; };
+  home.sessionVariables = import ./env.nix args;
 
   gtk = {
     enable = true;
@@ -78,7 +80,7 @@ in {
 
       signing = {
         signByDefault = true;
-        key = "142D 8892 6B57 DD7D 7000 6647 7181 1ABC 7EF1 15B2";
+        key = "142D 8892 6B57 DD7D 7000  6647 7181 1ABC 7EF1 15B2";
       };
 
       extraConfig = {
@@ -130,6 +132,6 @@ in {
       };
     };
 
-    zsh = import ./zsh.nix { inherit lib pkgs };
+    zsh = import ./zsh.nix args;
   };
 }

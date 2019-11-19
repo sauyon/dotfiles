@@ -1,4 +1,4 @@
-{ pkgs }: {
+{ pkgs, ... }: {
   enable = true;
 
   enableAutosuggestions = true;
@@ -41,7 +41,7 @@
   oh-my-zsh = {
     enable = true;
 
-    plugins = [ "git" "github" "golang" "sudo" "cargo" "adb" ];
+    plugins = [ "git" "golang" "sudo" "cargo" "adb" ];
   };
 
   sessionVariables = {

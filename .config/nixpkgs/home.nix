@@ -3,13 +3,15 @@
 let
   firefoxPkg = pkgs.latest.firefox-nightly-bin;
 
+  isDarwin = pkgs.stdenv.isDarwin;
+
   args = { inherit config lib pkgs firefoxPkg; };
 in {
   home.stateVersion = "19.09";
 
   home.sessionVariables = import ./env.nix args;
 
-  gtk = {
+  gtk = lib.optionalAttrs (!isDarwin) {
     enable = true;
     theme = {
       name = "Plano";
@@ -21,13 +23,13 @@ in {
     };
   };
 
-  qt = {
+  qt = lib.optionalAttrs (!isDarwin) {
     enable = true;
     platformTheme = "gnome";
   };
 
   services = {
-    gpg-agent = lib.optionalAttrs (! pkgs.stdenv.isDarwin) {
+    gpg-agent = lib.optionalAttrs (!isDarwin) {
       enable = true;
       enableSshSupport = true;
       defaultCacheTtl = 600;
@@ -43,7 +45,7 @@ in {
     home-manager = { enable = true; };
 
     alacritty = import ./alacritty.nix;
-    firefox = lib.optionalAttrs (! pkgs.stdenv.isDarwin) {
+    firefox = lib.optionalAttrs (!isDarwin) {
       enable = true;
 
       package = firefoxPkg;
@@ -66,7 +68,7 @@ in {
       };
     };
 
-    emacs.enable = true;
+    emacs.enable = !isDarwin;
 
     git = {
       enable = true;
@@ -93,10 +95,11 @@ in {
           markEmptyLines = false;
           stripLeadingSymbols = false;
         };
-        merge.tool = "nixmeld";
-        mergetool.nixmeld.cmd = "${pkgs.meld}/bin/meld \"$LOCAL\" \"$REMOTE\"";
         pull.rebase = true;
         url."semmle:".insteadOf = "https://git.semmle.com/";
+      } // lib.optionalAttrs (!isDarwin) {
+        merge.tool = "nixmeld";
+        mergetool.nixmeld.cmd = "${pkgs.meld}/bin/meld \"$LOCAL\" \"$REMOTE\"";
       };
     };
 

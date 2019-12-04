@@ -1,11 +1,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  firefoxPkg = pkgs.wrapFirefox pkgs.latest.firefox-bin {
-    browserName = "firefox";
-    name = "firefox-" + (builtins.parseDrvName pkgs.latest.firefox-bin.name).version;
-    desktopName = "Firefox";
-  };
+  firefoxPkg = pkgs.latest.firefox-nightly-bin;
 
   args = { inherit config lib pkgs firefoxPkg; };
 in {
@@ -38,7 +34,7 @@ in {
       maxCacheTtl = 1200;
       sshKeys = [ "FDC94CC535DF2557" ];
       extraConfig = ''
-        pinentry-program ${pkgs.pinentry}/bin/pinentry
+        pinentry-program ${pkgs.pinentry_gnome}/usr/bin/pinentry
       '';
     };
   };

@@ -1,7 +1,7 @@
 {
-  output eDP-1 disable
   output "Dell Inc. DELL U2715H H7YCC68B0V9S" mode 2560x1440 position 2560,0
   output "Dell Inc. DELL U2719DX 8JVH6R2" mode 2560x1440 position 0,0
+  output eDP-1 disable
 }
 {
   output eDP-1 enable

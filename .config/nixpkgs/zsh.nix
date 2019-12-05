@@ -26,10 +26,12 @@
 
     [ -f $HOME/.nix-profile/etc/profile.d/nix.sh ] && [ -z $NIX_PATH ] && source $HOME/.nix-profile/etc/profile.d/nix.sh
 
-    if [[ -r "$XDG_CONFIG_HOME/dircolors" ]] && exists dircolors; then
-      eval "$(dircolors -b "$XDG_CONFIG_HOME/dircolors")"
-    else
-      eval "$(dircolors -b)"
+    if exists dircolors; then
+      if [[ -r "$XDG_CONFIG_HOME/dircolors" ]]; then
+        eval "$(dircolors -b "$XDG_CONFIG_HOME/dircolors")"
+      else
+        eval "$(dircolors -b)"
+      fi
     fi
 
     man() { ${pkgs.man}/bin/man $@ 2>/dev/null || /usr/bin/man $@ }

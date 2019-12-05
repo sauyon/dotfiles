@@ -192,6 +192,10 @@ bindsym XF86AudioLowerVolume exec "pactl set-sink-volume @DEFAULT_SINK@ -5%"
 bindsym XF86AudioMute exec "pactl set-sink-mute @DEFAULT_SINK@ toggle"
 bindsym XF86AudioMicMute exec "pactl set-source-mute @DEFAULT_SOURCE@ toggle"
 
+set $laptop eDP-1
+bindswitch lid:on output $laptop disable
+bindswitch lid:off output $laptop enable
+
 bar {
   swaybar_command waybar
 }

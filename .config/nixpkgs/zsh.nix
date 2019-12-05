@@ -24,7 +24,7 @@
     source "$XDG_CONFIG_HOME/zsh/powerlevel10k/powerlevel10k.zsh-theme"
     source "$XDG_CONFIG_HOME/zsh/p10k"
 
-    [ -f $HOME/.nix-profile/etc/profile.d/nix.sh ] && [ -z $NIX_PATH] && source $HOME/.nix-profile/etc/profile.d/nix.sh
+    [ -f $HOME/.nix-profile/etc/profile.d/nix.sh ] && [ -z $NIX_PATH ] && source $HOME/.nix-profile/etc/profile.d/nix.sh
 
     if [[ -r "$XDG_CONFIG_HOME/dircolors" ]] && exists dircolors; then
       eval "$(dircolors -b "$XDG_CONFIG_HOME/dircolors")"

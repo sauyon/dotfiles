@@ -96,7 +96,7 @@
 	},
 	"clock": {
 		"tooltip": false,
-		"format": "{:%a, %F %T}"
+		"format": "{:%a, %F %H:%M}"
 	},
 	"tray": {
 		"tooltip": false,

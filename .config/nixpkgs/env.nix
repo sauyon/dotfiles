@@ -43,12 +43,12 @@
   SEMMLE_DIST = "$HOME/devel/code/target/intree/go";
   SEMMLE_HOME = "$HOME/semmle";
   SEMMLE_DATA = "/data";
-  SEMMLE_CACHE = "$XDG_CACHE_HOME/semmle";
+  SEMMLE_CACHE = "${XDG_CACHE_HOME}/semmle";
 
   # gpg for ssh
   GPG_TTY = "$(tty)";
-  SSH_AGENT_PID = "";
-  SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/gnupg/S.gpg-agent.ssh";
 } // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
   BROWSER = "${firefoxPkg}/bin/firefox";
+  SSH_AGENT_PID = "";
+  SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/gnupg/S.gpg-agent.ssh";
 }

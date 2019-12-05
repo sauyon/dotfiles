@@ -105,7 +105,7 @@ in {
 
     gpg.enable = true;
 
-    ssh = {
+    ssh = lib.optionalAttrs (!isDarwin) {
       enable = true;
       matchBlocks = {
         "aur" = {

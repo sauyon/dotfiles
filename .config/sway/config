@@ -37,6 +37,16 @@ input "65261:4871:ErgoDox_EZ_ErgoDox_EZ" {
   xkb_options ""
 }
 
+input "65261:4871:ZSA_Ergodox_EZ" {
+  xkb_variant ""
+  xkb_options ""
+}
+
+input "65261:4871:ZSA_Ergodox_EZ_Keyboard" {
+  xkb_variant ""
+  xkb_options ""
+}
+
 input "4176:1031:Yubico_YubiKey_OTP+FIDO+CCID" {
   xkb_variant ""
   xkb_options ""
@@ -141,6 +151,10 @@ bindsym $mod+r exec bemenu-run
 # move output
 bindsym $mod+comma move workspace to output left
 bindsym $mod+period move workspace to output right
+bindsym $mod+left move workspace to output left
+bindsym $mod+right move workspace to output right
+bindsym $mod+up move workspace to output up
+bindsym $mod+down move workspace to output down
 
 # split in horizontal orientation
 bindsym $mod+h split h

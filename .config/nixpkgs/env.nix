@@ -33,6 +33,8 @@
 
   PATH = "$PATH:$GOPATH/bin:${XDG_DATA_HOME}/cargo/bin:$HOME/.local/bin";
 
+  GRAVEYARD = "$HOME/.local/share/trash";
+
   PAGER = "${pkgs.bat}/bin/bat --paging=always --color=always --";
   BAT_PAGER = "${pkgs.less}/bin/less";
   LESS = "-RFx4";

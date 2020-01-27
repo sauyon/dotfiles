@@ -4,13 +4,13 @@
 }
 {
   output "Dell Inc. DELL U2719DX 8JVH6R2" mode 2560x1440 position 0,0 transform normal
-  output "Dell Inc. DELL U2715H H7YCC68B0V9S" mode 2560x1440 position 2560,0 transform normal
+  output "Dell Inc. DELL U2518D 0WG2J97FBPBL" mode 2560x1440 position 2560,0 transform normal
   output eDP-1 disable
 }
 {
   output "Goldstar Company Ltd LG UltraFine 706NTGY9C751" mode 1920x1080 position 0,0
   output "Dell Inc. DELL U2719DX 8JVH6R2" mode 2560x1440 position 1920,-400 transform 270
-  output "Dell Inc. DELL U2715H H7YCC68B0V9S" mode 2560x1440 position 3360,0
+  output "Dell Inc. DELL U2518D 0WG2J97FBPBL" mode 2560x1440 position 3360,0
   output eDP-1 disable
 }
 {
@@ -19,5 +19,5 @@
   output eDP-1 mode 1920x1080 position 0,1080
 }
 {
-  output eDP-1 mode 2560x1440 position 0,1080
+  output eDP-1 mode 1920x1080 position 0,1080
 }

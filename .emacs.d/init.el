@@ -34,7 +34,7 @@
  '(cursor-color nil)
  '(custom-enabled-themes '(solarized-dark))
  '(custom-safe-themes
-   '("0598c6a29e13e7112cfbc2f523e31927ab7dce56ebb2016b567e1eff6dc1fd4f" "8aebf25556399b58091e533e455dd50a6a9cba958cc4ebb0aab175863c25b9a4" default))
+   '("2809bcb77ad21312897b541134981282dc455ccd7c14d74cc333b6e549b824f3" default))
  '(default-frame-alist
     '((vertical-scroll-bars)
       (font . "Noto Mono for Powerline-12")))
@@ -164,7 +164,7 @@
      ("gnu" . "http://elpa.gnu.org/packages/")
      ("melpa" . "https://melpa.org/packages/")))
  '(package-selected-packages
-   '(nix-update solarized-theme use-package lsp-ui company-shell company-lsp groovy-mode go-guru company-go helm-company nix-mode fill-column-indicator smart-jump semmle ebib lua-mode graphviz-dot-mode pcap-mode rustic dumb-jump org-ref ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode rust-mode go-errcheck go-dlv go-complete latex-pretty-symbols smali-mode 2048-game ac-clang ac-emoji ac-haskell-proc achievements ac-html ac-ispell ac-ja ac-js2 ac-math ac-mozc ac-python android-mode auto-complete-sage auto-dictionary cmake-mode csv-mode dict-tree edit-server ensime flycheck-haskell flycheck-kotlin flycheck-rust go-autocomplete haskell-mode helm-nixos-options jabber json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame multi-term nixos-options oberon pkgbuild-mode pretty-sha-path protobuf-mode scala-mode scala-mode2 scss-mode smart-tabs-mode systemd toml-mode tuareg web-mode yaml-mode zeitgeist))
+   '(helm-git helm-rg dired-icon nix-update solarized-theme use-package lsp-ui company-shell company-lsp groovy-mode go-guru company-go helm-company nix-mode fill-column-indicator smart-jump semmle ebib lua-mode graphviz-dot-mode rustic dumb-jump org-ref ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode rust-mode go-errcheck go-dlv go-complete latex-pretty-symbols smali-mode ac-haskell-proc achievements android-mode auto-dictionary cmake-mode dict-tree flycheck-haskell flycheck-rust haskell-mode helm-nixos-options json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame nixos-options pkgbuild-mode pretty-sha-path protobuf-mode scala-mode2 scss-mode smart-tabs-mode systemd toml-mode web-mode))
  '(pcap-mode-tshark-executable nil)
  '(ql-mode-target-language "javascript" t)
  '(ql-ql-location "/home/sauyon/devel/maxcode/ql")

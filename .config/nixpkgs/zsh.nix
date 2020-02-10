@@ -54,7 +54,7 @@
   };
 
   shellAliases = {
-    ls = "${pkgs.coreutils}/bin/ls --color=auto";
+    ls = "${pkgs.coreutils}/bin/ls -q --color=auto";
     grep = "${pkgs.gnugrep}/bin/grep --color=auto";
     diff = "${pkgs.diffutils}/bin/diff --color=auto -utr";
 
@@ -104,5 +104,8 @@
     gcaf = "git commit -a --fixup";
 
     ykoath = "yubioath-desktop";
+
+    quck = "codeql query compile --warnings=error -n --search-path . --additional-packs . -j8";
+    qlfmt = "qlformat --input";
   };
 }

@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  firefoxPkg = pkgs.latest.firefox-nightly-bin;
+  firefoxPkg = pkgs.latest.firefox-bin;
 
   isDarwin = pkgs.stdenv.isDarwin;
 
@@ -74,7 +74,7 @@ in {
       enable = true;
       userName = "Sauyon Lee";
       userEmail = "sauyon@github.com";
-      ignores = [ "*~" "\#*\#" "*.orig" ".\#*" ".dir-locals.el" ];
+      ignores = [ "*~" "\\#*#" "*.orig" ".#*" ".dir-locals.el" ];
 
       signing = {
         signByDefault = true;

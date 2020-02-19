@@ -35,9 +35,6 @@ in {
       defaultCacheTtl = 600;
       maxCacheTtl = 1200;
       sshKeys = [ "FDC94CC535DF2557" ];
-      extraConfig = ''
-        pinentry-program ${pkgs.pinentry_gnome}/usr/bin/pinentry
-      '';
     };
   };
 
@@ -124,9 +121,7 @@ in {
           user = "git";
         };
         "shizuka" = {
-          hostname = "shizuka.ko.ag";
-          user = "sauyon";
-          proxyCommand = "${pkgs.cloudflared}/bin/cloudflared access ssh --hostname %h";
+          port = 59049;
         };
       };
     };

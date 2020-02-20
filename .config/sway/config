@@ -176,6 +176,8 @@ bindsym $mod+d focus child
 bindsym $mod+Shift+r reload
 # exit i3 (logs you out of your X session)
 bindsym $mod+Shift+e exec "swaynag -t warning -m 'You pressed the exit shortcut. Do you really want to exit sway? This will end your X session.' -b 'Yes, exit sway' 'swaymsg exit'"
+# lock
+bindsym $mod+Shift+l exec "$HOME/.local/bin/lock"
 
 bindsym $mod+x exec makoctl dismiss
 bindsym $mod+o exec makoctl invoke

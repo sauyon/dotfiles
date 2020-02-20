@@ -116,6 +116,9 @@ in {
           hostname = "git.semmle.com";
           user = "git";
         };
+        "profiling" = {
+          hostname = "profiling-sauyon-lee.northeurope.cloudapp.azure.com";
+        };
         "github" = {
           hostname = "github.com";
           user = "git";

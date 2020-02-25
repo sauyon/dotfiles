@@ -46,6 +46,7 @@
   SEMMLE_HOME = "$HOME/semmle";
   SEMMLE_DATA = "/data";
   SEMMLE_CACHE = "${XDG_CACHE_HOME}/semmle";
+  DIST_COMPARE_WORKERS = "profiling-sauyon-lee.northeurope.cloudapp.azure.com";
 
   # gpg for ssh
   GPG_TTY = "$(tty)";

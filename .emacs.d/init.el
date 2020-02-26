@@ -34,7 +34,7 @@
  '(cursor-color nil)
  '(custom-enabled-themes '(solarized-dark))
  '(custom-safe-themes
-   '("2809bcb77ad21312897b541134981282dc455ccd7c14d74cc333b6e549b824f3" default))
+   '("0598c6a29e13e7112cfbc2f523e31927ab7dce56ebb2016b567e1eff6dc1fd4f" "2809bcb77ad21312897b541134981282dc455ccd7c14d74cc333b6e549b824f3" default))
  '(default-frame-alist
     '((vertical-scroll-bars)
       (font . "Noto Mono for Powerline-12")))

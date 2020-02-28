@@ -1,7 +1,7 @@
 { config, lib, pkgs, ... }:
 
 let
-  firefoxPkg = pkgs.latest.firefox-bin;
+  firefoxPkg = pkgs.firefox-bin;
 
   isDarwin = pkgs.stdenv.isDarwin;
 

@@ -14,5 +14,9 @@
   output eDP-1 disable
 }
 {
+  output "Dell Inc. DELL U2312HM T9MJ318OAUCL" mode 1920x1080 position 0,0 transform normal
+  output eDP-1 mode 1920x1080 position 0,1080 transform normal
+}
+{
   output eDP-1 mode 1920x1080 position 0,0
 }

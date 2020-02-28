@@ -148,6 +148,8 @@ bindsym $mod+Return exec term
 bindsym $mod+r exec bemenu-run
 # bindsym $mod+r exec --no-startup-id i3-dmenu-desktop
 
+bindsym $mod+e exec emacsclient -nc
+
 # move output
 bindsym $mod+comma move workspace to output left
 bindsym $mod+period move workspace to output right
@@ -164,7 +166,7 @@ bindsym $mod+v split v
 
 # change container layout (stacked, tabbed, toggle split)
 bindsym $mod+s layout stacked
-bindsym $mod+e layout toggle split
+bindsym $mod+l layout toggle split
 
 # focus the parent container
 bindsym $mod+a focus parent

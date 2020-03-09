@@ -1,0 +1,10 @@
+#!/bin/sh
+
+gpgconf --kill all
+if [ -z $GNUPGHOME ]; then
+  rm -r ~/.gnupg/private-keys-v1.d/
+else
+  rm -r $GNUPGHOME/private-keys-v1.d/
+fi
+
+return gpg --card-status &> /dev/null

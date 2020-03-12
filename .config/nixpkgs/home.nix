@@ -71,7 +71,10 @@ in {
       enable = true;
       userName = "Sauyon Lee";
       userEmail = "sauyon@github.com";
-      ignores = [ "*~" "\\#*#" "*.orig" ".#*" ".dir-locals.el" ];
+      ignores = [
+        "*~" "\\#*#" "*.orig" ".#*" ".dir-locals.el"
+        "*.zip" "*.tar" "*.out" "*.xz" "*.gz" "*.7z"
+      ];
 
       signing = {
         signByDefault = true;

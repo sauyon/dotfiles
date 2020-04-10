@@ -97,6 +97,7 @@ in {
         };
         pull.rebase = true;
         url."semmle:".insteadOf = "https://git.semmle.com/";
+        url."github:".insteadOf = "https://github.com/";
       } // lib.optionalAttrs (!isDarwin) {
         merge.tool = "nixmeld";
         mergetool.nixmeld.cmd = "${pkgs.meld}/bin/meld \"$LOCAL\" \"$REMOTE\"";

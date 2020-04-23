@@ -18,5 +18,8 @@
   output eDP-1 mode 1920x1080 position 0,1080 transform normal
 }
 {
-  output eDP-1 mode 1920x1080 position 0,0
+	output "Goldstar Company Ltd LG HDR 4K 0x0000A314" mode 3840x2160 position 0,0 transform normal
+  output eDP-1 mode 1920x1080 position 960,2160 transform normal
+{
+  output eDP-1 mode 1920x1080 position 0,0 transform normal
 }

@@ -36,6 +36,8 @@ in {
       maxCacheTtl = 1200;
       sshKeys = [ "FDC94CC535DF2557" ];
     };
+
+    emacs.enable = true;
   };
 
   programs = {

@@ -81,19 +81,7 @@
       # Number of lines the viewport will move for every line scrolled when
       # scrollback is enabled (history > 0).
       multiplier = 3;
-
-      # Scroll to the bottom when new text is written to the terminal.
-      auto_scroll = false;
     };
-
-    # Spaces per Tab (changes require restart)
-    #
-    # This setting defines the width of a tab in cells.
-    #
-    # Some applications, like Emacs, rely on knowing about the width of a tab.
-    # To prevent unexpected behavior in these applications, it's also required to
-    # change the `it` value in terminfo when altering this setting.
-    tabspaces = 8;
 
     # Font configuration
     #

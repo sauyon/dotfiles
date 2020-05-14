@@ -23,6 +23,7 @@
 (global-set-key (kbd "C-,") 'prev-window)
 ;; this should also be the default (thanks `technomancy/better-defaults')
 (global-set-key (kbd "C-x C-b") 'ibuffer)
+(global-set-key (kbd "C-x b") 'ivy-switch-buffer)
 ;; ebib
 (global-set-key (kbd "C-c e") 'ebib)
 

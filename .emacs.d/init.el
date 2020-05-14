@@ -59,6 +59,8 @@
  '(inhibit-startup-screen t)
  '(ispell-dictionary "en_US")
  '(ispell-program-name "/usr/bin/hunspell")
+ '(ivy-explorer-mode t nil (ivy-explorer))
+ '(ivy-mode t)
  '(js-indent-level 2)
  '(load-prefer-newer t)
  '(nix-prettify-global-mode t)
@@ -164,7 +166,7 @@
      ("gnu" . "http://elpa.gnu.org/packages/")
      ("melpa" . "https://melpa.org/packages/")))
  '(package-selected-packages
-   '(yaml-mode helm-git helm-rg dired-icon nix-update solarized-theme use-package lsp-ui company-shell company-lsp groovy-mode go-guru company-go helm-company nix-mode fill-column-indicator smart-jump semmle ebib lua-mode graphviz-dot-mode rustic dumb-jump org-ref ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode rust-mode go-errcheck go-dlv go-complete latex-pretty-symbols smali-mode ac-haskell-proc achievements android-mode auto-dictionary cmake-mode dict-tree flycheck-haskell flycheck-rust haskell-mode helm-nixos-options json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame nixos-options pkgbuild-mode pretty-sha-path protobuf-mode scala-mode2 scss-mode smart-tabs-mode systemd toml-mode web-mode))
+   '(solarized-theme lsp-ivy ivy-explorer flyspell-correct-ivy yaml-mode dired-icon nix-update use-package lsp-ui company-shell company-lsp groovy-mode go-guru company-go nix-mode fill-column-indicator smart-jump semmle lua-mode graphviz-dot-mode dumb-jump ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode go-errcheck go-dlv latex-pretty-symbols smali-mode ac-haskell-proc android-mode auto-dictionary cmake-mode dict-tree flycheck-haskell flycheck-rust haskell-mode json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame nixos-options pretty-sha-path protobuf-mode scala-mode2 scss-mode smart-tabs-mode systemd toml-mode))
  '(pcap-mode-tshark-executable nil)
  '(ql-mode-target-language "javascript" t)
  '(ql-ql-location "/home/sauyon/devel/maxcode/ql")

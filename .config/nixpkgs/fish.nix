@@ -1,48 +1,18 @@
-{ pkgs, ... }: {
+{ pkgs, lib, ... }:
+
+let
+  fishPlugin = repo: {
+    name = lib.lists.last (lib.strings.splitString "/" repo);
+    src = fetchTarball ("https://github.com/" + repo + "/archive/master.tar.gz");
+  };
+in {
   enable = true;
 
-  enableAutosuggestions = true;
+  plugins = [
+    (fishPlugin "jhillyerd/plugin-git")
+  ];
 
-  autocd = true;
-  defaultKeymap = "emacs";
-
-  dotDir = ".config/zsh";
-
-  history = {
-    expireDuplicatesFirst = true;
-    ignoreDups = true;
-    path = ".local/share/zsh/history";
-    save = 100000;
-    size = 100000;
-  };
-
-  initExtra = ''
-    export "XDG_CONFIG_HOME=$HOME/.config"
-    source "$XDG_CONFIG_HOME/zsh/utils"
-    source "$XDG_CONFIG_HOME/zsh/config"
-    source "$XDG_CONFIG_HOME/zsh/aliases"
-    source "$XDG_CONFIG_HOME/zsh/powerlevel10k/powerlevel10k.zsh-theme"
-    source "$XDG_CONFIG_HOME/zsh/p10k"
-
-    [ -f $HOME/.nix-profile/etc/profile.d/nix.sh ] && [ -z $NIX_PATH ] && source $HOME/.nix-profile/etc/profile.d/nix.sh
-
-    man() { ${pkgs.man}/bin/man $@ 2>/dev/null || /usr/bin/man $@ }
-
-    PAGER="${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --"
-  '';
-
-  oh-my-zsh = {
-    enable = true;
-
-    plugins = [ "git" "golang" "sudo" "cargo" "adb" ];
-  };
-
-  sessionVariables = {
-    XDG_CONFIG_HOME = "$HOME/.config";
-    XDG_DATA_HOME = "$HOME/.local/share";
-  };
-
-  shellAliases = {
+  shellAbbrs = {
     ls = "${pkgs.coreutils}/bin/ls -q --color=auto";
     grep = "${pkgs.gnugrep}/bin/grep --color=auto";
     diff = "${pkgs.diffutils}/bin/diff --color=auto -utr";

@@ -11,11 +11,6 @@ alias rcp='rsync -rgoP'
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert\s*$//'\'')"'
 alias cowfortune='fortune | cowsay'
 
-gnight() {
-  cowsay "GNIGHT's Not IGHT"
-  systemctl suspend
-}
-
 man() { env man $@ 2>/dev/null || /usr/bin/man $@ }
 
 nsk() {

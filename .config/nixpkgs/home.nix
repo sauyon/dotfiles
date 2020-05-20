@@ -44,6 +44,13 @@ in {
     home-manager = { enable = true; };
 
     alacritty = import ./alacritty.nix;
+
+    dircolors.enable = true;
+
+    emacs.enable = !isDarwin;
+
+    fish = import ./fish.nix args;
+
     firefox = lib.optionalAttrs (!isDarwin) {
       enable = true;
 
@@ -67,7 +74,7 @@ in {
       };
     };
 
-    emacs.enable = !isDarwin;
+    fzf.enable = true;
 
     git = {
       enable = true;
@@ -132,6 +139,55 @@ in {
         "shizuka" = {
           port = 59049;
         };
+      };
+    };
+
+    starship = {
+      enable = true;
+
+      settings = {
+        add_newline = false;
+        prompt_order = [
+          "username"
+          "hostname"
+          # "kubernetes"
+          "directory"
+          "git_branch"
+          "git_commit"
+          "git_state"
+          "git_status"
+          # "hg_branch"
+          "docker_context"
+          "package"
+          # "dotnet"
+          # "elixir"
+          # "elm"
+          # "erlang"
+          "golang"
+          "haskell"
+          "java"
+          # "julia"
+          "nodejs"
+          # "php"
+          "python"
+          # "ruby"
+          "rust"
+          # "terraform"
+          "nix_shell"
+          # "conda"
+          "memory_usage"
+          # "aws"
+          "env_var"
+          # "crystal"
+          "cmd_duration"
+          "custom"
+          "jobs"
+          "battery"
+          "time"
+          "character"
+        ];
+        scan_timeout = 10;
+        character.symbol = "➜";
       };
     };
 

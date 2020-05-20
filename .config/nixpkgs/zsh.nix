@@ -36,9 +36,6 @@
 
     man() { ${pkgs.man}/bin/man $@ 2>/dev/null || /usr/bin/man $@ }
 
-    fpath=("$XDG_CONFIG_HOME/zsh/completions" $fpath)
-    compinit -u
-
     PAGER="${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --"
   '';
 

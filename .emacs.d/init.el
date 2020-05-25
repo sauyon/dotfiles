@@ -172,6 +172,7 @@
  '(ql-ql-location "/home/sauyon/devel/maxcode/ql")
  '(require-final-newline t)
  '(ring-bell-function 'my-bell-function)
+ '(rust-format-on-save nil)
  '(rust-indent-offset 2)
  '(scroll-bar-mode nil)
  '(sh-basic-offset 2)

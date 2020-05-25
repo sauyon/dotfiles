@@ -6,6 +6,7 @@
 
 ;; This doesn't need to be in a separate file :thinking:
 (global-set-key (kbd "<f8>") 'recompile)
+(global-set-key (kbd "<f5>") 'revert-buffer)
 ;; Why isn't this default? (??????)
 (global-set-key (kbd "M-p") 'backward-paragraph)
 (global-set-key (kbd "M-n") 'forward-paragraph)
@@ -63,8 +64,8 @@
 ;;             (quail-defrule (cadr x) (car (cddr x)))))
 ;;       (append math-symbol-list-basic math-symbol-list-extended))
 
-(define-globalized-minor-mode global-fci-mode fci-mode (lambda () (fci-mode 1)))
-(global-fci-mode 1)
+;; (define-globalized-minor-mode global-fci-mode fci-mode (lambda () (fci-mode 1)))
+;; (global-fci-mode 1)
 
 (defun my-suspend-frame ()
   "In a GUI environment, do nothing; otherwise `suspend-frame'."

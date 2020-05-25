@@ -67,4 +67,17 @@ in {
     quck = "codeql query compile --warnings=error -n --search-path . --additional-packs . -j8";
     qlfmt = "qlformat --input";
   };
+
+  functions = {
+    _prompt_gitstatus = ''
+      set STATUS (gitstatus)
+      echo "$STATUS[1]" -n
+      if [ $TEST[4] != "" ]; echo " $TEST[4]" -n; end
+      if
+    '';
+  };
+
+  interactiveShellInit = ''
+    bind \ct transpose-chars
+  '';
 }

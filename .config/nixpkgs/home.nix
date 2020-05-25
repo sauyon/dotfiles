@@ -40,22 +40,35 @@ in {
     emacs.enable = true;
   };
 
+  # systemd.user.startServices = true;
+  # systemd.user.services = {
+  #   gitstatusd = {
+  #     Unit = {
+  #       Description = "10x faster implementation of git status";
+  #     };
+
+  #     Service = {
+  #       Type = "simple";
+  #       ExecStart = "${pkgs.gitAndTools.gitstatus}/bin/gitstatusd";
+  #     };
+
+  #     Install = {
+  #       WantedBy = [ "default.target" ];
+  #     };
+  #   };
+  # };
+
   programs = {
-    home-manager = { enable = true; };
-
+    home-manager.enable = true;
     alacritty = import ./alacritty.nix;
-
+    broot.enable = true;
     dircolors.enable = true;
-
     emacs.enable = !isDarwin;
-
     fish = import ./fish.nix args;
 
     firefox = lib.optionalAttrs (!isDarwin) {
       enable = true;
-
       package = firefoxPkg;
-
       profiles.default = {
         userChrome = ''
           /* Hide tab bar in FF Quantum */
@@ -150,44 +163,39 @@ in {
         prompt_order = [
           "username"
           "hostname"
-          # "kubernetes"
           "directory"
+          "custom.git"
           "git_branch"
-          "git_commit"
+          # "git_commit"
           "git_state"
-          "git_status"
-          # "hg_branch"
+          # "git_status"
           "docker_context"
           "package"
-          # "dotnet"
-          # "elixir"
-          # "elm"
-          # "erlang"
-          "golang"
-          "haskell"
-          "java"
-          # "julia"
-          "nodejs"
-          # "php"
-          "python"
-          # "ruby"
-          "rust"
-          # "terraform"
           "nix_shell"
-          # "conda"
           "memory_usage"
-          # "aws"
           "env_var"
-          # "crystal"
-          "cmd_duration"
           "custom"
           "jobs"
-          "battery"
-          "time"
           "character"
         ];
+        rprompt_order = [
+          "cmd_duration"
+          "time"
+        ];
+        character.symbol = "";
+        suffix = "";
         scan_timeout = 10;
-        character.symbol = "➜";
+
+        username.style = "fg:yellow bg:black";
+        hostname.style = "fg:yellow bg:black";
+        directory.style = "fg:black bg:white";
+        git_branch.prefix = "";
+        git_branch.symbol = "";
+        git_state.prefix = "";
+
+        custom.git = {
+
+        };
       };
     };
 

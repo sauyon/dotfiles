@@ -29,6 +29,8 @@
     man() { ${pkgs.man}/bin/man $@ 2>/dev/null || /usr/bin/man $@ }
 
     PAGER="${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --"
+
+    bindkey '^T' transpose-chars
   '';
 
   oh-my-zsh = {
@@ -95,6 +97,6 @@
     ykoath = "yubioath-desktop";
 
     quck = "codeql query compile --warnings=error -n --search-path . --additional-packs . -j8";
-    qlfmt = "qlformat --input";
+    qlfmt = "codeql autoformat";
   };
 }

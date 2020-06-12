@@ -11,15 +11,27 @@ in {
 
   home.sessionVariables = import ./env.nix args;
 
+  home.packages = [
+    pkgs.noto-fonts
+    pkgs.noto-fonts-cjk
+    pkgs.powerline-fonts
+    pkgs.font-awesome
+    pkgs.waybar
+  ];
+
   gtk = lib.optionalAttrs (!isDarwin) {
     enable = true;
     theme = {
       name = "Plano";
       package = pkgs.plano-theme;
     };
+    iconTheme = {
+      name = "Numix";
+      package = pkgs.numix-icon-theme;
+    };
     font = {
-      name = "Noto Sans 12";
-      package = pkgs.noto-fonts;
+      name = "Noto Sans 12 for Powerline";
+      package = pkgs.powerline-fonts;
     };
   };
 
@@ -58,14 +70,16 @@ in {
   #   };
   # };
 
+  fonts.fontconfig.enable = true;
+
   programs = {
     home-manager.enable = true;
     alacritty = import ./alacritty.nix;
     broot.enable = true;
     dircolors.enable = true;
     emacs.enable = !isDarwin;
-    fish = import ./fish.nix args;
 
+    fish = import ./fish.nix args;
     firefox = lib.optionalAttrs (!isDarwin) {
       enable = true;
       package = firefoxPkg;

@@ -22,5 +22,9 @@
   output eDP-1 mode 1920x1080 position 960,2160 transform normal
 }
 {
+  output "Dell Inc. DELL U2312HM T9MJ318OAUDL" mode 1920x1080 position 0,360 transform normal
+  output "Ancor Communications Inc ROG PG279Q #ASNXqkXehLLd" mode 2560x1440@165Hz position 1920,0 transform normal
+}
+{
   output eDP-1 mode 1920x1080 position 0,0 transform normal
 }

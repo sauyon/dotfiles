@@ -29,7 +29,7 @@ font pango:Noto Sans 12
 input * {
   xkb_layout "us"
   xkb_variant "colemak"
-  xkb_options "ctrl:nocaps,ctrl:swapcaps,level3:ralt_switch"
+  xkb_options "ctrl:nocaps,ctrl:swapcaps"
 }
 
 input "65261:4871:ErgoDox_EZ_ErgoDox_EZ" {
@@ -54,6 +54,30 @@ input "4176:1031:Yubico_YubiKey_OTP+FIDO+CCID" {
 
 input "4176:1025:Yubico_YubiKey_OTP" {
   xkb_variant ""
+  xkb_options ""
+}
+
+input "5426:580:Razer_Razer_Tartarus_Pro" {
+  xkb_layout "tartarus"
+  xkb_variant "basic"
+  xkb_options ""
+}
+
+input "5426:580:Razer_Razer_Tartarus_Pro_Keyboard" {
+  xkb_layout "tartarus"
+  xkb_variant "basic"
+  xkb_options ""
+}
+
+input "5426:580:Razer_Razer_Tartarus_Pro_Consumer_Control" {
+  xkb_layout "tartarus"
+  xkb_variant "basic"
+  xkb_options ""
+}
+
+input "5426:580:Razer_Razer_Tartarus_Pro_System_Control" {
+  xkb_layout "tartarus"
+  xkb_variant "basic"
   xkb_options ""
 }
 
@@ -145,7 +169,7 @@ bindsym $mod+Return exec term
 # shipping a .desktop file. It is a wrapper around dmenu, so you need that
 # installed.
 # bindsym $mod+r exec alacritty --title 'Launcher' -e j4-dmenu-desktop --dmenu="(cat ; (stest -flx $(echo $PATH | tr : ' ') | sort -u)) | fzf" --term='alacritty'
-bindsym $mod+r exec bemenu-run
+bindsym $mod+r exec bemenu-run -i -m -1
 # bindsym $mod+r exec --no-startup-id i3-dmenu-desktop
 
 bindsym $mod+e exec emacsclient -nc
@@ -228,7 +252,7 @@ assign [class="Steam"] 4
 for_window [app_id="pavucontrol"] floating enable
 
 for_window [app_id="firefox"] border none
-for_window [title="Firefox - Sharing Indicator"] floating enable
+for_window [name="Firefox - Sharing Indicator"] floating enable; move position 0 0
 
 for_window [class="Yubico Authenticator"] floating enable
 

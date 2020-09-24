@@ -18,6 +18,9 @@
     };
 
     window = {
+      # Title according to the running program (probably...)
+      dynamic_title = true;
+
       # Window dimensions (changes require restart)
       #
       # Specified in number of columns/lines, not pixels.
@@ -177,7 +180,7 @@
     #   - Linear
     #
     # Specifying a `duration` of `0` will disable the visual bell.
-    visual_bell = { animation = "EaseOutExpo"; duration = 1; };
+    bell = { animation = "EaseOutExpo"; duration = 1; };
 
     # Background opacity
     #
@@ -193,8 +196,6 @@
       # clipboard.
       save_to_clipboard = false;
     };
-
-    dynamic_title = true;
 
     cursor = {
       # Cursor style

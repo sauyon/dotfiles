@@ -92,12 +92,11 @@ if getrep "Install xorg/dm/etc? [Y/n] "; then
   sudo -u "$1" \
   yay -S ttf-google-fonts-git --noconfirm --needed
 
-  sudo -u "$1" \
-  yay -S alacritty dunst grim emacs feh firefox noto-fonts sway swayidle \
+  pacman -S alacritty dunst grim emacs feh firefox noto-fonts sway swayidle \
          swaylock lxappearance mako network-manager-applet networkmanager \
-         noto-fonts pam-u2f pavucontrol pcscd polkit-gnome pulseaudio \
-         quodlibet scrot slurp sxiv waybar yubikey-manager \
-         yubikey-personalization \
+         noto-fonts pam-u2f pavucontrol pcscd playerctl polkit-gnome \
+         pulseaudio quodlibet scrot slurp sxiv waybar yubikey-manager \
+         yubikey-personalization kanshi \
       --noconfirm --needed
 
   # AUR packages

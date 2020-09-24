@@ -117,6 +117,8 @@ in {
         key = "142D 8892 6B57 DD7D 7000  6647 7181 1ABC 7EF1 15B2";
       };
 
+      lfs.enable = true;
+
       extraConfig = {
         commit = { verbose = true; };
         push = { default = "current"; };
@@ -139,7 +141,12 @@ in {
       };
     };
 
-    gpg.enable = true;
+    gpg = {
+      enable = true;
+      settings = {
+        keyserver = "keys.gnupg.net";
+      };
+    };
 
     ssh = lib.optionalAttrs (!isDarwin) {
       enable = true;

@@ -14,9 +14,13 @@ in {
   home.packages = [
     pkgs.noto-fonts
     pkgs.noto-fonts-cjk
+    pkgs.liberation_ttf
+    pkgs.dejavu_fonts
     pkgs.powerline-fonts
     pkgs.font-awesome
     pkgs.waybar
+    pkgs.slurp
+    pkgs.grim
   ];
 
   gtk = lib.optionalAttrs (!isDarwin) {

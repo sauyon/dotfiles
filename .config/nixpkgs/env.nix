@@ -50,6 +50,8 @@
 
   # gpg for ssh
   GPG_TTY = "$(tty)";
+
+  NIXPKGS="$HOME/devel/nixpkgs";
 } // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
   BROWSER = "${firefoxPkg}/bin/firefox";
   SSH_AGENT_PID = "";

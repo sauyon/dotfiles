@@ -57,30 +57,6 @@ input "4176:1025:Yubico_YubiKey_OTP" {
   xkb_options ""
 }
 
-input "5426:580:Razer_Razer_Tartarus_Pro" {
-  xkb_layout "tartarus"
-  xkb_variant "basic"
-  xkb_options ""
-}
-
-input "5426:580:Razer_Razer_Tartarus_Pro_Keyboard" {
-  xkb_layout "tartarus"
-  xkb_variant "basic"
-  xkb_options ""
-}
-
-input "5426:580:Razer_Razer_Tartarus_Pro_Consumer_Control" {
-  xkb_layout "tartarus"
-  xkb_variant "basic"
-  xkb_options ""
-}
-
-input "5426:580:Razer_Razer_Tartarus_Pro_System_Control" {
-  xkb_layout "tartarus"
-  xkb_variant "basic"
-  xkb_options ""
-}
-
 input "Logitech USB Receiver Mouse" xkb_variant ""
 
 output * background "$HOME/images/wallpapers/$(hostname).png" center #1e174f

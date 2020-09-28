@@ -228,7 +228,7 @@ assign [class="Steam"] 4
 for_window [app_id="pavucontrol"] floating enable
 
 for_window [app_id="firefox"] border none
-for_window [name="Firefox - Sharing Indicator"] floating enable; move position 0 0
+for_window [title="Firefox - Sharing Indicator"] floating enable; move position 0 0
 
 for_window [class="Yubico Authenticator"] floating enable
 

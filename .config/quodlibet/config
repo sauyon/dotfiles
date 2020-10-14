@@ -14,17 +14,18 @@ column_widths = ~people,-1,~title~version,-1,~album~discsubtitle,-1
 	
 open_browsers = 
 plugin_prefs_maximized = 0
-plugin_prefs_position = 12 11
+plugin_prefs_position = 26 23
 plugin_prefs_size_ = 964 804
-plugin_selection = mpris
+plugin_selection = Notify
 prefs_page = library
 queue = True
+queue_disable = False
 queue_expanded = False
 queue_position = 0.6271604938271605
 quodlibet_information_maximized = 0
 quodlibet_information_position = 0 0
 quodlibet_information_size_ = 897 524
-quodlibet_last_active_version = 4.2.1
+quodlibet_last_active_version = 4.3.0
 quodlibet_maximized = 4
 quodlibet_position = 0 0
 quodlibet_properties_maximized = 0
@@ -32,27 +33,28 @@ quodlibet_properties_pos = 0.10048780487804879
 quodlibet_properties_position = 0 0
 quodlibet_properties_size_ = 1179 754
 quodlibet_properties_size_single = 1025 752
-quodlibet_size_ = 1798 972
-seek = 52254
+quodlibet_size_ = 1278 1378
+seek = 0
 shuffle = True
 shuffle_mode = weighted
-sidebar_pos = 0.25027808676307006
-song = /home/sauyon/drive/music/無力P/Eschatology/09. Hour of Execution.mp3
+sidebar_pos = 0.25039123630672927
+song = 
 sortby = 0~#track
 	
 volume = 1.0
 
 [player]
 gst_buffer = 3.0
+is_playing = False
 replaygain = true
 replaygain_mode = auto
 
 [browsers]
-pane_selection = 1	.
-	1	.
-panedbrowser_pane_widths = 0.5234375
+pane_selection = 0	.
+	0	.
+panedbrowser_pane_widths = 0.5238467552775606
 	
-panedbrowser_pos = 0.4805194805194805
+panedbrowser_pos = 0.48113998323554064
 playlistsbrowser_pos = 0.399895724713243
 query_text = 
 soundcloud_pos = 0.399895724713243
@@ -70,18 +72,24 @@ duration_format = numeric
 
 [plugins]
 active_plugins = HeadphoneMonitor
-	playcounteq
-	QLScrobbler
-	Duplicates
-	Notify
-	WaveformSeekBar
 	mpris
 	ReplayGain
-	refresh-songs
+	playcounteq
+	AcoustidSubmit
+	Duplicates
+	QLScrobbler
 	Tap BPM
+	Theme Switcher
+	Notify
+	WaveformSeekBar
+	refresh-songs
 cover_engine_amazon = True
 cover_engine_discogs = True
+fingerprint_acoustid_api_key = HLgXtffywn
 icon_tooltip = <album|<album~discnumber~part~tracknumber~title~version>|<artist~title~version>>
+karaoke_band = 372.9
+karaoke_level = 1.0
+karaoke_width = 100.0
 missing_query_include_empty = True
 notify_bodypattern = <~length>
 	<album|<album><discsubtitle| - <discsubtitle>>
@@ -97,6 +105,8 @@ replaygain_process_if = album_tags_missing
 scrobbler_password = cbVT62!3k4wGt^
 scrobbler_service = Last.fm
 scrobbler_username = moon00dragon
+shufflebygrouping_grouping = ~grouping~album~albumartist
+shufflebygrouping_grouping_filter = grouping
 squeezebox_debug = False
 titlecase_allow_all_caps = True
 titlecase_human_title_case = True

@@ -50,7 +50,7 @@ in {
       enableSshSupport = true;
       defaultCacheTtl = 600;
       maxCacheTtl = 1200;
-      sshKeys = [ "FDC94CC535DF2557" ];
+      sshKeys = [ "FCB052F8E20B17A616D39171428A116ECE167559" ];
     };
 
     emacs.enable = true;
@@ -118,7 +118,7 @@ in {
 
       signing = {
         signByDefault = true;
-        key = "142D 8892 6B57 DD7D 7000  6647 7181 1ABC 7EF1 15B2";
+        key = "593C D012 157A A293 32B7  5586 FFAD B1BB F607 42F5";
       };
 
       lfs.enable = true;

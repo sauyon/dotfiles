@@ -148,7 +148,7 @@ in {
     gpg = {
       enable = true;
       settings = {
-        keyserver = "keys.gnupg.net";
+        keyserver = "keys.openpgp.org";
       };
     };
 
@@ -184,38 +184,33 @@ in {
 
       settings = {
         add_newline = false;
-        prompt_order = [
-          "username"
-          "hostname"
-          "directory"
-          "custom.git"
-          "git_branch"
-          # "git_commit"
-          "git_state"
-          # "git_status"
-          "docker_context"
-          "package"
-          "nix_shell"
-          "memory_usage"
-          "env_var"
-          "custom"
-          "jobs"
-          "character"
-        ];
+        format = ''
+          $username
+          $hostname
+          $directory
+          $custom.git
+          $git_branch
+          $git_state
+          $docker_context
+          $package
+          $nix_shell
+          $memory_usage
+          $env_var
+          $custom
+          $jobs
+          
+        '';
         rprompt_order = [
           "cmd_duration"
           "time"
         ];
         character.symbol = "";
-        suffix = "";
         scan_timeout = 10;
 
         username.style = "fg:yellow bg:black";
         hostname.style = "fg:yellow bg:black";
         directory.style = "fg:black bg:white";
-        git_branch.prefix = "";
         git_branch.symbol = "";
-        git_state.prefix = "";
 
         custom.git = {
 

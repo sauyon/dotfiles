@@ -76,6 +76,11 @@ in {
 
   fonts.fontconfig.enable = true;
 
+  pam.sessionVariables = {
+    SSH_AGENT_PID = "";
+    SSH_AUTH_SOCK = "\${XDG_RUNTIME_DIR}/gnupg/S.gpg-agent.ssh";
+  };
+
   programs = {
     home-manager.enable = true;
     alacritty = import ./alacritty.nix;
@@ -219,5 +224,19 @@ in {
     };
 
     zsh = import ./zsh.nix args;
+  };
+
+  xdg = {
+    mime.enable = true;
+    mimeApps.enable = true;
+
+    userDirs = {
+      enable = true;
+
+      desktop = "\$HOME/desktop";
+      documents = "\$HOME/documents";
+      download = "\$HOME/downloads";
+      pictures = "\$HOME/images";
+    };
   };
 }

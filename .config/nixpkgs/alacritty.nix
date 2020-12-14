@@ -428,7 +428,7 @@
       { key = "Insert";   mods = "Shift";   action = "PasteSelection";                }
       { key = "Key0";     mods = "Control"; action = "ResetFontSize";                 }
       { key = "Equals";   mods = "Control"; action = "IncreaseFontSize";              }
-      { key = "Subtract"; mods = "Control"; action = "DecreaseFontSize";              }
+      { key = "Minus";    mods = "Control"; action = "DecreaseFontSize";              }
       { key = "PageUp";   mods = "Shift";   action = "ScrollPageUp";   mode = "~Alt"; }
       { key = "PageDown"; mods = "Shift";   action = "ScrollPageDown"; mode = "~Alt"; }
       { key = "Home";     mods = "Shift";   action = "ScrollToTop";    mode = "~Alt"; }

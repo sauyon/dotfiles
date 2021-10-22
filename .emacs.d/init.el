@@ -166,7 +166,7 @@
      ("gnu" . "http://elpa.gnu.org/packages/")
      ("melpa" . "https://melpa.org/packages/")))
  '(package-selected-packages
-   '(idle-highlight pkgbuild-mode solarized-theme lsp-ivy ivy-explorer flyspell-correct-ivy yaml-mode dired-icon nix-update use-package lsp-ui company-shell company-lsp groovy-mode go-guru company-go nix-mode fill-column-indicator smart-jump semmle lua-mode graphviz-dot-mode dumb-jump ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode go-errcheck go-dlv latex-pretty-symbols smali-mode ac-haskell-proc android-mode auto-dictionary cmake-mode dict-tree flycheck-haskell flycheck-rust haskell-mode json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame nixos-options pretty-sha-path protobuf-mode scala-mode2 scss-mode smart-tabs-mode systemd toml-mode))
+   '(elvish-mode idle-highlight pkgbuild-mode solarized-theme lsp-ivy ivy-explorer flyspell-correct-ivy yaml-mode dired-icon nix-update use-package lsp-ui company-shell company-lsp groovy-mode go-guru company-go nix-mode fill-column-indicator smart-jump semmle lua-mode graphviz-dot-mode dumb-jump ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode go-errcheck go-dlv latex-pretty-symbols smali-mode ac-haskell-proc android-mode auto-dictionary cmake-mode dict-tree flycheck-haskell flycheck-rust haskell-mode json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame nixos-options pretty-sha-path protobuf-mode scala-mode2 scss-mode smart-tabs-mode systemd toml-mode))
  '(pcap-mode-tshark-executable nil)
  '(ql-mode-target-language "javascript" t)
  '(ql-ql-location "/home/sauyon/devel/maxcode/ql")

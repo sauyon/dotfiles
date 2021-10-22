@@ -4,7 +4,15 @@ var aliases = [
   &ls= [ls -q --color=auto]
   &l= [ls -FB]
   &ll= [ls -qalhF --color=auto]
-  &grep= [grep -q --color=auto]
+  &grep= [grep --color=auto]
+  &diff= [diff --color=auto -utr]
+
+  &sctl= [systemctl]
+  &uctl= [systemctl --user]
+  &jctl= [journalctl -le]
+  &jctlu= [jctl -u]
+  &jctlf= [journalctl -lf]
+  &jctlfu= [jctlf -u]
 
   &nb= [nix-build]
   &ne= [nix-env]

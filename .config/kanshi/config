@@ -22,8 +22,25 @@
   output eDP-1 mode 1920x1080 position 960,2160 transform normal
 }
 {
+  output "Dell Inc. DELL U2312HM T9MJ318OAUDL" disable
+  output "Ancor Communications Inc ROG PG279Q #ASNXqkXehLLd" mode 2560x1440@165Hz position 1080,360 transform normal
+  output eDP-1 mode 1920x1080 position 1080,1800
+}
+{
   output "Dell Inc. DELL U2312HM T9MJ318OAUDL" mode 1920x1080 position 0,0 transform 90
   output "Ancor Communications Inc ROG PG279Q #ASNXqkXehLLd" mode 2560x1440@165Hz position 1080,360 transform normal
+}
+{
+  output "Goldstar Company Ltd LG HDR 4K 008NTUW9A702" mode 3840x2160 position 0,0 transform normal
+  output eDP-1 mode 1920x1080 position 960,2160 transform normal
+}
+{
+  output "Ancor Communications Inc ROG PG279Q H3LMQS069538" mode 2560x1440 position 0,0
+  output eDP-1 mode 1920x1080 position 740,1440
+}
+{
+  output "Unknown AORUS FO48U 21170B001458" mode 3840x2160
+  output eDP-1 disable
 }
 {
   output eDP-1 mode 1920x1080 position 0,0 transform normal

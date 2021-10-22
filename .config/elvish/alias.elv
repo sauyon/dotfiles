@@ -55,9 +55,14 @@ var aliases = [
   &rcp= [rsync -rgoP]
 ]
 
-edit:add-var "nix-clean~" [@_args]{
+edit:add-var nix-clean~ [@_args]{
   nix-env --delete-generations old
   nix-store --gc
+}
+
+edit:add-var gnight~ {
+  cowsay "GNIGHT's not IGHT"
+  systemctl suspend
 }
 
 fn git_main_branch {
@@ -92,23 +97,23 @@ edit:add-var gcm~ [@_args]{
   git switch (git_main_branch)
 }
 
-edit:add-var "grbm~" [@_args]{
+edit:add-var grbm~ [@_args]{
   git rebase (git_main_branch)
 }
 
-edit:add-var "gwip~" [@_args]{
+edit:add-var gwip~ [@_args]{
   git add -A
   try { git rm (git ls-files --deleted) 2>/dev/null } except { nop }
   git commit --no-verify --no-gpg-sign -m "--wip-- [skip ci]"
 }
 
-edit:add-var "gunwip~" [@_args]{
+edit:add-var gunwip~ [@_args]{
   if ?(git log -n 1 | grep -q -c '\-\-wip\-\-') {
     git reset HEAD~1
   }
 }
 
-edit:add-var "ggsup~" [@_args]{
+edit:add-var ggsup~ [@_args]{
   git branch --set-upstream-to=origin/(git_current_branch)
 }
 

@@ -120,37 +120,81 @@ in {
 
       settings = {
         add_newline = false;
-        format = ''
-          $username
-          $hostname
-          $directory
-          $custom.git
-          $git_branch
-          $git_state
-          $docker_context
-          $package
-          $nix_shell
-          $memory_usage
-          $env_var
-          $custom
-          $jobs
-          
-        '';
-        rprompt_order = [
-          "cmd_duration"
-          "time"
+        format = lib.concatStrings [
+          "$username"
+          "$hostname"
+          "$shlvl"
+          # "$singularity"
+          # "$kubernetes"
+          "$directory"
+          # "$vcsh"
+          "$git_branch"
+          "$git_commit"
+          "$git_state"
+          "$git_metrics"
+          "$git_status"
+          "$hg_branch"
+          "$docker_context"
+          "$package"
+          "$cmake"
+          "$cobol"
+          "$dart"
+          "$deno"
+          "$dotnet"
+          "$elixir"
+          "$elm"
+          "$erlang"
+          "$golang"
+          # "$helm"
+          # "$java"
+          # "$julia"
+          # "$kotlin"
+          # "$lua"
+          # "$nim"
+          # "$nodejs"
+          # "$ocaml"
+          # "$perl"
+          # "$php"
+          # "$purescript"
+          "$python"
+          # "$rlang"
+          # "$red"
+          # "$ruby"
+          "$rust"
+          # "$scala"
+          # "$swift"
+          # "$terraform"
+          # "$vlang"
+          # "$vagrant"
+          # "$zig"
+          "$nix_shell"
+          # "$conda"
+          # "$memory_usage"
+          # "$aws"
+          # "$gcloud"
+          # "$openstack"
+          "$env_var"
+          "$crystal"
+          "$custom"
+          "$cmd_duration"
+          "$line_break"
+          "$jobs"
+          # "$battery"
+          "$time"
+          "$status"
+          "$shell"
+          "$character"
         ];
-        character.symbol = "";
+        # rprompt_order = [
+        #   "cmd_duration"
+        #   "time"
+        # ];
+        # character.symbol = "";
         scan_timeout = 10;
 
-        username.style = "fg:yellow bg:black";
-        hostname.style = "fg:yellow bg:black";
-        directory.style = "fg:black bg:white";
-        git_branch.symbol = "";
-
-        custom.git = {
-
-        };
+        # username.style = "fg:yellow bg:black";
+        # hostname.style = "fg:yellow bg:black";
+        # directory.style = "fg:black bg:white";
       };
     };
 

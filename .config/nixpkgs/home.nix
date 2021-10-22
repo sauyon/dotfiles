@@ -41,7 +41,7 @@ in {
 
   qt = lib.optionalAttrs (!isDarwin) {
     enable = true;
-    platformTheme = "gnome";
+    platformTheme = "gtk";
   };
 
   services = {

@@ -62,32 +62,3 @@ if exists gist; then
     echo $OUT
   }
 fi
-
-# Semmle thingies
-oda() {
-  if [[ $(dirname $(pwd)) -ef "$SEMMLE_HOME/projects" ]]; then
-    odasa addLatestSnapshot
-  else
-    odasa addLatestSnapshot --project "$SEMMLE_HOME/projects/$1"
-  fi
-}
-
-odb() {
-  if [[ $(dirname $(pwd)) -ef "$SEMMLE_HOME/projects" ]]; then
-    odasa buildSnapshot --latest
-  else
-    odasa buildSnapshot --latest --project "$SEMMLE_HOME/projects/$1"
-  fi
-}
-
-ode() {
-  if [[ $(dirname $(pwd)) -ef "$SEMMLE_HOME/projects" ]]; then
-    odasa export --latest
-  else
-    odasa export --latest --project "$SEMMLE_HOME/projects/$1"
-  fi
-}
-
-odbe() {
-  oda "$1" && odb "$1" && ode "$1"
-}

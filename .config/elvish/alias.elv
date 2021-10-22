@@ -48,6 +48,9 @@ var aliases = [
   &glols= [git log --graph --pretty='''%Cred%h%Creset -%C(auto)%d%Creset %s %Cgreen(%ar)
  %C(bold blue)<%an>%Creset' --stat]
   &grhh= [git reset --hard]
+  &gr= [git remote]
+  &grv= [git remote -v]
+  &gra= [git remote add]
 
   &rcp= [rsync -rgoP]
 ]

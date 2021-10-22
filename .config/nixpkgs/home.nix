@@ -86,6 +86,7 @@ in {
     alacritty = import ./alacritty.nix;
     broot.enable = true;
     dircolors.enable = true;
+    dircolors.enableZshIntegration = true;
     emacs.enable = !isDarwin;
 
     fish = import ./fish.nix args;

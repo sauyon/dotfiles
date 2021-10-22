@@ -11,6 +11,10 @@ in {
 
   home.sessionVariables = import ./env.nix args;
 
+  home.packages = with pkgs; [
+    swaylock swayidle wl-clipboard alacritty mako
+  ];
+
   gtk = lib.optionalAttrs (!isDarwin) {
     enable = true;
     theme = {

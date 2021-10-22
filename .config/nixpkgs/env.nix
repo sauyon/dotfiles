@@ -43,6 +43,13 @@
   GPG_TTY = "$(tty)";
 
   NIXPKGS="$HOME/devel/nixpkgs";
+
+  "_JAVA_AWT_WM_NONREPARENTING" = "1";
+
+  QT_QPA_PLATFORM = "wayland";
+  QT_WAYLAND_DISABLE_WINDOWDECORATION = "1";
+
+  STUDIO_JDK = "/usr/lib/jvm/java-11-openjdk/";
 } // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
   BROWSER = "${firefoxPkg}/bin/firefox";
   SSH_AGENT_PID = "";

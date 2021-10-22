@@ -113,6 +113,7 @@ in {
 
     fzf.enable = true;
 
+    gh.enable = true;
     git = {
       enable = true;
       userName = "Sauyon Lee";

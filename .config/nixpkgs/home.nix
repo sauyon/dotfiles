@@ -145,9 +145,7 @@ in {
         };
         pull.rebase = true;
         url."semmle:".insteadOf = "https://git.semmle.com/";
-      } // lib.optionalAttrs (!isDarwin) {
-        merge.tool = "nixmeld";
-        mergetool.nixmeld.cmd = "${pkgs.meld}/bin/meld \"$LOCAL\" \"$REMOTE\"";
+        merge.tool = "meld";
       };
     };
 

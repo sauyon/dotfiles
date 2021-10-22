@@ -11,18 +11,6 @@ in {
 
   home.sessionVariables = import ./env.nix args;
 
-  home.packages = [
-    pkgs.noto-fonts
-    pkgs.noto-fonts-cjk
-    pkgs.liberation_ttf
-    pkgs.dejavu_fonts
-    pkgs.powerline-fonts
-    pkgs.font-awesome
-    pkgs.waybar
-    pkgs.slurp
-    pkgs.grim
-  ];
-
   gtk = lib.optionalAttrs (!isDarwin) {
     enable = true;
     theme = {
@@ -47,39 +35,14 @@ in {
   services = {
     gpg-agent = lib.optionalAttrs (!isDarwin) {
       enable = true;
-      enableSshSupport = true;
       defaultCacheTtl = 600;
       maxCacheTtl = 1200;
-      sshKeys = [ "FCB052F8E20B17A616D39171428A116ECE167559" ];
     };
 
     emacs.enable = true;
   };
 
-  # systemd.user.startServices = true;
-  # systemd.user.services = {
-  #   gitstatusd = {
-  #     Unit = {
-  #       Description = "10x faster implementation of git status";
-  #     };
-
-  #     Service = {
-  #       Type = "simple";
-  #       ExecStart = "${pkgs.gitAndTools.gitstatus}/bin/gitstatusd";
-  #     };
-
-  #     Install = {
-  #       WantedBy = [ "default.target" ];
-  #     };
-  #   };
-  # };
-
   fonts.fontconfig.enable = true;
-
-  pam.sessionVariables = {
-    SSH_AGENT_PID = "";
-    SSH_AUTH_SOCK = "\${XDG_RUNTIME_DIR}/gnupg/S.gpg-agent.ssh";
-  };
 
   programs = {
     home-manager.enable = true;
@@ -88,28 +51,6 @@ in {
     dircolors.enable = true;
     dircolors.enableZshIntegration = true;
     emacs.enable = !isDarwin;
-
-    fish = import ./fish.nix args;
-    firefox = lib.optionalAttrs (!isDarwin) {
-      enable = true;
-      package = firefoxPkg;
-      profiles.default = {
-        userChrome = ''
-          /* Hide tab bar in FF Quantum */
-          #main-window[tabsintitlebar="true"]:not([extradragspace="true"]) #TabsToolbar > .toolbar-items {
-            opacity: 0;
-            pointer-events: none;
-          }
-          #main-window:not([tabsintitlebar="true"]) #TabsToolbar {
-            visibility: collapse !important;
-          }
-        '';
-        settings = {
-          "extensions.webextensions.restrictedDomains" = "";
-          # "general.useragent.override" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.120 Safari/537.36";
-        };
-      };
-    };
 
     fzf.enable = true;
 
@@ -163,16 +104,6 @@ in {
         "aur" = {
           hostname = "aur.archlinux.org";
           user = "aur";
-        };
-        "office.semmle.com" = {
-          user = "jenkins";
-        };
-        "semmle" = {
-          hostname = "git.semmle.com";
-          user = "git";
-        };
-        "profiling" = {
-          hostname = "profiling-sauyon-lee.northeurope.cloudapp.azure.com";
         };
         "github" = {
           hostname = "github.com";
@@ -228,7 +159,6 @@ in {
 
   xdg = {
     mime.enable = true;
-    mimeApps.enable = true;
 
     userDirs = {
       enable = true;

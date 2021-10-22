@@ -185,16 +185,18 @@ in {
           "$shell"
           "$character"
         ];
-        # rprompt_order = [
-        #   "cmd_duration"
-        #   "time"
-        # ];
-        # character.symbol = "";
         scan_timeout = 10;
 
-        # username.style = "fg:yellow bg:black";
-        # hostname.style = "fg:yellow bg:black";
-        # directory.style = "fg:black bg:white";
+        git_status = {
+          ahead = "⇡\${count}";
+          diverged = "⇡\${ahead_count}⇣\${behind_count}";
+          behind = "⇣\${count}";
+          untracked = "?\${count}";
+          modified = "!\${count}";
+          staged = "+\${count}";
+          renamed = "»\${count}";
+          deleted = "x\${count}";
+        };
       };
     };
 

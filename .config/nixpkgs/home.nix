@@ -116,7 +116,7 @@ in {
     git = {
       enable = true;
       userName = "Sauyon Lee";
-      userEmail = "sauyon@github.com";
+      userEmail = "2347889+sauyon@users.noreply.github.com";
       ignores = [
         "*~" "\\#*#" "*.orig" ".#*" ".dir-locals.el"
         "*.zip" "*.tar" "*.out" "*.xz" "*.gz" "*.7z"
@@ -124,7 +124,7 @@ in {
 
       signing = {
         signByDefault = true;
-        key = "593C D012 157A A293 32B7  5586 FFAD B1BB F607 42F5";
+        key = "2347889+sauyon@users.noreply.github.com";
       };
 
       lfs.enable = true;

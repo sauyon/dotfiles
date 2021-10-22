@@ -195,7 +195,7 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(whitespace-tab ((t (:foreground "#839496" :inverse-video nil)))))
+ )
 
 ;; (unless package-archive-contents (package-refresh-contents))
 ;; (package-install-selected-packages)

@@ -39,15 +39,6 @@
   BAT_PAGER = "${pkgs.less}/bin/less";
   LESS = "-RFx4";
 
-  # SEMMLE
-  SEMMLE_CODE = "$HOME/devel/code";
-  SEMMLE_DIST_COMPARE_CODE = "$HOME/devel/dist-compare-code";
-  SEMMLE_DIST = "$HOME/devel/code/target/intree/go";
-  SEMMLE_HOME = "$HOME/semmle";
-  SEMMLE_DATA = "/data";
-  SEMMLE_CACHE = "${XDG_CACHE_HOME}/semmle";
-  DIST_COMPARE_WORKERS = "profiling-sauyon-lee.northeurope.cloudapp.azure.com";
-
   # gpg for ssh
   GPG_TTY = "$(tty)";
 

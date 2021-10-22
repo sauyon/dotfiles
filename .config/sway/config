@@ -30,6 +30,13 @@ input * {
   xkb_layout "us"
   xkb_variant "colemak"
   xkb_options "ctrl:nocaps,ctrl:swapcaps"
+
+  dwt "disabled"
+}
+
+input "12951:6505:ZSA_Moonlander_Mark_I" {
+  xkb_variant ""
+  xkb_options ""
 }
 
 input "65261:4871:ErgoDox_EZ_ErgoDox_EZ" {
@@ -58,6 +65,8 @@ input "4176:1025:Yubico_YubiKey_OTP" {
 }
 
 input "Logitech USB Receiver Mouse" xkb_variant ""
+
+input type:pointer accel_profile flat
 
 output * background "$HOME/images/wallpapers/$(hostname).png" center #1e174f
 

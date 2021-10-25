@@ -42,7 +42,7 @@
 	"network": {
 		"tooltip": false,
 		// "interface": "wlp2*", // (Optional) To force the use of this interface
-		"format-wifi": "{essid} ({signalStrength:2}%) 蠟",
+		"format-wifi": "{essid} ({signalStrength:2}%) ",
 		"format-ethernet": "{ifname}: {ipaddr}/{cidr}",
 		"format-linked": "{ifname} (No IP)",
 		"format-alt": "{ifname}: {ipaddr}/{cidr}",
@@ -57,35 +57,35 @@
 		},
 		"format": "{capacity}% {icon}",
 		"format-alt": "{time} {icon}",
-		"format-charging": "{capacity}% {icon}",
-		"format-plugged": "{capacity}% ",
+    "format-charging": "{capacity}% ",
+    "format-plugged": "{capacity}% ",
 		// "format-good": "", // An empty format will hide the module
 		// "format-full": "",
-		"format-icons": ["", "", "", "", "", "", ""]
+    "format-icons": ["", "", "", "", ""]
 	},
 	"pulseaudio": {
-		"tooltip": false,
-		// "scroll-step": 1, // %, can be a float
-		"format": "{volume:2}% {icon}",
-		"format-bluetooth": "{volume:2}% {icon}\uf0b1",
-		"format-muted": "",
-		"format-source": "{volume:2}%",
-		// "format-source-muted": "\uf75e",
-		"format-icons": {
-			"headphones": "",
-			"handsfree": "",
-			"headset": "",
-			"phone": "📱",
-			"portable": "📱",
-			"car": "🚗",
-			"default": ["", "", ""]
-		},
-		"on-click": "pavucontrol"
+    // "scroll-step": 1, // %, can be a float
+    "format": "{volume}% {icon} {format_source}",
+    "format-bluetooth": "{volume}% {icon} {format_source}",
+    "format-bluetooth-muted": " {icon} {format_source}",
+    "format-muted": " {format_source}",
+    "format-source": "{volume}% ",
+    "format-source-muted": "",
+    "format-icons": {
+      "headphone": "",
+      "hands-free": "",
+      "headset": "",
+      "phone": "",
+      "portable": "",
+      "car": "",
+      "default": ["", "", ""]
+    },
+    "on-click": "pavucontrol"
 	},
 	"cpu": {
 		"interval": 5,
 		"tooltip": false,
-		"format": "{usage:2}% \uf35b"
+		"format": "{usage:2}% "
 	},
 	"idle_inhibitor": {
 		"format": "{icon}",

@@ -70,8 +70,8 @@ in rec {
       package = pkgs.plano-theme;
     };
     iconTheme = {
-      name = "Numix";
-      package = pkgs.numix-icon-theme;
+      name = "Yaru";
+      package = pkgs.yaru-theme;
     };
     font = {
       name = "Noto Sans 12 for Powerline";

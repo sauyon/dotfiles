@@ -1,4 +1,4 @@
-{ pkgs, ... }: {
+{ pkgs, home, xdg, ... }: {
   enable = true;
 
   enableAutosuggestions = true;
@@ -11,7 +11,7 @@
   history = {
     expireDuplicatesFirst = true;
     ignoreDups = true;
-    path = ".local/share/zsh/history";
+    path = "${home}/.local/share/zsh/history";
     save = 100000;
     size = 100000;
   };
@@ -21,22 +21,20 @@
     source "$XDG_CONFIG_HOME/zsh/utils"
     source "$XDG_CONFIG_HOME/zsh/config"
     source "$XDG_CONFIG_HOME/zsh/aliases"
-    source "$XDG_CONFIG_HOME/zsh/powerlevel10k/powerlevel10k.zsh-theme"
-    source "$XDG_CONFIG_HOME/zsh/p10k"
 
     [ -f $HOME/.nix-profile/etc/profile.d/nix.sh ] && [ -z $NIX_PATH ] && source $HOME/.nix-profile/etc/profile.d/nix.sh
-
-    man() { ${pkgs.man}/bin/man $@ 2>/dev/null || /usr/bin/man $@ }
 
     PAGER="${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --"
 
     bindkey '^T' transpose-chars
+
+    any-nix-shell zsh --info-right | source /dev/stdin
   '';
 
   oh-my-zsh = {
     enable = true;
 
-    plugins = [ "git" "golang" "sudo" "cargo" "adb" ];
+    plugins = [ "git" "golang" "sudo" "rust" "adb" ];
   };
 
   sessionVariables = {

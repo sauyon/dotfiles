@@ -74,6 +74,12 @@
       # Override the variant of the GTK theme. Commonly supported values are `dark` and `light`.
       # Set this to `None` to use the default theme variant.
       #gtk_theme_variant: None
+
+      # Background opacity
+      #
+      # Window opacity as a floating point number from `0.0` to `1.0`.
+      # The value `0.0` is completely transparent and `1.0` is opaque.
+      opacity = 1.0;
     };
 
     scrolling = {
@@ -181,12 +187,6 @@
     #
     # Specifying a `duration` of `0` will disable the visual bell.
     bell = { animation = "EaseOutExpo"; duration = 1; };
-
-    # Background opacity
-    #
-    # Window opacity as a floating point number from `0.0` to `1.0`.
-    # The value `0.0` is completely transparent and `1.0` is opaque.
-    background_opacity = 1.0;
 
     selection = {
       semantic_escape_chars = ",│`|:\"' ()[]{}<>\t";

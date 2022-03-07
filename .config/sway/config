@@ -64,6 +64,11 @@ input "4176:1025:Yubico_YubiKey_OTP" {
   xkb_options ""
 }
 
+input "type:touchpad" {
+  tap "disabled"
+  click_method "clickfinger"
+}
+
 input "Logitech USB Receiver Mouse" xkb_variant ""
 
 input type:pointer accel_profile flat
@@ -136,8 +141,9 @@ bindsym $mod+Shift+minus mark "scratch0", move scratchpad
 bindsym $mod+Shift+equal mark "scratch1", move scratchpad
 
 # Show the first scratchpad window
-bindsym $mod+minus [con_mark="scratch0"] scratchpad show, resize set 1800 1000
-bindsym $mod+equal [con_mark="scratch1"] scratchpad show, resize set 1800 1000
+bindsym $mod+minus [con_mark="scratch0"] scratchpad show, resize set 80 ppt 80 ppt
+bindsym $mod+equal [con_mark="scratch1"] scratchpad show, resize set 80 ppt 80 ppt
+bindsym $mod+backslash scratchpad show, resize set 80 ppt 80 ppt
 
 # toggle tiling / floating
 bindsym $mod+Shift+space floating toggle
@@ -146,7 +152,7 @@ bindsym $mod+Shift+space floating toggle
 bindsym $mod+space focus mode_toggle
 
 # start a terminal
-bindsym $mod+Return exec term
+bindsym $mod+Return exec alacritty -e elvish
 
 # start dmenu (a program launcher)
 # bindcode 133 exec --no-startup-id synapse
@@ -154,10 +160,10 @@ bindsym $mod+Return exec term
 # shipping a .desktop file. It is a wrapper around dmenu, so you need that
 # installed.
 # bindsym $mod+r exec alacritty --title 'Launcher' -e j4-dmenu-desktop --dmenu="(cat ; (stest -flx $(echo $PATH | tr : ' ') | sort -u)) | fzf" --term='alacritty'
-bindsym $mod+r exec bemenu-run -i -m -1
+bindsym $mod+r exec wofi --show run --matching fuzzy
 # bindsym $mod+r exec --no-startup-id i3-dmenu-desktop
 
-bindsym $mod+e exec emacsclient -nc
+bindsym $mod+e exec emacsclient -nc, workspace 2
 
 # move output
 bindsym $mod+comma move workspace to output left
@@ -198,21 +204,21 @@ bindsym $mod+Print exec grim -g "$(slurp)" - | tee "$HOME/images/screenshots/scr
 # bindsym $mod+Shift+Print exec scrot '%s.png' -e 'simg -r $f' -s
 
 # Sreen brightness controls
-bindsym XF86MonBrightnessUp exec "xbacklight -inc 10"
-bindsym XF86MonBrightnessDown exec "xbacklight -dec 10"
+bindsym XF86MonBrightnessUp exec "xbacklight -inc 5"
+bindsym XF86MonBrightnessDown exec "xbacklight -dec 5"
 
 # Touchpad controls
 bindsym XF86TouchpadToggle exec "$HOME/.local/bin/toggletouchpad.sh" # toggle touchpad
 
-bindsym $mod+F9  exec "playerctl -p quodlibet,spotify previous"
-bindsym $mod+F10 exec "playerctl -p quodlibet,spotify play-pause"
-bindsym $mod+F11 exec "playerctl -p quodlibet,spotify stop"
-bindsym $mod+F12 exec "playerctl -p quodlibet,spotify next"
+bindsym $mod+F9  exec "playerctl -a previous"
+bindsym $mod+F10 exec "playerctl -a play-pause"
+bindsym $mod+F11 exec "playerctl -a stop"
+bindsym $mod+F12 exec "playerctl -a next"
 
-bindsym XF86AudioNext exec --no-startup-id "playerctl -p quodlibet,spotify next"
-bindsym XF86AudioPrev exec --no-startup-id "playerctl -p quodlibet,spotify previous"
-bindsym XF86AudioStop exec --no-startup-id "playerctl -p quodlibet,spotify stop"
-bindsym XF86AudioPlay exec --no-startup-id "playerctl -p quodlibet,spotify play-pause"
+bindsym XF86AudioNext exec "playerctl -a next"
+bindsym XF86AudioPrev exec "playerctl -a previous"
+bindsym XF86AudioStop exec "playerctl -a stop"
+bindsym XF86AudioPlay exec "playerctl -a play-pause"
 
 bindsym XF86AudioRaiseVolume exec "pactl set-sink-volume @DEFAULT_SINK@ +5%"
 bindsym XF86AudioLowerVolume exec "pactl set-sink-volume @DEFAULT_SINK@ -5%"
@@ -246,14 +252,15 @@ for_window [app_id=".*"] inhibit_idle fullscreen
 
 for_window [app_id="nm-connection-editor"] floating enable
 
-exec systemctl --user import-environment DISPLAY
-exec systemctl --user import-environment WAYLAND_DISPLAY
+exec systemctl --user import-environment DISPLAY WAYLAND_DISPLAY SWAYSOCK
+exec dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY SWAYSOCK
 
 exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec emacsclient -c
 exec ibus-daemon -rx
 exec mako
-exec kanshi
+exec_always kanshi
+exec nm-applet --indicator
 exec swayidle -w \
        timeout 300 'swaylock -f' \
        timeout 600 'swaymsg "output * dpms off"' \

@@ -6,13 +6,61 @@ let
   isDarwin = pkgs.stdenv.isDarwin;
 
   args = { inherit config lib pkgs firefoxPkg; };
-in {
-  home.stateVersion = "19.09";
+in rec {
+  home.stateVersion = "21.11";
 
-  home.sessionVariables = import ./env.nix args;
+  home.username = builtins.getEnv "USER";
+  home.homeDirectory = builtins.getEnv "HOME";
+
+  home.sessionVariables = import ./env.nix (args // {
+    inherit xdg;
+    home = home.homeDirectory;
+  });
+
+  systemd.user.sessionVariables = home.sessionVariables;
 
   home.packages = with pkgs; [
-    swaylock swayidle wl-clipboard alacritty mako
+    # packages for sway
+    waybar wofi swaylock swayidle wl-clipboard alacritty mako
+    kanshi pipewire
+
+    # chromium
+
+    elvish cowsay bat bfs ripgrep rm-improved killall slurp grim
+    any-nix-shell-s gh nix-index
+
+    go coreutils gnumake htop btop mosh
+
+    discord
+    slack cryptomator drive evince quodlibet pavucontrol
+    networkmanagerapplet playerctl nheko bitwarden
+    signal-desktop vscode zoom-us
+
+    lutris
+
+    google-drive-ocamlfuse
+
+    drive
+
+    font-awesome
+  ];
+
+  nixpkgs.config = {
+    allowUnfree = true;
+    sandbox = true;
+  };
+
+  nixpkgs.overlays = [
+    (self: super: {
+      any-nix-shell-s = super.any-nix-shell.overrideAttrs (old: {
+        src = super.fetchFromGitHub {
+          owner = "sauyon";
+          repo = "any-nix-shell";
+          rev = "3a99be0b3d76a691c940608c477955d122f37e75";
+          sha256 = "1g735n0xr50vgcw30igldhmjvb40jgk65x5qjnnxidvm1i3vykw9";
+        };
+      });
+    })
   ];
 
   gtk = lib.optionalAttrs (!isDarwin) {
@@ -41,9 +89,10 @@ in {
       enable = true;
       defaultCacheTtl = 600;
       maxCacheTtl = 1200;
+      pinentryFlavor = "curses";
     };
 
-    emacs.enable = true;
+    emacs.enable = !isDarwin;
   };
 
   fonts.fontconfig.enable = true;
@@ -56,21 +105,29 @@ in {
     dircolors.enableZshIntegration = true;
     emacs.enable = !isDarwin;
 
+    waybar.enable = true;
+
+    firefox = lib.optionalAttrs (!isDarwin) {
+      enable = true;
+      package = firefoxPkg;
+    };
+
     fzf.enable = true;
 
-    gh.enable = true;
     git = {
       enable = true;
       userName = "Sauyon Lee";
-      userEmail = "2347889+sauyon@users.noreply.github.com";
+      userEmail = "git@sjle.co";
       ignores = [
         "*~" "\\#*#" "*.orig" ".#*" ".dir-locals.el"
         "*.zip" "*.tar" "*.out" "*.xz" "*.gz" "*.7z"
+        "shell.nix"
+        "flake.nix" "flake.lock"
       ];
 
       signing = {
         signByDefault = true;
-        key = "2347889+sauyon@users.noreply.github.com";
+        key = "git@sjle.co";
       };
 
       lfs.enable = true;
@@ -199,24 +256,32 @@ in {
           modified = "!\${count}";
           staged = "+\${count}";
           renamed = "»\${count}";
-          deleted = "x\${count}";
+          deleted = "×\${count}";
         };
       };
     };
 
-    zsh = import ./zsh.nix args;
+    zsh = import ./zsh.nix (args // {
+      inherit xdg;
+      home = home.homeDirectory;
+    });
   };
 
   xdg = {
     mime.enable = true;
 
+    dataHome = "${home.homeDirectory}/.local/share";
+    configHome = "${home.homeDirectory}/.config";
+    cacheHome = "${home.homeDirectory}/.cache";
+
     userDirs = {
       enable = true;
 
-      desktop = "\$HOME/desktop";
-      documents = "\$HOME/documents";
-      download = "\$HOME/downloads";
-      pictures = "\$HOME/images";
+      desktop = "${home.homeDirectory}/desktop";
+      documents = "${home.homeDirectory}/documents";
+      download = "${home.homeDirectory}/downloads";
+      music = "${home.homeDirectory}/drive/music";
+      pictures = "${home.homeDirectory}/images";
     };
   };
 }

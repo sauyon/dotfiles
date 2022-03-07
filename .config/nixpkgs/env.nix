@@ -1,37 +1,21 @@
-{ pkgs, lib, firefoxPkg, ... }: rec {
+{ pkgs, lib, firefoxPkg, home, xdg, ... }: rec {
   EDITOR = "emacsclient";
 
-  # Environment vars for use in scripts
-  # I'm not actually sure this is meaningful...
-  XDG_DESKTOP_DIR = "$HOME/desktop";
-  XDG_DOCUMENTS_DIR = "$HOME/documents";
-  XDG_DOWNLOAD_DIR = "$HOME/downloads";
-  XDG_MUSIC_DIR = "$HOME/music";
-  XDG_PICTURES_DIR = "$HOME/images";
-  XDG_PUBLICSHARE_DIR = "$HOME/public";
-  XDG_TEMPLATES_DIR = "$HOME/.local/templates";
-  XDG_VIDEOS_DIR = "$HOME/videos";
-  XDG_DATA_HOME = "$HOME/.local/share";
-  XDG_CONFIG_HOME = "$HOME/.config";
-  XDG_CACHE_HOME = "$HOME/.cache";
-
   # Unclutter home directory
-  LESSHISTFILE = "${XDG_DATA_HOME}/less/history";
-  GTK2_RC_FILES = "${XDG_DATA_HOME}/gtk-2.0/gtkrc";
-  WINEPREFIX = "${XDG_DATA_HOME}/wineprefixes/default";
-  CARGO_HOME = "${XDG_DATA_HOME}/cargo";
-  RUSTUP_HOME = "${XDG_DATA_HOME}/rustup";
-  WEECHAT_HOME = "${XDG_CONFIG_HOME}/weechat";
-  ASPELL_CONF = "per-conf ${XDG_CONFIG_HOME}/aspell/aspell.conf; personal ${XDG_CONFIG_HOME}/aspell/en.personal; repl ${XDG_CONFIG_HOME}/aspell/en.prepl";
-  RIPGREP_CONFIG_PATH = "${XDG_CONFIG_HOME}/ripgrep.conf";
-  ZSH_CACHE_DIR = "${XDG_CACHE_HOME}/zsh";
-
-  XDG_CURRENT_DESKTOP = "Unity";
+  LESSHISTFILE = "${xdg.dataHome}/less/history";
+  GTK2_RC_FILES = "${xdg.dataHome}/gtk-2.0/gtkrc";
+  WINEPREFIX = "${xdg.dataHome}/wineprefixes/default";
+  CARGO_HOME = "${xdg.dataHome}/cargo";
+  RUSTUP_HOME = "${xdg.dataHome}/rustup";
+  WEECHAT_HOME = "${xdg.configHome}/weechat";
+  ASPELL_CONF = "per-conf ${xdg.configHome}/aspell/aspell.conf; personal ${xdg.configHome}/aspell/en.personal; repl ${xdg.configHome}/aspell/en.prepl";
+  RIPGREP_CONFIG_PATH = "${xdg.configHome}/ripgrep.conf";
+  ZSH_CACHE_DIR = "${xdg.cacheHome}/zsh";
 
   ANDROID_HOME = "/opt/android-sdk";
-  GOPATH = "$HOME/devel/go";
+  GOPATH = "${home}/devel/go";
 
-  PATH = "$PATH:$GOPATH/bin:${XDG_DATA_HOME}/cargo/bin:$HOME/.local/bin";
+  PATH = "$PATH:$GOPATH/bin:${xdg.dataHome}/cargo/bin:${home}/.local/bin";
 
   GRAVEYARD = "$XDG_RUNTIME_DIR/trash";
 
@@ -42,7 +26,7 @@
   # gpg for ssh
   GPG_TTY = "$(tty)";
 
-  NIXPKGS="$HOME/devel/nixpkgs";
+  NIXPKGS="${home}/devel/nixpkgs";
 
   "_JAVA_AWT_WM_NONREPARENTING" = "1";
 
@@ -50,6 +34,8 @@
   QT_WAYLAND_DISABLE_WINDOWDECORATION = "1";
 
   STUDIO_JDK = "/usr/lib/jvm/java-11-openjdk/";
+
+  MOZ_ENABLE_WAYLAND = "1";
 } // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
   BROWSER = "${firefoxPkg}/bin/firefox";
   SSH_AGENT_PID = "";

@@ -24,9 +24,10 @@
 (global-set-key (kbd "C-,") 'prev-window)
 ;; this should also be the default (thanks `technomancy/better-defaults')
 (global-set-key (kbd "C-x C-b") 'ibuffer)
-(global-set-key (kbd "C-x b") 'ivy-switch-buffer)
 ;; ebib
 (global-set-key (kbd "C-c e") 'ebib)
+;; projectile
+(global-set-key (kbd "M-r") 'projectile-command-map)
 
 ;; print 'blah instead of (quote blah) in customize
 (advice-add 'custom-save-all :around

@@ -23,6 +23,7 @@
      (output-dvi "xdvi")
      (output-pdf "MuPDF")
      (output-html "xdg-open")))
+ '(auth-source-save-behavior nil)
  '(background-color nil)
  '(background-mode dark)
  '(c-basic-offset 2)
@@ -34,7 +35,7 @@
  '(cursor-color nil)
  '(custom-enabled-themes '(solarized-dark))
  '(custom-safe-themes
-   '("0598c6a29e13e7112cfbc2f523e31927ab7dce56ebb2016b567e1eff6dc1fd4f" "2809bcb77ad21312897b541134981282dc455ccd7c14d74cc333b6e549b824f3" default))
+   '("fee7287586b17efbfda432f05539b58e86e059e78006ce9237b8732fde991b4c" default))
  '(default-frame-alist
     '((vertical-scroll-bars)
       (font . "Noto Mono for Powerline-12")))
@@ -54,37 +55,13 @@
        (add-hook 'before-save-hook #'gofmt-before-save)
        (setq indent-tabs-mode t))))
  '(helm-mode t)
- '(ido-mode nil nil (ido))
  '(indent-tabs-mode nil)
  '(inhibit-startup-screen t)
  '(ispell-dictionary "en_US")
  '(ispell-program-name "/usr/bin/hunspell")
- '(ivy-explorer-mode t nil (ivy-explorer))
- '(ivy-mode t)
  '(js-indent-level 2)
  '(load-prefer-newer t)
  '(nix-prettify-global-mode t)
- '(odasa-library-paths
-   '(("javascript" lambda
-      (ql)
-      (concat ql "/javascript/ql/src"))
-     ("python" lambda
-      (ql)
-      (concat ql "/python/ql/src"))
-     ("java" lambda
-      (ql)
-      (concat ql "/java/ql/src"))
-     ("cpp" lambda
-      (ql)
-      (concat ql "/cpp/ql/src"))
-     ("csharp" lambda
-      (ql)
-      (concat ql "/csharp/ql/src"))))
- '(odasa-project-data-location "/home/sauyon/semmle/data/")
- '(odasa-project-location "/home/sauyon/semmle/projects/")
- '(odasa-source-location "/home/sauyon/devel/maxcode/")
- '(odasa-stable-source-location "/home/sauyon/devel/code/")
- '(odasa-trap-cache "/home/sauyon/.cache/semmle/traps")
  '(org-babel-load-languages '((dot . t) (ditaa . t) (emacs-lisp . t)))
  '(org-confirm-babel-evaluate nil)
  '(org-default-notes-file "~/org/notes.org")
@@ -162,12 +139,13 @@
      ("screen" . shell-script)))
  '(org-src-tab-acts-natively t)
  '(package-archives
-   '(("marmalade" . "http://marmalade-repo.org/packages/")
-     ("gnu" . "http://elpa.gnu.org/packages/")
+   '(("gnu" . "http://elpa.gnu.org/packages/")
      ("melpa" . "https://melpa.org/packages/")))
  '(package-selected-packages
-   '(elvish-mode idle-highlight pkgbuild-mode solarized-theme lsp-ivy ivy-explorer flyspell-correct-ivy yaml-mode dired-icon nix-update use-package lsp-ui company-shell company-lsp groovy-mode go-guru company-go nix-mode fill-column-indicator smart-jump semmle lua-mode graphviz-dot-mode dumb-jump ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode go-errcheck go-dlv latex-pretty-symbols smali-mode ac-haskell-proc android-mode auto-dictionary cmake-mode dict-tree flycheck-haskell flycheck-rust haskell-mode json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame nixos-options pretty-sha-path protobuf-mode scala-mode2 scss-mode smart-tabs-mode systemd toml-mode))
+   '(vertico projectile elvish-mode idle-highlight pkgbuild-mode solarized-theme lsp-ivy ivy-explorer flyspell-correct-ivy yaml-mode dired-icon nix-update use-package lsp-ui company-shell company-lsp groovy-mode go-guru company-go nix-mode fill-column-indicator smart-jump semmle lua-mode graphviz-dot-mode dumb-jump ws-butler latex-math-preview latex-unicode-math-mode cargo google-c-style bison-mode go-errcheck go-dlv latex-pretty-symbols smali-mode ac-haskell-proc android-mode auto-dictionary cmake-mode dict-tree flycheck-haskell flycheck-rust haskell-mode json-mod json-mode magit magit-find-file magit-gh-pulls mmm-mode mo-git-blame nixos-options pretty-sha-path protobuf-mode scala-mode2 scss-mode smart-tabs-mode systemd toml-mode))
  '(pcap-mode-tshark-executable nil)
+ '(projectile-mode t nil (projectile))
+ '(projectile-project-search-path '("~/devel/"))
  '(ql-mode-target-language "javascript" t)
  '(ql-ql-location "/home/sauyon/devel/maxcode/ql")
  '(require-final-newline t)
@@ -189,6 +167,7 @@
  '(tool-bar-mode nil)
  '(tool-bar-style 'text)
  '(user-full-name "Sauyon Lee")
+ '(vertico-mode t)
  '(ws-butler-global-mode t))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.

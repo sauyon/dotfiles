@@ -173,6 +173,9 @@ in rec {
         "shizuka" = {
           port = 59049;
         };
+        "akane" = {
+          port = 59049;
+        };
       };
     };
 

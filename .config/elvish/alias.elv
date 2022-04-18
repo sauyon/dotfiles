@@ -2,7 +2,7 @@ use path
 use str
 # use edit
 
-try { eval (any-nix-shell elvish --info-right | slurp) } except { }
+try { eval (any-nix-shell elvish --info-right | slurp) } catch { }
 
 edit:add-var ls~ {|@_args| e:ls -q --color=auto $@_args }
 edit:add-var l~ {|@_args| ls -FB $@_args }
@@ -101,7 +101,7 @@ fn git_current_branch {
   var ref = ""
   try {
     set ref = (git --no-optional-locks symbolic-ref --quiet HEAD 2>/dev/null)
-  } except e {
+  } catch e {
     var reason = $e[reason]
     if (and (==s $reason[type] "external-cmd/exited") (== $reason[exit-status] 128)) {
       fail "not in git directory"
@@ -125,7 +125,7 @@ edit:add-var grbm~ {|@_args|
 
 edit:add-var gwip~ {|@_args|
   git add -A
-  try { git rm (git ls-files --deleted) 2>/dev/null } except { nop }
+  try { git rm (git ls-files --deleted) 2>/dev/null } catch { nop }
   git commit --no-verify --no-gpg-sign -m "--wip-- [skip ci]" $@_args
 }
 

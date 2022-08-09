@@ -1,5 +1,6 @@
-{
+pkg: {
   enable = true;
+  package = pkg;
   settings = {
     # Configuration for Alacritty, the GPU enhanced terminal emulator.
 
@@ -111,14 +112,14 @@
     #   - file:///usr/share/doc/fontconfig/fontconfig-user.html
     font = {
       # Normal (roman) font face
-      normal.family = "Noto Mono for Powerline";
+      normal.family = "NotoSansMono Nerd Font";
       # normal.style = "Regular";
       # Bold font face
-      bold.family = "Noto Mono for Powerline";
+      bold.family = "NotoSansMono Nerd Font";
       # Italic font face
-      italic.family = "Noto Mono for Powerline";
+      italic.family = "NotoSansMono Nerd Font";
       # Bolt italic font face
-      bold_italic.famil = "Noto Mono for Powerline";
+      bold_italic.famil = "NotoSansMono Nerd Font";
 
       # Point size
       size = 12.0;

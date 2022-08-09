@@ -1,11 +1,9 @@
 { config, lib, pkgs, ... }:
 
 let
-  firefoxPkg = pkgs.firefox-bin;
-
   isDarwin = pkgs.stdenv.isDarwin;
 
-  args = { inherit config lib pkgs firefoxPkg; };
+  args = { inherit config lib pkgs; };
 in rec {
   home.stateVersion = "21.11";
 
@@ -19,31 +17,7 @@ in rec {
 
   systemd.user.sessionVariables = home.sessionVariables;
 
-  home.packages = with pkgs; [
-    # packages for sway
-    waybar wofi swaylock swayidle wl-clipboard alacritty mako
-    kanshi pipewire
-
-    # chromium
-
-    elvish cowsay bat bfs ripgrep rm-improved killall slurp grim
-    any-nix-shell-s gh nix-index
-
-    go coreutils gnumake htop btop mosh
-
-    discord
-    slack cryptomator drive evince quodlibet pavucontrol
-    networkmanagerapplet playerctl nheko bitwarden
-    signal-desktop vscode zoom-us
-
-    lutris
-
-    google-drive-ocamlfuse
-
-    drive
-
-    font-awesome
-  ];
+  home.packages = with pkgs; [];
 
   nixpkgs.config = {
     allowUnfree = true;
@@ -70,12 +44,17 @@ in rec {
       package = pkgs.plano-theme;
     };
     iconTheme = {
-      name = "Yaru";
+      name = "Yaru-dark";
       package = pkgs.yaru-theme;
     };
     font = {
-      name = "Noto Sans 12 for Powerline";
-      package = pkgs.powerline-fonts;
+      name = "NotoSans Nerd Font";
+      package = pkgs.nerdfonts;
+    };
+
+    gtk2.extraConfig = "gtk-key-theme-name = Emacs";
+    gtk3.extraConfig = {
+      gtk-key-theme = "Emacs";
     };
   };
 
@@ -92,25 +71,25 @@ in rec {
       pinentryFlavor = "curses";
     };
 
-    emacs.enable = !isDarwin;
+    gnome-keyring = {
+      enable = true;
+      components = [ "pkcs11" "secrets" ];
+    };
+
+    # emacs.enable = !isDarwin;
   };
 
   fonts.fontconfig.enable = true;
 
   programs = {
     home-manager.enable = true;
-    alacritty = import ./alacritty.nix;
+    alacritty = import ./alacritty.nix pkgs.hello;
     broot.enable = true;
     dircolors.enable = true;
     dircolors.enableZshIntegration = true;
-    emacs.enable = !isDarwin;
+    # emacs.enable = !isDarwin;
 
-    waybar.enable = true;
-
-    firefox = lib.optionalAttrs (!isDarwin) {
-      enable = true;
-      package = firefoxPkg;
-    };
+    # waybar.enable = true;
 
     fzf.enable = true;
 
@@ -138,7 +117,8 @@ in rec {
         color = { ui = "auto"; };
         core = {
           pager = "${pkgs.gitAndTools.diff-so-fancy}/bin/diff-so-fancy | ${pkgs.less}/bin/less -RFx4";
-          editor = "${pkgs.emacs}/bin/emacsclient -t";
+          editor = "/usr/bin/emacsclient -t";
+          # editor = "${pkgs.emacs}/bin/emacsclient -t";
           whitespace = "trailing-space,space-before-tab";
         };
         diff.algorithm = "histogram";
@@ -272,6 +252,16 @@ in rec {
 
   xdg = {
     mime.enable = true;
+
+    mimeApps = {
+      enable = true;
+
+      defaultApplications = {
+        "text/html" = "firefox.desktop";
+        "x-scheme-handler/http" = "firefox.desktop";
+        "x-scheme-handler/https" = "firefox.desktop";
+      };
+    };
 
     dataHome = "${home.homeDirectory}/.local/share";
     configHome = "${home.homeDirectory}/.config";

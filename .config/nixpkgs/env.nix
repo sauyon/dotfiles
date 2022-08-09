@@ -1,4 +1,4 @@
-{ pkgs, lib, firefoxPkg, home, xdg, ... }: rec {
+{ pkgs, lib, home, xdg, ... }: rec {
   EDITOR = "emacsclient";
 
   # Unclutter home directory
@@ -35,9 +35,11 @@
 
   STUDIO_JDK = "/usr/lib/jvm/java-11-openjdk/";
 
+  XDG_CURRENT_DESKTOP = "Unity";
+
   MOZ_ENABLE_WAYLAND = "1";
 } // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
-  BROWSER = "${firefoxPkg}/bin/firefox";
+  BROWSER = "firefox";
   SSH_AGENT_PID = "";
   SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/gnupg/S.gpg-agent.ssh";
 }

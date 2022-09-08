@@ -19,7 +19,11 @@
 
 (add-to-list 'auto-mode-alist '("\\.sage\\'" . python-mode))
 (add-hook 'python-mode-hook
-          (lambda () (setq tab-width 4)))
+          (lambda ()
+            (push '("->" . ?→) prettify-symbols-alist)
+            (push '("in" . ?∈) prettify-symbols-alist)
+            (push '("not" . ?¬) prettify-symbols-alist)
+            (setq tab-width 4)))
 
 ;; Android mode ----------------------------------------------------------------
 

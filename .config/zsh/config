@@ -2,9 +2,6 @@
 
 ## Environment variables -------------------------------------------------------
 
-# osx ports, sigh.
-export PATH=$PATH:/opt/local/bin
-
 # completions
 compinit -u
 

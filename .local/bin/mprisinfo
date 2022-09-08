@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+exec playerctl -a metadata --format '{"text": "{{markup_escape(artist)}} - {{markup_escape(title)}}", "tooltip": "{{playerName}} : {{markup_escape(title)}}", "alt": "{{status}}", "class": "{{status}}"}' -F
+
+if ! command -v playerctl &> /dev/null; then
+  echo "Install playerctl"
+  exit 1
+fi
+
 function printsong() {
   title=$(playerctl -p "$1" metadata xesam:title)
   album=$(playerctl -p "$1" metadata xesam:album)
@@ -13,6 +20,8 @@ declare -a players=(quodlibet spotify)
 for player in "${players[@]}"; do
   [[ $(playerctl -p "$player" status 2>/dev/null) == "Playing" ]] && printsong "$player" '▶'
 done
+
+[[ $(playerctl -a status 2>/dev/null) == "Playing" ]] && printsong Other a
 
 for player in "${players[@]}"; do
   [[ -n $(playerctl -p "$player" status 2>/dev/null) ]] && printsong "$player" "⏸"

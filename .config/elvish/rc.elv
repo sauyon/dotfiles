@@ -30,3 +30,4 @@ set edit:insert:binding[Alt-f] = $edit:move-dot-right-alnum-word~
 set edit:max-height = 20
 
 use ./alias
+use ./venv

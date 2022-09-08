@@ -160,7 +160,7 @@ bindsym $mod+Return exec alacritty -e elvish
 # shipping a .desktop file. It is a wrapper around dmenu, so you need that
 # installed.
 # bindsym $mod+r exec alacritty --title 'Launcher' -e j4-dmenu-desktop --dmenu="(cat ; (stest -flx $(echo $PATH | tr : ' ') | sort -u)) | fzf" --term='alacritty'
-bindsym $mod+r exec wofi --show run --matching fuzzy
+bindsym $mod+r exec zsh -c 'wofi --show run --matching fuzzy'
 # bindsym $mod+r exec --no-startup-id i3-dmenu-desktop
 
 bindsym $mod+e exec emacsclient -nc, workspace 2
@@ -265,4 +265,5 @@ exec swayidle -w \
        timeout 300 'swaylock -f' \
        timeout 600 'swaymsg "output * dpms off"' \
        resume 'swaymsg "output * dpms on"' \
+       before-sleep 'playerctl pause' \
        before-sleep "$HOME/.local/bin/lock"

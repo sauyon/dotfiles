@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
-swaynag -m 'Remove the YubiKey before the system locks' &
+# swaynag -m 'Remove the YubiKey before the system locks' &
 
-nagpid=$!
+# nagpid=$!
 
-while lsusb -d 1050: >/dev/null; do
-  sleep 0.1
-done
+# while lsusb -d 1050: >/dev/null; do
+#   sleep 0.1
+# done
 
-kill -SIGHUP $nagpid
-while kill -0 $nagpid; do
-  kill -SIGHUP $nagpid
-  sleep 0.2
-done
+# kill -SIGHUP $nagpid
+# while kill -0 $nagpid; do
+#   kill -SIGHUP $nagpid
+#   sleep 0.2
+# done
 
 exec swaylock -f

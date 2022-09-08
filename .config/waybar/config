@@ -4,18 +4,22 @@
 	"position": "top", // Waybar position (top|bottom|left|right)
 	"height": 30, // Waybar height (to be removed for auto height)
 	// Choose the order of the modules
-	"modules-left": ["sway/workspaces", "sway/mode", "sway/window"],
+	"modules-left": [
+    "idle_inhibitor",
+    "sway/workspaces",
+    "sway/mode",
+    "sway/window",
+  ],
 	"modules-center": [
-    "custom/music"
+    "custom/media",
   ],
 	"modules-right": [
-    // "custom/vpn",
     "network",
     "battery",
     "pulseaudio",
     "cpu",
     "clock",
-    "tray"
+    "tray",
   ],
 	// Module config
   "sway/workspaces": {
@@ -26,10 +30,17 @@
 		"tooltip": false,
 		"format": "<span weight=\"bold\">{}</span>"
 	},
-  "custom/music": {
-    "interval": 1,
+  "custom/media": {
+    "tooltip": false,
+    "format": "{icon}{}",
+    "return-type": "json",
+    "format-icons": {
+        "Playing": "契 ",
+        "Paused": " ",
+    },
+    "max-length":70,
     "exec": "mprisinfo",
-    "on-click": "playerctl -p quodlibet,spotify play-pause"
+    "on-click": "playerctl play-pause",
   },
 	// "custom/vpn": {
 	// 	"interval": 5,
@@ -42,11 +53,11 @@
 	"network": {
 		"tooltip": false,
 		// "interface": "wlp2*", // (Optional) To force the use of this interface
-		"format-wifi": "{essid} ({signalStrength:2}%) ",
-		"format-ethernet": "{ifname}: {ipaddr}/{cidr}",
+		"format-wifi": "{essid} ({signalStrength:2}%) 直",
+		"format-ethernet": "{ifname}: {ipaddr}/{cidr} ",
 		"format-linked": "{ifname} (No IP)",
 		"format-alt": "{ifname}: {ipaddr}/{cidr}",
-		"format-disconnected": "No internet"
+		"format-disconnected": "睊"
 	},
 	"battery": {
 		"tooltip": false,
@@ -57,28 +68,28 @@
 		},
 		"format": "{capacity}% {icon}",
 		"format-alt": "{time} {icon}",
-    "format-charging": "{capacity}% ",
-    "format-plugged": "{capacity}% ",
+    "format-charging": "{capacity}% ",
+    "format-plugged": "{capacity}% \u202Dﮣ",
 		// "format-good": "", // An empty format will hide the module
 		// "format-full": "",
-    "format-icons": ["", "", "", "", ""]
+    "format-icons": ["", "", "", "", "", "", "", "", "", "", ""]
 	},
 	"pulseaudio": {
     // "scroll-step": 1, // %, can be a float
     "format": "{volume}% {icon} {format_source}",
-    "format-bluetooth": "{volume}% {icon} {format_source}",
-    "format-bluetooth-muted": " {icon} {format_source}",
-    "format-muted": " {format_source}",
-    "format-source": "{volume}% ",
-    "format-source-muted": "",
+    "format-bluetooth": "{volume}% {icon} {format_source}",
+    "format-bluetooth-muted": "\u202dﱝ {icon} {format_source}",
+    "format-muted": "\u202Dﱝ {format_source}",
+    "format-source": "{volume}% ",
+    "format-source-muted": "",
     "format-icons": {
-      "headphone": "",
-      "hands-free": "",
-      "headset": "",
-      "phone": "",
-      "portable": "",
-      "car": "",
-      "default": ["", "", "", ""]
+      "headphone": "",
+      "hands-free": "",
+      "headset": "",
+      "phone": "",
+      "portable": "",
+      "car": "",
+      "default": ["奄", "奔", "墳"]
     },
     "on-click": "pavucontrol"
 	},
@@ -90,13 +101,15 @@
 	"idle_inhibitor": {
 		"format": "{icon}",
 		"format-icons": {
-			"activated": "\uf0b1",
-			"deactivated": "\ue857"
+			"activated": "",
+			"deactivated": ""
 		}
 	},
 	"clock": {
+    "interval": 60,
+    "locale": "en_DK.UTF-8",
 		"tooltip": false,
-		"format": "{:%a, %F %H:%M}"
+		"format": "{:%a, %F %H:%M}",
 	},
 	"tray": {
 		"tooltip": false,

@@ -27,8 +27,6 @@
     PAGER="${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --"
 
     bindkey '^T' transpose-chars
-
-    any-nix-shell zsh --info-right | source /dev/stdin
   '';
 
   oh-my-zsh = {

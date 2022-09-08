@@ -94,17 +94,19 @@ if getrep "Install xorg/dm/etc? [Y/n] "; then
 
   pacman -S alacritty dunst grim emacs feh firefox noto-fonts sway swayidle \
          swaylock lxappearance mako network-manager-applet networkmanager \
-         noto-fonts pam-u2f pavucontrol pcscd playerctl polkit-gnome \
-         pulseaudio quodlibet scrot slurp sxiv waybar yubikey-manager \
-         yubikey-personalization kanshi \
+         noto-fonts-cjk noto-fonts-emoji noto-fonts-extra pam-u2f \
+         pavucontrol pcscd playerctl polkit-gnome pulseaudio quodlibet scrot \
+         slurp sxiv waybar yubikey-manager yubikey-personalization kanshi \
+         waybar wofi element-desktop font-awesome pipewire drive vscode \
+         otf-font-awesome \
       --noconfirm --needed
 
   # AUR packages
   sudo -u "$1" \
-  yay -S acpilight dmenu-wayland-git gtk-theme-numix-sx j4-dmenu-desktop \
-         lightdm-settings lightdm-slick-greeter numix-icon-theme-git \
+  yay -S acpilight j4-dmenu-desktop \
          powerline-fonts-git siji-git ttf-material-design-icons-webfont \
-         --noconfirm --needed
+         discord zoom \
+      --noconfirm --needed
 
   systemctl enable pcscd.service
 else
@@ -114,8 +116,10 @@ else
 fi
 
 sudo -u "$1" \
-yay -S cowsay htop mlocate openssh p7zip pkgfile ripgrep rsync tldr \
-    --noconfirm --needed
+byay -S cowsay htop mlocate openssh p7zip pkgfile ripgrep rsync tldr bat \
+       ripgrep bfs htop btop elvish rm-improved psmisc github-cli \
+     --noconfirm --needed
+
 sudo -u "$1" \
 yay -S oh-my-zsh-git --noconfirm --needed
 

@@ -73,7 +73,7 @@ edit:add-var nix-clean~ {|@_args|
   nix-store --gc
 }
 
-edit:add-var nf~ {|@_args| nix search nixpkgs $@_args }
+edit:add-var nf~ {|@_args| nix --extra-experimental-features nix-command --extra-experimental-features flakes search nixpkgs $@_args }
 
 edit:add-var nre~ {|@_args| sudo -i nixos-rebuild switch $@_args }
 edit:add-var nreu~ {|@_args| sudo -i nixos-rebuild switch --upgrade $@_args }

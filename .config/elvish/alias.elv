@@ -38,7 +38,7 @@ var aliases = [
   &gcam= [git commit -am]
   &gcmsg= [git commit -m]
   &gcb= [git checkout -b]
-  &gd= [git diff]
+  &gd= [git diff --patience]
   &gdca= [git diff --cached]
   &gp= [git push]
   &gpf= [git push --force-with-lease]
@@ -130,7 +130,7 @@ edit:add-var gwip~ {|@_args|
 }
 
 edit:add-var gunwip~ {
-  if ?(git log -n 1 | grep -q -c '\-\-wip\-\-') {
+  if ?(git log -n 1 | grep -q -c '\--wip--') {
     git reset HEAD~1
   }
 }

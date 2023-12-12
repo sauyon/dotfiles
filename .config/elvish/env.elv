@@ -3,6 +3,7 @@ set paths = [
   $E:GOPATH/bin
   $E:XDG_DATA_HOME/cargo/bin
   $E:HOME/.local/bin
+  $E:HOME/.krew/bin
 ]
 
 set E:XDG_DESKTOP_DIR = $E:HOME"/desktop";

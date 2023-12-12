@@ -11,6 +11,9 @@ alias rcp='rsync -rgoP'
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert\s*$//'\'')"'
 alias cowfortune='fortune | cowsay'
 
+alias k='kubectl'
+alias b='bentoml'
+
 if [[ -f /usr/bin/man ]]; then
   man() { env man $@ 2>/dev/null || /usr/bin/man $@ }
 fi
@@ -37,13 +40,15 @@ if non_gui; then
   #sedit() { emacsclient -te $(for f in "$@"; do echo "(find-file-root \"${${f:A}//\"/\\\"})\""; done) }
   sedit() { emacsclient -te "(find-file-root \"${${1:A}//\"/\\\"}\")" }
 elif exists swaymsg; then
-  edit() { emacsclient -n "$@"; workspace 2 }
+  edit() { emacsclient -n "$@" && workspace 2 }
   #sedit() { emacsclient -ne $(for f in "$@"; do echo "(find-file-root \"${${f:A}//\"/\\\"}\")"; done) }
-  sedit() { emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")"; workspace 2 }
+  sedit() { emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" && workspace 2 }
 else
   edit() { emacsclient -n "$@" }
   sedit() { emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" }
 fi
+
+venv:activate() {source "$1/bin/activate"}
 
 if exists gist; then
   up() {

@@ -66,6 +66,10 @@ var aliases = [
   &gf= [git fetch]
 
   &rcp= [rsync -rgoP]
+
+  &k= [kubectl]
+
+  &b= [bentoml]
 ]
 
 edit:add-var nix-clean~ {|@_args|
@@ -150,7 +154,7 @@ edit:add-var edit~ {|@_args|
 
 edit:add-var sedit~ {|_arg|
   var escaped = (str:replace '"' '\"' (path:abs $_arg))
-	emacsclient -ne '(find-file-root "'$escaped'")'
+  emacsclient -ne '(find-file-root "'$escaped'")'
 }
 
 edit:add-var nix~ {|@_args|
@@ -181,6 +185,9 @@ edit:add-var '..~' { cd .. }
 edit:add-var '...~' { cd ../.. }
 edit:add-var '....~' { cd ../../.. }
 
+edit:add-var bctl~ {|@_args|
+  bentocloudctl $@_args
+}
 
 fn make-alias {|cmds|
   put {|@_args| /usr/bin/env $@cmds $@_args }

@@ -36,9 +36,6 @@ fi
 
 #export XAUTHORITY="$XDG_RUNTIME_DIR"/Xauthority
 
-# Compilation flags
-export ARCHFLAGS="-arch x86_64"
-
 # Qt5 why u no like gtk
 export QT_STYLE_OVERRIDE=gtk
 
@@ -87,4 +84,8 @@ echo "Hello, $(hostname -s)"'!'
 
 if [[ -f /tmp/checkupdates.log ]]; then
   cat /tmp/checkupdates.log
+fi
+
+if [[ -f /usr/share/nvm/init-nvm.sh ]]; then
+  source /usr/share/nvm/init-nvm.sh
 fi

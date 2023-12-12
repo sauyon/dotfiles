@@ -115,11 +115,11 @@ pkg: {
       normal.family = "NotoSansMono Nerd Font";
       # normal.style = "Regular";
       # Bold font face
-      bold.family = "NotoSansMono Nerd Font";
+      bold.family = "NotoSansMono";
       # Italic font face
-      italic.family = "NotoSansMono Nerd Font";
+      italic.family = "NotoSansMono";
       # Bolt italic font face
-      bold_italic.famil = "NotoSansMono Nerd Font";
+      bold_italic.famil = "NotoSansMono";
 
       # Point size
       size = 12.0;

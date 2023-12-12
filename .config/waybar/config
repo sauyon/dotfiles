@@ -1,19 +1,19 @@
 // -*- mode: json -*-
-{
-	"layer": "bottom", // Waybar at top layer
-	"position": "top", // Waybar position (top|bottom|left|right)
-	"height": 30, // Waybar height (to be removed for auto height)
-	// Choose the order of the modules
-	"modules-left": [
+  {
+  "layer": "bottom", // Waybar at top layer
+  "position": "top", // Waybar position (top|bottom|left|right)
+  "height": 30, // Waybar height (to be removed for auto height)
+  // Choose the order of the modules
+  "modules-left": [
     "idle_inhibitor",
     "sway/workspaces",
     "sway/mode",
     "sway/window",
   ],
-	"modules-center": [
+  "modules-center": [
     "custom/media",
   ],
-	"modules-right": [
+  "modules-right": [
     "network",
     "battery",
     "pulseaudio",
@@ -21,28 +21,28 @@
     "clock",
     "tray",
   ],
-	// Module config
+  // Module config
   "sway/workspaces": {
     "disable-scroll-wraparound": true
     // "enable-bar-scroll": true
   },
-	"sway/mode": {
-		"tooltip": false,
-		"format": "<span weight=\"bold\">{}</span>"
-	},
+  "sway/mode": {
+	"tooltip": false,
+	"format": "<span weight=\"bold\">{}</span>"
+  },
   "custom/media": {
     "tooltip": false,
     "format": "{icon}{}",
     "return-type": "json",
     "format-icons": {
-        "Playing": "契 ",
-        "Paused": " ",
+      "Playing": "󰐊 ",
+      "Paused": "󰏤 ",
     },
     "max-length":70,
     "exec": "mprisinfo",
     "on-click": "playerctl play-pause",
   },
-	// "custom/vpn": {
+  // "custom/vpn": {
 	// 	"interval": 5,
 	// 	"tooltip": false,
 	// 	"format": "{}",
@@ -50,70 +50,71 @@
 	// 	// Script at https://gitlab.com/krathalan/miscellaneous-scripts
 	// 	"exec": "vpn_detect mullvad-us5"
 	// },
-	"network": {
-		"tooltip": false,
-		// "interface": "wlp2*", // (Optional) To force the use of this interface
-		"format-wifi": "{essid} ({signalStrength:2}%) 直",
-		"format-ethernet": "{ifname}: {ipaddr}/{cidr} ",
-		"format-linked": "{ifname} (No IP)",
-		"format-alt": "{ifname}: {ipaddr}/{cidr}",
-		"format-disconnected": "睊"
+  "network": {
+	"tooltip": false,
+	// "interface": "wlp2*", // (Optional) To force the use of this interface
+	"format-wifi": "{essid} ({signalStrength:2}%) 󰖩",
+	"format-ethernet": "{ifname}: {ipaddr}/{cidr} 󰈀",
+	"format-linked": "{ifname} (No IP)",
+	"format-alt": "{ifname}: {ipaddr}/{cidr}",
+	"format-disconnected": "󰖪"
+  },
+  "battery": {
+	"tooltip": false,
+	"states": {
+	  // "good": 95,
+	  "warning": 30,
+	  "critical": 15
 	},
-	"battery": {
-		"tooltip": false,
-		"states": {
-			// "good": 95,
-			"warning": 30,
-			"critical": 15
-		},
-		"format": "{capacity}% {icon}",
-		"format-alt": "{time} {icon}",
+    "design-capacity": true,
+	"format": "{capacity}% {icon}",
+	"format-alt": "{time} {icon}",
     "format-charging": "{capacity}% ",
-    "format-plugged": "{capacity}% \u202Dﮣ",
-		// "format-good": "", // An empty format will hide the module
-		// "format-full": "",
-    "format-icons": ["", "", "", "", "", "", "", "", "", "", ""]
-	},
-	"pulseaudio": {
+    "format-plugged": "{capacity}% 󰂃",
+	// "format-good": "", // An empty format will hide the module
+	// "format-full": "",
+    "format-icons": ["󰂎", "󰁺", "", "󰁽", "", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"]
+  },
+  "pulseaudio": {
     // "scroll-step": 1, // %, can be a float
     "format": "{volume}% {icon} {format_source}",
-    "format-bluetooth": "{volume}% {icon} {format_source}",
-    "format-bluetooth-muted": "\u202dﱝ {icon} {format_source}",
-    "format-muted": "\u202Dﱝ {format_source}",
-    "format-source": "{volume}% ",
-    "format-source-muted": "",
+    "format-bluetooth": "{volume}% {icon}󰂯 {format_source}",
+    "format-bluetooth-muted": "\u202dﱝ {icon}󰂯 {format_source}",
+    "format-muted": "󰖁 {format_source}",
+    "format-source": "{volume}% 󰍬",
+    "format-source-muted": "󰍭",
     "format-icons": {
-      "headphone": "",
-      "hands-free": "",
-      "headset": "",
-      "phone": "",
-      "portable": "",
-      "car": "",
-      "default": ["奄", "奔", "墳"]
+      "headphone": "󰋋",
+      "hands-free": "󰋎",
+      "headset": "󰋎",
+      "phone": "󰏲",
+      "portable": "󰏲",
+      "car": "󰄋",
+      "default": ["󰕿", "󰖀", "󰕾"]
     },
     "on-click": "pavucontrol"
-	},
-	"cpu": {
-		"interval": 5,
-		"tooltip": false,
-		"format": "{usage:2}% "
-	},
-	"idle_inhibitor": {
-		"format": "{icon}",
-		"format-icons": {
-			"activated": "",
-			"deactivated": ""
-		}
-	},
-	"clock": {
+  },
+  "cpu": {
+	"interval": 5,
+	"tooltip": false,
+	"format": "{usage:2}% "
+  },
+  "idle_inhibitor": {
+	"format": "{icon}",
+	"format-icons": {
+	  "activated": "",
+	  "deactivated": ""
+	}
+  },
+  "clock": {
     "interval": 60,
     "locale": "en_DK.UTF-8",
-		"tooltip": false,
-		"format": "{:%a, %F %H:%M}",
-	},
-	"tray": {
-		"tooltip": false,
-		// "icon-size": 21,
-		"spacing": 10
-	}
+	"tooltip": false,
+	"format": "{:%a, %F %H:%M}",
+  },
+  "tray": {
+	"tooltip": false,
+	// "icon-size": 21,
+	"spacing": 10
+  }
 }

@@ -26,12 +26,21 @@ font pango:Noto Sans 12
 # chose a FreeType font, such as:
 # font pango:DejaVu Sans Mono 10
 
-input * {
+input type:keyboard {
+  #xkb_layout "arstneio"
   xkb_layout "us"
   xkb_variant "colemak"
   xkb_options "ctrl:nocaps,ctrl:swapcaps"
 
+  repeat_delay 200
+  repeat_rate 60
+
   dwt "disabled"
+}
+
+input "12951:6505:ZSA_Technology_Labs_Moonlander_Mark_I" {
+  xkb_variant ""
+  xkb_options ""
 }
 
 input "12951:6505:ZSA_Moonlander_Mark_I" {
@@ -39,17 +48,12 @@ input "12951:6505:ZSA_Moonlander_Mark_I" {
   xkb_options ""
 }
 
-input "65261:4871:ErgoDox_EZ_ErgoDox_EZ" {
+input "12951:6505:ZSA_Moonlander_Mark_I_Keyboard" {
   xkb_variant ""
   xkb_options ""
 }
 
-input "65261:4871:ZSA_Ergodox_EZ" {
-  xkb_variant ""
-  xkb_options ""
-}
-
-input "65261:4871:ZSA_Ergodox_EZ_Keyboard" {
+input "5824:10203:MoErgo_Glove80_Left_Keyboard" {
   xkb_variant ""
   xkb_options ""
 }
@@ -152,7 +156,7 @@ bindsym $mod+Shift+space floating toggle
 bindsym $mod+space focus mode_toggle
 
 # start a terminal
-bindsym $mod+Return exec alacritty -e elvish
+bindsym $mod+Return exec alacritty msg create-window
 
 # start dmenu (a program launcher)
 # bindcode 133 exec --no-startup-id synapse
@@ -181,6 +185,7 @@ bindsym $mod+v split v
 
 # change container layout (stacked, tabbed, toggle split)
 bindsym $mod+s layout stacked
+bindsym $mod+g layout tabbed
 bindsym $mod+l layout toggle split
 
 # focus the parent container
@@ -233,6 +238,8 @@ bar {
   swaybar_command waybar
 }
 
+assign [class="Code"] 2
+
 assign [class="Emacs"] 2
 # assign [class="Firefox"] 3
 assign [app_id="io.github.quodlibet.QuodLibet"] 10
@@ -242,7 +249,7 @@ assign [class="Steam"] 4
 
 for_window [app_id="pavucontrol"] floating enable
 
-for_window [app_id="firefox"] border none
+for_window [app_id="firefox"] pixel 1
 for_window [title="Firefox - Sharing Indicator"] floating enable; move position 0 0
 
 for_window [class="Yubico Authenticator"] floating enable
@@ -261,9 +268,12 @@ exec ibus-daemon -rx
 exec mako
 exec_always kanshi
 exec nm-applet --indicator
+exec blueman-applet
 exec swayidle -w \
        timeout 300 'swaylock -f' \
        timeout 600 'swaymsg "output * dpms off"' \
        resume 'swaymsg "output * dpms on"' \
        before-sleep 'playerctl pause' \
        before-sleep "$HOME/.local/bin/lock"
+
+exec alacritty

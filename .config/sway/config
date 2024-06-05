@@ -9,6 +9,8 @@
 #
 # Please see http://i3wm.org/docs/userguide.html for a complete reference!
 
+include /etc/sway/config.d/50-systemd-user.conf
+
 set $mod Mod4
 
 set $left b
@@ -32,7 +34,7 @@ input type:keyboard {
   xkb_variant "colemak"
   xkb_options "ctrl:nocaps,ctrl:swapcaps"
 
-  repeat_delay 200
+  repeat_delay 150
   repeat_rate 60
 
   dwt "disabled"
@@ -164,7 +166,7 @@ bindsym $mod+Return exec alacritty msg create-window
 # shipping a .desktop file. It is a wrapper around dmenu, so you need that
 # installed.
 # bindsym $mod+r exec alacritty --title 'Launcher' -e j4-dmenu-desktop --dmenu="(cat ; (stest -flx $(echo $PATH | tr : ' ') | sort -u)) | fzf" --term='alacritty'
-bindsym $mod+r exec zsh -c 'wofi --show run --matching fuzzy'
+bindsym $mod+r exec zsh -c 'wofi --show drun --matching fuzzy'
 # bindsym $mod+r exec --no-startup-id i3-dmenu-desktop
 
 bindsym $mod+e exec emacsclient -nc, workspace 2
@@ -258,9 +260,6 @@ for_window [title=".*"] inhibit_idle fullscreen
 for_window [app_id=".*"] inhibit_idle fullscreen
 
 for_window [app_id="nm-connection-editor"] floating enable
-
-exec systemctl --user import-environment DISPLAY WAYLAND_DISPLAY SWAYSOCK
-exec dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY SWAYSOCK
 
 exec /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec emacsclient -c

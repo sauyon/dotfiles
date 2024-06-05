@@ -1,7 +1,7 @@
 { pkgs, home, xdg, ... }: {
   enable = true;
 
-  enableAutosuggestions = true;
+  autosuggestion.enable = true;
 
   syntaxHighlighting.enable = true;
 
@@ -23,6 +23,8 @@
     source "$XDG_CONFIG_HOME/zsh/utils"
     source "$XDG_CONFIG_HOME/zsh/config"
     source "$XDG_CONFIG_HOME/zsh/aliases"
+
+    [ -f /etc/profile.d/google-cloud-cli.sh ] && source /etc/profile.d/google-cloud-cli.sh
 
     [ -f $HOME/.nix-profile/etc/profile.d/nix.sh ] && [ -z $NIX_PATH ] && source $HOME/.nix-profile/etc/profile.d/nix.sh
 
@@ -96,5 +98,10 @@
 
     quck = "codeql query compile --warnings=error -n --search-path . --additional-packs . -j8";
     qlfmt = "codeql autoformat";
+
+    tf = "terraform";
+    t = "terragrunt";
+    ts = "tailscale";
+    tsk = "tailscale configure kubeconfig";
   };
 }

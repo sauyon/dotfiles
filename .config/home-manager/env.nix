@@ -35,8 +35,6 @@
 
   STUDIO_JDK = "/usr/lib/jvm/java-11-openjdk/";
 
-  XDG_CURRENT_DESKTOP = "Unity";
-
   MOZ_ENABLE_WAYLAND = "1";
 } // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
   BROWSER = "firefox";

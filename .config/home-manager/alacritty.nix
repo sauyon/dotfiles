@@ -122,7 +122,7 @@ pkg: {
       # Italic font face
       italic.family = "NotoSansM NF";
       # Bolt italic font face
-      bold_italic.famil = "NotoSansM NF";
+      bold_italic.family = "NotoSansM NF";
 
       # Point size
       size = 12.0;
@@ -141,9 +141,6 @@ pkg: {
         y = 0;
       };
     };
-
-    # If `true`, bold text is drawn using the bright color variants.
-    draw_bold_text_with_bright_colors = true;
 
     colors = {
       # Default colors
@@ -180,6 +177,9 @@ pkg: {
         cyan = "#73FBF1";
         white = "#FEFEF8";
       };
+
+      # If `true`, bold text is drawn using the bright color variants.
+      draw_bold_text_with_bright_colors = true;
     };
 
     import = [ "selenized-dark.yml" ];
@@ -281,16 +281,32 @@ pkg: {
     #ref_test: false
 
     mouse = {
-      # Click settings
-      #
-      # The `double_click` and `triple_click` settings control the time
-      # alacritty should wait for accepting multiple clicks as one double
-      # or triple click.
-      double_click = { threshold = 300; };
-      triple_click = { threshold = 300; };
-
       # If this is `true`, the cursor is temporarily hidden when typing.
       hide_when_typing = false;
+
+      # Mouse bindings
+      #
+      # Mouse bindings are specified as a list of objects, much like the key
+      # bindings further below.
+      #
+      # Each mouse binding will specify a:
+      #
+      # - `mouse`:
+      #
+      #   - Middle
+      #   - Left
+      #   - Right
+      #   - Numeric identifier such as `5`
+      #
+      # - `action` (see key bindings)
+      #
+      # And optionally:
+      #
+      # - `mods` (see key bindings)
+      bindings = [{
+        mouse = "Middle";
+        action = "PasteSelection";
+      }];
     };
 
     # Regex hints
@@ -340,30 +356,6 @@ pkg: {
         };
       }];
     };
-
-    # Mouse bindings
-    #
-    # Mouse bindings are specified as a list of objects, much like the key
-    # bindings further below.
-    #
-    # Each mouse binding will specify a:
-    #
-    # - `mouse`:
-    #
-    #   - Middle
-    #   - Left
-    #   - Right
-    #   - Numeric identifier such as `5`
-    #
-    # - `action` (see key bindings)
-    #
-    # And optionally:
-    #
-    # - `mods` (see key bindings)
-    mouse_bindings = [{
-      mouse = "Middle";
-      action = "PasteSelection";
-    }];
 
     # Key bindings
     #
@@ -464,79 +456,81 @@ pkg: {
     # binding with the same triggers is defined. To unset a default binding, it can
     # be mapped to the `ReceiveChar` action. Alternatively, you can use `None` for
     # a no-op if you do not wish to receive input characters for that binding.
-    key_bindings = [
-      {
-        key = "V";
-        mods = "Control|Shift";
-        action = "Paste";
-      }
-      {
-        key = "C";
-        mods = "Control|Shift";
-        action = "Copy";
-      }
-      {
-        key = "Paste";
-        action = "Paste";
-      }
-      {
-        key = "Copy";
-        action = "Copy";
-      }
-      {
-        key = "L";
-        mods = "Control";
-        action = "ClearLogNotice";
-      }
-      {
-        key = "L";
-        mods = "Control";
-        chars = "\\x0c";
-      }
-      {
-        key = "Insert";
-        mods = "Shift";
-        action = "PasteSelection";
-      }
-      {
-        key = "Key0";
-        mods = "Control";
-        action = "ResetFontSize";
-      }
-      {
-        key = "Equals";
-        mods = "Control";
-        action = "IncreaseFontSize";
-      }
-      {
-        key = "Minus";
-        mods = "Control";
-        action = "DecreaseFontSize";
-      }
-      {
-        key = "PageUp";
-        mods = "Shift";
-        action = "ScrollPageUp";
-        mode = "~Alt";
-      }
-      {
-        key = "PageDown";
-        mods = "Shift";
-        action = "ScrollPageDown";
-        mode = "~Alt";
-      }
-      {
-        key = "Home";
-        mods = "Shift";
-        action = "ScrollToTop";
-        mode = "~Alt";
-      }
-      {
-        key = "End";
-        mods = "Shift";
-        action = "ScrollToBottom";
-        mode = "~Alt";
-      }
-    ];
+    keyboard = {
+      bindings = [
+        {
+          key = "V";
+          mods = "Control|Shift";
+          action = "Paste";
+        }
+        {
+          key = "C";
+          mods = "Control|Shift";
+          action = "Copy";
+        }
+        {
+          key = "Paste";
+          action = "Paste";
+        }
+        {
+          key = "Copy";
+          action = "Copy";
+        }
+        {
+          key = "L";
+          mods = "Control";
+          action = "ClearLogNotice";
+        }
+        {
+          key = "L";
+          mods = "Control";
+          chars = "\\f";
+        }
+        {
+          key = "Insert";
+          mods = "Shift";
+          action = "PasteSelection";
+        }
+        {
+          key = "Key0";
+          mods = "Control";
+          action = "ResetFontSize";
+        }
+        {
+          key = "Equals";
+          mods = "Control";
+          action = "IncreaseFontSize";
+        }
+        {
+          key = "Minus";
+          mods = "Control";
+          action = "DecreaseFontSize";
+        }
+        {
+          key = "PageUp";
+          mods = "Shift";
+          action = "ScrollPageUp";
+          mode = "~Alt";
+        }
+        {
+          key = "PageDown";
+          mods = "Shift";
+          action = "ScrollPageDown";
+          mode = "~Alt";
+        }
+        {
+          key = "Home";
+          mods = "Shift";
+          action = "ScrollToTop";
+          mode = "~Alt";
+        }
+        {
+          key = "End";
+          mods = "Shift";
+          action = "ScrollToBottom";
+          mode = "~Alt";
+        }
+      ];
+    };
   };
 }

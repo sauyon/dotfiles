@@ -55,7 +55,7 @@ in rec {
 
   qt = lib.optionalAttrs (!isDarwin) {
     enable = true;
-    platformTheme = "gtk";
+    platformTheme.name = "gtk";
   };
 
   services = {
@@ -63,7 +63,8 @@ in rec {
       enable = true;
       defaultCacheTtl = 600;
       maxCacheTtl = 1200;
-      # pinentryFlavor = "/usr/bin/pinentry";
+      pinentryPackage = pkgs.pinentry-gnome3;
+      # pinentryFlavor = "gnome3";
     };
 
     gnome-keyring = {
@@ -83,6 +84,11 @@ in rec {
     dircolors.enable = true;
     dircolors.enableZshIntegration = true;
     direnv.enable = true;
+    zoxide = {
+      enable = true;
+      enableZshIntegration = true;
+      options = ["--cmd cd"];
+    };
     # emacs.enable = !isDarwin;
 
     # waybar.enable = true;
@@ -169,6 +175,11 @@ in rec {
           hostname = "52.38.68.189";
           user = "ubuntu";
         };
+        "tf" = {
+          hostname = "kanon.ko.ag";
+          port = 59048;
+          forwardAgent = true;
+        };
       };
     };
 
@@ -209,9 +220,9 @@ in rec {
       enable = true;
 
       defaultApplications = {
-        "text/html" = "microsoft-edge.desktop";
-        "x-scheme-handler/http" = "microsoft-edge.desktop";
-        "x-scheme-handler/https" = "microsoft-edge.desktop";
+        "text/html" = "firefox.desktop";
+        "x-scheme-handler/http" = "firefox.desktop";
+        "x-scheme-handler/https" = "firefox.desktop";
       };
     };
 

@@ -1,59 +1,60 @@
-{
+profile {
   output "Dell Inc. DELL U2719D 7CBYNS2" mode 2560x1440 position 0,560 transform normal
   output "Dell Inc. DELL U2719DX CXDM6R2" mode 2560x1440 position 2560,560 transform normal
   output "Dell Inc. DELL U2518D 0WG2J97FBPBL" mode 2560x1440 position 5120,0 transform 90
   output eDP-1 disable
 }
-{
+profile {
   output "Dell Inc. DELL U2518D 0WG2J97FBPBL" mode 2560x1440 position 5120,0 transform 90
   output eDP-1 disable
 }
-{
+profile {
   output "Dell Inc. DELL U2719D 7CBYNS2" mode 2560x1440 position 0,560 transform normal
   output "Dell Inc. DELL U2719DX CXDM6R2" mode 2560x1440 position 2560,560 transform normal
   output eDP-1 disable
 }
-{
+profile {
   output "Dell Inc. DELL U2312HM T9MJ318OAUCL" mode 1920x1080 position 0,0 transform normal
   output eDP-1 mode 1920x1080 position 0,1080 transform normal
 }
-{
+profile {
   output "Dell Inc. DELL U2312HM T9MJ318OAUDL" disable
   output "Ancor Communications Inc ROG PG279Q #ASNXqkXehLLd" mode 2560x1440@165Hz position 1080,360 transform normal
   output eDP-1 mode 1920x1080 position 1080,1800
 }
-{
+profile {
   output "Dell Inc. DELL U2312HM T9MJ318OAUDL" mode 1920x1080 position 0,0 transform 90
   output "Ancor Communications Inc ROG PG279Q #ASNXqkXehLLd" mode 2560x1440@165Hz position 1080,360 transform normal
 }
-{
+profile {
   output "Goldstar Company Ltd LG HDR 4K 008NTUW9A702" mode 3840x2160 position 0,0 transform normal
   output "Unknown 0x095F 0x00000000" mode 2256x1504 position 1052,2160 transform normal scale 1.3
 }
-{
+profile {
   output "Ancor Communications Inc ROG PG279Q H3LMQS069538" mode 2560x1440 position 0,0
   output "Unknown 0x095F 0x00000000" mode 2256x1504 position 1052,2160 transform normal scale 1.3
 }
-{
+profile {
   output "Unknown AORUS FO48U 21170B001458" mode 3840x2160
   output eDP-1 disable
 }
-{
+profile {
   output "LG Electronics LG HDR 4K 107NTDV8F690" mode 3840x2160 position 0,0 scale 1.5
   output "BOE 0x095F Unknown" position 528,1440 transform normal scale 1.5
 }
-{
-  output "GIGA-BYTE TECHNOLOGY CO., LTD. AORUS FO48U 21170B001458" mode 3840x2160 position 0,0 scale 1
-  output "BOE 0x095F Unknown" position 528,2160 transform normal scale 1.5
+profile {
+  output "GIGA-BYTE TECHNOLOGY CO., LTD. AORUS FO48U 21170B001458" mode 3840x2160 position 0,0 scale 2222
+  # output "BOE 0x095F Unknown" position 528,2160 transform normal scale 1.5
+	output eDP-1 disable
 }
-{
+profile {
   output "LG Electronics LG HDR 4K 107NTLE8H072" mode 3840x2160 position 0,0 scale 1.5
   output "BOE 0x095F Unknown" position 528,1440 transform normal scale 1.5
 }
-{
+profile {
 	output "Dell Inc. DELL U2715H GH85D73D1A3S" mode 2560x1440 position 0,0
 	output eDP-1 position	528,1440 transform normal scale 1.5
 }
-{
+profile {
   output "BOE 0x095F Unknown" mode 2256x1504 position 0,0 transform normal scale 1.5
 }

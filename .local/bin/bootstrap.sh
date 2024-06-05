@@ -65,7 +65,7 @@ if getrep "Run first-time setup? [Y/n]: "; then
 
   echo "%wheel ALL=(ALL) ALL" >> /etc/sudoers
 
-  useradd -s /bin/zsh -g users -G wheel,network,video "$1"
+  useradd -s /bin/zsh -g users -G wheel,network,video,disk "$1"
   echo "Setting password for $1:"
   passwd "$1"
 

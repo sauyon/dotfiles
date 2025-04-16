@@ -16,6 +16,7 @@
 ;; Why isn't this default? (??????)
 (global-set-key (kbd "M-p") 'backward-paragraph)
 (global-set-key (kbd "M-n") 'forward-paragraph)
+
 ;; (global-set-key (kbd "M-p") (lambda () (interactive) (previous-line 10)))
 ;; (global-set-key (kbd "M-n") (lambda () (interactive) (next-line 10)))
 ;; This makes sense in c-like languages (everything I write)
@@ -112,6 +113,9 @@ _o_: other (hide only)
 (define-key cm-map "p" 'outline-previous-visible-heading)  ; Previous
 (define-key cm-map "f" 'outline-forward-same-level)        ; Forward - same level
 (define-key cm-map "b" 'outline-backward-same-level)       ; Backward - same level
+
+;; (define-key copilot-completion-map (kbd "<tab>") 'copilot-accept-completion)
+;; (define-key copilot-completion-map (kbd "TAB") 'copilot-accept-completion)
 
 (put 'narrow-to-region 'disabled nil)
 (put 'set-goal-column 'disabled nil)

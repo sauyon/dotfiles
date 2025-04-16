@@ -4,17 +4,16 @@ pkg: {
   settings = {
     # Configuration for Alacritty, the GPU enhanced terminal emulator.
 
-
     # Any items in the `env` entry below will be added as
     # environment variables. Some entries may override variables
     # set by alacritty itself.
     env = {
-    # TERM variable
-    #
-    # This value is used to set the `$TERM` environment variable for
-    # each instance of Alacritty. If it is not present, alacritty will
-    # check the local terminfo database and use 'alacritty' if it is
-    # available, otherwise 'xterm-256color' is used.
+      # TERM variable
+      #
+      # This value is used to set the `$TERM` environment variable for
+      # each instance of Alacritty. If it is not present, alacritty will
+      # check the local terminfo database and use 'alacritty' if it is
+      # available, otherwise 'xterm-256color' is used.
       TERM = "alacritty-direct";
     };
 
@@ -26,8 +25,10 @@ pkg: {
       #
       # Specified in number of columns/lines, not pixels.
       # If both are `0`, this setting is ignored.
-      dimensions = { columns = 0; lines = 0; };
-
+      dimensions = {
+        columns = 0;
+        lines = 0;
+      };
 
       # Window position (changes require restart)
       #
@@ -39,11 +40,13 @@ pkg: {
       #
       # Blank space added around the window in pixels. This padding is not scaled
       # by DPI and the specified value is always added at both opposing sides.
-      padding = { x = 0; y = 0; };
+      padding = {
+        x = 0;
+        y = 0;
+      };
 
       # Spread additional padding evenly around the terminal content.
       #dynamic_padding = false;
-
 
       # Window decorations
       #
@@ -126,11 +129,17 @@ pkg: {
 
       # Offset is the extra space around each character. `offset.y` can be thought of
       # as modifying the line spacing, and `offset.x` as modifying the letter spacing.
-      offset = { x = 0; y = 0; };
+      offset = {
+        x = 0;
+        y = 0;
+      };
       # Glyph offset determines the locations of the glyphs within their cells with
       # the default being at the bottom. Increasing `x` moves the glyph to the right,
       # increasing `y` moves the glyph upwards.
-      glyph_offset = { x = 0; y = 0; };
+      glyph_offset = {
+        x = 0;
+        y = 0;
+      };
     };
 
     # If `true`, bold text is drawn using the bright color variants.
@@ -146,15 +155,15 @@ pkg: {
       normal = {
         black = "0x073642";
         red = "0xdc322f";
-        green  = "0x859900";
-        yellow  = "0xb58900";
+        green = "0x859900";
+        yellow = "0xb58900";
         blue = "0x268bd2";
         magenta = "0xd33682";
         cyan = "0x2aa198";
         white = "0xeee8d5";
       };
 
-      bright  = {
+      bright = {
         black = "0x002b36";
         red = "0xcb4b16";
         green = "0x586e75";
@@ -187,10 +196,13 @@ pkg: {
     #   - Linear
     #
     # Specifying a `duration` of `0` will disable the visual bell.
-    bell = { animation = "EaseOutExpo"; duration = 1; };
+    bell = {
+      animation = "EaseOutExpo";
+      duration = 1;
+    };
 
     selection = {
-      semantic_escape_chars = ",│`|:\"' ()[]{}<>\t";
+      semantic_escape_chars = '',│`|:"' ()[]{}<>	'';
 
       # When set to `true`, selected text will be copied to both the primary and
       # the selection clipboard. Otherwise, it will only be copied to the selection
@@ -225,13 +237,11 @@ pkg: {
     #  args:
     #    - --login
 
-
     # Startup directory
     #
     # Directory the shell is started in. If this is unset, or `None`, the working
     # directory of the parent process will be used.
     #working_directory: None
-
 
     # Send ESC (\x1b) before characters when alt is pressed.
     #alt_send_esc: true
@@ -267,8 +277,12 @@ pkg: {
       # The `double_click` and `triple_click` settings control the time
       # alacritty should wait for accepting multiple clicks as one double
       # or triple click.
-      double_click = { threshold = 300; };
-      triple_click = { threshold = 300; };
+      double_click = {
+        threshold = 300;
+      };
+      triple_click = {
+        threshold = 300;
+      };
 
       # If this is `true`, the cursor is temporarily hidden when typing.
       hide_when_typing = false;
@@ -343,7 +357,10 @@ pkg: {
     #
     # - `mods` (see key bindings)
     mouse_bindings = [
-      { mouse = "Middle"; action = "PasteSelection"; }
+      {
+        mouse = "Middle";
+        action = "PasteSelection";
+      }
     ];
 
     # Key bindings
@@ -446,20 +463,78 @@ pkg: {
     # be mapped to the `ReceiveChar` action. Alternatively, you can use `None` for
     # a no-op if you do not wish to receive input characters for that binding.
     key_bindings = [
-      { key = "V";        mods = "Control|Shift";    action = "Paste";                }
-      { key = "C";        mods = "Control|Shift";    action = "Copy";                 }
-      { key = "Paste";                      action = "Paste";                         }
-      { key = "Copy";                       action = "Copy";                          }
-      { key = "L";        mods = "Control"; action = "ClearLogNotice";                }
-      { key = "L";        mods = "Control"; chars = "\\x0c";                          }
-      { key = "Insert";   mods = "Shift";   action = "PasteSelection";                }
-      { key = "Key0";     mods = "Control"; action = "ResetFontSize";                 }
-      { key = "Equals";   mods = "Control"; action = "IncreaseFontSize";              }
-      { key = "Minus";    mods = "Control"; action = "DecreaseFontSize";              }
-      { key = "PageUp";   mods = "Shift";   action = "ScrollPageUp";   mode = "~Alt"; }
-      { key = "PageDown"; mods = "Shift";   action = "ScrollPageDown"; mode = "~Alt"; }
-      { key = "Home";     mods = "Shift";   action = "ScrollToTop";    mode = "~Alt"; }
-      { key = "End";      mods = "Shift";   action = "ScrollToBottom"; mode = "~Alt"; }
+      {
+        key = "V";
+        mods = "Control|Shift";
+        action = "Paste";
+      }
+      {
+        key = "C";
+        mods = "Control|Shift";
+        action = "Copy";
+      }
+      {
+        key = "Paste";
+        action = "Paste";
+      }
+      {
+        key = "Copy";
+        action = "Copy";
+      }
+      {
+        key = "L";
+        mods = "Control";
+        action = "ClearLogNotice";
+      }
+      {
+        key = "L";
+        mods = "Control";
+        chars = "\\x0c";
+      }
+      {
+        key = "Insert";
+        mods = "Shift";
+        action = "PasteSelection";
+      }
+      {
+        key = "Key0";
+        mods = "Control";
+        action = "ResetFontSize";
+      }
+      {
+        key = "Equals";
+        mods = "Control";
+        action = "IncreaseFontSize";
+      }
+      {
+        key = "Minus";
+        mods = "Control";
+        action = "DecreaseFontSize";
+      }
+      {
+        key = "PageUp";
+        mods = "Shift";
+        action = "ScrollPageUp";
+        mode = "~Alt";
+      }
+      {
+        key = "PageDown";
+        mods = "Shift";
+        action = "ScrollPageDown";
+        mode = "~Alt";
+      }
+      {
+        key = "Home";
+        mods = "Shift";
+        action = "ScrollToTop";
+        mode = "~Alt";
+      }
+      {
+        key = "End";
+        mods = "Shift";
+        action = "ScrollToBottom";
+        mode = "~Alt";
+      }
     ];
   };
 }

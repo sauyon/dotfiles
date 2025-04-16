@@ -1,4 +1,10 @@
-{ pkgs, home, xdg, ... }: {
+{
+  pkgs,
+  home,
+  xdg,
+  ...
+}:
+{
   enable = true;
 
   autosuggestion.enable = true;
@@ -14,8 +20,8 @@
     expireDuplicatesFirst = true;
     ignoreDups = true;
     path = "${home}/.local/share/zsh/history";
-    save = 100000;
-    size = 100000;
+    save = 1000000;
+    size = 1000000;
   };
 
   initExtra = ''
@@ -36,12 +42,18 @@
   oh-my-zsh = {
     enable = true;
 
-    plugins = [ "git" "golang" "sudo" "rust" "adb" ];
+    plugins = [
+      "git"
+      "golang"
+      "sudo"
+      "rust"
+    ];
   };
 
   sessionVariables = {
     XDG_CONFIG_HOME = "$HOME/.config";
     XDG_DATA_HOME = "$HOME/.local/share";
+    XDG_RUNTIME_DIR = "/run/user/$(id -u)";
   };
 
   shellAliases = {
@@ -64,7 +76,7 @@
     "....." = "....;..";
     "......" = ".....;..";
 
-    gnight = "${pkgs.cowsay}/bin/cowsay \"GNIGHT's not IGHT\"; systemctl suspend";
+    gnight = ''${pkgs.cowsay}/bin/cowsay "GNIGHT's not IGHT"; systemctl suspend'';
 
     sctl = "systemctl";
     uctl = "systemctl --user";
@@ -89,7 +101,7 @@
     nre = "sudo -i nixos-rebuild switch";
     nreu = "sudo -i nixos-rebuild switch --upgrade";
 
-    swaycheatsheet = "egrep '^\s*bind' $XDG_CONFIG_HOME/sway/config | sed -E 's/ --[\S-]*\b//g' | cut -d ' ' -f 2- | sed -E 's/ +/\t/' | column -ts $'\t' -c 100 -W2 -o ' | ' | less";
+    swaycheatsheet = "egrep '^s*bind' $XDG_CONFIG_HOME/sway/config | sed -E 's/ --[S-]*b//g' | cut -d ' ' -f 2- | sed -E 's/ +/	/' | column -ts $'	' -c 100 -W2 -o ' | ' | less";
 
     gcf = "git commit --fixup";
     gcaf = "git commit -a --fixup";

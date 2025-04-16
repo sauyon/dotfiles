@@ -1,4 +1,11 @@
-{ pkgs, lib, home, xdg, ... }: rec {
+{
+  pkgs,
+  lib,
+  home,
+  xdg,
+  ...
+}:
+rec {
   EDITOR = "emacsclient";
 
   # Unclutter home directory
@@ -26,7 +33,7 @@
   # gpg for ssh
   GPG_TTY = "$(tty)";
 
-  NIXPKGS="${home}/devel/nixpkgs";
+  NIXPKGS = "${home}/devel/nixpkgs";
 
   "_JAVA_AWT_WM_NONREPARENTING" = "1";
 
@@ -36,7 +43,10 @@
   STUDIO_JDK = "/usr/lib/jvm/java-11-openjdk/";
 
   MOZ_ENABLE_WAYLAND = "1";
-} // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
+
+  TG_PROVIDER_CACHE = "1";
+}
+// lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
   BROWSER = "firefox";
   SSH_AGENT_PID = "";
   SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/gnupg/S.gpg-agent.ssh";

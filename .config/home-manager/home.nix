@@ -1,23 +1,34 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 let
   isDarwin = pkgs.stdenv.isDarwin;
 
   args = { inherit config lib pkgs; };
-in rec {
+in
+rec {
   home.stateVersion = "21.11";
 
   home.username = builtins.getEnv "USER";
   home.homeDirectory = builtins.getEnv "HOME";
 
-  home.sessionVariables = import ./env.nix (args // {
-    inherit xdg;
-    home = home.homeDirectory;
-  });
+  home.sessionVariables =
+    import ./env.nix (
+      args
+      // {
+        inherit xdg;
+        home = home.homeDirectory;
+      }
+    )
+    // (lib.optionalAttrs (builtins.pathExists ./secrets.nix) (import ./secrets.nix));
 
   systemd.user.sessionVariables = home.sessionVariables;
 
-  home.packages = with pkgs; [ nixfmt ];
+  home.packages = with pkgs; [ nixfmt-rfc-style ];
 
   nixpkgs.config = {
     allowUnfree = true;
@@ -69,7 +80,10 @@ in rec {
 
     gnome-keyring = {
       enable = true;
-      components = [ "pkcs11" "secrets" ];
+      components = [
+        "pkcs11"
+        "secrets"
+      ];
     };
 
     # emacs.enable = !isDarwin;
@@ -87,7 +101,7 @@ in rec {
     zoxide = {
       enable = true;
       enableZshIntegration = true;
-      options = ["--cmd cd"];
+      options = [ "--cmd cd" ];
     };
     # emacs.enable = !isDarwin;
 
@@ -101,14 +115,25 @@ in rec {
       userEmail = "git@sjle.co";
       ignores = [
         ".vscode"
-        "*~" "\\#*#" "*.orig" ".#*" ".dir-locals.el"
-        "*.zip" "*.tar" "*.out" "*.xz" "*.gz" "*.7z"
+        "*~"
+        "\\#*#"
+        "*.orig"
+        ".#*"
+        ".dir-locals.el"
+        "*.zip"
+        "*.tar"
+        "*.out"
+        "*.xz"
+        "*.gz"
+        "*.7z"
         "shell.nix"
-        "flake.nix" "flake.lock"
+        "flake.nix"
+        "flake.lock"
+        ".aider*"
       ];
 
       signing = {
-        signByDefault = true;
+        # signByDefault = true;
         key = "git@sjle.co";
       };
 
@@ -116,9 +141,15 @@ in rec {
 
       extraConfig = {
         init.defaulBranch = "main";
-        commit = { verbose = true; };
-        push = { default = "current"; };
-        color = { ui = "auto"; };
+        commit = {
+          verbose = true;
+        };
+        push = {
+          default = "current";
+        };
+        color = {
+          ui = "auto";
+        };
         core = {
           pager = "${pkgs.gitAndTools.diff-so-fancy}/bin/diff-so-fancy | ${pkgs.less}/bin/less -RFx4";
           editor = "/usr/bin/emacsclient -t";
@@ -131,8 +162,6 @@ in rec {
           stripLeadingSymbols = false;
         };
         pull.rebase = true;
-        url."semmle:".insteadOf = "https://git.semmle.com/";
-        # url."github:".insteadOf = "https://github.com/";
         merge.tool = "meld";
         credential."https://github.com".helper = "!/usr/bin/gh auth git-credential";
         credential."https://gist.github.com".helper = "!/usr/bin/gh auth git-credential";
@@ -165,7 +194,8 @@ in rec {
         };
         "kanon" = {
           user = "root";
-          port = 59049;
+          hostname = "kanon.tail30335.ts.net";
+          port = 59048;
         };
         "testserver" = {
           hostname = "35.163.118.10";
@@ -207,10 +237,48 @@ in rec {
       };
     };
 
-    zsh = import ./zsh.nix (args // {
-      inherit xdg;
-      home = home.homeDirectory;
-    });
+    zsh = import ./zsh.nix (
+      args
+      // {
+        inherit xdg;
+        home = home.homeDirectory;
+      }
+    );
+
+    zellij = {
+      enable = true;
+      enableZshIntegration = true;
+      settings = {
+        keybinds = {
+          normal = {
+            "bind \"Alt s\"".SwitchToMode = "Locked";
+            unbind = "Ctrl g";
+          };
+          locked = {
+            "bind \"Alt s\"".SwitchToMode = "Normal";
+            unbind = "Ctrl g";
+          };
+        };
+
+        default_mode = "locked";
+        pane_frames = false;
+
+        # 	bind "Alt g" { SwitchToMode "Locked"; }
+        # 	bind "Alt d" { Detach; }
+        # 	bind "Alt q" { Quit; }
+        # 	bind "Alt n" { NewPane; }
+        # 	bind "Alt w" { CloseFocus; SwitchToMode "Normal"; }
+        # 	bind "Alt f" { ToggleFocusFullscreen; SwitchToMode "Normal"; }
+        # 	bind "Alt h" "Alt Left" { MoveFocusOrTab "Left"; }
+        # 	bind "Alt l" "Alt Right" { MoveFocusOrTab "Right"; }
+        # 	bind "Alt j" "Alt Down" { MoveFocus "Down"; }
+        # 	bind "Alt k" "Alt Up" { MoveFocus "Up"; }
+        # 	bind "Alt =" "Alt +" { Resize "Increase"; }
+        # 	bind "Alt -" { Resize "Decrease"; }
+        # 	bind "Alt [" { PreviousSwapLayout; }
+        # 	bind "Alt ]" { NextSwapLayout; }
+      };
+    };
   };
 
   xdg = {

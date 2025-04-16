@@ -303,10 +303,12 @@ pkg: {
       # And optionally:
       #
       # - `mods` (see key bindings)
-      bindings = [{
-        mouse = "Middle";
-        action = "PasteSelection";
-      }];
+      bindings = [
+        {
+          mouse = "Middle";
+          action = "PasteSelection";
+        }
+      ];
     };
 
     # Regex hints
@@ -341,20 +343,21 @@ pkg: {
       #       Select the hint's text.
       #   - MoveViModeCursor
       #       Move the vi mode cursor to the beginning of the hint.
-      enabled = [{
-        regex = ''
-          (mailto:|gemini:|gopher:|https:|http:|news:|file:|git:|ssh:|ftp:)[^\u0000-\u001F\u007F-\u009F<>"\\s{-}\\^⟨⟩`]+'';
-        command = "xdg-open";
-        post_processing = true;
-        mouse = {
-          enabled = true;
-          mods = "None";
-        };
-        binding = {
-          key = "U";
-          mods = "Control|Shift";
-        };
-      }];
+      enabled = [
+        {
+          regex = ''(mailto:|gemini:|gopher:|https:|http:|news:|file:|git:|ssh:|ftp:)[^\u0000-\u001F\u007F-\u009F<>"\\s{-}\\^⟨⟩`]+'';
+          command = "xdg-open";
+          post_processing = true;
+          mouse = {
+            enabled = true;
+            mods = "None";
+          };
+          binding = {
+            key = "U";
+            mods = "Control|Shift";
+          };
+        }
+      ];
     };
 
     # Key bindings

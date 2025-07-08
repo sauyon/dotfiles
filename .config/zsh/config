@@ -7,7 +7,11 @@ fpath+="$HOME/.config/zsh/.zfunc"
 compinit -u
 
 # p10k
-source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
+if [[ -f /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme ]]; then
+  source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
+elif [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/themes/powerlevel10k/powerlevel10k.zsh-theme" ]]; then
+	source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/themes/powerlevel10k/powerlevel10k.zsh-theme"
+fi
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.config/zsh/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
@@ -96,7 +100,7 @@ fi
 export AWS_KEY_PAIR_NAME=sauyon-tf
 export BENTOCLOUDCTL_PRIVATE_KEY_PATH="$HOME/.ssh/id_sauyon_tf"
 
-if [[ $TERM == "xterm-256color" ]]; then
-	# extremely hacky workaround to mosh and winterm incorrectly only advertising 256color capabiliy
-	export TERM=xterm-direct
-fi
+# if [[ $TERM == "xterm-256color" ]]; then
+# 	# extremely hacky workaround to mosh and winterm incorrectly only advertising 256color capabiliy
+# 	export TERM=xterm-direct
+# fi

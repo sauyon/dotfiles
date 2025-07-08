@@ -74,7 +74,7 @@ rec {
       enable = true;
       defaultCacheTtl = 600;
       maxCacheTtl = 1200;
-      pinentryPackage = pkgs.pinentry-gnome3;
+      pinentry.package = pkgs.pinentry-gnome3;
       # pinentryFlavor = "gnome3";
     };
 
@@ -163,8 +163,8 @@ rec {
         };
         pull.rebase = true;
         merge.tool = "meld";
-        credential."https://github.com".helper = "!/usr/bin/gh auth git-credential";
-        credential."https://gist.github.com".helper = "!/usr/bin/gh auth git-credential";
+        credential."https://github.com".helper = "!/usr/bin/env gh auth git-credential";
+        credential."https://gist.github.com".helper = "!/usr/bin/env gh auth git-credential";
       };
     };
 

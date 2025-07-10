@@ -210,6 +210,12 @@ rec {
           port = 59048;
           forwardAgent = true;
         };
+        "prod-db-subnet-router" = {
+          user = "ec2-user";
+        };
+        "bcctl-subnet-router" = {
+          user = "ubuntu";
+        };
       };
     };
 

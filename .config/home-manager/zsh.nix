@@ -24,7 +24,7 @@
     size = 1000000;
   };
 
-  initExtra = ''
+  initContent = ''
     export "XDG_CONFIG_HOME=$HOME/.config"
     source "$XDG_CONFIG_HOME/zsh/utils"
     source "$XDG_CONFIG_HOME/zsh/config"
@@ -47,6 +47,7 @@
       "golang"
       "sudo"
       "rust"
+      "kubectl"
     ];
   };
 
@@ -113,7 +114,12 @@
 
     tf = "terraform";
     t = "terragrunt";
+    tra = "terragrunt run-all";
+    traa = "terragrunt run-all apply";
     ts = "tailscale";
     tsk = "tailscale configure kubeconfig";
+
+    b = "bentoml";
+    bctl = "bentocloudctl";
   };
 }

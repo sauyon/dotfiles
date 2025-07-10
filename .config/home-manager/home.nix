@@ -140,6 +140,9 @@ rec {
       lfs.enable = true;
 
       extraConfig = {
+        safe.directory = [
+          "/tf"
+        ];
         init.defaulBranch = "main";
         commit = {
           verbose = true;

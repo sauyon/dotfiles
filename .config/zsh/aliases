@@ -11,9 +11,6 @@ alias rcp='rsync -rgoP'
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert\s*$//'\'')"'
 alias cowfortune='fortune | cowsay'
 
-alias k='kubectl'
-alias b='bentoml'
-
 if [[ -f /usr/bin/man ]]; then
   man() { env man $@ 2>/dev/null || /usr/bin/man $@ }
 fi
@@ -47,6 +44,14 @@ else
   edit() { emacsclient -n "$@" }
   sedit() { emacsclient -ne "(find-file-root \"${${1:A}//\"/\\\"}\")" }
 fi
+
+kdn() {
+	kubectl debug --profile=sysadmin --image=ubuntu	-it	"node/$1" -- bash
+}
+
+kdnh() {
+	kubectl debug --profile=sysadmin --image=ubuntu	-it	"node/$1" -- nsenter --mount=/host/proc/1/ns/mnt -- bash
+}
 
 venv:activate() {source "$1/bin/activate"}
 

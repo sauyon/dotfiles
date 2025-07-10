@@ -34,6 +34,7 @@
  '(display-line-numbers-width 4)
  '(doom-modeline-mode t)
  '(dumb-jump-mode t)
+ '(enable-recursive-minibuffers t)
  '(face-font-family-alternatives
 	 '(("Sans Serif") ("Monospace" "courier" "fixed")
 		 ("Monospace Serif" "Courier 10 Pitch" "Consolas" "Courier Std" "FreeMono" "Nimbus Mono L"
@@ -60,6 +61,8 @@
  '(load-prefer-newer t)
  '(lsp-keymap-prefix "M-i")
  '(menu-bar-mode nil)
+ '(minibuffer-prompt-properties
+	 '(read-only t face minibuffer-prompt read-only t cursor-intangible t))
  '(nix-prettify-global-mode t)
  '(org-babel-load-languages '((dot . t) (ditaa . t) (emacs-lisp . t)))
  '(org-confirm-babel-evaluate nil)
@@ -105,28 +108,32 @@
  '(package-archives
 	 '(("gnu" . "http://elpa.gnu.org/packages/") ("melpa" . "https://melpa.org/packages/")))
  '(package-selected-packages
-	 '(ac-haskell-proc ace-isearch ack aidermacs android-mode auto-dictionary bison-mode cargo cargo-mode
-										 cmake-mode combobulate company-go company-lsp company-shell consult-lsp copilot
-										 dap-mode dash dict-tree dired-git-info dired-icon dired-preview dired-ranger
-										 dirvish dockerfile-mode dumb-jump editorconfig elvish-mode embark-consult f
-										 fill-column-indicator flycheck-haskell flycheck-rust go-dlv go-errcheck go-guru
-										 google-c-style graphviz-dot-mode groovy-mode haskell-mode hcl-mode
-										 idle-highlight json-mod json-mode latex-math-preview latex-pretty-symbols
-										 latex-unicode-math-mode lsp-pyright lsp-treemacs lsp-ui lua-mode magit
-										 magit-find-file magit-gh-pulls marginalia mmm-mode mo-git-blame nix-mode
-										 nix-update nixos-options orderless pkgbuild-mode pretty-sha-path projectile
-										 projectile-ripgrep protobuf-mode quelpa quelpa-use-package rustic s scala-mode2
-										 scss-mode semmle shfmt smali-mode smart-jump smart-tabs-mode systemd
-										 terraform-mode toml-mode vertico vterm ws-butler yaml-mode))
+	 '(ac-haskell-proc ace-isearch ace-jump-mode ack aidermacs android-mode auto-dictionary bicycle
+										 bison-mode cargo cargo-mode cmake-mode combobulate company-go company-lsp
+										 company-shell consult-lsp copilot dap-mode dash dict-tree dired-git-info
+										 dired-icon dired-preview dired-ranger dirvish dockerfile-mode doom-themes
+										 dumb-jump editorconfig elvish-mode embark-consult f fill-column-indicator
+										 flycheck-haskell flycheck-rust go-dlv go-errcheck go-guru golden-ratio
+										 google-c-style graphviz-dot-mode groovy-mode haskell-mode hcl-mode helm-swoop
+										 idle-highlight json-mod json-mode json-par jsonian latex-math-preview
+										 latex-pretty-symbols latex-unicode-math-mode lsp-pyright lsp-treemacs lsp-ui
+										 lua-mode magit magit-find-file magit-gh-pulls marginalia mmm-mode mo-git-blame
+										 nix-mode nix-update nixos-options orderless outline-toc pkgbuild-mode
+										 pretty-sha-path projectile projectile-ripgrep protobuf-mode quelpa
+										 quelpa-use-package rustic scala-mode2 scss-mode shfmt smali-mode smart-jump
+										 smart-tabs-mode swiper systemd terraform-mode toml-mode vertico
+										 vertico-posframe vterm ws-butler yaml-mode))
  '(pcap-mode-tshark-executable nil)
  '(projectile-mode t nil (projectile))
  '(projectile-project-search-path '("~/devel/"))
  '(ql-mode-target-language "javascript" t)
  '(ql-ql-location "/home/sauyon/devel/maxcode/ql")
+ '(read-extended-command-predicate 'command-completion-default-include-p)
  '(require-final-newline t)
  '(ring-bell-function 'my-bell-function)
- '(rust-format-on-save nil t)
+ '(rust-format-on-save nil)
  '(rust-indent-offset 2)
+ '(savehist-mode t)
  '(scroll-bar-mode nil)
  '(sh-basic-offset 2)
  '(sh-indentation 2)
@@ -143,6 +150,7 @@
  '(tool-bar-style 'text)
  '(user-full-name "Sauyon Lee")
  '(vertico-mode t)
+ '(vertico-posframe-mode t)
  '(ws-butler-global-mode t))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.

@@ -22,7 +22,7 @@ rec {
   ANDROID_HOME = "/opt/android-sdk";
   GOPATH = "${home}/devel/go";
 
-  PATH = "$PATH:$GOPATH/bin:${xdg.dataHome}/cargo/bin:${home}/.local/bin:${home}/.krew/bin";
+  PATH = "$PATH:/snap/bin:$GOPATH/bin:${xdg.dataHome}/cargo/bin:${home}/.local/bin:${home}/.krew/bin";
 
   GRAVEYARD = "$XDG_RUNTIME_DIR/trash";
 

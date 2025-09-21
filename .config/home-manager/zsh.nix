@@ -14,7 +14,7 @@
   autocd = true;
   defaultKeymap = "emacs";
 
-  dotDir = ".config/zsh";
+  dotDir = "${home}/.config/zsh";
 
   history = {
     expireDuplicatesFirst = true;
@@ -69,7 +69,7 @@
     # rsync is better.
     rcp = "${pkgs.rsync}/bin/rsync -rgoP";
 
-    chat = "LUA_PATH='$HOME/.config/weechat/lua/cjson.so' abduco -A chat weechat";
+    chat = "LUA_PATH='$HOME/.config/weechat/lua/cjson.so' ${pkgs.dtach}/bin/dtach -A chat weechat";
 
     ".." = "cd ..";
     "..." = "..;..";
@@ -108,9 +108,6 @@
     gcaf = "git commit -a --fixup";
 
     ykoath = "yubioath-desktop";
-
-    quck = "codeql query compile --warnings=error -n --search-path . --additional-packs . -j8";
-    qlfmt = "codeql autoformat";
 
     tf = "terraform";
     t = "terragrunt";

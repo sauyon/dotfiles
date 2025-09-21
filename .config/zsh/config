@@ -9,8 +9,8 @@ compinit -u
 # p10k
 if [[ -f /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme ]]; then
   source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
-elif [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/themes/powerlevel10k/powerlevel10k.zsh-theme" ]]; then
-	source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/themes/powerlevel10k/powerlevel10k.zsh-theme"
+elif [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/powerlevel10k/powerlevel10k.zsh-theme" ]]; then
+	source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/powerlevel10k/powerlevel10k.zsh-theme"
 fi
 
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.config/zsh/.zshrc.

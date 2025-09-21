@@ -28,7 +28,14 @@ rec {
 
   systemd.user.sessionVariables = home.sessionVariables;
 
-  home.packages = with pkgs; [ nixfmt-rfc-style ];
+  home.packages = with pkgs; [
+    nixfmt-rfc-style
+    bat
+    ripgrep
+    mosh
+    claude-code
+    lnav
+  ];
 
   nixpkgs.config = {
     allowUnfree = true;

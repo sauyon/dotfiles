@@ -29,12 +29,16 @@ rec {
   systemd.user.sessionVariables = home.sessionVariables;
 
   home.packages = with pkgs; [
-    nixfmt-rfc-style
-    bat
+    cosign
     ripgrep
-    mosh
-    claude-code
     lnav
+    bat
+    mosh
+    rustup
+    nixfmt-rfc-style
+    kubectl
+    kube-capacity
+    claude-code
   ];
 
   nixpkgs.config = {
@@ -104,7 +108,14 @@ rec {
     broot.enable = true;
     dircolors.enable = true;
     dircolors.enableZshIntegration = true;
-    direnv.enable = true;
+    direnv = {
+      enable = true;
+      # mise.enable = true;
+    };
+    mise = {
+      enable = true;
+      enableZshIntegration = true;
+    };
     zoxide = {
       enable = true;
       enableZshIntegration = true;
@@ -118,8 +129,6 @@ rec {
 
     git = {
       enable = true;
-      userName = "Sauyon Lee";
-      userEmail = "git@sjle.co";
       ignores = [
         ".vscode"
         "*~"
@@ -146,9 +155,11 @@ rec {
 
       lfs.enable = true;
 
-      extraConfig = {
+      settings = {
+        user.name = "Sauyon Lee";
+        user.email = "git@sjle.co";
         safe.directory = [
-          "/tf"
+          "/tf/*"
         ];
         init.defaulBranch = "main";
         commit = {
@@ -187,6 +198,9 @@ rec {
 
     ssh = lib.optionalAttrs (!isDarwin) {
       enable = true;
+
+      enableDefaultConfig = false;
+
       matchBlocks = {
         "aur" = {
           hostname = "aur.archlinux.org";

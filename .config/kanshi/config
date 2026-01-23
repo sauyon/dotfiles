@@ -56,5 +56,10 @@ profile {
 	output eDP-1 position	528,1440 transform normal scale 1.5
 }
 profile {
-  output "BOE 0x095F Unknown" mode 2256x1504 position 0,0 transform normal scale 1.5
+  output "BOE 0x095F Unknown" mode 2256x1504 position 0,0 transform normal scale 1
+}
+
+profile {
+  output DP-1 mode 1920x1080 position 0,0 transform normal
+  output eDP-1 mode 2256x1504 528,1080 transform normal
 }

@@ -6,6 +6,10 @@
 
 (global-set-key (kbd "C-j") 'lsp-find-definition)
 
+(global-set-key [?\s-x] 'kill-region)
+(global-set-key [?\s-c] 'kill-ring-save)
+(global-set-key [?\s-v] 'yank)
+
 ;; We don't need to be stuck with C-i as tab in 202x;
 (define-key input-decode-map [(control ?i)] [control-i])
 (define-key input-decode-map [(control ?I)] [(shift control-i)])

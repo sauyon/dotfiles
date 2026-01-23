@@ -34,7 +34,7 @@ input type:keyboard {
   xkb_variant "colemak"
   xkb_options "ctrl:nocaps,ctrl:swapcaps"
 
-  repeat_delay 150
+  repeat_delay 200
   repeat_rate 60
 
   dwt "disabled"
@@ -112,6 +112,9 @@ bindsym $mod+8 workspace 8
 bindsym $mod+9 workspace 9
 bindsym $mod+0 workspace 10
 
+bindgesture swipe:right workspace next
+bindgesture swipe:left workspace prev
+
 # move focused container to workspace
 bindsym $mod+Shift+1 move container to workspace 1
 bindsym $mod+Shift+2 move container to workspace 2
@@ -158,7 +161,7 @@ bindsym $mod+Shift+space floating toggle
 bindsym $mod+space focus mode_toggle
 
 # start a terminal
-bindsym $mod+Return exec alacritty msg create-window
+bindsym $mod+Return exec ghostty
 
 # start dmenu (a program launcher)
 # bindcode 133 exec --no-startup-id synapse
@@ -275,4 +278,4 @@ exec swayidle -w \
        before-sleep 'playerctl pause' \
        before-sleep "$HOME/.local/bin/lock"
 
-exec alacritty
+exec ghostty

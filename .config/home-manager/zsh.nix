@@ -13,7 +13,7 @@
   autocd = true;
   defaultKeymap = "emacs";
 
-  dotDir = "${home}/.config/zsh";
+  dotDir = "${xdg.configHome}/zsh";
 
   history = {
     expireDuplicatesFirst = true;
@@ -108,14 +108,15 @@
 
     ykoath = "yubioath-desktop";
 
-    tf = "terraform";
+    tf = "tofu";
     t = "terragrunt";
-    tra = "terragrunt run-all";
-    traa = "terragrunt run-all apply";
+    tm = "terramate";
+    taa = "terragrunt apply --all";
+    tpa = "terragrunt plan --all -out tfplan";
     ts = "tailscale";
     tsk = "tailscale configure kubeconfig";
 
     b = "bentoml";
-    bctl = "bentocloudctl";
+    bc = "bentocloudctl";
   };
 }

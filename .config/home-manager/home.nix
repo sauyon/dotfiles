@@ -302,7 +302,7 @@ rec {
           ui = "auto";
         };
         core = {
-          # pager = "${pkgs.gitAndTools.diff-so-fancy}/bin/diff-so-fancy | ${pkgs.less}/bin/less -RFx4";
+          pager = "${pkgs.diff-so-fancy}/bin/diff-so-fancy | ${pkgs.less}/bin/less -RFx4";
           editor = "/usr/bin/emacsclient -t";
           # editor = "${pkgs.emacs}/bin/emacsclient -t";
           whitespace = "trailing-space,space-before-tab";
@@ -428,6 +428,7 @@ rec {
 
         default_mode = "locked";
         pane_frames = false;
+        show_startup_tips = false;
 
         # 	bind "Alt g" { SwitchToMode "Locked"; }
         # 	bind "Alt d" { Detach; }

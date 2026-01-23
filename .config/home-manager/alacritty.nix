@@ -4,6 +4,13 @@ pkg: {
   settings = {
     # Configuration for Alacritty, the GPU enhanced terminal emulator.
 
+    general = {
+      import = [ "selenized-dark.yml" ];
+
+      # Live config reload (changes require restart)
+      live_config_reload = true;
+    };
+
     # Any items in the `env` entry below will be added as
     # environment variables. Some entries may override variables
     # set by alacritty itself.
@@ -182,8 +189,6 @@ pkg: {
       draw_bold_text_with_bright_colors = true;
     };
 
-    import = [ "selenized-dark.yml" ];
-
     # Visual Bell
     #
     # Any time the BEL code is received, Alacritty "rings" the visual bell. Once
@@ -232,9 +237,6 @@ pkg: {
       # window is not focused.
       unfocused_hollow = true;
     };
-
-    # Live config reload (changes require restart)
-    live_config_reload = true;
 
     # Shell
     #

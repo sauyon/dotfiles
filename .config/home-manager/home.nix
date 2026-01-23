@@ -114,8 +114,8 @@ rec {
       };
 
       input = {
-        repeat_delay = 300;
-        repeat_rate = 50;
+        repeat_delay = 200;
+        repeat_rate = 60;
       };
 
       decoration = {

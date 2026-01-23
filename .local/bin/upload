@@ -1,94 +1,178 @@
 #!/usr/bin/env bash
 
-set -e
+PASTEY_ENDPOINT=https://b2.vc/paste
 
-usage() {
-  cat <<EOF
-Usage:
-  $0 [-d DEST] [FILE...]
+show_help() {
+	cat <<-EOF
+	Usage: ${0##*/} [-h] [-e] [-f INFILE] [-s] [-t title] [-x time_hrs] [-- command]
 
-  $0 uploads a file or standard input to lyrica using scp and copies a link to
-  it to the clipboard using xclip or pbcopy.
+	CLI interface to pastey.
 
-  There are four modalities:
-   - If no file is provided, $0 will read from stdin and upload to either a
-     randomly generated filename or DEST if it is given
-   - If one file is provided, $0 will upload it into the root uploads folder with
-     either the basename of the original file or DEST if it is given.
-   - If multiple files are provided without a DEST, $0 will upload them all,
-     copying the URI for the first file.
-   - If multiple files are provided with a DEST, $0 will upload them into the
-     directory DEST and copy the URI for that directory.
-EOF
+	Available options:
+
+	-h, --help      Print this help and exit
+	-e, --encrypt   Encrypt the paste content
+	-f, --file		Read the content from this file.
+	-s, --single    Create a paste that expires after the first view
+	-t, --title     Set the title of the paste
+	-x, --expiration
+	                Set the time in hours after which the paste expires
+	                (Default is expiration is disabled)
+                    
+	--              Stop further option parsing
+	                Arguments passed after the -- option are evaluated
+	                as a command, and that command's output is pasted.
+	                The full command is used as the title.
+
+	If zero arguments are passed,
+	or none of --file or -- are passed,
+	content is read from stdin.
+
+	EOF
 }
 
-while getopts ":d:" o; do
-  case "$o" in
-    d)
-      name=${OPTARG}
-      if [[ $name == /* ]]; then
-        echo "Please don't prepend destination with a slash... I would prefer if you *didn't* try to break my server."
-        exit 1
-      fi
-      ;;
-    *)
-      usage
-      ;;
-  esac
+die() {
+	printf '%s\n' "$1" >&2
+	exit 1
+}
+
+
+# check required params and arguments
+
+file=
+expiration=
+title=
+single=
+encrypt=
+execute=
+
+while :; do
+	case $1 in
+		-h|--help)
+			show_help
+			exit
+			;;
+		-e|--encrypt)
+			encrypt='-F encrypt='
+			;;
+		-f|--file)
+			if [ "$2" ]; then
+				file=$2
+				if [ ! "$title" ]; then
+					title=$file
+				fi
+				shift
+			else
+				die 'ERROR: "--file requires a non-empty option argument.'
+			fi
+			;;
+		--file=?*)
+			file=${1#*=}
+			title=$file
+			;;
+		--file=)	# Handle the case of an empty --file=
+			die 'ERROR: "--file requires a non-empty option argument.'
+			;;
+		-s|--single)
+			single='-F single='
+			expiration=
+			;;
+		-t|--title)
+			if [ "$2" ]; then
+				title=$2
+				shift
+			else
+				die 'ERROR: --title requires a non-empty option argument'
+			fi
+			;;
+		--title=?*)
+			title=${1#*=}
+			;;
+		--title=)	# Handle the case of an empty --title=
+			die 'ERROR: --title requires a non-empty option argument'
+			;;
+		-x|--expiration)
+			if [ "$2" ]; then
+				expiration=$2
+				shift
+			else
+				die 'ERROR: --expiration requires a non-empty option argument'
+			fi
+			;;
+		--expiration=?*)
+			expiration=${1#*=}
+			;;
+		--expiration=)	# Handle the case of an empty --expiration=
+			die 'ERROR: --expiration requires a non-empty option argument'
+			;;
+		--)		# End of all options
+			shift
+			execute=("$@")
+			if [ ! "$title" ]; then
+				title=${execute[*]}
+			fi
+			break
+			;;
+		-?*)
+			printf 'WARN: Unknown option (ignored): %s\n' "$1" >&2
+			;;
+		*)		# Default case: No more options, so break out of the loop.
+			break
+	esac
+	shift
 done
 
-shift $((OPTIND-1))
 
-BASEURL="https://lyrica.sio.pw/uploads"
-SERVER="upload@lyrica.sio.pw"
-PORT=59049
-if command -v wl-copy &> /dev/null; then
-  CLIP=wl-copy
-elif command -v xclip &> /dev/null; then
-  CLIP='xclip -selection clipboard'
-elif command -v pbcopy &> /dev/null; then
-  CLIP=pbcopy
-else
-  echo "xclip, pbcopy, and wl-copy not found, echoing result"
-  CLIP=cat
+# do some sanity checks
+
+if [ "$expiration" ] && [ "$single" ]; then
+    die 'option -x|--expiration and -s|--single are mutually exclusive'
 fi
 
-if [ $# -eq 0 ]; then
-  if [ -z "$name" ]; then
-    name=$(strings /dev/urandom | tr -cd '[:alnum:]' | head -c 10)
-
-    while ssh -p $PORT $SERVER "[ -e \"$name\" ]"; do
-      name=$(strings /dev/urandom | tr -cd '[:alnum:]' | head -c 10)
-    done
-  elif ssh -p $PORT $SERVER "[ -e \"$name\" ]"; then
-    echo "File with name '$name' already exists on the server"
-    exit 2
-  fi
-
-  tmp="$(mktemp)"
-  exec > "$tmp"
-  while IFS= read -r line; do
-    printf '%s\n' "$line";
-  done
-
-  scp -P $PORT "$tmp" "$SERVER:$name"
-  ssh -p $PORT $SERVER chmod o+r "$name"
-  rm "$tmp"
-
-  echo "$BASEURL/$name" | $CLIP
-else
-  if [ -z "$name" ]; then
-    uri="$BASEURL/$(basename "$1")"
-  elif ssh -p $PORT $SERVER "[ -d \"$name\" ]"; then
-    uri="$BASEURL/$name/$(basename "$1")"
-  elif ssh -p $PORT $SERVER "[ -e \"$name\" ]"; then
-    echo "File with name '$name' already exists on the server"
-    exit 2
-  else
-    uri="$BASEURL/$name"
-  fi
-
-  scp -P $PORT "$@" "$SERVER:$name"
-
-  echo $uri | $CLIP
+if [ "${execute[*]}" ] && [ "$file" ]; then
+    die "-f|--file and -- <command> are mutually exclusive"
 fi
+
+# set title to unknown if empty
+
+if [ ! "$title" ]; then
+	title=untitled
+fi
+
+
+# read contents
+
+if [ "$execute" ]; then		# input from an executed command
+	exec {content_fd}< <("${execute[@]}" 2>&1)
+elif [ "$file" ]; then		# input from a file
+	if [ -r "$file" ]; then
+		exec {content_fd}< "$file"
+	else
+		die "Could not read from file \"$file\""
+	fi
+else	# read from stdin
+	exec {content_fd}< /dev/fd/0
+fi
+
+
+# expiration needs to be set to -1 if disabled
+
+if [ ! "${expiration}" ]; then
+	expiration="-1"
+fi
+
+
+# upload
+
+curl \
+	-X POST \
+	-F "cli=" \
+	-F "title=$title" \
+	-F "content=</dev/fd/$content_fd" \
+	-F "expiration=$expiration" \
+	${encrypt} \
+	${single} \
+	"${PASTEY_ENDPOINT}"
+echo
+
+exec {content_fd}<&-

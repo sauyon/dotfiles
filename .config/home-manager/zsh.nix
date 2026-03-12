@@ -42,6 +42,7 @@
     enable = true;
 
     plugins = [
+      "mise"
       "git"
       "golang"
       "sudo"
@@ -118,5 +119,8 @@
 
     b = "bentoml";
     bc = "bentocloudctl";
+
+    mr = "mise run";
+    cl = "claude";
   };
 }

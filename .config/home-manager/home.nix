@@ -7,6 +7,7 @@
 
 let
   isDarwin = pkgs.stdenv.isDarwin;
+  hostname = builtins.replaceStrings ["\n"] [""] (builtins.readFile "/etc/hostname");
 
   args = { inherit config lib pkgs; };
 in
@@ -38,6 +39,8 @@ rec {
     nixfmt-rfc-style
     kubectl
     kube-capacity
+    hyprpicker
+    kubectx
   ];
 
   nixpkgs.config = {
@@ -79,6 +82,13 @@ rec {
   };
 
   services = {
+    hyprpaper = {
+      enable = true;
+      settings = {
+        path = "${home.homeDirectory}/images/wallpapers/${hostname}.png";
+      };
+    };
+
     gpg-agent = lib.optionalAttrs (!isDarwin) {
       enable = true;
       enableSshSupport = true;
@@ -136,16 +146,22 @@ rec {
       "$menu" = "hyprlauncher";
       "$mainMod" = "SUPER";
 
+      "exec-once" = [
+        "emacsclient -c"
+      ];
+
       bind = [
         "$mainMod, return, exec, $terminal"
-        "$mainMod, K, killactive,"
-        "$mainMod SHIFT, E, exit,"
+        "$mainMod SHIFT, W, killactive,"
+        # "$mainMod SHIFT, E, exit,"
         "$mainMod SHIFT, space, togglefloating,"
         "$mainMod, space, exec, hyprctl dispatch focuswindow $(if [[ $(hyprctl activewindow -j | jq .\"floating\") == \"true\" ]]; then echo \"tiled\"; else echo \"floating\"; fi;)"
         "$mainMod, R, exec, $menu"
         # "$mainMod SHIFT, P, pseudo, # dwindle"
         # "$mainMod, V, togglesplit, # dwindle"
-        "$mainMod, G, togglegroup"
+        # "$mainMod, G, togglegroup"
+        "$mainMod SHIFT, Q, exec, swaylock"
+        "$mainMod SHIFT, S, exec, ${pkgs.hyprshot}/bin/hyprshot -m region"
 
         "$mainMod, O, exec, hyprpanel clearNotifications"
         # "$mainMod, O, exec, hyprpanel "
@@ -159,7 +175,10 @@ rec {
         "$mainMod SHIFT, P, movewindoworgroup, u"
         "$mainMod SHIFT, N, movewindoworgroup, d"
 
-        "$mainMod, L, fullscreen"
+        "$mainMod SHIFT, left, movecurrentworkspacetomonitor, l"
+        "$mainMod SHIFT, right, movecurrentworkspacetomonitor, r"
+
+        "$mainMod, M, fullscreen"
 
         "$mainMod, 1, workspace, 1"
         "$mainMod, 2, workspace, 2"
@@ -203,6 +222,9 @@ rec {
         ", XF86AudioPause, exec, playerctl play-pause"
         ", XF86AudioPlay, exec, playerctl play-pause"
         ", XF86AudioPrev, exec, playerctl previous"
+
+        ", switch:on:Lid Switch, exec, hyprctl dispatch dpms off && hyprctl dispatch exec swaylock"
+        ", switch:off:Lid Switch, exec, hyprctl dispatch dpms on"
       ];
     };
   };
@@ -214,35 +236,55 @@ rec {
       enable = true;
 
       settings = {
-        "DP-1" = {
-          left = ["dashboard" "workspaces" "windowtitle"];
-          middle = ["media"];
-          right = [
-            "volume"
-            "network"
-            "bluetooth"
-            "systray"
-            "clock"
-            "notifications"
-          ];
-        };
+        bar = {
+          clock.format = "%a %m-%d %H:%M:%S";
+          layouts = {
+            "DP-1" = {
+              left = ["dashboard" "workspaces" "windowtitle"];
+              middle = ["media"];
+              right = [
+                "volume"
+                "network"
+                "bluetooth"
+                "systray"
+                "clock"
+                "notifications"
+              ];
+            };
 
-        "*" = {
-          left = ["dashboard" "workspaces" "windowtitle"];
-          middle = ["media"];
-          right = ["volume" "clock" "notifications"];
+            "*" = {
+              left = ["dashboard" "workspaces" "windowtitle"];
+              middle = ["media"];
+              right = ["volume" "clock" "notifications"];
+            };
+          };
+
+          "customModules.storage.paths" = [ "/" ];
         };
       };
     };
 
+    claude-code = {
+      enable = true;
+      # enableMcpIntegration = true;
+    };
+
     home-manager.enable = true;
-    alacritty = import ./alacritty.nix pkgs.hello;
+
+    difftastic = {
+      enable = true;
+      git.enable = true;
+      options = {
+        display = "inline";
+      };
+    };
+    # alacritty = import ./alacritty.nix pkgs.hello;
     broot.enable = true;
     dircolors.enable = true;
     dircolors.enableZshIntegration = true;
     direnv = {
       enable = true;
-      # mise.enable = true;
+      mise.enable = true;
     };
     mise = {
       enable = true;
@@ -256,6 +298,10 @@ rec {
     # emacs.enable = !isDarwin;
 
     fzf.enable = true;
+
+    man = {
+      enable = true;
+    };
 
     git = {
       enable = true;
@@ -308,10 +354,6 @@ rec {
           whitespace = "trailing-space,space-before-tab";
         };
         diff.algorithm = "histogram";
-        diff-so-fancy = {
-          markEmptyLines = false;
-          stripLeadingSymbols = false;
-        };
         pull.rebase = true;
         merge.tool = "meld";
         credential."https://github.com".helper = "!/usr/bin/env gh auth git-credential";
@@ -375,6 +417,24 @@ rec {
         };
         "bcctl-subnet-router" = {
           user = "ubuntu";
+        };
+
+        "coder.*" = {
+          userKnownHostsFile = "/dev/null";
+          extraOptions = {
+	          ConnectTimeout="0";
+	          StrictHostKeyChecking="no";
+	          LogLevel = "ERROR";
+	          ProxyCommand = "/usr/bin/coder --global-config /home/sauyon/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
+          };
+        };
+        "*.coder" = {
+          userKnownHostsFile = "/dev/null";
+          extraOptions = {
+	          ConnectTimeout="0";
+	          StrictHostKeyChecking="no";
+	          LogLevel = "ERROR";
+          };
         };
       };
     };

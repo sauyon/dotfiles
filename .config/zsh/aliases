@@ -26,11 +26,9 @@ nsk() {
   fi
 }
 
-if exists swaymsg; then
-  function workspace() {
-    sleep 0.05 && swaymsg workspace $1
-  }
-fi
+function workspace() {
+  sleep 0.05 && (hyprctl dispatch workspace $1 || swaymsg workspace $1)
+}
 
 if non_gui; then
   alias edit="emacsclient -t"

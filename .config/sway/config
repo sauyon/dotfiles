@@ -143,7 +143,7 @@ bindsym $mod+Shift+$right move right
 bindsym $mod+k kill
 
 # enter fullscreen mode for the focused container
-bindsym $mod+t fullscreen
+bindsym $mod+m fullscreen
 
 # Make the currently focused window a scratchpad
 bindsym $mod+Shift+minus mark "scratch0", move scratchpad

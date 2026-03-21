@@ -60,6 +60,11 @@ profile {
 }
 
 profile {
+  output "Dell Inc. DELL P3424WEB F2VTM04" mode 3440x1440 position 0,0 transform normal
+  output eDP-1 mode 2560x1600 position 528,1440 transform normal
+}
+
+profile {
   output DP-1 mode 1920x1080 position 0,0 transform normal
-  output eDP-1 mode 2256x1504 528,1080 transform normal
+  output eDP-1 mode 2256x1504 position 528,1080 transform normal
 }

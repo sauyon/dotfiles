@@ -42,6 +42,9 @@
             zellij attach -c main_ssh
         fi
     fi
+
+    # The greeting. Yeah, yeah, I'm unimaginative. :'(
+    echo "Hello, $({pkgs.inetutils}/bin/hostname -s)"'!'
   '';
 
   oh-my-zsh = {
@@ -128,5 +131,8 @@
 
     mr = "mise run";
     cl = "claude";
+
+		hm = "home-manager";
+		hms = "home-manager switch";
   };
 }

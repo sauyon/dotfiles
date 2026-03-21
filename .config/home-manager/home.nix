@@ -45,6 +45,7 @@ rec {
     hyprlauncher
     unzip
     zip
+    slack
   ];
 
   nixpkgs.config = {

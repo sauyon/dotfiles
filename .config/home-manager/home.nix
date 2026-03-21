@@ -112,8 +112,8 @@ rec {
     enable = true;
     settings = {
       monitor = [
-        "eDP-1,preferred,auto,1.57"
-        "DP-1,preferred,auto,1"
+        "DP-1,preferred,0x0,1"
+        "eDP-1,preferred,auto-center-down,2"
       ];
 
       general = {
@@ -177,6 +177,8 @@ rec {
 
         "$mainMod SHIFT, left, movecurrentworkspacetomonitor, l"
         "$mainMod SHIFT, right, movecurrentworkspacetomonitor, r"
+        "$mainMod SHIFT, up, movecurrentworkspacetomonitor, u"
+        "$mainMod SHIFT, down, movecurrentworkspacetomonitor, d"
 
         "$mainMod, M, fullscreen"
 
@@ -275,11 +277,11 @@ rec {
       enable = true;
       git.enable = true;
       options = {
-        display = "inline";
+        # display = "inline";
       };
     };
     # alacritty = import ./alacritty.nix pkgs.hello;
-    broot.enable = true;
+    # broot.enable = true;
     dircolors.enable = true;
     dircolors.enableZshIntegration = true;
     direnv = {

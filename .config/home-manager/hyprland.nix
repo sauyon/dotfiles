@@ -4,6 +4,7 @@
 }:
 {
   enable = true;
+  package = null;
   settings = {
     monitor = [
       "DP-6,preferred,0x0,1"
@@ -37,28 +38,25 @@
     };
 
     "$terminal" = "ghostty";
-    "$menu" = "${pkgs.hyprlauncher}/bin/hyprlauncher";
+    "$menu" = "hyprlauncher";
     "$mainMod" = "SUPER";
 
-    "exec-once" = [
-      "emacsclient -c"
-    ];
+    "exec-once" = [];
 
     bind = [
       "$mainMod, return, exec, $terminal"
       "$mainMod SHIFT, W, killactive,"
-      # "$mainMod SHIFT, E, exit,"
+      "$mainMod SHIFT, E, exit,"
       "$mainMod SHIFT, space, togglefloating,"
       "$mainMod, space, exec, hyprctl dispatch focuswindow $(if [[ $(hyprctl activewindow -j | jq .\"floating\") == \"true\" ]]; then echo \"tiled\"; else echo \"floating\"; fi;)"
       "$mainMod, R, exec, $menu"
       # "$mainMod SHIFT, P, pseudo, # dwindle"
       # "$mainMod, V, togglesplit, # dwindle"
       # "$mainMod, G, togglegroup"
-      "$mainMod SHIFT, Q, exec, swaylock"
+      "$mainMod SHIFT, Q, exec, hyprlock"
       "$mainMod SHIFT, S, exec, ${pkgs.hyprshot}/bin/hyprshot -m region"
 
       "$mainMod, O, exec, hyprpanel clearNotifications"
-      # "$mainMod, O, exec, hyprpanel "
 
       "$mainMod, B, movefocus, l"
       "$mainMod, F, movefocus, r"

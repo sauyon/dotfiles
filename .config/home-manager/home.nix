@@ -46,6 +46,7 @@ rec {
     unzip
     zip
     slack
+    vscode
   ];
 
   nixpkgs.config = {
@@ -178,7 +179,13 @@ rec {
     };
     firefox = {
       enable = true;
-
+      profiles.default = {
+        settings = {
+          "sidebar.verticalTabs" = true;
+          "ui.key.accelKey" = 91;
+          "signon.rememberSignons" = false;
+        };
+      };
     };
     ghostty = {
       enable = true;

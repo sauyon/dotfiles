@@ -42,8 +42,9 @@ rec {
     kube-capacity
     hyprpicker
     kubectx
-    firefox
     hyprlauncher
+    unzip
+    zip
   ];
 
   nixpkgs.config = {
@@ -174,12 +175,27 @@ rec {
         # display = "inline";
       };
     };
+    firefox = {
+      enable = true;
+
+    };
     ghostty = {
       enable = true;
       enableZshIntegration = true;
       systemd.enable = true;
       installBatSyntax = true;
 
+      settings = {
+        keybind = [
+          "ctrl+enter=text:\\r"
+          "performable:super+c=copy_to_clipboard"
+          "performable:super+v=paste_from_clipboard"
+        ];
+      };
+    };
+    gh = {
+      enable = true;
+      gitCredentialHelper.enable = true;
     };
     dircolors = {
       enable = true;
@@ -259,8 +275,8 @@ rec {
         diff.algorithm = "histogram";
         pull.rebase = true;
         merge.tool = "meld";
-        credential."https://github.com".helper = "!/usr/bin/env gh auth git-credential";
-        credential."https://gist.github.com".helper = "!/usr/bin/env gh auth git-credential";
+        # credential."https://github.com".helper = "!/usr/bin/env gh auth git-credential";
+        # credential."https://gist.github.com".helper = "!/usr/bin/env gh auth git-credential";
       };
     };
 

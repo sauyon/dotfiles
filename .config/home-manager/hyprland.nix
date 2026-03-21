@@ -1,5 +1,6 @@
 {
   pkgs,
+  ...
 }:
 {
   enable = true;
@@ -36,7 +37,7 @@
     };
 
     "$terminal" = "ghostty";
-    "$menu" = "{pkgs.hyprlauncher}/bin/hyprlauncher";
+    "$menu" = "${pkgs.hyprlauncher}/bin/hyprlauncher";
     "$mainMod" = "SUPER";
 
     "exec-once" = [

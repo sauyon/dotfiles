@@ -44,7 +44,7 @@
     fi
 
     # The greeting. Yeah, yeah, I'm unimaginative. :'(
-    echo "Hello, $({pkgs.inetutils}/bin/hostname -s)"'!'
+    echo "Hello, $(${pkgs.inetutils}/bin/hostname -s)"'!'
   '';
 
   oh-my-zsh = {

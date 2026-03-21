@@ -36,6 +36,12 @@
     PAGER="${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --"
 
     bindkey '^T' transpose-chars
+
+    if [ -n "$SSH_CONNECTION" ] || [ -n "$SSH_CLIENT" ]; then
+        if [ -z "$ZELLIJ_SESSION_NAME" ]; then
+            zellij attach -c main_ssh
+        fi
+    fi
   '';
 
   oh-my-zsh = {

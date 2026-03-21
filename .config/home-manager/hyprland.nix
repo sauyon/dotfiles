@@ -1,14 +1,12 @@
 {
   pkgs,
-  ...
 }:
 {
   enable = true;
-  package = null;
   settings = {
     monitor = [
-      "DP-1,preferred,auto,1"
-      "eDP-1,preferred,auto-down,1.6"
+      "DP-6,preferred,0x0,1"
+      "eDP-1,preferred,auto-center-down,2"
     ];
 
     general = {
@@ -72,6 +70,8 @@
 
       "$mainMod SHIFT, left, movecurrentworkspacetomonitor, l"
       "$mainMod SHIFT, right, movecurrentworkspacetomonitor, r"
+      "$mainMod SHIFT, up, movecurrentworkspacetomonitor, u"
+      "$mainMod SHIFT, down, movecurrentworkspacetomonitor, d"
 
       "$mainMod, M, fullscreen"
 

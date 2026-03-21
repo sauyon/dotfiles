@@ -40,13 +40,12 @@ rec {
     nixfmt
     kubectl
     kube-capacity
-    hyprpicker
     kubectx
-    hyprlauncher
     unzip
     zip
     slack
     vscode
+    vesktop
   ];
 
   nixpkgs.config = {
@@ -119,6 +118,78 @@ rec {
   fonts.fontconfig.enable = true;
 
   programs = {
+    hyprlock = {
+      enable = true;
+      package = null;
+      settings = {
+        general = {
+          hide_cursor = true;
+        };
+
+        background = [
+          {
+            monitor = "";
+            path = "screenshot";
+            blur_passes = 3;
+            blur_size = 8;
+          }
+        ];
+
+        auth = {
+          "fingerprint:enabled" = true;
+        };
+
+        input-field = [
+          {
+            monitor = "";
+            size = "300, 50";
+            position = "0, -80";
+            halign = "center";
+            valign = "center";
+            outline_thickness = 2;
+            dots_size = 0.33;
+            dots_spacing = 0.15;
+            dots_center = true;
+            outer_color = "rgb(151515)";
+            inner_color = "rgb(200, 200, 200)";
+            font_color = "rgb(10, 10, 10)";
+            fade_on_empty = true;
+            placeholder_text = "<i>Password...</i>";
+            hide_input = false;
+            check_color = "rgb(204, 136, 34)";
+            fail_color = "rgb(204, 34, 34)";
+            fail_text = "<i>$FAIL <b>($ATTEMPTS)</b></i>";
+            capslock_color = "rgb(170, 0, 255)";
+          }
+        ];
+
+        label = [
+          {
+            monitor = "";
+            text = ''cmd[update:1000] echo "$(date +"%H:%M:%S")"'';
+            font_size = 64;
+            font_family = "NotoSans Nerd Font";
+            position = "0, 80";
+            halign = "center";
+            valign = "center";
+            color = "rgba(255, 255, 255, 0.9)";
+          }
+          {
+            monitor = "";
+            text = ''cmd[update:60000] echo "$(date +"%A, %B %-d")"'';
+            font_size = 24;
+            font_family = "NotoSans Nerd Font";
+            position = "0, 10";
+            halign = "center";
+            valign = "center";
+            color = "rgba(255, 255, 255, 0.7)";
+          }
+          {
+
+          }
+        ];
+      };
+    };
     hyprpanel = {
       enable = true;
 
@@ -189,9 +260,10 @@ rec {
     };
     ghostty = {
       enable = true;
+      package = null;
       enableZshIntegration = true;
-      systemd.enable = true;
-      installBatSyntax = true;
+      systemd.enable = false;
+      # installBatSyntax = true;
 
       settings = {
         keybind = [
@@ -441,7 +513,7 @@ rec {
     portal = {
       enable = true;
       config = {
-        common.default = [ "gtk" ];
+        common.default = [ "hyprland;gtk" ];
       };
     };
 

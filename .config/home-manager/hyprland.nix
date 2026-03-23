@@ -117,7 +117,7 @@
       ", XF86AudioPlay, exec, playerctl play-pause"
       ", XF86AudioPrev, exec, playerctl previous"
 
-      ", switch:on:Lid Switch, exec, hyprctl dispatch dpms off && hyprctl dispatch exec swaylock"
+      ", switch:on:Lid Switch, exec, hyprctl dispatch dpms off && hyprctl dispatch exec hyprlock"
       ", switch:off:Lid Switch, exec, hyprctl dispatch dpms on"
     ];
   };

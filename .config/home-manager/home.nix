@@ -471,8 +471,8 @@ rec {
     );
 
     zellij = {
-      enable = false;
-      enableZshIntegration = true;
+      enable = true;
+      enableZshIntegration = false;
       settings = {
         keybinds = {
           normal = {

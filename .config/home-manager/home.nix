@@ -328,8 +328,8 @@ rec {
         "flake.nix"
         "flake.lock"
         "*.local.json"
-        ".claude/worktrees"
         "*.local.toml"
+        ".claude/worktrees"
       ];
 
       signing = {

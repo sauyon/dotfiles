@@ -41,7 +41,9 @@
     "$menu" = "hyprlauncher";
     "$mainMod" = "SUPER";
 
-    "exec-once" = [];
+    "exec-once" = [
+      "kanshi"
+    ];
 
     bind = [
       "$mainMod, return, exec, $terminal"

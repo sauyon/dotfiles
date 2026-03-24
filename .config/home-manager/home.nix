@@ -329,6 +329,7 @@ rec {
         "flake.lock"
         "*.local.json"
         ".claude/worktrees"
+        "*.local.toml"
       ];
 
       signing = {

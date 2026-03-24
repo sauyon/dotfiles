@@ -185,7 +185,14 @@ rec {
             color = "rgba(255, 255, 255, 0.7)";
           }
           {
-
+            monitor = "";
+            text = " $FPRINTPROMPT";
+            font_size = 14;
+            font_family = "NotoSans Nerd Font";
+            position = "0, -140";
+            halign = "center";
+            valign = "center";
+            color = "rgba(255, 255, 255, 0.7)";
           }
         ];
       };
@@ -320,7 +327,8 @@ rec {
         "shell.nix"
         "flake.nix"
         "flake.lock"
-        ".aider*"
+        "*.local.json"
+        ".claude/worktrees"
       ];
 
       signing = {

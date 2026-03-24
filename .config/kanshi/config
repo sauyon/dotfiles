@@ -1,7 +1,7 @@
 output "BOE NE160QDM-NZ6 Unknown" {
 	mode 2560x1600
-	position 528,1440
-	scale 1
+	position 0,0
+	scale 2
 	transform normal
 	alias $UTSUHO
 }

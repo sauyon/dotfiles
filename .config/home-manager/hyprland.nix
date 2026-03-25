@@ -6,11 +6,6 @@
   enable = true;
   package = null;
   settings = {
-    monitor = [
-      "DP-6,preferred,0x0,1"
-      "eDP-1,preferred,auto-center-down,2"
-    ];
-
     general = {
       gaps_in = 0;
       gaps_out = 0;
@@ -21,6 +16,13 @@
     input = {
       repeat_delay = 200;
       repeat_rate = 60;
+    };
+
+    device = {
+      name = "framework-laptop-16-keyboard-module---ansi-keyboard";
+      kb_layout = "us";
+      kb_variant = "colemak";
+      kb_options = "ctrl:nocaps,ctrl:swapcaps";
     };
 
     decoration = {

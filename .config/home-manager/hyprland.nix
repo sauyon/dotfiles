@@ -16,6 +16,7 @@
     input = {
       repeat_delay = 200;
       repeat_rate = 60;
+      resolve_binds_by_sym = 1;
     };
 
     device = {
@@ -59,6 +60,7 @@
       # "$mainMod, G, togglegroup"
       "$mainMod SHIFT, Q, exec, hyprlock"
       "$mainMod SHIFT, S, exec, ${pkgs.hyprshot}/bin/hyprshot -m region"
+      "$mainMod, E, exec, emacsclient -c"
 
       "$mainMod, O, exec, hyprpanel clearNotifications"
 

@@ -30,7 +30,9 @@ rec {
   systemd.user.sessionVariables = home.sessionVariables;
 
   home.packages = with pkgs; [
+    bfs
     btop
+    coder
     comma
     ripgrep
     lnav
@@ -236,6 +238,8 @@ rec {
             };
           };
 
+          workspaces.showNumbers = true;
+
           "customModules.storage.paths" = [ "/" ];
         };
       };
@@ -434,6 +438,12 @@ rec {
             StrictHostKeyChecking = "no";
             LogLevel = "ERROR";
             ProxyCommand = "/usr/bin/coder --global-config /home/sauyon/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
+          };
+        };
+        "*.coder-proxy" = {
+          match = "host *.coder !exec \"${pkgs.coder}/bin/.coder-wrapped connect exists %h\"";
+          extraOptions = {
+            ProxyCommand = "${pkgs.coder}/bin/.coder-wrapped --global-config /home/sauyon/.config/coderv2 ssh --stdio --hostname-suffix coder %h";
           };
         };
         "*.coder" = {

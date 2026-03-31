@@ -29,6 +29,16 @@
     source "$XDG_CONFIG_HOME/zsh/config"
     source "$XDG_CONFIG_HOME/zsh/aliases"
 
+    eval "$(${pkgs.mise}/bin/mise activate zsh)"
+
+    # mise completions
+    if [[ ! -f "$ZSH_CACHE_DIR/completions/_mise" ]]; then
+      typeset -g -A _comps
+      autoload -Uz _mise
+      _comps[mise]=_mise
+    fi
+    ${pkgs.mise}/bin/mise completion zsh >| "$ZSH_CACHE_DIR/completions/_mise" &|
+
     [ -f /etc/profile.d/google-cloud-cli.sh ] && source /etc/profile.d/google-cloud-cli.sh
 
     [ -f $HOME/.nix-profile/etc/profile.d/nix.sh ] && [ -z $NIX_PATH ] && source $HOME/.nix-profile/etc/profile.d/nix.sh
@@ -51,7 +61,6 @@
     enable = true;
 
     plugins = [
-      "mise"
       "git"
       "golang"
       "sudo"
@@ -130,7 +139,14 @@
     bc = "bentocloudctl";
 
     mr = "mise run";
-    cl = "claude";
+
+    cl = "claude --enable-auto-mode";
+    clw = "claude --enable-auto-mode --worktree";
+
+    z = "zellij";
+    zs = "zellij -s";
+    za = "zellij attach";
+    zl = "zellij list-sessions | rg -v EXITED";
 
 		hm = "home-manager";
 		hms = "home-manager switch";

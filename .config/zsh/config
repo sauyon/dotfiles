@@ -114,3 +114,4 @@ export BENTOCLOUDCTL_PRIVATE_KEY_PATH="$HOME/.ssh/id_sauyon_tofu"
 # 	# extremely hacky workaround to mosh and winterm incorrectly only advertising 256color capabiliy
 # 	export TERM=xterm-direct
 # fi
+export PATH="/opt/homebrew/opt/rustup/bin:$PATH"

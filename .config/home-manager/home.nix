@@ -34,6 +34,8 @@ rec {
     btop
     coder
     comma
+    gitstatus
+    cosign
     ripgrep
     lnav
     bat
@@ -48,6 +50,8 @@ rec {
     slack
     vscode
     vesktop
+  ] ++ lib.optionals (!isDarwin) [
+    hyprpicker
   ];
 
   nixpkgs.config = {
@@ -90,7 +94,7 @@ rec {
 
   services = {
     hyprpaper = {
-      enable = true;
+      enable = !isDarwin;
       settings = {
         path = "${home.homeDirectory}/images/wallpapers/${hostname}.png";
       };
@@ -104,7 +108,7 @@ rec {
       pinentry.package = pkgs.pinentry-gnome3;
     };
 
-    gnome-keyring = {
+    gnome-keyring = lib.optionalAttrs (!isDarwin) {
       enable = true;
       components = [
         "pkcs11"
@@ -115,7 +119,7 @@ rec {
     # emacs.enable = !isDarwin;
   };
 
-  wayland.windowManager.hyprland = import ./hyprland.nix (pkgs);
+  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin) (import ./hyprland.nix (pkgs));
 
   fonts.fontconfig.enable = true;
 
@@ -200,7 +204,7 @@ rec {
       };
     };
     hyprpanel = {
-      enable = true;
+      enable = !isDarwin;
 
       settings = {
         bar = {
@@ -255,7 +259,7 @@ rec {
     home-manager.enable = true;
 
     difftastic = {
-      enable = true;
+      enable = !isDarwin;
       git.enable = true;
       options = {
         # display = "inline";
@@ -335,7 +339,8 @@ rec {
         "flake.lock"
         "*.local.json"
         "*.local.toml"
-        ".claude/worktrees"
+        ".aider*"
+        "/.claude"
       ];
 
       signing = {
@@ -529,17 +534,17 @@ rec {
   };
 
   xdg = {
-    mime.enable = true;
+    mime.enable = !isDarwin;
 
     portal = {
-      enable = true;
+      enable = !isDarwin;
       config = {
         common.default = [ "hyprland;gtk" ];
       };
     };
 
     mimeApps = {
-      enable = true;
+      enable = !isDarwin;
 
       defaultApplications = {
         "text/html" = "firefox.desktop";

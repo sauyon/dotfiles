@@ -218,6 +218,7 @@ rec {
                 "network"
                 "bluetooth"
                 "systray"
+                "ram"
                 "clock"
                 "notifications"
               ];
@@ -232,6 +233,7 @@ rec {
               middle = [ "media" ];
               right = [
                 "volume"
+                "ram"
                 "clock"
                 "notifications"
               ];

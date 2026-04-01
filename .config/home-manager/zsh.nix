@@ -128,7 +128,7 @@
     ykoath = "yubioath-desktop";
 
     tf = "tofu";
-    t = "terragrunt";
+    t = "mise run tg --";
     tm = "terramate";
     taa = "terragrunt apply --all";
     tpa = "terragrunt plan --all -out tfplan";

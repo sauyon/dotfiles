@@ -43,6 +43,8 @@
 
     [ -f $HOME/.nix-profile/etc/profile.d/nix.sh ] && [ -z $NIX_PATH ] && source $HOME/.nix-profile/etc/profile.d/nix.sh
 
+    [ -f /opt/homebrew/bin/brew ] && eval $(/opt/homebrew/bin/brew shellenv)
+
     PAGER="${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --"
 
     bindkey '^T' transpose-chars

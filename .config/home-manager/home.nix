@@ -238,7 +238,7 @@ rec {
             };
           };
 
-          workspaces.showNumbers = true;
+          workspaces.show_numbered = true;
 
           "customModules.storage.paths" = [ "/" ];
         };

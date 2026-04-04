@@ -6,13 +6,6 @@
 fpath+="$HOME/.config/zsh/.zfunc"
 compinit -u
 
-# p10k
-if [[ -f /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme ]]; then
-  source /usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme
-elif [[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/powerlevel10k/powerlevel10k.zsh-theme" ]]; then
-	source "${XDG_CONFIG_HOME:-$HOME/.config}/zsh/powerlevel10k/powerlevel10k.zsh-theme"
-fi
-
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.config/zsh/.zshrc.
 # Initialization code that may require console input (password prompts, [y/n]
 # confirmations, etc.) must go above this block; everything else may go below.
@@ -33,7 +26,6 @@ if [ -f '/home/sauyon/.nebius/path.zsh.inc' ]; then source '/home/sauyon/.nebius
 # The next line enables shell command completion for Nebius CLI.
 if [ -f '/home/sauyon/.nebius/completion.zsh.inc' ]; then source '/home/sauyon/.nebius/completion.zsh.inc'; fi
 
-# To customize prompt, run `p10k configure` or edit ~/.config/zsh/.p10k.zsh.
 [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
 
 # LD_LIBRARY_PATH?!

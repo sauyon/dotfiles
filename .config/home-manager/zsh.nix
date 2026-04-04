@@ -23,6 +23,14 @@
     size = 1000000;
   };
 
+  plugins = [
+    {
+      name = "powerlevel10k";
+      src = pkgs.zsh-powerlevel10k;
+      file = "share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
+    }
+  ];
+
   initContent = ''
     export "XDG_CONFIG_HOME=$HOME/.config"
     source "$XDG_CONFIG_HOME/zsh/utils"

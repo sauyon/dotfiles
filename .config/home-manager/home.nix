@@ -34,7 +34,6 @@ rec {
     btop
     coder
     comma
-    gitstatus
     cosign
     ripgrep
     lnav

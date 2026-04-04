@@ -38,6 +38,7 @@ rec {
     ripgrep
     lnav
     bat
+    mise
     mosh
     rustup
     nixfmt

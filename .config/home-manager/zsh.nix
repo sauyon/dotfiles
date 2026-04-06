@@ -83,6 +83,7 @@
     XDG_CONFIG_HOME = "$HOME/.config";
     XDG_DATA_HOME = "$HOME/.local/share";
     XDG_RUNTIME_DIR = "/run/user/$(id -u)";
+    _ZO_DOCTOR = "0";
   };
 
   shellAliases = {

@@ -71,6 +71,19 @@ rec {
           sha256 = "1g735n0xr50vgcw30igldhmjvb40jgk65x5qjnnxidvm1i3vykw9";
         };
       });
+      mosh = super.mosh.overrideAttrs (old: {
+        version = "git-decd9b7";
+        src = super.fetchFromGitHub {
+          owner = "mobile-shell";
+          repo = "mosh";
+          rev = "decd9b705eb81626f694335b8d5940538beb06da";
+          hash = "sha256-SsIj2JCDw7qkJ0NiX0FEQVYM0ATFpC9O/m7jycri0nU=";
+        };
+        # eee1a8cf is already included in HEAD; drop it to avoid reversed-patch error
+        patches = builtins.filter
+          (p: !(builtins.isAttrs p && lib.hasInfix "eee1a8cf" (p.url or "")))
+          old.patches;
+      });
       # 2.1.88 was yanked from npm; override until nixpkgs catches up to 2.1.89
       claude-code = super.claude-code.overrideAttrs (old: rec {
         version = "2.1.89";

@@ -31,13 +31,22 @@
     }
   ];
 
+  envExtra = ''
+    # brew
+    if [[ -f /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    elif [[ -f /opt/homebrew/bin/brew ]]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
+
+    eval "$(${pkgs.mise}/bin/mise activate zsh)"
+  '';
+
   initContent = ''
     export "XDG_CONFIG_HOME=$HOME/.config"
     source "$XDG_CONFIG_HOME/zsh/utils"
     source "$XDG_CONFIG_HOME/zsh/config"
     source "$XDG_CONFIG_HOME/zsh/aliases"
-
-    eval "$(${pkgs.mise}/bin/mise activate zsh)"
 
     # mise completions
     if [[ ! -f "$ZSH_CACHE_DIR/completions/_mise" ]]; then
@@ -50,8 +59,6 @@
     [ -f /etc/profile.d/google-cloud-cli.sh ] && source /etc/profile.d/google-cloud-cli.sh
 
     [ -f $HOME/.nix-profile/etc/profile.d/nix.sh ] && [ -z $NIX_PATH ] && source $HOME/.nix-profile/etc/profile.d/nix.sh
-
-    [ -f /opt/homebrew/bin/brew ] && eval $(/opt/homebrew/bin/brew shellenv)
 
     PAGER="${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --"
 

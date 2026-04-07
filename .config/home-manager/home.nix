@@ -14,6 +14,8 @@ in
 rec {
   home.stateVersion = "21.11";
 
+  xdg.userDirs.setSessionVariables = true;
+
   home.username = builtins.getEnv "USER";
   home.homeDirectory = builtins.getEnv "HOME";
 
@@ -68,6 +70,28 @@ rec {
           rev = "3a99be0b3d76a691c940608c477955d122f37e75";
           sha256 = "1g735n0xr50vgcw30igldhmjvb40jgk65x5qjnnxidvm1i3vykw9";
         };
+      });
+      # 2.1.88 was yanked from npm; override until nixpkgs catches up to 2.1.89
+      claude-code = super.claude-code.overrideAttrs (old: rec {
+        version = "2.1.89";
+        src = super.fetchzip {
+          url = "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-${version}.tgz";
+          hash = "sha256-FoTm6KDr+8Dzhk4ibZUlU1QLPFdPm/OriUUWqAaFswg=";
+        };
+        npmDeps = super.fetchNpmDeps {
+          src = super.runCommand "claude-code-${version}-src-with-lock" { } ''
+            cp -r ${src}/. $out
+            chmod -R u+w $out
+            cp ${./claude-code-package-lock.json} $out/package-lock.json
+          '';
+          name = "claude-code-${version}-npm-deps";
+          hash = "sha256-NI4F5bq0lEuMjLUdkGrml2aOzGbGkdyUckgfeVFEe8o=";
+        };
+        postPatch = ''
+          cp ${./claude-code-package-lock.json} package-lock.json
+          substituteInPlace cli.js \
+                --replace-fail '#!/bin/sh' '#!/usr/bin/env sh'
+        '';
       });
     })
   ];
@@ -344,6 +368,7 @@ rec {
       ];
 
       signing = {
+        format = "openpgp";
         signByDefault = false;
         key = "git@sjle.co";
       };

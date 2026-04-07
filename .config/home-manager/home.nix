@@ -160,6 +160,7 @@ rec {
 
   fonts.fontconfig.enable = true;
 
+
   programs = {
     hyprlock = {
       enable = true;
@@ -377,7 +378,6 @@ rec {
         "*.local.json"
         "*.local.toml"
         ".aider*"
-        "/.claude"
       ];
 
       signing = {

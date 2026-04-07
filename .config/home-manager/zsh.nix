@@ -62,6 +62,8 @@
 
     PAGER="${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --"
 
+    yank() { printf '\033]52;c;%s\a' "$(base64 | tr -d '\n')"; }
+
     bindkey '^T' transpose-chars
 
     if [ -n "$SSH_CONNECTION" ] || [ -n "$SSH_CLIENT" ]; then

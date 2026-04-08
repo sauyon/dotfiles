@@ -165,7 +165,7 @@
 
     z = "zellij";
     zs = "zellij -s";
-    za = "zellij attach";
+    za = "zellij attach -c";
     zl = "zellij list-sessions | rg -v EXITED";
 
 		hm = "home-manager";

@@ -378,6 +378,8 @@ rec {
         "*.local.json"
         "*.local.toml"
         ".aider*"
+        ".claude/worktrees"
+        ".claude/scheduled_tasks.lock"
       ];
 
       signing = {

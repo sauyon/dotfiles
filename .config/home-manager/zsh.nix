@@ -159,6 +159,7 @@
     bc = "bentocloudctl";
 
     mr = "mise run";
+    mrk = "mise run kubeconfig";
 
     cl = "claude --enable-auto-mode";
     clw = "claude --enable-auto-mode --worktree";

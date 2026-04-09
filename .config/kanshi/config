@@ -19,7 +19,7 @@ profile "setsuna" {
 }
 
 profile "home" {
-  output "GIGA-BYTE TECHNOLOGY CO., LTD. AORUS FO48U 21170B001458" mode 3840x2160 position 0,0 scale 2222
+  output "GIGA-BYTE TECHNOLOGY CO., LTD. AORUS FO48U 21170B001458" mode 3840x2160 position 0,0 scale 2
 	output eDP-1 disable
 }
 

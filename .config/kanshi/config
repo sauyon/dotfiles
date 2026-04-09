@@ -14,6 +14,10 @@ output "BOE 0x095F Unknown" {
 	alias $SETSUNA
 }
 
+profile "setsuna" {
+  output $SETSUNA enable scale 1
+}
+
 profile "home" {
   output "GIGA-BYTE TECHNOLOGY CO., LTD. AORUS FO48U 21170B001458" mode 3840x2160 position 0,0 scale 2222
 	output eDP-1 disable

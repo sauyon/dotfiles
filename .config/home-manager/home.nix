@@ -111,7 +111,10 @@ rec {
         home = home.homeDirectory;
       }
     )
-    // (lib.optionalAttrs (builtins.pathExists ./secrets.nix) (import ./secrets.nix));
+    // (lib.optionalAttrs (builtins.pathExists ./secrets.nix) (import ./secrets.nix))
+    // (lib.optionalAttrs (hostname == "setsuna") {
+      QT_FONT_DPI = "120";
+    });
 
   systemd.user.sessionVariables = home.sessionVariables;
 
@@ -269,6 +272,12 @@ rec {
 
   wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin) (import ./hyprland.nix (pkgs));
 
+  dconf.settings = lib.optionalAttrs (hostname == "setsuna") {
+    "org/gnome/desktop/interface" = {
+      text-scaling-factor = 1.25;
+    };
+  };
+
   fonts.fontconfig.enable = true;
 
 
@@ -356,6 +365,16 @@ rec {
       enable = !isDarwin;
 
       settings = {
+        theme.font = {
+          name = "NotoSans Nerd Font";
+        } // lib.optionalAttrs (hostname == "setsuna") {
+          size = "14px";
+        };
+
+        theme.bar = lib.optionalAttrs (hostname == "setsuna") {
+          scaling = 125;
+        };
+
         bar = {
           clock.format = "%a %m-%d %H:%M:%S";
           layouts = {
@@ -489,6 +508,8 @@ rec {
           "super+t=new_tab"
           "ctrl+comma=unbind"
         ];
+      } // lib.optionalAttrs (hostname == "setsuna") {
+        font-size = 14;
       };
     };
     gh = {

@@ -364,6 +364,7 @@ rec {
     };
     hyprpanel = {
       enable = !isDarwin;
+      systemd.enable = false;
 
       settings = {
         theme.font = {
@@ -378,6 +379,7 @@ rec {
 
         bar = {
           clock.format = "%a %m-%d %H:%M:%S";
+          "customModules.ram.icon" = "󰍛";
           layouts = {
             "DP-1" = {
               left = [
@@ -406,6 +408,7 @@ rec {
               middle = [ "media" ];
               right = [
                 "volume"
+                "battery"
                 "ram"
                 "clock"
                 "notifications"

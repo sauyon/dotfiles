@@ -198,6 +198,7 @@ rec {
 
   gtk = lib.optionalAttrs (!isDarwin) {
     enable = true;
+    colorScheme = "dark";
     gtk2.configLocation = "${config.xdg.configHome}/gtk-2.0/gtkrc";
     gtk3.extraConfig.gtk-key-theme-name = "Emacs";
     gtk3.extraCss = ''
@@ -227,11 +228,11 @@ rec {
       name = "Plano";
       package = pkgs.plano-theme;
     };
+    gtk4.theme = config.gtk.theme;
     iconTheme = {
       name = "Yaru-dark";
       package = pkgs.yaru-theme;
     };
-    gtk4.theme = null;
     font = {
       name = "NotoSans Nerd Font";
       package = pkgs.nerd-fonts.noto;

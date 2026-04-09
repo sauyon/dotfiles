@@ -19,12 +19,20 @@
       resolve_binds_by_sym = 1;
     };
 
-    device = {
-      name = "framework-laptop-16-keyboard-module---ansi-keyboard";
-      kb_layout = "us";
-      kb_variant = "colemak";
-      kb_options = "ctrl:nocaps,ctrl:swapcaps";
-    };
+    device = [
+      {
+        name = "framework-laptop-16-keyboard-module---ansi-keyboard";
+        kb_layout = "us";
+        kb_variant = "colemak";
+        kb_options = "ctrl:nocaps,ctrl:swapcaps";
+      }
+      {
+        name = "at-translated-set-2-keyboard";
+        kb_layout = "us";
+        kb_variant = "colemak";
+        kb_options = "ctrl:nocaps,ctrl:swapcaps";
+      }
+    ];
 
     decoration = {
       shadow.enabled = false;
@@ -38,6 +46,7 @@
     misc = {
       disable_hyprland_logo = true;
       disable_splash_rendering = true;
+      focus_on_activate = true;
     };
 
     "$terminal" = "ghostty";
@@ -47,6 +56,7 @@
     "exec-once" = [
       "dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP"
       "kanshi"
+      "hyprpanel"
     ];
 
     bind = [
@@ -115,8 +125,8 @@
       ",XF86AudioLowerVolume, exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"
       ",XF86AudioMute, exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
       ",XF86AudioMicMute, exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"
-      ",XF86MonBrightnessUp, exec, brightnessctl -e4 -n2 set 5%+"
-      ",XF86MonBrightnessDown, exec, brightnessctl -e4 -n2 set 5%-"
+      ",XF86MonBrightnessUp, exec, ${pkgs.brightnessctl}/bin/brightnessctl -e4 -n2 set 5%+"
+      ",XF86MonBrightnessDown, exec, ${pkgs.brightnessctl}/bin/brightnessctl -e4 -n2 set 5%-"
     ];
     bindl = [
       ", XF86AudioNext, exec, ${pkgs.playerctl}/bin/playerctl next"

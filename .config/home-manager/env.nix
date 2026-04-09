@@ -42,6 +42,7 @@ rec {
   STUDIO_JDK = "/usr/lib/jvm/java-11-openjdk/";
 
   MOZ_ENABLE_WAYLAND = "1";
+  MOZ_LEGACY_PROFILES = "1";
 
   TG_PROVIDER_CACHE = "1";
 }

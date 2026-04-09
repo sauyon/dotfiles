@@ -545,6 +545,7 @@ rec {
     git = {
       enable = true;
       ignores = [
+        ".DS_Store"
         ".vscode"
         "*~"
         "\\#*#"

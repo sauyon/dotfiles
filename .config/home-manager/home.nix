@@ -122,7 +122,7 @@ rec {
       PartOf = [ "graphical-session.target" ];
     };
     Service = {
-      ExecStart = "${pkgs.xremap}/bin/xremap ${config.xdg.configHome}/xremap/config.yml";
+      ExecStart = "xremap ${config.xdg.configHome}/xremap/config.yml";
       Restart = "on-failure";
       RestartSec = 3;
     };
@@ -148,11 +148,9 @@ rec {
     unzip
     zip
     slack
-    vscode
     vesktop
   ] ++ lib.optionals (!isDarwin) [
     hyprpicker
-    xremap
   ];
 
   nixpkgs.config = {
@@ -163,8 +161,8 @@ rec {
   nixpkgs.overlays = [
     (final: prev: {
       nur = import (builtins.fetchTarball {
-        url = "https://github.com/nix-community/NUR/archive/7f4366be821b64f130c08dd47cbc22cad3003d97.tar.gz";
-        sha256 = "1vkhfqafcyr17r4ghxhrgcgh39rij8avqi0541nm7178c45yiwl2";
+        url = "https://github.com/nix-community/NUR/archive/4b22de075887985d445668c4634ae148618c6a41.tar.gz";
+        sha256 = "1fkb8bv1qfls4gvvim91pgxms6vidm093ycc3vwnacygjgbv5hqh";
       }) {
         nurpkgs = prev;
         pkgs = prev;
@@ -252,6 +250,7 @@ rec {
       name = "Yaru-dark";
       package = pkgs.yaru-theme;
     };
+    gtk4.theme = null;
     font = {
       name = "NotoSans Nerd Font";
       package = pkgs.nerd-fonts.noto;
@@ -423,6 +422,47 @@ rec {
       };
     };
 
+    thunderbird = {
+      enable = true;
+      profiles.default = {
+        isDefault = true;
+        extensions = [
+          (pkgs.fetchFirefoxAddon {
+            name = "tbkeys";
+            url = "https://github.com/wshanks/tbkeys/releases/download/v2.4.3/tbkeys.xpi";
+            hash = "sha256-2e+T5Nr5kc2s8EykFzWKaJZ2jPUDHh9Cqn4hCuDCLaM=";
+          })
+        ];
+      };
+      settings = {
+        "mail.tabs.drawInTitlebar" = false;
+        "ui.key.accelKey" = 91;
+        "ui.key.textcontrol.prefer_native_key_bindings_over_builtin_shortcut_key_definitions" = true;
+        "extensions.tbkeys.mainkeys" = builtins.toJSON {
+          # cycle panes
+          "ctrl+x o" = "eval:document.commandDispatcher.advanceFocus()";
+          # navigation
+          "alt+n" = "cmd:cmd_nextMsg";
+          "alt+p" = "cmd:cmd_previousMsg";
+          # actions
+          "c" = "cmd:cmd_newMessage";
+          "r" = "cmd:cmd_reply";
+          "a" = "cmd:cmd_replyAll";
+          "f" = "cmd:cmd_forward";
+          "d" = "cmd:cmd_delete";
+          "e" = "cmd:cmd_archive";
+          "enter" = "cmd:cmd_openMessage";
+          "u" = "tbkeys:closeMessageAndRefresh";
+          # unset defaults that conflict
+          "j" = "unset";
+          "k" = "unset";
+          "o" = "unset";
+          "x" = "unset";
+          "#" = "unset";
+        };
+      };
+    };
+
     claude-code = {
       enable = true;
       # enableMcpIntegration = true;
@@ -449,8 +489,10 @@ rec {
         settings = {
           "sidebar.verticalTabs" = true;
           "ui.key.accelKey" = 91;
+          "ui.key.textcontrol.prefer_native_key_bindings_over_builtin_shortcut_key_definitions" = true;
           "signon.rememberSignons" = false;
           "browser.newtabpage.enabled" = false;
+          "browser.newtab.extensionControlled" = false;
         };
       };
     };
@@ -466,6 +508,8 @@ rec {
           "ctrl+enter=text:\\r"
           "performable:super+c=copy_to_clipboard"
           "performable:super+v=paste_from_clipboard"
+          "super+t=new_tab"
+          "ctrl+comma=unbind"
         ];
       };
     };
@@ -731,6 +775,8 @@ rec {
         "text/html" = "firefox.desktop";
         "x-scheme-handler/http" = "firefox.desktop";
         "x-scheme-handler/https" = "firefox.desktop";
+        "x-scheme-handler/mailto" = "thunderbird.desktop";
+        "message/rfc822" = "thunderbird.desktop";
       };
     };
 
@@ -749,21 +795,25 @@ rec {
     };
 
     configFile."xremap/config.yml".text = ''
-      modmap:
-        - name: Terminals (keep Super as-is)
+      keymap:
+        - name: Electron apps (Super to Ctrl shortcuts)
           application:
             only:
-              - com.mitchellh.ghostty
+              - Slack
+              - vesktop
           remap:
-            Super_L: Super_L
-
-        - name: Everything else (Super to Ctrl)
-          application:
-            not:
-              - com.mitchellh.ghostty
-              - firefox
-          remap:
-            Super_L: Control_L
+            Super_L-a: C-a
+            Super_L-c: C-c
+            Super_L-v: C-v
+            Super_L-x: C-x
+            Super_L-z: C-z
+            Super_L-Shift-z: C-Shift-z
+            Super_L-w: C-w
+            Super_L-t: C-t
+            Super_L-l: C-l
+            Super_L-k: C-k
+            Super_L-s: C-s
+            Super_L-Shift-v: C-Shift-v
     '';
 
     configFile."newtab.html".text = newtabHtml;
@@ -771,10 +821,6 @@ rec {
     configFile."tridactyl/tridactylrc".text = ''
       " vim: set filetype=vim
 
-      " Config file is the single source of truth — settings removed here revert to default
-      sanitize tridactyllocal tridactylsync
-
-      set newtab https://sauyon.github.io/dotfiles/newtab.html
       set smoothscroll true
 
       unbind d

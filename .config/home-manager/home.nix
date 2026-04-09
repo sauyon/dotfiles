@@ -10,6 +10,90 @@ let
   hostname = builtins.replaceStrings [ "\n" ] [ "" ] (builtins.readFile "/etc/hostname");
 
   args = { inherit config lib pkgs; };
+
+  newtabLinks = [
+    { group = "Work"; links = [
+      { name = "Gmail";       url = "https://mail.google.com"; }
+      { name = "Google Docs"; url = "https://docs.google.com"; }
+      { name = "GitHub";      url = "https://github.com"; }
+      { name = "Notion";          url = "https://www.notion.so"; }
+      { name = "Rippling";        url = "https://app.rippling.com"; }
+      { name = "Cloud (prod)";    url = "https://console.modular.com"; }
+      { name = "Cloud (staging)"; url = "https://mcloud-staging.bentoml.ai"; }
+    ];}
+    { group = "Infra"; links = [
+      { name = "Okta";       url = "https://modular.okta.com"; }
+      { name = "AWS";        url = "https://d-906789f3a0.awsapps.com"; }
+      { name = "Datadog";    url = "https://app.datadoghq.com"; }
+      { name = "ArgoCD";     url = "https://argocd.tail1beac.ts.net"; }
+      { name = "Tailscale";  url = "https://login.tailscale.com"; }
+      { name = "Cloudflare"; url = "https://dash.cloudflare.com"; }
+      { name = "OpenShift";  url = "https://console.redhat.com"; }
+    ];}
+    { group = "Other"; links = [
+      { name = "Reddit";       url = "https://www.reddit.com"; }
+      { name = "YouTube";      url = "https://www.youtube.com"; }
+      { name = "YT Music";     url = "https://music.youtube.com"; }
+      { name = "Claude";       url = "https://claude.ai"; }
+      { name = "Amazon";       url = "https://www.amazon.com"; }
+      { name = "Zillow";       url = "https://www.zillow.com"; }
+    ];}
+  ];
+
+  renderLink = l: ''<a href="${l.url}">${l.name}</a>'';
+  renderGroup = g: ''
+    <div class="group">
+      <h2>${g.group}</h2>
+      <div class="links">${lib.concatMapStrings renderLink g.links}</div>
+    </div>'';
+
+  newtabHtml = ''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+    <meta charset="utf-8">
+    <title>New Tab</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        background: #1a1a1a;
+        color: #e0e0e0;
+        font-family: system-ui, -apple-system, sans-serif;
+        display: flex;
+        justify-content: center;
+        padding-top: 15vh;
+      }
+      .container { max-width: 60vw; width: 100%; }
+      h2 {
+        font-size: 1.2vh;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #888;
+        margin-bottom: 0.8vh;
+        text-align: center;
+      }
+      .group { margin-bottom: 2.5vh; }
+      .links { display: flex; flex-wrap: wrap; gap: 0.6vh; justify-content: center; }
+      a {
+        color: #c0c0c0;
+        text-decoration: none;
+        font-size: 1.6vh;
+        padding: 0.6vh 1.2vh;
+        border-radius: 0.5vh;
+        background: #252525;
+        transition: background 0.1s, color 0.1s;
+      }
+      a:hover { background: #333; color: #fff; }
+    </style>
+    </head>
+    <body>
+    <div class="container">
+    ${lib.concatMapStrings renderGroup newtabLinks}
+    </div>
+    </body>
+    </html>
+  '';
 in
 rec {
   home.stateVersion = "21.11";
@@ -30,6 +114,20 @@ rec {
     // (lib.optionalAttrs (builtins.pathExists ./secrets.nix) (import ./secrets.nix));
 
   systemd.user.sessionVariables = home.sessionVariables;
+
+  systemd.user.services.xremap = lib.optionalAttrs (!isDarwin) {
+    Unit = {
+      Description = "xremap key remapper";
+      After = [ "graphical-session.target" ];
+      PartOf = [ "graphical-session.target" ];
+    };
+    Service = {
+      ExecStart = "${pkgs.xremap}/bin/xremap ${config.xdg.configHome}/xremap/config.yml";
+      Restart = "on-failure";
+      RestartSec = 3;
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
 
   home.packages = with pkgs; [
     bfs
@@ -54,6 +152,7 @@ rec {
     vesktop
   ] ++ lib.optionals (!isDarwin) [
     hyprpicker
+    xremap
   ];
 
   nixpkgs.config = {
@@ -62,6 +161,15 @@ rec {
   };
 
   nixpkgs.overlays = [
+    (final: prev: {
+      nur = import (builtins.fetchTarball {
+        url = "https://github.com/nix-community/NUR/archive/7f4366be821b64f130c08dd47cbc22cad3003d97.tar.gz";
+        sha256 = "1vkhfqafcyr17r4ghxhrgcgh39rij8avqi0541nm7178c45yiwl2";
+      }) {
+        nurpkgs = prev;
+        pkgs = prev;
+      };
+    })
     (self: super: {
       any-nix-shell-s = super.any-nix-shell.overrideAttrs (old: {
         src = super.fetchFromGitHub {
@@ -110,6 +218,32 @@ rec {
   ];
 
   gtk = lib.optionalAttrs (!isDarwin) {
+    enable = true;
+    gtk2.configLocation = "${config.xdg.configHome}/gtk-2.0/gtkrc";
+    gtk3.extraConfig.gtk-key-theme-name = "Emacs";
+    gtk3.extraCss = ''
+      @binding-set mac-bindings {
+        bind "<Super>x" { "cut-clipboard" () };
+        bind "<Super>c" { "copy-clipboard" () };
+        bind "<Super>v" { "paste-clipboard" () };
+        bind "<Super>a" { "select-all" (true) };
+        bind "<Super>z" { "undo" () };
+        bind "<Super><Shift>z" { "redo" () };
+      }
+      * { -gtk-key-bindings: mac-bindings; }
+    '';
+    gtk4.extraConfig.gtk-key-theme-name = "Emacs";
+    gtk4.extraCss = ''
+      @binding-set mac-bindings {
+        bind "<Super>x" { "cut-clipboard" () };
+        bind "<Super>c" { "copy-clipboard" () };
+        bind "<Super>v" { "paste-clipboard" () };
+        bind "<Super>a" { "select-all" (true) };
+        bind "<Super>z" { "undo" () };
+        bind "<Super><Shift>z" { "redo" () };
+      }
+      * { -gtk-key-bindings: mac-bindings; }
+    '';
     theme = {
       name = "Plano";
       package = pkgs.plano-theme;
@@ -120,7 +254,7 @@ rec {
     };
     font = {
       name = "NotoSans Nerd Font";
-      package = pkgs.nerdfonts;
+      package = pkgs.nerd-fonts.noto;
     };
   };
 
@@ -305,11 +439,18 @@ rec {
     };
     firefox = {
       enable = true;
+      nativeMessagingHosts = [
+        pkgs.tridactyl-native
+      ];
       profiles.default = {
+        extensions.packages = with pkgs.nur.repos.rycee.firefox-addons; [
+          tridactyl
+        ];
         settings = {
           "sidebar.verticalTabs" = true;
           "ui.key.accelKey" = 91;
           "signon.rememberSignons" = false;
+          "browser.newtabpage.enabled" = false;
         };
       };
     };
@@ -606,5 +747,86 @@ rec {
       music = "${home.homeDirectory}/drive/music";
       pictures = "${home.homeDirectory}/images";
     };
+
+    configFile."xremap/config.yml".text = ''
+      modmap:
+        - name: Terminals (keep Super as-is)
+          application:
+            only:
+              - com.mitchellh.ghostty
+          remap:
+            Super_L: Super_L
+
+        - name: Everything else (Super to Ctrl)
+          application:
+            not:
+              - com.mitchellh.ghostty
+              - firefox
+          remap:
+            Super_L: Control_L
+    '';
+
+    configFile."newtab.html".text = newtabHtml;
+
+    configFile."tridactyl/tridactylrc".text = ''
+      " vim: set filetype=vim
+
+      " Config file is the single source of truth — settings removed here revert to default
+      sanitize tridactyllocal tridactylsync
+
+      set newtab https://sauyon.github.io/dotfiles/newtab.html
+      set smoothscroll true
+
+      unbind d
+      bind <A-x> fillcmdline_notrail
+
+      " J/K for tabs, x to close
+      bind x tabclose
+
+      " Detach tab to new window
+      bind gd tabdetach
+
+      " Only hint search results on Google/DDG
+      bindurl www.google.com f hint -Jc #search a
+      bindurl www.google.com F hint -Jbc #search a
+
+      " Move hover URL to right so it doesn't overlap the command line
+      guiset_quiet hoverlink right
+
+      " Ignore Tridactyl on sites with their own keybindings
+      autocmd DocStart mail.google.com mode ignore
+
+      " Emacs bindings in insert mode
+      bind --mode=insert <C-f> !s xdotool key Right
+      bind --mode=insert <C-b> !s xdotool key Left
+      bind --mode=insert <C-n> !s xdotool key Down
+      bind --mode=insert <C-p> !s xdotool key Up
+      bind --mode=insert <C-a> !s xdotool key Home
+      bind --mode=insert <C-e> !s xdotool key End
+      bind --mode=insert <C-d> !s xdotool key Delete
+      bind --mode=insert <C-k> !s xdotool key shift+End Delete
+      bind --mode=insert <C-w> !s xdotool key ctrl+BackSpace
+
+      " C-g to cancel
+      bind --mode=insert <C-g> composite unfocus | mode normal
+      bind --mode=ex <C-g> ex.hide_and_clear
+
+      " Emacs bindings in command line
+      bind --mode=ex <C-f> ex.next_char
+      bind --mode=ex <C-b> ex.prev_char
+      bind --mode=ex <C-a> text.beginning_of_line
+      bind --mode=ex <C-e> text.end_of_line
+      bind --mode=ex <C-d> text.delete_char
+      bind --mode=ex <C-k> text.kill_line
+      bind --mode=ex <C-w> text.backward_kill_word
+      bind --mode=ex <C-n> ex.next_completion
+      bind --mode=ex <C-p> ex.prev_completion
+
+      " External editor
+      set editorcmd emacsclient -n
+
+      " Wayland clipboard
+      set externalclipboardcmd wl-copy
+    '';
   };
 }

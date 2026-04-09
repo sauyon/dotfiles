@@ -10,7 +10,6 @@ rec {
 
   # Unclutter home directory
   LESSHISTFILE = "${xdg.dataHome}/less/history";
-  GTK2_RC_FILES = "${xdg.dataHome}/gtk-2.0/gtkrc";
   WINEPREFIX = "${xdg.dataHome}/wineprefixes/default";
   CARGO_HOME = "${xdg.dataHome}/cargo";
   RUSTUP_HOME = "${xdg.dataHome}/rustup";

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New Tab</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    font-family: system-ui, -apple-system, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding-top: 15vh;
+  }
+  .container { max-width: 60vw; width: 100%; }
+  h2 {
+    font-size: 1.2vh;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #888;
+    margin-bottom: 0.8vh;
+    text-align: center;
+  }
+  .group { margin-bottom: 2.5vh; }
+  .links { display: flex; flex-wrap: wrap; gap: 0.6vh; justify-content: center; }
+  a {
+    color: #c0c0c0;
+    text-decoration: none;
+    font-size: 1.6vh;
+    padding: 0.6vh 1.2vh;
+    border-radius: 0.5vh;
+    background: #252525;
+    transition: background 0.1s, color 0.1s;
+  }
+  a:hover { background: #333; color: #fff; }
+</style>
+</head>
+<body>
+<div class="container">
+<div class="group">
+  <h2>Work</h2>
+  <div class="links"><a href="https://mail.google.com">Gmail</a><a href="https://docs.google.com">Google Docs</a><a href="https://github.com">GitHub</a><a href="https://www.notion.so">Notion</a><a href="https://app.rippling.com">Rippling</a><a href="https://console.modular.com">Cloud (prod)</a><a href="https://mcloud-staging.bentoml.ai">Cloud (staging)</a></div>
+</div><div class="group">
+  <h2>Infra</h2>
+  <div class="links"><a href="https://modular.okta.com">Okta</a><a href="https://d-906789f3a0.awsapps.com">AWS</a><a href="https://app.datadoghq.com">Datadog</a><a href="https://argocd.tail1beac.ts.net">ArgoCD</a><a href="https://login.tailscale.com">Tailscale</a><a href="https://dash.cloudflare.com">Cloudflare</a><a href="https://console.redhat.com">OpenShift</a></div>
+</div><div class="group">
+  <h2>Other</h2>
+  <div class="links"><a href="https://www.reddit.com">Reddit</a><a href="https://www.youtube.com">YouTube</a><a href="https://music.youtube.com">YT Music</a><a href="https://claude.ai">Claude</a><a href="https://www.amazon.com">Amazon</a><a href="https://www.zillow.com">Zillow</a></div>
+</div>
+</div>
+</body>
+</html>

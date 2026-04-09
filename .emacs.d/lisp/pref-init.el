@@ -56,8 +56,34 @@
 
 (global-set-key (kbd "C-.") 'consult-outline)
 
-(global-set-key (kbd "M-j") 'avy-goto-word-1)
-(global-set-key (kbd "M-g f") 'avy-goto-line)
+(global-set-key (kbd "<control-i>") 'other-window)
+(global-set-key (kbd "<shift control-i>") 'prev-window)
+(global-set-key (kbd "M-a") 'avy-goto-word-1)
+(global-set-key (kbd "M-e") 'avy-goto-line)
+(setq avy-keys '(?r ?s ?n ?t ?a ?e ?i ?h ?f ?m ?p ?u ?o ?y ?c ?l ?d ?q ?x ?k))
+
+;; Nag me to use avy when I navigate far but stay on screen
+(defvar avy-nag--prev-line nil)
+(defvar avy-nag--min-lines 5 "Minimum lines moved to trigger reminder.")
+(defvar avy-nag--repeat-commands
+  '(next-line previous-line forward-line
+    forward-char backward-char forward-word backward-word)
+  "Commands that indicate incremental navigation.")
+
+(defun avy-nag--pre-hook ()
+  (setq avy-nag--prev-line (line-number-at-pos)))
+
+(defun avy-nag--post-hook ()
+  (when (and avy-nag--prev-line
+             (memq this-command avy-nag--repeat-commands)
+             (let ((delta (abs (- (line-number-at-pos) avy-nag--prev-line))))
+               (>= delta avy-nag--min-lines))
+             ;; still on screen — didn't scroll
+             (<= (window-start) (point) (window-end)))
+    (message "Use avy! (M-a word, M-e line)")))
+
+(add-hook 'pre-command-hook #'avy-nag--pre-hook)
+(add-hook 'post-command-hook #'avy-nag--post-hook)
 
 (eval-after-load "isearch"
   '(define-key isearch-mode-map (kbd "C-'") 'avy-isearch))

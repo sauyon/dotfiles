@@ -569,6 +569,7 @@ rec {
         ".aider*"
         ".claude/worktrees"
         ".claude/scheduled_tasks.lock"
+        ".claude/plans"
       ];
 
       signing = {

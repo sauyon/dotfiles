@@ -25,7 +25,8 @@ let
       { name = "Okta";       url = "https://modular.okta.com"; }
       { name = "AWS";        url = "https://d-906789f3a0.awsapps.com"; }
       { name = "Datadog";    url = "https://app.datadoghq.com"; }
-      { name = "ArgoCD";     url = "https://argocd.tail1beac.ts.net"; }
+      { name = "ArgoCD";     url = "https://argocd.prod.modular-internal.com"; }
+      { name = "BentoML ArgoCD"; url = "https://argocd.tail1beac.ts.net"; }
       { name = "Tailscale";  url = "https://login.tailscale.com"; }
       { name = "Cloudflare"; url = "https://dash.cloudflare.com"; }
       { name = "OpenShift";  url = "https://console.redhat.com"; }

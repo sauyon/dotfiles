@@ -122,7 +122,7 @@
 										 pretty-sha-path projectile projectile-ripgrep protobuf-mode quelpa
 										 quelpa-use-package rustic scala-mode2 scss-mode shfmt smali-mode smart-jump
 										 smart-tabs-mode swiper systemd terraform-mode toml-mode vertico
-										 vertico-posframe vterm ws-butler yaml-mode))
+										 vertico-posframe vterm web-mode ws-butler yaml-mode))
  '(pcap-mode-tshark-executable nil)
  '(projectile-mode t nil (projectile))
  '(projectile-project-search-path '("~/devel/"))

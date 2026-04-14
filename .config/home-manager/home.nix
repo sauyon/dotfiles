@@ -7,7 +7,8 @@
 
 let
   isDarwin = pkgs.stdenv.isDarwin;
-  hostname = builtins.replaceStrings [ "\n" ] [ "" ] (builtins.readFile "/etc/hostname");
+  machine = import ./machine.nix;
+  hostname = machine.hostname;
 
   args = { inherit config lib pkgs; };
 

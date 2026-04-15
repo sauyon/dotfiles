@@ -12,6 +12,52 @@ let
 
   walker-flake = builtins.getFlake "github:abenz1267/walker";
 
+  agent-orchestrator = (builtins.getFlake "github:sauyon/agent-orchestrator").packages.${pkgs.system}.default;
+  ao-mcp = (builtins.getFlake "github:sauyon/ao-mcp").packages.${pkgs.system}.default;
+  rampart = import ./rampart-patched.nix { inherit pkgs; };
+
+  ao-run = pkgs.writeShellScriptBin "ao-run" ''
+    docker network inspect agent-net >/dev/null 2>&1 || docker network create agent-net
+
+    # Build/rebuild the ao image (dereference nix symlinks for Docker build context)
+    AO_BUILD=$(mktemp -d)
+    cp -rL ~/.config/agent-orchestrator/* "$AO_BUILD/"
+    docker build -t ao "$AO_BUILD"
+    rm -rf "$AO_BUILD"
+
+    # Build the hermes plugin (source is on host, node_modules resolved in container)
+    PLUGIN_DIR=~/devel/agent-orchestrator/packages/plugins/agent-hermes
+    CORE_DIR=~/devel/agent-orchestrator/packages/core
+    if [ -d "$PLUGIN_DIR/src" ] && [ ! -f "$PLUGIN_DIR/dist/index.js" ]; then
+      docker run --rm -v ~/devel:/repos -w /repos/agent-orchestrator \
+        node:24-bookworm sh -c 'npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @aoagents/ao-core build && pnpm --filter @aoagents/ao-plugin-agent-hermes build'
+    fi
+
+    AO_CONFIG="/tmp/ao-config.yaml"
+    cp -f ~/.config/agent-orchestrator/config.yaml "$AO_CONFIG"
+    chmod 644 "$AO_CONFIG"
+    TTY_FLAG=""
+    [ -t 0 ] && TTY_FLAG="-t"
+    exec docker run --rm -i $TTY_FLAG \
+      --name ao \
+      --network agent-net \
+      -v "$AO_CONFIG":/work/agent-orchestrator.yaml \
+      -e AO_CONFIG_PATH=/work/agent-orchestrator.yaml \
+      -e RAMPART_URL=http://rampart:9090 \
+      -v ~/devel:/repos \
+      -v ~/.config/gh:/root/.config/gh:ro \
+      -v ~/.aws:/root/.aws:ro \
+      -v ~/.hermes-orchestrator:/root/.hermes \
+      -e HERMES_GATEWAY_TOKEN="$(cat ~/.hermes-gateway-token 2>/dev/null)" \
+      -e ANTHROPIC_BASE_URL=http://litellm:4000 \
+      -e AO_ANTHROPIC_KEY=sk-ao \
+      -e OPENAI_API_BASE=https://deepseek.api.modular.com/v1 \
+      -e OPENAI_API_KEY="$(cat ~/.config/hermes/secrets/api-key 2>/dev/null || echo REPLACE_ME)" \
+      -e AIDER_MODEL=openai/moonshotai/kimi-k2.5 \
+      -p 3000:3000 \
+      ao "$@"
+  '';
+
   args = { inherit config lib pkgs; };
 
   newtabLinks = [
@@ -99,30 +145,29 @@ let
     </html>
   '';
 in
-rec {
-  imports = [ walker-flake.homeManagerModules.default ];
+{
+  imports = [ walker-flake.homeManagerModules.default ./hermes.nix ];
 
   home.stateVersion = "21.11";
 
   xdg.userDirs.setSessionVariables = true;
 
-  home.username = builtins.getEnv "USER";
-  home.homeDirectory = builtins.getEnv "HOME";
+  home.username = let v = builtins.getEnv "USER"; in if v != "" then v else "sauyon";
+  home.homeDirectory = let v = builtins.getEnv "HOME"; in if v != "" then v else "/home/sauyon";
 
   home.sessionVariables =
     import ./env.nix (
       args
       // {
-        inherit xdg;
-        home = home.homeDirectory;
+        xdg = config.xdg;
+        home = config.home.homeDirectory;
       }
     )
-    // (lib.optionalAttrs (builtins.pathExists ./secrets.nix) (import ./secrets.nix))
     // (lib.optionalAttrs (hostname == "setsuna") {
       QT_FONT_DPI = "120";
     });
 
-  systemd.user.sessionVariables = home.sessionVariables;
+  systemd.user.sessionVariables = config.home.sessionVariables;
 
   home.file.".local/bin/rampart-remote-hook" = {
     executable = true;
@@ -205,8 +250,12 @@ rec {
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
-
-  home.packages = with pkgs; [
+  home.packages = [
+    agent-orchestrator
+    ao-mcp
+    ao-run
+    rampart
+  ] ++ (with pkgs; [
     bfs
     btop
     coder
@@ -230,8 +279,8 @@ rec {
       tree-sitter-tsx
       tree-sitter-typescript
     ]))
-  ] ++ lib.optionals (!isDarwin) [
-    hyprpicker
+  ]) ++ lib.optionals (!isDarwin) [
+    pkgs.hyprpicker
   ];
 
   nixpkgs.config = {
@@ -331,7 +380,7 @@ rec {
     hyprpaper = {
       enable = !isDarwin;
       settings = {
-        path = "${home.homeDirectory}/images/wallpapers/${hostname}.png";
+        path = "${config.home.homeDirectory}/images/wallpapers/${hostname}.png";
       };
     };
 
@@ -838,8 +887,8 @@ rec {
     zsh = import ./zsh.nix (
       args
       // {
-        inherit xdg;
-        home = home.homeDirectory;
+        xdg = config.xdg;
+        home = config.home.homeDirectory;
       }
     );
 
@@ -902,18 +951,18 @@ rec {
       };
     };
 
-    dataHome = "${home.homeDirectory}/.local/share";
-    configHome = "${home.homeDirectory}/.config";
-    cacheHome = "${home.homeDirectory}/.cache";
+    dataHome = "${config.home.homeDirectory}/.local/share";
+    configHome = "${config.home.homeDirectory}/.config";
+    cacheHome = "${config.home.homeDirectory}/.cache";
 
     userDirs = {
       enable = true;
 
-      desktop = "${home.homeDirectory}/desktop";
-      documents = "${home.homeDirectory}/documents";
-      download = "${home.homeDirectory}/downloads";
-      music = "${home.homeDirectory}/drive/music";
-      pictures = "${home.homeDirectory}/images";
+      desktop = "${config.home.homeDirectory}/desktop";
+      documents = "${config.home.homeDirectory}/documents";
+      download = "${config.home.homeDirectory}/downloads";
+      music = "${config.home.homeDirectory}/drive/music";
+      pictures = "${config.home.homeDirectory}/images";
     };
 
     configFile."xremap/config.yml".text = ''
@@ -939,6 +988,300 @@ rec {
     '';
 
     configFile."newtab.html".text = newtabHtml;
+
+    configFile."agent-orchestrator/config.yaml".text = let
+      # Indent a multiline string for embedding inside a YAML block scalar.
+      # orchestratorRules is used under keys indented 8 spaces, so each line
+      # needs 8 extra spaces to stay inside the YAML | block.
+      indentYaml = n: s:
+        let pad = lib.concatStrings (builtins.genList (_: " ") n);
+        in lib.concatMapStringsSep "\n" (line: if line == "" then "" else pad + line) (lib.splitString "\n" s);
+      orchestratorRules = ''
+        ## TDD-First Workflow (Test-Driven Development)
+
+        Every task follows this multi-stage TDD workflow — no exceptions:
+
+        ### Phase 1: Test Design & Implementation (RED)
+        1. **Spawn a Test Engineer worker** to write ONLY the failing tests that
+           capture the requirement or bug. They must NOT implement the fix or
+           the feature yet.
+        2. **Once the test PR is open**, spawn a **Test Review agent** with this prompt:
+           "You are a Quality Engineer. Review these tests. Do they accurately
+           capture the requirement? Are they sufficiently exhaustive (edge cases,
+           error paths, performance constraints)? Do they fail as expected against
+           the current codebase? Rate 1–5 and give an overall score. If the score
+           is below 5/5, list specific changes required to make the test suite
+           a perfect descriptor of the goal."
+        3. **Iterate** until the Test Review agent gives a 5/5 score.
+
+        ### Phase 2: Code Implementation (GREEN)
+        4. **Only after the tests are approved (5/5)**, spawn an **Implementation worker**.
+           Their task is to implement the code necessary to make the previously
+           approved tests pass. They must not modify the tests unless they find
+           a genuine error in the test design (which requires a new Phase 1 review).
+        5. **Once the implementation PR is open**, spawn a **Code Review agent**
+           with the standard checklist (correctness, readability, performance).
+
+        ### Phase 3: Final Approval
+        6. **Spawn a Code Review agent** for general correctness and readability.
+        7. **If the task touches performance-sensitive paths** (data processing,
+           hot loops, public APIs), also spawn a **Perf Review agent**:
+           "Review this PR for performance regressions: unnecessary allocations,
+           O(n²) patterns, missing indexes, and blocking I/O. Flag any degradation
+           in p99 latency or memory usage."
+        8. **The Code Review agent** must also verify that the tests from Phase 1
+           still pass and are properly integrated.
+
+        ### Deploy Preview Validation (all PRs)
+        Every review agent MUST identify and use the deploy preview for the PR:
+        1. Run `gh pr checks <PR>` and `gh pr view <PR> --comments` to find the
+           deploy preview URL (look for Vercel, Netlify, or any bot-posted URL).
+        2. If a preview URL exists, validate that it loads and the changed
+           functionality works as described in the PR.
+        3. If no preview URL is available after checks complete, note it in the
+           review — do not block, but flag that preview validation was skipped.
+
+        ### UI/Frontend QA (required when PR touches UI)
+        If the PR modifies frontend code (components, pages, styles, assets),
+        the QA agent MUST perform end-to-end validation against the live preview:
+        1. Use the **Playwright MCP** server (available as `playwright` in your
+           MCP tools) to launch a headless Chromium browser against the deploy
+           preview URL. Use its navigation, click, fill, and screenshot tools.
+        2. Write and run ad-hoc test flows that exercise the changed UI paths:
+           navigate to affected pages, interact with modified components, verify
+           visual correctness and functional behavior.
+        3. Check for regressions: confirm that pages adjacent to the change still
+           render and behave correctly.
+        4. Capture screenshots of before/after states where relevant and attach
+           them to the review.
+        5. Rate the UI separately (UX correctness, accessibility, responsiveness)
+           in addition to the code review score. Both must be 5/5.
+        If Playwright is not available or the preview is down, escalate to the
+        user — do NOT silently skip UI validation for frontend PRs.
+
+        ### Remote Environment Testing (bcctl)
+        The **bcctl MCP** server is available for provisioning and managing
+        BentoCloud dev environments. Use it when:
+        - The change requires a running backend to validate (API changes, model
+          serving, deployment configs).
+        - You need to test against a real BentoCloud cluster rather than local mocks.
+        - The deploy preview is insufficient (e.g. backend-only changes with no
+          preview URL).
+        Use `bcctl` tools to create/attach to a dev environment, sync the PR
+        branch, and run the relevant test suite or manual verification there.
+
+        9. **Stop only when all required review agents (Code/Perf/QA) give 5/5.**
+           Then notify the user that the PR is ready for the user to manually promote. (Drafts forever.)
+ 
+        for the answer. The call blocks until the user replies, so only use
+        it when you genuinely need their input.
+
+        Use this for:
+        - Design decisions the user must make
+        - Ambiguous requirements that need clarification
+        - Notifying the user that a PR is ready for review (5/5 score)
+        - Escalating issues that workers cannot resolve
+
+        Do NOT use this for routine status updates — those go through `ao status`.
+        Only contact the user when you genuinely need their input or attention.
+      '';
+    in ''
+      # managed by home-manager
+      defaults:
+        orchestrator:
+          agent: hermes
+        agentRules: |
+          Always use TDD (Test-Driven Development).
+          Follow this cycle:
+          1. Write a failing test (RED).
+          2. Run the test to confirm failure.
+          3. Implement the minimal code to pass (GREEN).
+          4. Refactor and ensure tests remain green.
+
+      plugins:
+        - name: hermes
+          source: local
+          path: /repos/agent-orchestrator/packages/plugins/agent-hermes
+
+      projects:
+        mcloud:
+          repo: bentoml/modularcloud
+          path: /repos/mcloud
+          defaultBranch: main
+          runtime: tmux
+          agent: claude-code
+          agentConfig:
+            permissions: default
+            model: moonshotai/kimi-k2.5
+          orchestratorRules: |
+${indentYaml 12 orchestratorRules}
+
+        mammoth:
+          repo: modularml/mammoth
+          path: /repos/mammoth
+          defaultBranch: main
+          runtime: tmux
+          agent: claude-code
+          agentConfig:
+            permissions: default
+            model: moonshotai/kimi-k2.5
+          orchestratorRules: |
+${indentYaml 12 orchestratorRules}
+
+        modular:
+          repo: modularml/modular
+          path: /repos/modular
+          defaultBranch: main
+          runtime: tmux
+          agent: claude-code
+          agentConfig:
+            permissions: default
+            model: moonshotai/kimi-k2.5
+          orchestratorRules: |
+${indentYaml 12 orchestratorRules}
+
+      reactions:
+        ci-failed:
+          auto: true
+          action: send-to-agent
+          retries: 2
+        approved-and-green:
+          auto: false
+          action: notify
+    '';
+
+    configFile."agent-orchestrator/Dockerfile".text = ''
+      FROM node:24-bookworm
+
+      RUN apt-get update && apt-get install -y \
+          git \
+          tmux \
+          gh \
+          python3 \
+          python3-pip \
+          python3-venv \
+          pipx \
+          sqlite3 \
+          && rm -rf /var/lib/apt/lists/*
+
+      RUN npm install -g @aoagents/ao@0.2.5 @anthropic-ai/claude-code @playwright/mcp
+      RUN npx playwright install --with-deps chromium
+      RUN pipx install aider-chat && pipx ensurepath
+
+      # Pre-bake onboarding state so interactive prompts are skipped
+      RUN printf '{"hasCompletedOnboarding":true,"lastOnboardingVersion":"2.1.108","numStartups":1,"migrationVersion":11,"projects":{}}\n' > /root/.claude.json
+
+      # MCP servers available to all Claude Code agent sessions
+      RUN mkdir -p /root/.claude && cat > /root/.claude/settings.json << 'MCPCFG'
+      {
+        "permissions": {
+          "allow": [
+            "mcp__bcctl__*",
+            "mcp__playwright__*"
+          ]
+        },
+        "mcpServers": {
+          "playwright": {
+            "command": "npx",
+            "args": ["@playwright/mcp", "--headless", "--browser", "chromium"]
+          },
+          "bcctl": {
+            "command": "/repos/bcctl-mcp/.venv/bin/python",
+            "args": ["-m", "bcctl_mcp.server"],
+            "env": {
+              "BENTOCLOUDCTL_BIN": "/repos/bentocloudctl/bin/bentocloudctl"
+            }
+          }
+        }
+      }
+      MCPCFG
+
+      # Bootstrap bcctl-mcp venv and inject into project .mcp.json
+      RUN cat >> /usr/local/bin/setup-mcps << 'SETUPMCP'
+      #!/bin/sh
+      if [ -d /repos/bcctl-mcp ]; then
+        # Recreate venv if missing or broken (e.g. host Python symlink)
+        if [ ! -x /repos/bcctl-mcp/.venv/bin/python ] || \
+           ! /repos/bcctl-mcp/.venv/bin/python -c "pass" 2>/dev/null; then
+          rm -rf /repos/bcctl-mcp/.venv
+          python3 -m venv /repos/bcctl-mcp/.venv
+          /repos/bcctl-mcp/.venv/bin/pip install -e /repos/bcctl-mcp 2>/dev/null
+        fi
+      fi
+      # Inject bcctl MCP into project .mcp.json (project-level overrides global settings)
+      CWD="$(pwd)"
+      if [ -f "$CWD/.mcp.json" ] && command -v node >/dev/null 2>&1; then
+        node -e "\
+          const fs = require('fs');\
+          const f = process.argv[1];\
+          let c = {};\
+          try { c = JSON.parse(fs.readFileSync(f, 'utf8')); } catch(e) {}\
+          if (!c.mcpServers) c.mcpServers = {};\
+          if (!c.mcpServers.bcctl) {\
+            c.mcpServers.bcctl = {\
+              command: '/repos/bcctl-mcp/.venv/bin/python',\
+              args: ['-m', 'bcctl_mcp.server'],\
+              env: { BENTOCLOUDCTL_BIN: '/repos/bentocloudctl/bin/bentocloudctl' }\
+            };\
+            fs.writeFileSync(f, JSON.stringify(c, null, 2) + '\\n');\
+          }\
+        " "$CWD/.mcp.json" 2>/dev/null
+      fi
+      SETUPMCP
+      RUN chmod +x /usr/local/bin/setup-mcps
+
+      # Wrapper: auto-trust workspace + inject API key via apiKeyHelper.
+      # ANTHROPIC_API_KEY triggers an interactive confirmation dialog in
+      # non-print mode, so we pass the key through apiKeyHelper in --settings
+      # which bypasses that prompt. Does NOT use --bare so hooks/plugins
+      # (Rampart) remain active.
+      RUN mv /usr/local/bin/claude /usr/local/bin/claude-real && \
+          cat > /usr/local/bin/claude << 'WRAPPER'
+      #!/bin/sh
+      CWD="$(pwd)"
+      STATE=/root/.claude.json
+      if [ -f "$STATE" ] && command -v node >/dev/null 2>&1; then
+        node -e "\
+          const fs = require('fs');\
+          const s = JSON.parse(fs.readFileSync(process.argv[1],'utf8'));\
+          if (!s.projects) s.projects = {};\
+          const k = process.argv[2];\
+          if (!s.projects[k]) s.projects[k] = {};\
+          s.projects[k].hasTrustDialogAccepted = true;\
+          fs.writeFileSync(process.argv[1], JSON.stringify(s, null, 2));\
+        " "$STATE" "$CWD"
+      fi
+      # Bootstrap bcctl-mcp venv on first run (bind mount not available at build time)
+      setup-mcps 2>/dev/null
+      if [ -n "$AO_ANTHROPIC_KEY" ]; then
+        # Merge apiKeyHelper into global settings (preserves MCP server config)
+        SFILE=$(mktemp /tmp/claude-settings.XXXXXX.json)
+        node -e "\
+          const fs = require('fs');\
+          let s = {};\
+          try { s = JSON.parse(fs.readFileSync('/root/.claude/settings.json','utf8')); } catch(e) {}\
+          s.apiKeyHelper = 'echo ' + process.argv[1];\
+          fs.writeFileSync(process.argv[2], JSON.stringify(s));\
+        " "$AO_ANTHROPIC_KEY" "$SFILE"
+        exec claude-real --settings "$SFILE" "$@"
+      fi
+      exec claude-real "$@"
+      WRAPPER
+      RUN chmod +x /usr/local/bin/claude
+
+      ENV PATH="/root/.local/bin:$PATH"
+
+      RUN git config --global --add safe.directory '*'
+      RUN git config --global user.name "ao-agent" && \
+          git config --global user.email "ao-agent@localhost"
+
+      WORKDIR /work
+
+      EXPOSE 3000
+
+      ENTRYPOINT ["ao"]
+    '';
+
 
     configFile."tridactyl/tridactylrc".text = ''
       " vim: set filetype=vim

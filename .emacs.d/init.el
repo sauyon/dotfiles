@@ -108,7 +108,7 @@
  '(package-archives
 	 '(("gnu" . "http://elpa.gnu.org/packages/") ("melpa" . "https://melpa.org/packages/")))
  '(package-selected-packages
-	 '(ac-haskell-proc ace-isearch ace-jump-mode ack aidermacs android-mode auto-dictionary bicycle
+	 '(ac-haskell-proc ace-isearch ace-jump-mode ack acp aidermacs android-mode auto-dictionary bicycle
 										 bison-mode cargo cargo-mode cmake-mode combobulate company-go company-lsp
 										 company-shell consult-lsp copilot dap-mode dash dict-tree dired-git-info
 										 dired-icon dired-preview dired-ranger dirvish dockerfile-mode doom-themes

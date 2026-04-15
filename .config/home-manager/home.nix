@@ -160,23 +160,34 @@ rec {
         2>/dev/null) || true
 
       if [ -z "$response" ]; then
-        echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"allow"}}'
-        exit 0
-      fi
-
-      decision=$(echo "$response" | jq -r '.decision // "allow"')
-      message=$(echo "$response" | jq -r '.message // empty')
-
-      if [ "$decision" = "deny" ]; then
-        if [ -n "$message" ]; then
-          echo "Rampart: ''${message}" >&2
-        else
-          echo "Rampart: Command blocked by remote policy" >&2
-        fi
+        echo "Rampart: server unreachable, denying by default" >&2
         exit 2
       fi
 
-      echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"allow"}}'
+      decision=$(echo "$response" | jq -r '.decision // "deny"' 2>/dev/null) || decision="deny"
+      message=$(echo "$response" | jq -r '.message // empty' 2>/dev/null) || message=""
+
+      case "$decision" in
+        deny)
+          if [ -n "$message" ]; then
+            echo "Rampart: ''${message}" >&2
+          else
+            echo "Rampart: Command blocked by remote policy" >&2
+          fi
+          exit 2
+          ;;
+        ask)
+          reason="''${message:-Rampart: Manual approval required}"
+          echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"ask","permissionDecisionReason":"'"''${reason}"'"}}'
+          ;;
+        allow)
+          echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"allow"}}'
+          ;;
+        *)
+          echo "Rampart: unexpected decision [''${decision}], denying" >&2
+          exit 2
+          ;;
+      esac
     '';
   };
 

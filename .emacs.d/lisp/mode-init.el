@@ -1,5 +1,12 @@
 (require 'font-lock)
 
+;; Tree-sitter grammars (installed via home-manager) -------------------------
+
+(add-to-list 'treesit-extra-load-path
+             (expand-file-name "~/.local/state/home-manager/gcroots/current-home/home-path/lib/"))
+(add-to-list 'auto-mode-alist '("\\.tsx\\'" . tsx-ts-mode))
+(add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-ts-mode))
+
 (use-package copilot
   :vc (:url "https://github.com/copilot-emacs/copilot.el"
             :rev :newest

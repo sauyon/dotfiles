@@ -10,6 +10,8 @@ let
   machine = import ./machine.nix;
   hostname = machine.hostname;
 
+  walker-flake = builtins.getFlake "github:abenz1267/walker";
+
   args = { inherit config lib pkgs; };
 
   newtabLinks = [
@@ -98,6 +100,8 @@ let
   '';
 in
 rec {
+  imports = [ walker-flake.homeManagerModules.default ];
+
   home.stateVersion = "21.11";
 
   xdg.userDirs.setSessionVariables = true;
@@ -120,6 +124,62 @@ rec {
 
   systemd.user.sessionVariables = home.sessionVariables;
 
+  home.file.".local/bin/rampart-remote-hook" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      # Proxy Claude Code hook events to a remote Rampart serve instance.
+      set -euo pipefail
+
+      RAMPART_URL="''${RAMPART_SERVE_URL:-https://rampart.ko.ag}"
+      RAMPART_TOKEN="''${RAMPART_TOKEN:-}"
+
+      input=$(cat)
+
+      tool=$(echo "$input" | jq -r '.tool_name // empty')
+      hook_event=$(echo "$input" | jq -r '.hook_event_name // "PreToolUse"')
+
+      if [ -z "$tool" ]; then
+        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}'
+        exit 0
+      fi
+
+      params=$(echo "$input" | jq -c '.tool_input // {}')
+      session=$(echo "$input" | jq -r '.session_id // "default"')
+
+      auth_header=""
+      if [ -n "$RAMPART_TOKEN" ]; then
+        auth_header="Authorization: Bearer ''${RAMPART_TOKEN}"
+      fi
+
+      response=$(curl -s --max-time 5 \
+        -X POST "''${RAMPART_URL}/v1/tool/''${tool}" \
+        -H "Content-Type: application/json" \
+        ''${auth_header:+-H "$auth_header"} \
+        -d "{\"agent\":\"claude-code\",\"session\":\"''${session}\",\"params\":''${params}}" \
+        2>/dev/null) || true
+
+      if [ -z "$response" ]; then
+        echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"allow"}}'
+        exit 0
+      fi
+
+      decision=$(echo "$response" | jq -r '.decision // "allow"')
+      message=$(echo "$response" | jq -r '.message // empty')
+
+      if [ "$decision" = "deny" ]; then
+        if [ -n "$message" ]; then
+          echo "Rampart: ''${message}" >&2
+        else
+          echo "Rampart: Command blocked by remote policy" >&2
+        fi
+        exit 2
+      fi
+
+      echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"allow"}}'
+    '';
+  };
+
   systemd.user.services.xremap = lib.optionalAttrs (!isDarwin) {
     Unit = {
       Description = "xremap key remapper";
@@ -133,6 +193,7 @@ rec {
     };
     Install.WantedBy = [ "graphical-session.target" ];
   };
+
 
   home.packages = with pkgs; [
     bfs
@@ -244,6 +305,11 @@ rec {
   qt = lib.optionalAttrs (!isDarwin) {
     enable = true;
     platformTheme.name = "gtk2";
+  };
+
+  programs.walker = lib.optionalAttrs (!isDarwin) {
+    enable = true;
+    runAsService = true;
   };
 
   services = {
@@ -410,6 +476,7 @@ rec {
               middle = [ "media" ];
               right = [
                 "volume"
+                "network"
                 "battery"
                 "ram"
                 "clock"
@@ -418,6 +485,7 @@ rec {
             };
           };
 
+          network.truncation_size = 30;
           workspaces.show_numbered = true;
 
           "customModules.storage.paths" = [ "/" ];
@@ -469,6 +537,38 @@ rec {
     claude-code = {
       enable = true;
       # enableMcpIntegration = true;
+      settings = {
+        hooks = {
+          PreToolUse = [
+            {
+              matcher = ".*";
+              hooks = [
+                {
+                  type = "command";
+                  command = "rampart-remote-hook";
+                }
+              ];
+            }
+          ];
+          PostToolUseFailure = [
+            {
+              matcher = ".*";
+              hooks = [
+                {
+                  type = "command";
+                  command = "rampart-remote-hook";
+                }
+              ];
+            }
+          ];
+        };
+        permissions = {
+          allow = [
+            "Bash(mise run:*)"
+          ];
+        };
+        skipDangerousModePermissionPrompt = true;
+      };
     };
 
     home-manager.enable = true;

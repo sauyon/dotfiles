@@ -50,13 +50,15 @@
     };
 
     "$terminal" = "ghostty";
-    "$menu" = "hyprlauncher";
+    "$menu" = "walker";
     "$mainMod" = "SUPER";
 
     "exec-once" = [
       "dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP"
       "kanshi"
       "hyprpanel"
+      "elephant"
+      "walker --gapplication-service"
     ];
 
     bind = [

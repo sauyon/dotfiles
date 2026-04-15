@@ -226,6 +226,10 @@ rec {
     zip
     slack
     vesktop
+    (emacsPackages.treesit-grammars.with-grammars (grammars: with grammars; [
+      tree-sitter-tsx
+      tree-sitter-typescript
+    ]))
   ] ++ lib.optionals (!isDarwin) [
     hyprpicker
   ];

@@ -205,11 +205,12 @@ in
         2>/dev/null) || true
 
       if [ -z "$response" ]; then
-        echo "Rampart: server unreachable, denying by default" >&2
-        exit 2
+        echo "Rampart: server unreachable, asking by default" >&2
+        echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"ask","permissionDecisionReason":"Rampart: server unreachable, manual approval required"}}'
+        exit 0
       fi
 
-      decision=$(echo "$response" | jq -r '.decision // "deny"' 2>/dev/null) || decision="deny"
+      decision=$(echo "$response" | jq -r '.decision // "ask"' 2>/dev/null) || decision="ask"
       message=$(echo "$response" | jq -r '.message // empty' 2>/dev/null) || message=""
 
       case "$decision" in
@@ -229,8 +230,8 @@ in
           echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"allow"}}'
           ;;
         *)
-          echo "Rampart: unexpected decision [''${decision}], denying" >&2
-          exit 2
+          echo "Rampart: unexpected decision [''${decision}], asking by default" >&2
+          echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"ask","permissionDecisionReason":"Rampart: unexpected decision ['"''${decision}"'], manual approval required"}}'
           ;;
       esac
     '';
@@ -243,7 +244,7 @@ in
       PartOf = [ "graphical-session.target" ];
     };
     Service = {
-      ExecStart = "xremap ${config.xdg.configHome}/xremap/config.yml";
+      ExecStart = "${pkgs.xremap}/bin/xremap ${config.xdg.configHome}/xremap/config.yml";
       Restart = "on-failure";
       RestartSec = 3;
     };
@@ -320,6 +321,15 @@ in
           (p: !(builtins.isAttrs p && lib.hasInfix "eee1a8cf" (p.url or "")))
           old.patches;
       });
+    })
+    (final: prev: {
+      astal = prev.astal // {
+        network = prev.astal.network.overrideAttrs (old: {
+          patches = (old.patches or []) ++ [
+            ./patches/astal-network-null-bssid.patch
+          ];
+        });
+      };
     })
   ];
 
@@ -403,6 +413,8 @@ in
     # emacs.enable = !isDarwin;
   };
 
+  targets.genericLinux.nixGL.packages = import <nixgl> { inherit pkgs; };
+
   wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin) (import ./hyprland.nix (pkgs));
 
   dconf.settings = lib.optionalAttrs (hostname == "setsuna") {
@@ -417,7 +429,7 @@ in
   programs = {
     hyprlock = {
       enable = true;
-      package = null;
+      package = config.lib.nixGL.wrap pkgs.hyprlock;
       settings = {
         general = {
           hide_cursor = true;
@@ -805,7 +817,7 @@ in
         };
         "kanon" = {
           user = "root";
-          hostname = "kanon.tail30335.ts.net";
+          hostname = "kanon.alai-ionian.ts.net";
           port = 59048;
         };
         "testserver" = {

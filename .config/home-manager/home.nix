@@ -169,6 +169,30 @@ in
 
   systemd.user.sessionVariables = config.home.sessionVariables;
 
+  home.file.".local/bin/hyprland-graceful-exit" = {
+    executable = true;
+    text = ''
+      #!/usr/bin/env bash
+      # Gracefully close all Hyprland windows, then optionally exit Hyprland.
+      set -euo pipefail
+
+      hyprctl clients -j | ${pkgs.jq}/bin/jq -r '.[].address' | while read -r addr; do
+        hyprctl dispatch closewindow "address:$addr" || true
+      done
+
+      # Wait for windows to close (up to 5s)
+      for i in $(seq 1 10); do
+        count=$(hyprctl clients -j | ${pkgs.jq}/bin/jq 'length')
+        [ "$count" -eq 0 ] && break
+        sleep 0.5
+      done
+
+      if [ "''${1:-}" != "--no-exit" ]; then
+        hyprctl dispatch exit
+      fi
+    '';
+  };
+
   home.file.".local/bin/rampart-remote-hook" = {
     executable = true;
     text = ''
@@ -235,6 +259,21 @@ in
           ;;
       esac
     '';
+  };
+
+  systemd.user.services.hyprland-cleanup = lib.optionalAttrs (!isDarwin) {
+    Unit = {
+      Description = "Gracefully close all Hyprland windows on session end";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+    };
+    Service = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = "${pkgs.coreutils}/bin/true";
+      ExecStop = "${config.home.homeDirectory}/.local/bin/hyprland-graceful-exit --no-exit";
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
   };
 
   systemd.user.services.xremap = lib.optionalAttrs (!isDarwin) {
@@ -389,6 +428,7 @@ in
   services = {
     hyprpaper = {
       enable = !isDarwin;
+      package = config.lib.nixGL.wrap pkgs.hyprpaper;
       settings = {
         path = "${config.home.homeDirectory}/images/wallpapers/${hostname}.png";
       };

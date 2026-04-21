@@ -64,7 +64,7 @@
     bind = [
       "$mainMod, return, exec, $terminal"
       "$mainMod SHIFT, W, killactive,"
-      "$mainMod SHIFT, E, exit,"
+      "$mainMod SHIFT, E, exec, hyprland-graceful-exit"
       "$mainMod SHIFT, space, togglefloating,"
       "$mainMod, space, exec, hyprctl dispatch focuswindow $(if [[ $(hyprctl activewindow -j | jq .\"floating\") == \"true\" ]]; then echo \"tiled\"; else echo \"floating\"; fi;)"
       "$mainMod, R, exec, $menu"

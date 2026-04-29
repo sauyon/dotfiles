@@ -3,6 +3,7 @@
   lib,
   home,
   xdg,
+  config,
   ...
 }:
 rec {
@@ -47,6 +48,7 @@ rec {
   MOZ_LEGACY_PROFILES = "1";
 
   TG_PROVIDER_CACHE = "1";
+
 
 }
 // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {

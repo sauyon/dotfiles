@@ -12,10 +12,10 @@ let
 
   sops-nix = builtins.getFlake "github:Mic92/sops-nix/8eaee5c45428b28b8c47a83e4c09dccec5f279b5";
   walker-flake = builtins.getFlake "github:abenz1267/walker";
-  nixGL = (builtins.getFlake "github:guibou/nixGL").packages.${pkgs.system}.default;
+  nixGL = (builtins.getFlake "github:guibou/nixGL").packages.${pkgs.stdenv.hostPlatform.system}.default;
 
-  agent-orchestrator = (builtins.getFlake "github:sauyon/agent-orchestrator").packages.${pkgs.system}.default;
-  ao-mcp = (builtins.getFlake "github:sauyon/ao-mcp").packages.${pkgs.system}.default;
+  agent-orchestrator = (builtins.getFlake "github:sauyon/agent-orchestrator").packages.${pkgs.stdenv.hostPlatform.system}.default;
+  ao-mcp = (builtins.getFlake "github:sauyon/ao-mcp").packages.${pkgs.stdenv.hostPlatform.system}.default;
   rampart = import ./rampart-patched.nix { inherit pkgs; };
 
   ao-run = pkgs.writeShellScriptBin "ao-run" ''
@@ -69,7 +69,7 @@ let
       -v "$AO_CONFIG":/work/agent-orchestrator.yaml \
       -e AO_CONFIG_PATH=/work/agent-orchestrator.yaml \
       -e RAMPART_URL=http://rampart:9090 \
-      -e RAMPART_TOKEN="$(cat ~/.rampart/remote-token 2>/dev/null)" \
+      -e RAMPART_TOKEN="$(cat ~/.rampart/token 2>/dev/null)" \
       -v ~/devel:/repos \
       -v ~/.config/gh:"$CONTAINER_HOME"/.config/gh:ro \
       -v ~/.aws:"$CONTAINER_HOME"/.aws:ro \
@@ -86,6 +86,113 @@ let
       ao start ''${@:-mcloud}
   '';
 
+  claude-prof = pkgs.writeShellScriptBin "claude-prof" ''
+    set -euo pipefail
+    PROFILES_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/claude-profiles"
+    CREDENTIALS="$HOME/.claude/.credentials.json"
+    CURRENT_FILE="$PROFILES_DIR/.current"
+
+    cmd="''${1:-help}"
+    shift || true
+
+    case "$cmd" in
+      list|ls)
+        if ! ls "$PROFILES_DIR"/*.json 2>/dev/null | grep -q .; then
+          echo "No profiles saved."
+          exit 0
+        fi
+        current=""
+        [ -f "$CURRENT_FILE" ] && current="$(cat "$CURRENT_FILE")"
+        for f in "$PROFILES_DIR"/*.json; do
+          name="$(basename "$f" .json)"
+          if [ "$name" = "$current" ]; then
+            echo "* $name"
+          else
+            echo "  $name"
+          fi
+        done
+        ;;
+      use|switch)
+        name="''${1:?usage: claude-prof use <name>}"
+        src="$PROFILES_DIR/$name.json"
+        [ -f "$src" ] || { echo "error: profile '$name' not found"; exit 1; }
+        cp "$src" "$CREDENTIALS"
+        echo "$name" > "$CURRENT_FILE"
+        echo "Switched to profile: $name"
+        ;;
+      save)
+        name="''${1:?usage: claude-prof save <name>}"
+        mkdir -p "$PROFILES_DIR"
+        [ -f "$CREDENTIALS" ] || { echo "error: no credentials found at $CREDENTIALS"; exit 1; }
+        cp "$CREDENTIALS" "$PROFILES_DIR/$name.json"
+        echo "$name" > "$CURRENT_FILE"
+        echo "Saved profile: $name"
+        ;;
+      show|current)
+        if [ -f "$CURRENT_FILE" ]; then
+          cat "$CURRENT_FILE"
+        else
+          echo "(unknown)"
+        fi
+        ;;
+      rm|delete)
+        name="''${1:?usage: claude-prof rm <name>}"
+        src="$PROFILES_DIR/$name.json"
+        [ -f "$src" ] || { echo "error: profile '$name' not found"; exit 1; }
+        rm "$src"
+        if [ -f "$CURRENT_FILE" ] && [ "$(cat "$CURRENT_FILE")" = "$name" ]; then
+          rm "$CURRENT_FILE"
+        fi
+        echo "Deleted profile: $name"
+        ;;
+      run)
+        name="''${1:?usage: claude-prof run <name> [claude-args...]}"
+        shift
+        src="$PROFILES_DIR/$name.json"
+        [ -f "$src" ] || { echo "error: profile '$name' not found"; exit 1; }
+
+        PROFILE_HOME="$PROFILES_DIR/$name.home"
+        PROFILE_CLAUDE="$PROFILE_HOME/.claude"
+        mkdir -p "$PROFILE_CLAUDE"
+
+        # Profile-specific credentials (always refresh from saved profile)
+        cp "$src" "$PROFILE_CLAUDE/.credentials.json"
+        chmod 600 "$PROFILE_CLAUDE/.credentials.json"
+
+        # Symlink shared config from real home so settings/memory/instructions are consistent
+        for f in settings.json settings.local.json CLAUDE.md; do
+          real="$HOME/.claude/$f"
+          link="$PROFILE_CLAUDE/$f"
+          [ -e "$real" ] || continue
+          [ -e "$link" ] || ln -sf "$real" "$link"
+        done
+        for d in projects; do
+          real="$HOME/.claude/$d"
+          link="$PROFILE_CLAUDE/$d"
+          [ -e "$real" ] || continue
+          [ -e "$link" ] || ln -sf "$real" "$link"
+        done
+
+        HOME="$PROFILE_HOME" exec claude "$@"
+        ;;
+      help|--help|-h)
+        echo "Usage: claude-prof <command> [args]"
+        echo ""
+        echo "Commands:"
+        echo "  list               list saved profiles (* = active)"
+        echo "  use <name>         switch global credentials to a profile"
+        echo "  save <name>        save current credentials as a profile"
+        echo "  run <name> [args]  run claude in isolated session with a profile"
+        echo "  show               print the active profile name"
+        echo "  rm <name>          delete a saved profile"
+        ;;
+      *)
+        echo "error: unknown command '$cmd'. Try 'claude-prof help'." >&2
+        exit 1
+        ;;
+    esac
+  '';
+
   args = { inherit config lib pkgs; };
 
   # Claude Code settings kept as a nix value so they can be merged into the
@@ -93,6 +200,12 @@ let
   claudeSettings = {
     hooks = {
       PreToolUse = [
+        {
+          matcher = ".*";
+          hooks = [ { type = "command"; command = "rampart hook"; } ];
+        }
+      ];
+      PostToolUseFailure = [
         {
           matcher = ".*";
           hooks = [ { type = "command"; command = "rampart hook"; } ];
@@ -269,22 +382,72 @@ in
 
   home.stateVersion = "26.05";
 
+  # ── Rampart secrets ─────────────────────────────────────────────────────────
+  sops.secrets.rampartToken = { path = "${config.home.homeDirectory}/.rampart/token"; mode = "0600"; };
+  sops.secrets.rampartUrl = {};
+
+  sops.templates."rampart-config" = {
+    path = "${config.home.homeDirectory}/.rampart/config.yaml";
+    mode = "0600";
+    content = ''
+      serve_url: ${config.sops.placeholder.rampartUrl}
+    '';
+  };
+
+  sops.templates."rampart-env" = {
+    path = "${config.xdg.configHome}/environment.d/rampart.conf";
+    content = ''
+      RAMPART_SERVE_URL=${config.sops.placeholder.rampartUrl}
+      RAMPART_API=${config.sops.placeholder.rampartUrl}
+    '';
+  };
+
+  sops.templates."rampart-verify-policy" = {
+    path = "${config.home.homeDirectory}/.rampart/policies/verify.yaml";
+    mode = "0600";
+    content = ''
+      version: "1"
+      policies:
+        - name: semantic-verify
+          rules:
+          - action: webhook
+            webhook:
+              url: https://rampart:${config.sops.placeholder.rampartToken}@rampart-verify.ko.ag/verify
+              timeout: 15s
+              fail_open: true
+              on_deny: require_approval
+              message: Sent to semantic verification
+    '';
+  };
+
+  home.file.".rampart/policies/standard.yaml" = {
+    source = ./rampart-standard-policy.yaml;
+  };
+
   # Merge nix-declared Claude settings into a mutable ~/.claude/settings.json.
   # Using jq's recursive merge (.[0] * .[1]) so nix values win on conflict while
   # any keys Claude wrote at runtime (MCP servers, extra permissions, etc.) are
   # preserved across home-manager switches.
-  home.activation.claudeSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+  home.activation.claudeSettings = lib.hm.dag.entryAfter [ "writeBoundary" "sops" ] ''
     DEST="$HOME/.claude/settings.json"
     NIX="${claudeSettingsFile}"
     $DRY_RUN_CMD mkdir -p "$HOME/.claude"
+    _url=$(cat ${config.sops.secrets.rampartUrl.path} 2>/dev/null || true)
+    if [ -n "$_url" ]; then
+      _extra=$(${pkgs.jq}/bin/jq -n --arg v "$_url" '{env:{RAMPART_URL:$v,RAMPART_SERVE_URL:$v}}')
+    else
+      _extra='null'
+    fi
     if [ -e "$DEST" ] && [ ! -L "$DEST" ]; then
       TMP=$(mktemp)
-      ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$DEST" "$NIX" > "$TMP"
+      ${pkgs.jq}/bin/jq -s '.[0] * .[1] * (.[2] // {})' "$DEST" "$NIX" <(echo "$_extra") > "$TMP"
       $DRY_RUN_CMD mv "$TMP" "$DEST"
     else
       # First run or was previously a symlink from programs.claude-code.settings
       $DRY_RUN_CMD rm -f "$DEST"
-      $DRY_RUN_CMD cp "$NIX" "$DEST"
+      TMP=$(mktemp)
+      ${pkgs.jq}/bin/jq -s '.[0] * (.[1] // {})' "$NIX" <(echo "$_extra") > "$TMP"
+      $DRY_RUN_CMD mv "$TMP" "$DEST"
       $DRY_RUN_CMD chmod 644 "$DEST"
     fi
   '';
@@ -332,74 +495,6 @@ in
     '';
   };
 
-  home.file.".local/bin/rampart-remote-hook" = {
-    executable = true;
-    text = ''
-      #!/usr/bin/env bash
-      # Proxy Claude Code hook events to a remote Rampart serve instance.
-      set -euo pipefail
-
-      _rampart_cfg="''${XDG_CONFIG_HOME:-$HOME/.config}/rampart/config.yaml"
-      RAMPART_URL=$(grep '^serve_url:' "$_rampart_cfg" 2>/dev/null | awk '{gsub(/["'"'"']/, "", $2); print $2}' || true)
-      RAMPART_TOKEN=$(cat ~/.rampart/remote-token 2>/dev/null || echo "")
-
-      input=$(cat)
-
-      tool=$(echo "$input" | jq -r '.tool_name // empty')
-      hook_event=$(echo "$input" | jq -r '.hook_event_name // "PreToolUse"')
-
-      if [ -z "$tool" ]; then
-        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}'
-        exit 0
-      fi
-
-      params=$(echo "$input" | jq -c '.tool_input // {}')
-      session=$(echo "$input" | jq -r '.session_id // "default"')
-
-      auth_header=""
-      if [ -n "$RAMPART_TOKEN" ]; then
-        auth_header="Authorization: Bearer ''${RAMPART_TOKEN}"
-      fi
-
-      response=$(curl -s --max-time 5 \
-        -X POST "''${RAMPART_URL}/v1/tool/''${tool}" \
-        -H "Content-Type: application/json" \
-        ''${auth_header:+-H "$auth_header"} \
-        -d "{\"agent\":\"claude-code\",\"session\":\"''${session}\",\"params\":''${params}}" \
-        2>/dev/null) || true
-
-      if [ -z "$response" ]; then
-        echo "Rampart: server unreachable, asking by default" >&2
-        echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"ask","permissionDecisionReason":"Rampart: server unreachable, manual approval required"}}'
-        exit 0
-      fi
-
-      decision=$(echo "$response" | jq -r '.decision // "ask"' 2>/dev/null) || decision="ask"
-      message=$(echo "$response" | jq -r '.message // empty' 2>/dev/null) || message=""
-
-      case "$decision" in
-        deny)
-          if [ -n "$message" ]; then
-            echo "Rampart: ''${message}" >&2
-          else
-            echo "Rampart: Command blocked by remote policy" >&2
-          fi
-          exit 2
-          ;;
-        ask)
-          reason="''${message:-Rampart: Manual approval required}"
-          echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"ask","permissionDecisionReason":"'"''${reason}"'"}}'
-          ;;
-        allow)
-          echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"allow"}}'
-          ;;
-        *)
-          echo "Rampart: unexpected decision [''${decision}], asking by default" >&2
-          echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"ask","permissionDecisionReason":"Rampart: unexpected decision ['"''${decision}"'], manual approval required"}}'
-          ;;
-      esac
-    '';
-  };
 
   systemd.user.services.hyprland-cleanup = lib.optionalAttrs (!isDarwin) {
     Unit = {
@@ -434,6 +529,7 @@ in
     agent-orchestrator
     ao-mcp
     ao-run
+    claude-prof
     rampart
   ] ++ (with pkgs; [
     bfs
@@ -582,7 +678,7 @@ in
       enable = true;
       settings = {
         general = {
-          lock_cmd = "pidof hyprlock || hyprlock";
+          lock_cmd = "pidof hyprlock || /usr/bin/hyprlock";
           before_sleep_cmd = "loginctl lock-session";
           after_sleep_cmd = "hyprctl dispatch dpms on";
         };
@@ -601,7 +697,7 @@ in
     };
   };
 
-  targets.genericLinux.nixGL.packages = (builtins.getFlake "github:guibou/nixGL").packages.${pkgs.system};
+  targets.genericLinux.nixGL.packages = (builtins.getFlake "github:guibou/nixGL").packages.${pkgs.stdenv.hostPlatform.system};
 
   wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin) (import ./hyprland.nix (pkgs));
 

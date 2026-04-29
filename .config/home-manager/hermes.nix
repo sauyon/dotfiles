@@ -7,11 +7,11 @@ let
   relPluginDir = ".local/share/hermes/plugins/rampart";
   relAgentguardPluginDir = ".local/share/hermes/plugins/agentguard";
 
-  hermes-agent = (builtins.getFlake "github:sauyon/hermes-agent").packages.${pkgs.system}.default;
-  ao-mcp-pkg = (builtins.getFlake "github:sauyon/ao-mcp").packages.${pkgs.system}.default;
+  hermes-agent = (builtins.getFlake "github:sauyon/hermes-agent").packages.${pkgs.stdenv.hostPlatform.system}.default;
+  ao-mcp-pkg = (builtins.getFlake "github:sauyon/ao-mcp").packages.${pkgs.stdenv.hostPlatform.system}.default;
   ao-mcp-server = "${ao-mcp-pkg}/bin/ao-mcp-server";
   rampart = import ./rampart-patched.nix { inherit pkgs; };
-  agentguard = (builtins.getFlake "github:sauyon/agentguard").packages.${pkgs.system}.default;
+  agentguard = (builtins.getFlake "github:sauyon/agentguard").packages.${pkgs.stdenv.hostPlatform.system}.default;
 
   rampartVerifyUpstream = pkgs.fetchFromGitHub {
     owner = "peg";
@@ -248,11 +248,7 @@ in
   # File-path secrets: written to specific locations for direct use
   sops.secrets.apiKey = { path = "${config.xdg.configHome}/hermes/secrets/api-key"; mode = "0600"; };
   sops.secrets.discordToken = { path = "${config.xdg.configHome}/hermes/secrets/discord-token"; mode = "0600"; };
-  sops.secrets.rampartToken = { path = "${config.home.homeDirectory}/.rampart/remote-token"; mode = "0600"; };
   sops.secrets.gatewayToken = { path = "${config.home.homeDirectory}/.hermes-gateway-token"; mode = "0600"; };
-
-  # Inline secrets: used only via template placeholders below
-  sops.secrets.rampartUrl = {};
   sops.secrets.discordUserId = {};
   sops.secrets.discordHomeChannel = {};
   sops.secrets.cloudflareAccountId = {};
@@ -260,14 +256,6 @@ in
   sops.secrets.aoApiKey = {};
 
   # ── sops-managed config files (contain secrets, never touch nix store) ─────
-  sops.templates."rampart-config" = {
-    path = "${config.xdg.configHome}/rampart/config.yaml";
-    mode = "0600";
-    content = ''
-      serve_url: ${config.sops.placeholder.rampartUrl}
-    '';
-  };
-
   sops.templates."hermes-orchestrator-config" = {
     path = "${config.home.homeDirectory}/.hermes-orchestrator/config.yaml";
     mode = "0600";

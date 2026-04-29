@@ -166,8 +166,10 @@
     mrk = "mise run kubeconfig";
 
     ca = "cursor-agent";
-    cl = "claude --enable-auto-mode";
-    clw = "claude --enable-auto-mode --worktree";
+    cl = "claude-prof run work --enable-auto-mode";
+    clw = "claude-prof run work --enable-auto-mode --worktree";
+    clp = "claude-prof run personal --enable-auto-mode";
+    clpw = "claude-prof run personal --enable-auto-mode --worktree";
     gm = "gemini";
 
     z = "zellij";

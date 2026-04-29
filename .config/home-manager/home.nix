@@ -10,7 +10,13 @@ let
   machine = import ./machine.nix;
   hostname = machine.hostname;
 
+  secrets =
+    if builtins.pathExists ./secrets.nix
+    then import ./secrets.nix
+    else { rampartToken = "REPLACE_ME"; };
+
   walker-flake = builtins.getFlake "github:abenz1267/walker";
+  nixGL = (builtins.getFlake "github:guibou/nixGL").packages.${pkgs.system}.default;
 
   agent-orchestrator = (builtins.getFlake "github:sauyon/agent-orchestrator").packages.${pkgs.system}.default;
   ao-mcp = (builtins.getFlake "github:sauyon/ao-mcp").packages.${pkgs.system}.default;
@@ -22,7 +28,11 @@ let
     # Build/rebuild the ao image (dereference nix symlinks for Docker build context)
     AO_BUILD=$(mktemp -d)
     cp -rL ~/.config/agent-orchestrator/* "$AO_BUILD/"
-    docker build -t ao "$AO_BUILD"
+    docker build -t ao \
+      --build-arg HOST_UID="$(id -u)" \
+      --build-arg HOST_GID="$(id -g)" \
+      --build-arg HOST_USER="$(id -un)" \
+      "$AO_BUILD"
     rm -rf "$AO_BUILD"
 
     # Build the hermes plugin (source is on host, node_modules resolved in container)
@@ -33,21 +43,42 @@ let
         node:24-bookworm sh -c 'npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @aoagents/ao-core build && pnpm --filter @aoagents/ao-plugin-agent-hermes build'
     fi
 
+    # Prune stale git worktrees left by previous container runs (happens on unclean exit)
+    for REPO in ~/devel/mcloud ~/devel/mammoth ~/devel/modular; do
+      if [ -d "$REPO/.git" ]; then
+        docker run --rm -v ~/devel:/repos "node:24-bookworm" bash -c \
+          "git config --global --add safe.directory /repos/$(basename $REPO) && cd /repos/$(basename $REPO) && git worktree prune" 2>/dev/null || true
+      fi
+    done
+
     AO_CONFIG="/tmp/ao-config.yaml"
     cp -f ~/.config/agent-orchestrator/config.yaml "$AO_CONFIG"
     chmod 644 "$AO_CONFIG"
     TTY_FLAG=""
     [ -t 0 ] && TTY_FLAG="-t"
+
+    # Locate hermes binary in the nix store so it's accessible inside the container.
+    # The hermes plugin searches /root/.local/bin/hermes and /root/.hermes/hermes-agent/venv/bin/hermes.
+    # We mount the nix store read-only and bind the binary to the first search path.
+    HERMES_BIN=$(find /nix/store -maxdepth 3 -name 'hermes' -path '*hermes-agent*/bin/hermes' 2>/dev/null | sort | tail -1)
+    HERMES_MOUNT=""
+    if [ -n "$HERMES_BIN" ]; then
+      HERMES_MOUNT="-v /nix/store:/nix/store:ro -v ''${HERMES_BIN}:/home/$(id -un)/.local/bin/hermes:ro"
+    fi
+
+    CONTAINER_HOME="/home/$(id -un)"
     exec docker run --rm -i $TTY_FLAG \
       --name ao \
       --network agent-net \
       -v "$AO_CONFIG":/work/agent-orchestrator.yaml \
       -e AO_CONFIG_PATH=/work/agent-orchestrator.yaml \
       -e RAMPART_URL=http://rampart:9090 \
+      -e RAMPART_TOKEN="$(cat ~/.rampart/remote-token 2>/dev/null)" \
       -v ~/devel:/repos \
-      -v ~/.config/gh:/root/.config/gh:ro \
-      -v ~/.aws:/root/.aws:ro \
-      -v ~/.hermes-orchestrator:/root/.hermes \
+      -v ~/.config/gh:"$CONTAINER_HOME"/.config/gh:ro \
+      -v ~/.aws:"$CONTAINER_HOME"/.aws:ro \
+      -v ~/.hermes-orchestrator:"$CONTAINER_HOME"/.hermes \
+      $HERMES_MOUNT \
       -e HERMES_GATEWAY_TOKEN="$(cat ~/.hermes-gateway-token 2>/dev/null)" \
       -e ANTHROPIC_BASE_URL=http://litellm:4000 \
       -e AO_ANTHROPIC_KEY=sk-ao \
@@ -55,10 +86,108 @@ let
       -e OPENAI_API_KEY="$(cat ~/.config/hermes/secrets/api-key 2>/dev/null || echo REPLACE_ME)" \
       -e AIDER_MODEL=openai/moonshotai/kimi-k2.5 \
       -p 3000:3000 \
-      ao "$@"
+      -p 14801:14801 \
+      ao start ''${@:-mcloud}
   '';
 
   args = { inherit config lib pkgs; };
+
+  # Claude Code settings kept as a nix value so they can be merged into the
+  # mutable ~/.claude/settings.json on each activation (see home.activation below).
+  claudeSettings = {
+    hooks = {
+      PreToolUse = [
+        {
+          matcher = ".*";
+          hooks = [ { type = "command"; command = "rampart-remote-hook"; } ];
+        }
+      ];
+      PostToolUseFailure = [
+        {
+          matcher = ".*";
+          hooks = [ { type = "command"; command = "rampart-remote-hook"; } ];
+        }
+      ];
+    };
+    permissions = {
+      allow = [
+        "Bash(mise run:*)"
+        "Bash(home-manager switch)"
+        "mcp__claude_ai_Slack__slack_read_channel"
+        "mcp__claude_ai_Slack__slack_read_thread"
+        "mcp__claude_ai_Slack__slack_read_canvas"
+        "mcp__claude_ai_Slack__slack_read_user_profile"
+        "mcp__claude_ai_Notion__notion-fetch"
+        "mcp__claude_ai_Notion__notion-get-comments"
+        "mcp__claude_ai_Notion__notion-search"
+        "mcp__claude_ai_Notion__notion-query-data-sources"
+        "mcp__claude_ai_Notion__notion-query-meeting-notes"
+        "mcp__claude_ai_Notion__notion-get-teams"
+        "mcp__claude_ai_Notion__notion-get-users"
+        "mcp__claude_ai_Linear__get_issue"
+        "mcp__claude_ai_Linear__get_project"
+        "mcp__claude_ai_Linear__get_team"
+        "mcp__claude_ai_Linear__get_user"
+        "mcp__claude_ai_Linear__list_issues"
+        "mcp__claude_ai_Linear__list_projects"
+        "mcp__claude_ai_Linear__list_teams"
+        "mcp__claude_ai_Linear__list_users"
+        "mcp__claude_ai_Linear__list_comments"
+        "mcp__claude_ai_Linear__get_document"
+        "mcp__claude_ai_Linear__list_documents"
+        "mcp__claude_ai_Linear__get_initiative"
+        "mcp__claude_ai_Linear__list_initiatives"
+        "mcp__claude_ai_Linear__get_milestone"
+        "mcp__claude_ai_Linear__list_milestones"
+        "mcp__claude_ai_Linear__get_status_updates"
+        "mcp__claude_ai_Linear__list_cycles"
+        "mcp__claude_ai_Linear__list_issue_labels"
+        "mcp__claude_ai_Linear__list_issue_statuses"
+        "mcp__claude_ai_Linear__list_project_labels"
+        "mcp__claude_ai_Linear__get_authenticated_user"
+        "mcp__claude_ai_Linear__get_attachment"
+        "mcp__claude_ai_Linear__get_issue_status"
+        "mcp__claude_ai_Linear__search_documentation"
+        "mcp__github__get_commit"
+        "mcp__github__get_copilot_job_status"
+        "mcp__github__get_file_contents"
+        "mcp__github__get_label"
+        "mcp__github__get_latest_release"
+        "mcp__github__get_me"
+        "mcp__github__get_release_by_tag"
+        "mcp__github__get_tag"
+        "mcp__github__get_team_members"
+        "mcp__github__get_teams"
+        "mcp__github__issue_read"
+        "mcp__github__list_branches"
+        "mcp__github__list_commits"
+        "mcp__github__list_issue_types"
+        "mcp__github__list_issues"
+        "mcp__github__list_pull_requests"
+        "mcp__github__list_releases"
+        "mcp__github__list_tags"
+        "mcp__github__pull_request_read"
+        "mcp__github__search_code"
+        "mcp__github__search_issues"
+        "mcp__github__search_pull_requests"
+        "mcp__github__search_repositories"
+        "mcp__github__search_users"
+        "Skill(evaluate)"
+      ];
+      deny = [
+        "Bash(gh pr create*)"
+        "mcp__github__create_pull_request"
+      ];
+      defaultMode = "default";
+    };
+    enabledPlugins = {
+      "rust-analyzer-lsp@claude-plugins-official" = true;
+    };
+    autoDreamEnabled = true;
+    skipDangerousModePermissionPrompt = true;
+    skipAutoPermissionPrompt = true;
+  };
+  claudeSettingsFile = pkgs.writeText "claude-settings-nix.json" (builtins.toJSON claudeSettings);
 
   newtabLinks = [
     { group = "Work"; links = [
@@ -146,9 +275,29 @@ let
   '';
 in
 {
-  imports = [ walker-flake.homeManagerModules.default ./hermes.nix ];
+  imports = [ walker-flake.homeManagerModules.default ./hermes.nix ./gemini.nix ];
 
-  home.stateVersion = "21.11";
+  home.stateVersion = "26.05";
+
+  # Merge nix-declared Claude settings into a mutable ~/.claude/settings.json.
+  # Using jq's recursive merge (.[0] * .[1]) so nix values win on conflict while
+  # any keys Claude wrote at runtime (MCP servers, extra permissions, etc.) are
+  # preserved across home-manager switches.
+  home.activation.claudeSettings = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    DEST="$HOME/.claude/settings.json"
+    NIX="${claudeSettingsFile}"
+    $DRY_RUN_CMD mkdir -p "$HOME/.claude"
+    if [ -e "$DEST" ] && [ ! -L "$DEST" ]; then
+      TMP=$(mktemp)
+      ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$DEST" "$NIX" > "$TMP"
+      $DRY_RUN_CMD mv "$TMP" "$DEST"
+    else
+      # First run or was previously a symlink from programs.claude-code.settings
+      $DRY_RUN_CMD rm -f "$DEST"
+      $DRY_RUN_CMD cp "$NIX" "$DEST"
+      $DRY_RUN_CMD chmod 644 "$DEST"
+    fi
+  '';
 
   xdg.userDirs.setSessionVariables = true;
 
@@ -163,6 +312,7 @@ in
         home = config.home.homeDirectory;
       }
     )
+    // { RAMPART_TOKEN = secrets.rampartToken; }
     // (lib.optionalAttrs (hostname == "setsuna") {
       QT_FONT_DPI = "120";
     });
@@ -201,7 +351,7 @@ in
       set -euo pipefail
 
       RAMPART_URL="''${RAMPART_SERVE_URL:-https://REDACTED}"
-      RAMPART_TOKEN="''${RAMPART_TOKEN:-}"
+      RAMPART_TOKEN="''${RAMPART_TOKEN:-$(cat ~/.rampart/remote-token 2>/dev/null || echo "")}"
 
       input=$(cat)
 
@@ -305,7 +455,6 @@ in
     lnav
     bat
     mise
-    mosh
     rustup
     nixfmt
     kubectl
@@ -346,19 +495,6 @@ in
           rev = "3a99be0b3d76a691c940608c477955d122f37e75";
           sha256 = "1g735n0xr50vgcw30igldhmjvb40jgk65x5qjnnxidvm1i3vykw9";
         };
-      });
-      mosh = super.mosh.overrideAttrs (old: {
-        version = "git-decd9b7";
-        src = super.fetchFromGitHub {
-          owner = "mobile-shell";
-          repo = "mosh";
-          rev = "decd9b705eb81626f694335b8d5940538beb06da";
-          hash = "sha256-SsIj2JCDw7qkJ0NiX0FEQVYM0ATFpC9O/m7jycri0nU=";
-        };
-        # eee1a8cf is already included in HEAD; drop it to avoid reversed-patch error
-        patches = builtins.filter
-          (p: !(builtins.isAttrs p && lib.hasInfix "eee1a8cf" (p.url or "")))
-          old.patches;
       });
     })
     (final: prev: {
@@ -451,9 +587,31 @@ in
     };
 
     # emacs.enable = !isDarwin;
+
+    hypridle = lib.optionalAttrs (!isDarwin) {
+      enable = true;
+      settings = {
+        general = {
+          lock_cmd = "pidof hyprlock || hyprlock";
+          before_sleep_cmd = "loginctl lock-session";
+          after_sleep_cmd = "hyprctl dispatch dpms on";
+        };
+        listener = [
+          {
+            timeout = 300;
+            on-timeout = "hyprctl dispatch dpms off";
+            on-resume = "hyprctl dispatch dpms on";
+          }
+          {
+            timeout = 600;
+            on-timeout = "loginctl lock-session";
+          }
+        ];
+      };
+    };
   };
 
-  targets.genericLinux.nixGL.packages = import <nixgl> { inherit pkgs; };
+  targets.genericLinux.nixGL.packages = (builtins.getFlake "github:guibou/nixGL").packages.${pkgs.system};
 
   wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin) (import ./hyprland.nix (pkgs));
 
@@ -565,7 +723,7 @@ in
           clock.format = "%a %m-%d %H:%M:%S";
           "customModules.ram.icon" = "󰍛";
           layouts = {
-            "DP-1" = {
+            "eDP-1" = {
               left = [
                 "dashboard"
                 "workspaces"
@@ -575,9 +733,7 @@ in
               right = [
                 "volume"
                 "network"
-                "bluetooth"
-                "systray"
-                "ram"
+                "battery"
                 "clock"
                 "notifications"
               ];
@@ -593,7 +749,8 @@ in
               right = [
                 "volume"
                 "network"
-                "battery"
+                "bluetooth"
+                "systray"
                 "ram"
                 "clock"
                 "notifications"
@@ -653,38 +810,8 @@ in
     claude-code = {
       enable = true;
       # enableMcpIntegration = true;
-      settings = {
-        hooks = {
-          PreToolUse = [
-            {
-              matcher = ".*";
-              hooks = [
-                {
-                  type = "command";
-                  command = "rampart-remote-hook";
-                }
-              ];
-            }
-          ];
-          PostToolUseFailure = [
-            {
-              matcher = ".*";
-              hooks = [
-                {
-                  type = "command";
-                  command = "rampart-remote-hook";
-                }
-              ];
-            }
-          ];
-        };
-        permissions = {
-          allow = [
-            "Bash(mise run:*)"
-          ];
-        };
-        skipDangerousModePermissionPrompt = true;
-      };
+      # settings is intentionally unset — managed via home.activation.claudeSettings
+      # below so the file stays mutable (Claude can edit it at runtime).
     };
 
     home-manager.enable = true;
@@ -698,6 +825,12 @@ in
     };
     firefox = {
       enable = true;
+      policies = {
+        Homepage = {
+          URL = "https://ko.ag/newtab.html";
+          StartPage = "homepage";
+        };
+      };
       nativeMessagingHosts = [
         pkgs.tridactyl-native
       ];
@@ -710,8 +843,8 @@ in
           "ui.key.accelKey" = 91;
           "ui.key.textcontrol.prefer_native_key_bindings_over_builtin_shortcut_key_definitions" = true;
           "signon.rememberSignons" = false;
-          "browser.newtabpage.enabled" = false;
           "browser.newtab.extensionControlled" = false;
+          "browser.ml.chat.enabled" = false;
         };
       };
     };
@@ -785,9 +918,9 @@ in
         "*.local.json"
         "*.local.toml"
         ".aider*"
-        ".claude/worktrees"
-        ".claude/scheduled_tasks.lock"
-        ".claude/plans"
+        "**/.claude/worktrees"
+        "**/.claude/scheduled_tasks.lock"
+        "**/.claude/plans"
       ];
 
       signing = {
@@ -1048,6 +1181,67 @@ in
       indentYaml = n: s:
         let pad = lib.concatStrings (builtins.genList (_: " ") n);
         in lib.concatMapStringsSep "\n" (line: if line == "" then "" else pad + line) (lib.splitString "\n" s);
+      # Rules sent to WORKER agents (the ones writing/reviewing code)
+      agentRules = ''
+        ## Build Verification (MANDATORY)
+
+        You MUST verify your changes build and pass lint before creating a PR
+        or reporting work as complete. A change that doesn't build is not done.
+
+        1. Read the project's AGENTS.md / CLAUDE.md for the exact build and lint
+           commands (they vary by project).
+        2. After making changes, run the relevant lint/build commands for the
+           files you touched. For example in mcloud:
+           - Go changes: `golangci-lint run --timeout=10m`
+           - Dashboard changes: `cd dashboard && pnpm install && pnpm lint`
+           - Helm changes: `cd helm/bentocloud && make lint && make template`
+        3. If the build or lint fails, fix the errors before proceeding.
+        4. Never create a PR with known build failures.
+
+        ## Test-Driven Development
+
+        Follow TDD strictly:
+        1. **RED** — Write a failing test that captures the requirement or bug.
+           Run it to confirm it fails.
+        2. **GREEN** — Implement the minimal code to make the test pass.
+           Run the test to confirm it passes.
+        3. **REFACTOR** — Clean up while keeping tests green.
+
+        Do not skip running tests. If you write a test, you must execute it.
+        If you implement code, you must run existing tests to check for regressions.
+
+        ## MCP Tools Available
+
+        You have MCP tools pre-configured. Use them — do not skip.
+
+        ### Playwright (UI/Frontend QA)
+        When your changes touch frontend code (components, pages, styles, assets):
+        1. Use `mcp__playwright__browser_navigate` to open the deploy preview URL
+           or local dev server in headless Chromium.
+        2. Use `mcp__playwright__browser_snapshot` to capture the DOM state.
+        3. Use `mcp__playwright__browser_click`, `browser_type`, etc. to interact
+           with the UI and verify your changes work.
+        4. Check that pages adjacent to your changes still render correctly.
+        5. If no preview URL is available, note it in your PR — do not silently
+           skip UI validation for frontend changes.
+
+        ### bcctl (Remote Environment Testing)
+        When your changes require a running backend to validate (API changes,
+        model serving, deployment configs):
+        1. Use `mcp__bcctl__list_environments` to find available dev environments.
+        2. Use bcctl tools to create/attach to a dev environment and sync the
+           PR branch for testing.
+        3. Run the relevant test suite or manual verification against the remote
+           environment.
+
+        ## PR Workflow
+        - Always create PRs as drafts.
+        - Read AGENTS.md for Linear ticket requirements — PRs must link a ticket.
+        - If skills are listed in AGENTS.md (e.g. `develop-feature`, `bentocloudctl`),
+          invoke them as instructed.
+      '';
+
+      # Rules sent to the ORCHESTRATOR (coordination, not implementation)
       orchestratorRules = ''
         ## TDD-First Workflow (Test-Driven Development)
 
@@ -1122,13 +1316,20 @@ in
         Use `bcctl` tools to create/attach to a dev environment, sync the PR
         branch, and run the relevant test suite or manual verification there.
 
-        9. **Stop only when all required review agents (Code/Perf/QA) give 5/5.**
-           Then notify the user that the PR is ready for the user to manually promote. (Drafts forever.)
- 
-        for the answer. The call blocks until the user replies, so only use
-        it when you genuinely need their input.
+        ### Worker Spawn Best Practices
+        When spawning ANY worker, always include in the prompt:
+        - "Read AGENTS.md for build commands and lint requirements"
+        - "Run builds and tests — do not skip"
+        - "You have Playwright and bcctl MCP tools available — use them"
+        These instructions are critical because workers only see agentRules,
+        not these orchestrator rules.
 
-        Use this for:
+        9. **Stop only when all required review agents (Code/Perf/QA) give 5/5.**
+           Then notify the user that the PR is ready for the user to manually
+           promote. (Drafts forever.)
+
+        ## Escalation
+        Use `ao ask` only when you genuinely need user input:
         - Design decisions the user must make
         - Ambiguous requirements that need clarification
         - Notifying the user that a PR is ready for review (5/5 score)
@@ -1143,12 +1344,7 @@ in
         orchestrator:
           agent: hermes
         agentRules: |
-          Always use TDD (Test-Driven Development).
-          Follow this cycle:
-          1. Write a failing test (RED).
-          2. Run the test to confirm failure.
-          3. Implement the minimal code to pass (GREEN).
-          4. Refactor and ensure tests remain green.
+${indentYaml 10 agentRules}
 
       plugins:
         - name: hermes
@@ -1162,6 +1358,8 @@ in
           defaultBranch: main
           runtime: tmux
           agent: claude-code
+          orchestrator:
+            agent: hermes
           agentConfig:
             permissions: default
             model: moonshotai/kimi-k2.5
@@ -1174,6 +1372,8 @@ ${indentYaml 12 orchestratorRules}
           defaultBranch: main
           runtime: tmux
           agent: claude-code
+          orchestrator:
+            agent: hermes
           agentConfig:
             permissions: default
             model: moonshotai/kimi-k2.5
@@ -1186,6 +1386,8 @@ ${indentYaml 12 orchestratorRules}
           defaultBranch: main
           runtime: tmux
           agent: claude-code
+          orchestrator:
+            agent: hermes
           agentConfig:
             permissions: default
             model: moonshotai/kimi-k2.5
@@ -1218,18 +1420,95 @@ ${indentYaml 12 orchestratorRules}
 
       RUN npm install -g @aoagents/ao@0.2.5 @anthropic-ai/claude-code @playwright/mcp
       RUN npx playwright install --with-deps chromium
-      RUN pipx install aider-chat && pipx ensurepath
+
+      # Patch ao-web Next.js bundle to load the local hermes agent plugin so it
+      # is available in API route handlers (e.g. POST /api/sessions/:id/message).
+      # Uses new Function() to escape webpack's import() transformation, which
+      # cannot handle file:// URLs for plugins outside the bundle.
+      RUN node -e " \
+        const fs = require('fs'); \
+        const f = '/usr/local/lib/node_modules/@aoagents/ao/node_modules/@aoagents/ao-web/.next/server/chunks/886.js'; \
+        let d = fs.readFileSync(f, 'utf8'); \
+        const needle = 'b.register(aE);let c='; \
+        if (!d.includes(needle)) { console.log('ao-web patch: needle not found, skipping'); process.exit(0); } \
+        const patch = 'b.register(aE);try{const __h=await (new Function(\"return import(\\\\x27file:///repos/agent-orchestrator/packages/plugins/agent-hermes/dist/index.js\\\\x27)\")());const __m=__h&&(__h.default||__h);if(__m&&__m.manifest&&__m.create)b.register(__m);}catch(__e){process.stderr.write(\"[ao-patch] hermes load failed: \"+__e.message+\"\\\\n\");}let c='; \
+        d = d.replace(needle, patch); \
+        fs.writeFileSync(f, d); \
+        console.log('ao-web patch: hermes plugin import inserted'); \
+      "
+
+      # Patch 627.js restore() to pass systemPromptFile for orchestrators and
+      # use AO_CALLER_TYPE='orchestrator' (instead of always 'agent').
+      # This ensures that after a container restart, the orchestrator hermes
+      # session gets the correct ephemeral system prompt via env var.
+      RUN node -e " \
+        const fs = require('fs'); \
+        const f = '/usr/local/lib/node_modules/@aoagents/ao/node_modules/@aoagents/ao-web/.next/server/chunks/627.js'; \
+        let d = fs.readFileSync(f, 'utf8'); \
+        if (d.includes('\"orchestrator\"===m.role?\"orchestrator\":\"agent\"')) { \
+          console.log('627.js restore patch: already applied, skipping'); \
+          process.exit(0); \
+        } \
+        const n1 = 'issueId:n.issueId??void 0,permissions:\"orchestrator\"===m.role?\"permissionless\":m.permissions,model:m.model,subagent:m.subagent}'; \
+        const r1 = 'issueId:n.issueId??void 0,permissions:\"orchestrator\"===m.role?\"permissionless\":m.permissions,model:m.model,subagent:m.subagent,...(\"orchestrator\"===m.role?{systemPromptFile:h(c).slice(0,-9)+\"/orchestrator-prompt-\"+a+\".md\"}:{})}';\
+        if (!d.includes(n1)) { console.log('627.js restore patch: needle1 not found, skipping'); process.exit(0); } \
+        d = d.replace(n1, r1); \
+        const n2 = 'AO_SESSION:a,AO_DATA_DIR:j,AO_SESSION_NAME:a,...s&&{AO_TMUX_NAME:s},AO_CALLER_TYPE:\"agent\",...f&&{AO_PROJECT_ID:f}'; \
+        const r2 = 'AO_SESSION:a,AO_DATA_DIR:j,AO_SESSION_NAME:a,...s&&{AO_TMUX_NAME:s},AO_CALLER_TYPE:\"orchestrator\"===m.role?\"orchestrator\":\"agent\",...f&&{AO_PROJECT_ID:f}'; \
+        if (!d.includes(n2)) { console.log('627.js restore patch: needle2 not found, skipping'); process.exit(0); } \
+        d = d.replace(n2, r2); \
+        fs.writeFileSync(f, d); \
+        console.log('627.js restore patch: applied'); \
+      "
+
+      # Patch ao-core session-manager.js restore() with same fixes as 627.js above.
+      RUN node -e " \
+        const fs = require('fs'); \
+        const f = '/usr/local/lib/node_modules/@aoagents/ao/node_modules/@aoagents/ao-core/dist/session-manager.js'; \
+        let d = fs.readFileSync(f, 'utf8'); \
+        if (d.includes('role === \"orchestrator\" ? \"orchestrator\"')) { \
+          console.log('session-manager restore patch: already applied, skipping'); \
+          process.exit(0); \
+        } \
+        const n1 = '            issueId: session.issueId ?? undefined,\n            permissions: selection.role === \"orchestrator\" ? \"permissionless\" : selection.permissions,\n            model: selection.model,\n            subagent: selection.subagent,\n        };'; \
+        const r1 = '            issueId: session.issueId ?? undefined,\n            permissions: selection.role === \"orchestrator\" ? \"permissionless\" : selection.permissions,\n            model: selection.model,\n            subagent: selection.subagent,\n            ...(selection.role === \"orchestrator\" ? { systemPromptFile: join(getProjectBaseDir(config.configPath, project.path), \`orchestrator-prompt-\''${sessionId}.md\`) } : {}),\n        };'; \
+        if (!d.includes(n1)) { console.log('session-manager restore patch: needle1 not found, skipping'); process.exit(0); } \
+        d = d.replace(n1, r1); \
+        const n2 = '                AO_CALLER_TYPE: \"agent\",\n                ...(projectId && { AO_PROJECT_ID: projectId }),\n                AO_CONFIG_PATH: config.configPath,\n                ...(config.port !== undefined && config.port !== null && { AO_PORT: String(config.port) }),\n            },\n        });\n        // 9. Update metadata'; \
+        const r2 = '                AO_CALLER_TYPE: selection.role === \"orchestrator\" ? \"orchestrator\" : \"agent\",\n                ...(projectId && { AO_PROJECT_ID: projectId }),\n                AO_CONFIG_PATH: config.configPath,\n                ...(config.port !== undefined && config.port !== null && { AO_PORT: String(config.port) }),\n            },\n        });\n        // 9. Update metadata'; \
+        if (!d.includes(n2)) { console.log('session-manager restore patch: needle2 not found, skipping'); process.exit(0); } \
+        d = d.replace(n2, r2); \
+        fs.writeFileSync(f, d); \
+        console.log('session-manager restore patch: applied'); \
+      "
+
+      # Install aider system-wide so non-root users can run it
+      ENV PIPX_HOME=/opt/pipx
+      ENV PIPX_BIN_DIR=/usr/local/bin
+      RUN pipx install aider-chat
+
+      # Create user matching host uid/gid so --dangerously-skip-permissions works
+      # and files created in bind-mounted dirs have correct ownership.
+      # UID/GID are passed as build args from ao-run.
+      ARG HOST_UID=1000
+      ARG HOST_GID=1000
+      ARG HOST_USER=aouser
+      RUN groupadd -g $HOST_GID $HOST_USER && \
+          useradd -u $HOST_UID -g $HOST_GID -m -s /bin/bash $HOST_USER
 
       # Pre-bake onboarding state so interactive prompts are skipped
-      RUN printf '{"hasCompletedOnboarding":true,"lastOnboardingVersion":"2.1.108","numStartups":1,"migrationVersion":11,"projects":{}}\n' > /root/.claude.json
+      RUN printf '{"hasCompletedOnboarding":true,"lastOnboardingVersion":"2.1.108","numStartups":1,"migrationVersion":11,"projects":{}}\n' \
+          > /home/$HOST_USER/.claude.json && chown $HOST_USER:$HOST_USER /home/$HOST_USER/.claude.json
 
       # MCP servers available to all Claude Code agent sessions
-      RUN mkdir -p /root/.claude && cat > /root/.claude/settings.json << 'MCPCFG'
+      RUN mkdir -p /home/$HOST_USER/.claude && cat > /home/$HOST_USER/.claude/settings.json << 'MCPCFG'
       {
-        "permissions": {
-          "allow": [
-            "mcp__bcctl__*",
-            "mcp__playwright__*"
+        "hooks": {
+          "PreToolUse": [
+            {
+              "matcher": ".*",
+              "hooks": [{ "type": "command", "command": "rampart-remote-hook" }]
+            }
           ]
         },
         "mcpServers": {
@@ -1247,6 +1526,7 @@ ${indentYaml 12 orchestratorRules}
         }
       }
       MCPCFG
+      RUN chown -R $HOST_USER:$HOST_USER /home/$HOST_USER/.claude
 
       # Bootstrap bcctl-mcp venv and inject into project .mcp.json
       RUN cat >> /usr/local/bin/setup-mcps << 'SETUPMCP'
@@ -1282,16 +1562,59 @@ ${indentYaml 12 orchestratorRules}
       SETUPMCP
       RUN chmod +x /usr/local/bin/setup-mcps
 
+      # Rampart hook for container agents: calls internal rampart instance.
+      # Returns allow/deny only (never ask) — headless container mode.
+      # Fail-open if rampart unreachable (container is already sandboxed).
+      RUN cat > /usr/local/bin/rampart-remote-hook << 'RAMPARTSCRIPT'
+      #!/usr/bin/env bash
+      set -euo pipefail
+      RAMPART_URL="''${RAMPART_URL:-http://rampart:9090}"
+      RAMPART_TOKEN="''${RAMPART_TOKEN:-}"
+      input=$(cat)
+      tool=$(echo "$input" | jq -r '.tool_name // empty')
+      hook_event=$(echo "$input" | jq -r '.hook_event_name // "PreToolUse"')
+      if [ -z "$tool" ]; then
+        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}'
+        exit 0
+      fi
+      params=$(echo "$input" | jq -c '.tool_input // {}')
+      session=$(echo "$input" | jq -r '.session_id // "default"')
+      auth_header=""
+      if [ -n "$RAMPART_TOKEN" ]; then
+        auth_header="Authorization: Bearer ''${RAMPART_TOKEN}"
+      fi
+      response=$(curl -s --max-time 5 \
+        -X POST "''${RAMPART_URL}/v1/tool/''${tool}" \
+        -H "Content-Type: application/json" \
+        ''${auth_header:+-H "$auth_header"} \
+        -d "{\"agent\":\"claude-code\",\"session\":\"''${session}\",\"params\":''${params}}" \
+        2>/dev/null) || true
+      if [ -z "$response" ]; then
+        echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"allow"}}'
+        exit 0
+      fi
+      decision=$(echo "$response" | jq -r '.decision // "allow"' 2>/dev/null) || decision="allow"
+      message=$(echo "$response" | jq -r '.message // empty' 2>/dev/null) || message=""
+      case "$decision" in
+        deny)
+          if [ -n "$message" ]; then echo "Rampart: ''${message}" >&2; else echo "Rampart: Command blocked by remote policy" >&2; fi
+          exit 2
+          ;;
+        *)
+          echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"allow"}}'
+          ;;
+      esac
+      RAMPARTSCRIPT
+      RUN chmod +x /usr/local/bin/rampart-remote-hook
+
       # Wrapper: auto-trust workspace + inject API key via apiKeyHelper.
-      # ANTHROPIC_API_KEY triggers an interactive confirmation dialog in
-      # non-print mode, so we pass the key through apiKeyHelper in --settings
-      # which bypasses that prompt. Does NOT use --bare so hooks/plugins
-      # (Rampart) remain active.
+      # Strips --dangerously-skip-permissions — the rampart PreToolUse hook handles
+      # permission decisions instead. Uses $HOME so it works for any user.
       RUN mv /usr/local/bin/claude /usr/local/bin/claude-real && \
           cat > /usr/local/bin/claude << 'WRAPPER'
       #!/bin/sh
       CWD="$(pwd)"
-      STATE=/root/.claude.json
+      STATE="$HOME/.claude.json"
       if [ -f "$STATE" ] && command -v node >/dev/null 2>&1; then
         node -e "\
           const fs = require('fs');\
@@ -1305,28 +1628,38 @@ ${indentYaml 12 orchestratorRules}
       fi
       # Bootstrap bcctl-mcp venv on first run (bind mount not available at build time)
       setup-mcps 2>/dev/null
+      # Strip --dangerously-skip-permissions: rampart hook handles permissions instead
+      FILTERED=""
+      for arg in "$@"; do
+        case "$arg" in
+          --dangerously-skip-permissions) ;;
+          *) FILTERED="$FILTERED${FILTERED:+ }$arg" ;;
+        esac
+      done
       if [ -n "$AO_ANTHROPIC_KEY" ]; then
         # Merge apiKeyHelper into global settings (preserves MCP server config)
         SFILE=$(mktemp /tmp/claude-settings.XXXXXX.json)
         node -e "\
           const fs = require('fs');\
           let s = {};\
-          try { s = JSON.parse(fs.readFileSync('/root/.claude/settings.json','utf8')); } catch(e) {}\
+          try { s = JSON.parse(fs.readFileSync(process.env.HOME + '/.claude/settings.json','utf8')); } catch(e) {}\
           s.apiKeyHelper = 'echo ' + process.argv[1];\
           fs.writeFileSync(process.argv[2], JSON.stringify(s));\
         " "$AO_ANTHROPIC_KEY" "$SFILE"
-        exec claude-real --settings "$SFILE" "$@"
+        eval exec claude-real --settings "$SFILE" "$FILTERED"
       fi
-      exec claude-real "$@"
+      eval exec claude-real "$FILTERED"
       WRAPPER
       RUN chmod +x /usr/local/bin/claude
 
-      ENV PATH="/root/.local/bin:$PATH"
+      # System-level git config (applies to all users)
+      RUN git config --system --add safe.directory '*' && \
+          git config --system user.name "ao-agent" && \
+          git config --system user.email "ao-agent@localhost"
 
-      RUN git config --global --add safe.directory '*'
-      RUN git config --global user.name "ao-agent" && \
-          git config --global user.email "ao-agent@localhost"
+      ENV PATH="/usr/local/bin:$PATH"
 
+      USER $HOST_USER
       WORKDIR /work
 
       EXPOSE 3000
@@ -1339,6 +1672,7 @@ ${indentYaml 12 orchestratorRules}
       " vim: set filetype=vim
 
       set smoothscroll true
+      set newtab https://ko.ag/newtab.html
 
       unbind d
       bind <A-x> fillcmdline_notrail

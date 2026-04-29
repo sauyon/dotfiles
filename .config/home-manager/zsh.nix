@@ -72,6 +72,8 @@
         fi
     fi
 
+    eval $(kcs init)
+
     # The greeting. Yeah, yeah, I'm unimaginative. :'(
     echo "Hello, $(${pkgs.inetutils}/bin/hostname -s)"'!'
   '';

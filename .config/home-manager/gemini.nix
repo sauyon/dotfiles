@@ -7,21 +7,62 @@ let
       url = "https://registry.npmjs.org/@google/gemini-cli/-/gemini-cli-${version}.tgz";
       hash = "sha256-dWMqrnskl/+INM6A8z456JOMMhCIVacKMWXlVYTAFaQ=";
     };
-    # Fix for 0.40.0 layout change where everything moved into a 'bundle' directory
     postInstall = (old.postInstall or "") + ''
       if [ -d $out/lib/gemini/bundle ]; then
         cp -r $out/lib/gemini/bundle/* $out/lib/gemini/
-        # Keep the bundle dir as a symlink just in case internal paths expect it
-        # Actually, moving is cleaner if relative paths are relative to gemini.js
-        # But let's just copy and keep for safety, or better, move.
-        # The official nixpkgs build does: cp -r . $out/lib/gemini
-        # So in our case it copied package/bundle to $out/lib/gemini/bundle
       fi
     '';
   });
 in
 {
-  home.packages = [ gemini-cli-latest ];
+  programs.gemini-cli = {
+    enable = true;
+    package = gemini-cli-latest;
+    settings = {
+      security = {
+        auth = {
+          selectedType = "oauth-personal";
+        };
+        enablePermanentToolApproval = true;
+        autoAddToPolicyByDefault = true;
+        environmentVariableRedaction = {
+          enabled = true;
+        };
+      };
+      ui = {
+        footer = {
+          items = [ "workspace" "git-branch" "sandbox" "model-name" "quota" ];
+        };
+        showCitations = true;
+      };
+      model = {
+        name = "auto";
+      };
+      hooks = {
+        BeforeTool = [
+          {
+            matcher = "run_shell_command|write_file|replace|read_file";
+            hooks = [
+              {
+                name = "rampart-audit";
+                type = "command";
+                # Note: Home Manager will put this script in the same directory or we can use the absolute path
+                command = "${config.home.homeDirectory}/.local/bin/gemini-rampart-hook";
+              }
+            ];
+          }
+        ];
+      };
+      experimental = {
+        worktrees = true;
+        memoryManager = true;
+        contextManagement = true;
+        generalistProfile = true;
+        autoMemory = true;
+        modelSteering = true;
+      };
+    };
+  };
 
   home.file.".local/bin/gemini-rampart-hook" = {
     executable = true;

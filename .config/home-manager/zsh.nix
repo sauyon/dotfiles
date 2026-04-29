@@ -160,6 +160,8 @@
     b = "bentoml";
     bc = "bentocloudctl";
 
+    m = "mise";
+    mt = "mise tasks";
     mr = "mise run";
     mrk = "mise run kubeconfig";
 

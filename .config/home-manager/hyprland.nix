@@ -71,7 +71,7 @@
       # "$mainMod SHIFT, P, pseudo, # dwindle"
       # "$mainMod, V, togglesplit, # dwindle"
       # "$mainMod, G, togglegroup"
-      "$mainMod SHIFT, Q, exec, hyprlock"
+      "$mainMod SHIFT, Q, exec, /usr/bin/hyprlock"
       "$mainMod SHIFT, S, exec, ${pkgs.hyprshot}/bin/hyprshot -m region"
       "$mainMod, E, exec, emacsclient -c"
 
@@ -136,7 +136,7 @@
       ", XF86AudioPlay, exec, ${pkgs.playerctl}/bin/playerctl play-pause"
       ", XF86AudioPrev, exec, ${pkgs.playerctl}/bin/playerctl previous"
 
-      ", switch:on:Lid Switch, exec, hyprctl dispatch dpms off && hyprctl dispatch exec hyprlock"
+      ", switch:on:Lid Switch, exec, hyprctl dispatch dpms off && hyprctl dispatch exec /usr/bin/hyprlock"
       ", switch:off:Lid Switch, exec, hyprctl dispatch dpms on"
     ];
   };

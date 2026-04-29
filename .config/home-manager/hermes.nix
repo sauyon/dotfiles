@@ -1,14 +1,6 @@
 { config, lib, pkgs, ... }:
 
 let
-  # Secrets live in ./secrets.nix (gitignored Nix attrset).  At Nix eval time
-  # we import it for non-sensitive values; the activation script reads secret
-  # values at *runtime* via `nix eval --file` so they never enter /nix/store.
-  secretsDir = builtins.toString ./.;
-  secrets =
-    if builtins.pathExists ./secrets.nix
-    then import ./secrets.nix
-    else { apiKey = "REPLACE_ME"; gatewayToken = "REPLACE_ME"; aoApiKey = "REPLACE_ME"; rampartToken = "REPLACE_ME"; discordToken = "REPLACE_ME"; discordUserId = "REPLACE_ME"; discordHomeChannel = "REPLACE_ME"; };
 
   stateDir = "${config.xdg.dataHome}/hermes";
   pluginDir = "${stateDir}/plugins";
@@ -161,17 +153,16 @@ in
         "-v ${pluginDir}:/plugins:ro"
         "-v ${config.home.homeDirectory}/.local/share/hermes-gateway:/root/.hermes"
         "-v ${config.home.homeDirectory}/.config/gh:/root/.config/gh:ro"
-        "-v ${config.home.homeDirectory}/.rampart/remote-token:/run/secrets/rampart-token:ro"
+        "-v ${config.sops.secrets.rampartToken.path}:/run/secrets/rampart-token:ro"
+        "-v ${config.sops.secrets.rampartUrl.path}:/run/secrets/rampart-url:ro"
+        "-v ${config.sops.secrets.gatewayToken.path}:/run/secrets/gateway-token:ro"
         "-e HERMES_PLUGINS=/plugins"
-        "-e RAMPART_URL=https://REDACTED"
         "-e RAMPART_FAIL_OPEN=false"
         "-e AGENTGUARD_LEVEL=strict"
-        "-e DISCORD_HOME_CHANNEL=1493822526764220599"
-        "-v ${config.home.homeDirectory}/.hermes-gateway-token:/run/secrets/gateway-token:ro"
         "-e API_SERVER_HOST=0.0.0.0"
         "--entrypoint sh"
         "debian:bookworm-slim"
-        "-c" "'export RAMPART_TOKEN=$(cat /run/secrets/rampart-token) API_SERVER_KEY=$(cat /run/secrets/gateway-token); exec ${hermes-agent}/bin/hermes gateway run'"
+        "-c" "'export RAMPART_TOKEN=$(cat /run/secrets/rampart-token) RAMPART_URL=$(cat /run/secrets/rampart-url) API_SERVER_KEY=$(cat /run/secrets/gateway-token); exec ${hermes-agent}/bin/hermes gateway run'"
       ];
       ExecStop = "${pkgs.docker}/bin/docker stop hermes-gw";
       Restart = "on-failure";
@@ -220,13 +211,6 @@ in
     };
   };
 
-  # ── Token files written via activation (not home.file) for chmod 600 ─────
-
-  # ── Hermes gateway config (Discord + API server) ─────────────────────────
-  # ── LiteLLM proxy config ─────────────────────────────────────────────────
-  # Both written via activation (not xdg.configFile) because they contain
-  # secrets — xdg.configFile symlinks into the world-readable nix store.
-
   systemd.user.services.litellm = {
     Unit = {
       Description = "LiteLLM Anthropic→OpenAI translation proxy (Docker)";
@@ -256,140 +240,143 @@ in
     };
   };
 
-  # ── Permissions & secret config files ──────────────────────────────────────
-  # The activation script reads secrets at RUNTIME via `nix eval --file` so
-  # that no secret values are baked into the /nix/store activation script.
-  # secrets.nix remains the Nix-native source of truth.
+  # ── sops-nix secret management ──────────────────────────────────────────────
+  sops.defaultSopsFile = ./secrets.yaml;
+  sops.gnupg.sshKeyPaths = [];
+  sops.age.sshKeyPaths = [ "${config.home.homeDirectory}/.ssh/id_ed25519" ];
+
+  # File-path secrets: written to specific locations for direct use
+  sops.secrets.apiKey = { path = "${config.xdg.configHome}/hermes/secrets/api-key"; mode = "0600"; };
+  sops.secrets.discordToken = { path = "${config.xdg.configHome}/hermes/secrets/discord-token"; mode = "0600"; };
+  sops.secrets.rampartToken = { path = "${config.home.homeDirectory}/.rampart/remote-token"; mode = "0600"; };
+  sops.secrets.gatewayToken = { path = "${config.home.homeDirectory}/.hermes-gateway-token"; mode = "0600"; };
+
+  # Inline secrets: used only via template placeholders below
+  sops.secrets.rampartUrl = {};
+  sops.secrets.discordUserId = {};
+  sops.secrets.discordHomeChannel = {};
+  sops.secrets.cloudflareAccountId = {};
+  sops.secrets.cloudflareToken = {};
+  sops.secrets.aoApiKey = {};
+
+  # ── sops-managed config files (contain secrets, never touch nix store) ─────
+  sops.templates."rampart-config" = {
+    path = "${config.xdg.configHome}/rampart/config.yaml";
+    mode = "0600";
+    content = ''
+      serve_url: ${config.sops.placeholder.rampartUrl}
+    '';
+  };
+
+  sops.templates."hermes-orchestrator-config" = {
+    path = "${config.home.homeDirectory}/.hermes-orchestrator/config.yaml";
+    mode = "0600";
+    content = ''
+      model:
+        provider: modular
+        default: moonshotai/kimi-k2.5
+
+      providers:
+        modular:
+          name: Modular
+          api: https://deepseek.api.modular.com/v1
+          api_key: ${config.sops.placeholder.apiKey}
+
+      display:
+        tool_progress: off
+        show_reasoning: false
+    '';
+  };
+
+  sops.templates."hermes-gateway-config" = {
+    path = "${config.xdg.configHome}/hermes-gateway/config.yaml";
+    mode = "0600";
+    content = ''
+      platforms:
+        discord:
+          enabled: true
+          token: ${config.sops.placeholder.discordToken}
+          respond_to_dms: true
+          respond_to_mentions: true
+          respond_to_all: false
+          owner_id: ${config.sops.placeholder.discordUserId}
+          home_channel:
+            platform: discord
+            chat_id: "${config.sops.placeholder.discordHomeChannel}"
+        api_server:
+          enabled: true
+          host: "0.0.0.0"
+          port: 8642
+          key: ${config.sops.placeholder.gatewayToken}
+
+      model:
+        provider: modular
+        default: moonshotai/kimi-k2.5
+
+      providers:
+        modular:
+          name: Modular
+          api: https://deepseek.api.modular.com/v1
+          api_key: ${config.sops.placeholder.apiKey}
+
+      auxiliary:
+        compression:
+          provider: modular
+          model: moonshotai/kimi-k2.5
+
+      agent:
+        system_prompt: >
+          You are the user's personal AI assistant on Discord, powered by Hermes.
+          You can help with general questions, research, coding, and conversation.
+          Use your memory and skills systems to learn the user's preferences over time.
+
+          You also serve as the communication bridge for the AO agent orchestrator.
+          When the orchestrator sends a message via the API (these arrive as system
+          or API-originated messages, not from Discord), present the orchestrator's
+          question or update to the user in a clear, contextual way. Collect the
+          user's response and return it. You may add context or clarify ambiguity
+          in either direction — you are not a dumb pipe. If the orchestrator's
+          question is unclear, ask it to clarify before bothering the user.
+
+          Prioritize brevity in Discord messages. Use threads for longer discussions.
+
+      display:
+        tool_progress: off
+
+      mcp_servers:
+        ao:
+          command: "${ao-mcp-server}"
+          env:
+            AGENT_ORCHESTRATOR_BASE_URL: "http://ao:3000"
+            AGENT_ORCHESTRATOR_API_KEY: "local"
+            SKIP_HEALTH_CHECKS: "true"
+        browser-rendering:
+          command: "npx"
+          args:
+            - "-y"
+            - "chrome-devtools-mcp@latest"
+            - "--wsEndpoint=wss://api.cloudflare.com/client/v4/accounts/${config.sops.placeholder.cloudflareAccountId}/browser-rendering/devtools/browser?keep_alive=600000"
+            - "--wsHeaders={\"Authorization\":\"Bearer ${config.sops.placeholder.cloudflareToken}\"}"
+    '';
+  };
+
+  sops.templates."litellm-config" = {
+    path = "${config.xdg.configHome}/litellm/config.yaml";
+    mode = "0600";
+    content = ''
+      litellm_settings:
+        drop_params: true
+
+      model_list:
+        - model_name: moonshotai/kimi-k2.5
+          litellm_params:
+            model: openai/moonshotai/kimi-k2.5
+            api_base: https://deepseek.api.modular.com/v1
+            api_key: ${config.sops.placeholder.apiKey}
+    '';
+  };
+
   home.activation.hermesPermissions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     chmod 700 "${stateDir}" 2>/dev/null || true
-
-    _FNOX_TOML="${secretsDir}/fnox.toml"
-    if [ ! -f "$_FNOX_TOML" ]; then
-      echo "hermes: $_FNOX_TOML not found — skipping secret provisioning."
-    else
-      # Fetch a single secret from Bitwarden via fnox at runtime
-      _s() {
-        if command -v fnox >/dev/null 2>&1; then
-          fnox -c "$_FNOX_TOML" get "$1" 2>/dev/null || echo "REPLACE_ME"
-        elif command -v mise >/dev/null 2>&1; then
-          mise x fnox -- fnox -c "$_FNOX_TOML" get "$1" 2>/dev/null || echo "REPLACE_ME"
-        else
-          echo "REPLACE_ME"
-        fi
-      }
-
-      umask 077
-
-      # Individual secret files (mounted into containers at runtime)
-      mkdir -p "${config.xdg.configHome}/hermes/secrets"
-      _s apiKey       > "${config.xdg.configHome}/hermes/secrets/api-key"
-      _s discordToken > "${config.xdg.configHome}/hermes/secrets/discord-token"
-
-      mkdir -p "${config.home.homeDirectory}/.rampart"
-      _s rampartToken > "${config.home.homeDirectory}/.rampart/remote-token"
-      _s gatewayToken > "${config.home.homeDirectory}/.hermes-gateway-token"
-
-      # Hermes orchestrator config (for the hermes agent running inside the AO container)
-      mkdir -p "${config.home.homeDirectory}/.hermes-orchestrator"
-      cat > "${config.home.homeDirectory}/.hermes-orchestrator/config.yaml" << HERMESORCCFGEOF
-    model:
-      provider: modular
-      default: moonshotai/kimi-k2.5
-
-    providers:
-      modular:
-        name: Modular
-        api: https://deepseek.api.modular.com/v1
-        api_key: $(_s apiKey)
-
-    display:
-      tool_progress: off
-      show_reasoning: false
-    HERMESORCCFGEOF
-
-      # Hermes gateway config (secrets filled via nix eval, not Nix store)
-      mkdir -p "${config.xdg.configHome}/hermes-gateway"
-      cat > "${config.xdg.configHome}/hermes-gateway/config.yaml" << HERMESCFGEOF
-    platforms:
-      discord:
-        enabled: true
-        token: $(_s discordToken)
-        respond_to_dms: true
-        respond_to_mentions: true
-        respond_to_all: false
-        owner_id: $(_s discordUserId)
-        home_channel:
-          platform: discord
-          chat_id: "$(_s discordHomeChannel)"
-      api_server:
-        enabled: true
-        host: "0.0.0.0"
-        port: 8642
-        key: $(_s gatewayToken)
-
-    model:
-      provider: modular
-      default: moonshotai/kimi-k2.5
-
-    providers:
-      modular:
-        name: Modular
-        api: https://deepseek.api.modular.com/v1
-        api_key: $(_s apiKey)
-
-    auxiliary:
-      compression:
-        provider: modular
-        model: moonshotai/kimi-k2.5
-
-    agent:
-      system_prompt: >
-        You are the user's personal AI assistant on Discord, powered by Hermes.
-        You can help with general questions, research, coding, and conversation.
-        Use your memory and skills systems to learn the user's preferences over time.
-
-        You also serve as the communication bridge for the AO agent orchestrator.
-        When the orchestrator sends a message via the API (these arrive as system
-        or API-originated messages, not from Discord), present the orchestrator's
-        question or update to the user in a clear, contextual way. Collect the
-        user's response and return it. You may add context or clarify ambiguity
-        in either direction — you are not a dumb pipe. If the orchestrator's
-        question is unclear, ask it to clarify before bothering the user.
-
-        Prioritize brevity in Discord messages. Use threads for longer discussions.
-
-    display:
-      tool_progress: off
-
-    mcp_servers:
-      ao:
-        command: "${ao-mcp-server}"
-        env:
-          AGENT_ORCHESTRATOR_BASE_URL: "http://ao:3000"
-          AGENT_ORCHESTRATOR_API_KEY: "local"
-          SKIP_HEALTH_CHECKS: "true"
-      browser-rendering:
-        command: "npx"
-        args:
-          - "-y"
-          - "chrome-devtools-mcp@latest"
-          - "--wsEndpoint=wss://api.cloudflare.com/client/v4/accounts/$(_s cloudflareAccountId)/browser-rendering/devtools/browser?keep_alive=600000"
-          - "--wsHeaders={\"Authorization\":\"Bearer $(_s cloudflareToken)\"}"
-    HERMESCFGEOF
-
-      # LiteLLM config (contains API key)
-      mkdir -p "${config.xdg.configHome}/litellm"
-      cat > "${config.xdg.configHome}/litellm/config.yaml" << LITELLMCFGEOF
-    litellm_settings:
-      drop_params: true
-
-    model_list:
-      - model_name: moonshotai/kimi-k2.5
-        litellm_params:
-          model: openai/moonshotai/kimi-k2.5
-          api_base: https://deepseek.api.modular.com/v1
-          api_key: $(_s apiKey)
-    LITELLMCFGEOF
-    fi
   '';
 }

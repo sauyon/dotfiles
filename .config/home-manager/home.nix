@@ -10,6 +10,7 @@ let
   machine = import ./machine.nix;
   hostname = machine.hostname;
 
+  sops-nix = builtins.getFlake "github:Mic92/sops-nix/8eaee5c45428b28b8c47a83e4c09dccec5f279b5";
   walker-flake = builtins.getFlake "github:abenz1267/walker";
   nixGL = (builtins.getFlake "github:guibou/nixGL").packages.${pkgs.system}.default;
 
@@ -94,13 +95,7 @@ let
       PreToolUse = [
         {
           matcher = ".*";
-          hooks = [ { type = "command"; command = "rampart-remote-hook"; } ];
-        }
-      ];
-      PostToolUseFailure = [
-        {
-          matcher = ".*";
-          hooks = [ { type = "command"; command = "rampart-remote-hook"; } ];
+          hooks = [ { type = "command"; command = "rampart hook"; } ];
         }
       ];
     };
@@ -270,7 +265,7 @@ let
   '';
 in
 {
-  imports = [ walker-flake.homeManagerModules.default ./hermes.nix ./gemini.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker-flake.homeManagerModules.default ./hermes.nix ./gemini.nix ];
 
   home.stateVersion = "26.05";
 
@@ -344,8 +339,9 @@ in
       # Proxy Claude Code hook events to a remote Rampart serve instance.
       set -euo pipefail
 
-      RAMPART_URL="''${RAMPART_SERVE_URL:-https://REDACTED}"
-      RAMPART_TOKEN="''${RAMPART_TOKEN:-$(cat ~/.rampart/remote-token 2>/dev/null || echo "")}"
+      _rampart_cfg="''${XDG_CONFIG_HOME:-$HOME/.config}/rampart/config.yaml"
+      RAMPART_URL=$(grep '^serve_url:' "$_rampart_cfg" 2>/dev/null | awk '{gsub(/["'"'"']/, "", $2); print $2}' || true)
+      RAMPART_TOKEN=$(cat ~/.rampart/remote-token 2>/dev/null || echo "")
 
       input=$(cat)
 

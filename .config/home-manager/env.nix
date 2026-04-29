@@ -48,8 +48,6 @@ rec {
 
   TG_PROVIDER_CACHE = "1";
 
-  RAMPART_URL = "https://REDACTED";
-  RAMPART_TOKEN = "$(cat ~/.rampart/remote-token 2>/dev/null || echo \"\")";
 }
 // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
   BROWSER = "firefox";

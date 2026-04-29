@@ -2,12 +2,20 @@
 # Gemini CLI hook to audit tool calls with Rampart.
 set -euo pipefail
 
-# Use local rampart server by default
-RAMPART_URL="${RAMPART_URL:-http://localhost:9090}"
-RAMPART_TOKEN="${RAMPART_TOKEN:-$(cat ~/.rampart/token 2>/dev/null || echo "")}"
+# Read input from stdin
+input=$(cat)
+
+# If input is empty or null, allow by default to avoid jq errors
+if [ -z "$input" ] || [ "$input" = "null" ]; then
+  echo '{"decision": "allow"}'
+  exit 0
+fi
+
+# Use remote rampart server
+RAMPART_URL="${RAMPART_URL:-https://REDACTED}"
+RAMPART_TOKEN="${RAMPART_TOKEN:-$(cat ~/.rampart/remote-token 2>/dev/null || echo "")}"
 TIMEOUT=10
 
-input=$(cat)
 tool_name=$(echo "$input" | jq -r '.tool_name // empty')
 
 if [ -z "$tool_name" ]; then
@@ -32,7 +40,7 @@ transcript=$(echo "$input" | jq -r '.transcript_path // empty')
 context=""
 if [ -n "$transcript" ] && [ -f "$transcript" ]; then
   # Take last 5 messages, truncate content to 200 chars each
-  context=$(jq -r '.messages[-5:] | map("[\(.role)] \(.content | if type == "array" then map(.text) | join(" ") else . end | .[0:200])") | join("\n")' "$transcript" 2>/dev/null || true)
+  context=$(jq -r '(.messages // [])[-5:] | map("[\(.role)] \(.content | if type == "array" then map(.text) | join(" ") else . end | .[0:200])") | join("\n")' "$transcript" 2>/dev/null || true)
 fi
 
 auth_header=""
@@ -69,7 +77,7 @@ if [[ "$decision" == "deny" || "$decision" == "ask" ]]; then
   reason=$(echo "$response" | jq -r '.reason // "Blocked by Rampart policy"')
   [ "$decision" == "ask" ] && reason="Rampart requires manual approval: ${reason}"
   
-  policies=$(echo "$response" | jq -r '.matched_policies | join(", ") // empty')
+  policies=$(echo "$response" | jq -r '(.matched_policies // []) | join(", ") // empty')
   [ -n "$policies" ] && reason="${reason} (policies: ${policies})"
   
   echo "{\"decision\": \"deny\", \"reason\": \"${reason}\"}"

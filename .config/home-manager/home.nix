@@ -10,11 +10,6 @@ let
   machine = import ./machine.nix;
   hostname = machine.hostname;
 
-  secrets =
-    if builtins.pathExists ./secrets.nix
-    then import ./secrets.nix
-    else { rampartToken = "REPLACE_ME"; };
-
   walker-flake = builtins.getFlake "github:abenz1267/walker";
   nixGL = (builtins.getFlake "github:guibou/nixGL").packages.${pkgs.system}.default;
 
@@ -312,7 +307,6 @@ in
         home = config.home.homeDirectory;
       }
     )
-    // { RAMPART_TOKEN = secrets.rampartToken; }
     // (lib.optionalAttrs (hostname == "setsuna") {
       QT_FONT_DPI = "120";
     });

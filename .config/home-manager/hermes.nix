@@ -263,12 +263,20 @@ in
   home.activation.hermesPermissions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     chmod 700 "${stateDir}" 2>/dev/null || true
 
-    _SECRETS_NIX="${secretsDir}/secrets.nix"
-    if [ ! -f "$_SECRETS_NIX" ]; then
-      echo "hermes: $_SECRETS_NIX not found — skipping secret provisioning."
+    _FNOX_TOML="${secretsDir}/fnox.toml"
+    if [ ! -f "$_FNOX_TOML" ]; then
+      echo "hermes: $_FNOX_TOML not found — skipping secret provisioning."
     else
-      # Read a single attr from secrets.nix at runtime (never enters Nix store)
-      _s() { ${pkgs.nix}/bin/nix eval --raw --file "$_SECRETS_NIX" "$1" 2>/dev/null || echo "REPLACE_ME"; }
+      # Fetch a single secret from Bitwarden via fnox at runtime
+      _s() {
+        if command -v fnox >/dev/null 2>&1; then
+          fnox -c "$_FNOX_TOML" get "$1" 2>/dev/null || echo "REPLACE_ME"
+        elif command -v mise >/dev/null 2>&1; then
+          mise x fnox -- fnox -c "$_FNOX_TOML" get "$1" 2>/dev/null || echo "REPLACE_ME"
+        else
+          echo "REPLACE_ME"
+        fi
+      }
 
       umask 077
 

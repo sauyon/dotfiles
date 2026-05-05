@@ -16,7 +16,7 @@ let
 
   agent-orchestrator = (builtins.getFlake "github:sauyon/agent-orchestrator").packages.${pkgs.stdenv.hostPlatform.system}.default;
   ao-mcp = (builtins.getFlake "github:sauyon/ao-mcp").packages.${pkgs.stdenv.hostPlatform.system}.default;
-  rampart = import ./rampart-patched.nix { inherit pkgs; };
+  rampart = (builtins.getFlake "github:sauyon/rampart-1").packages.${pkgs.stdenv.hostPlatform.system}.default;
 
   ao-run = pkgs.writeShellScriptBin "ao-run" ''
     docker network inspect agent-net >/dev/null 2>&1 || docker network create agent-net
@@ -390,14 +390,14 @@ in
     path = "${config.home.homeDirectory}/.rampart/config.yaml";
     mode = "0600";
     content = ''
-      serve_url: ${config.sops.placeholder.rampartUrl}
+      url: ${config.sops.placeholder.rampartUrl}
     '';
   };
 
   sops.templates."rampart-env" = {
     path = "${config.xdg.configHome}/environment.d/rampart.conf";
     content = ''
-      RAMPART_SERVE_URL=${config.sops.placeholder.rampartUrl}
+      RAMPART_URL=${config.sops.placeholder.rampartUrl}
       RAMPART_API=${config.sops.placeholder.rampartUrl}
     '';
   };
@@ -434,7 +434,7 @@ in
     $DRY_RUN_CMD mkdir -p "$HOME/.claude"
     _url=$(cat ${config.sops.secrets.rampartUrl.path} 2>/dev/null || true)
     if [ -n "$_url" ]; then
-      _extra=$(${pkgs.jq}/bin/jq -n --arg v "$_url" '{env:{RAMPART_URL:$v,RAMPART_SERVE_URL:$v}}')
+      _extra=$(${pkgs.jq}/bin/jq -n --arg v "$_url" '{env:{RAMPART_URL:$v}}')
     else
       _extra='null'
     fi

@@ -10,7 +10,6 @@ let
   hermes-agent = (builtins.getFlake "github:sauyon/hermes-agent").packages.${pkgs.stdenv.hostPlatform.system}.default;
   ao-mcp-pkg = (builtins.getFlake "github:sauyon/ao-mcp").packages.${pkgs.stdenv.hostPlatform.system}.default;
   ao-mcp-server = "${ao-mcp-pkg}/bin/ao-mcp-server";
-  rampart = import ./rampart-patched.nix { inherit pkgs; };
   agentguard = (builtins.getFlake "github:sauyon/agentguard").packages.${pkgs.stdenv.hostPlatform.system}.default;
 
   rampartVerifyUpstream = pkgs.fetchFromGitHub {

@@ -13,7 +13,7 @@ fi
 
 # Use remote rampart server — URL read from sops-managed config.yaml
 _rampart_cfg="${XDG_CONFIG_HOME:-$HOME/.config}/rampart/config.yaml"
-RAMPART_URL=$(grep '^serve_url:' "$_rampart_cfg" 2>/dev/null | awk '{gsub(/["'"'"']/, "", $2); print $2}' || true)
+RAMPART_URL=$(grep '^url:' "$_rampart_cfg" 2>/dev/null | awk '{gsub(/["'"'"']/, "", $2); print $2}' || true)
 RAMPART_TOKEN=$(cat ~/.rampart/remote-token 2>/dev/null || echo "")
 TIMEOUT=10
 

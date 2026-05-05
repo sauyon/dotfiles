@@ -382,6 +382,13 @@ in
 
   home.stateVersion = "26.05";
 
+  # ── sops-nix ────────────────────────────────────────────────────────────────
+  sops.defaultSopsFile = ./secrets.yaml;
+  sops.age.keyFile = null;
+  sops.age.sshKeyPaths = [];
+  sops.gnupg.sshKeyPaths = [];
+  sops.environment.GOOGLE_APPLICATION_CREDENTIALS = "${config.home.homeDirectory}/.config/sops/gcp-key.json";
+
   # ── Rampart secrets ─────────────────────────────────────────────────────────
   sops.secrets.rampartToken = { path = "${config.home.homeDirectory}/.rampart/token"; mode = "0600"; };
   sops.secrets.rampartUrl = {};

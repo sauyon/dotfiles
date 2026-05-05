@@ -1,4 +1,3 @@
 creation_rules:
   - path_regex: secrets.yaml
     gcp_kms: "projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/nix-key"
-    age: "age1tude9strawhpkz7grz4yu33fp5g6he3z7fq84vz25p9p00rykpys5vescy"

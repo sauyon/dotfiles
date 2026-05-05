@@ -213,7 +213,8 @@ in
   systemd.user.services.litellm = {
     Unit = {
       Description = "LiteLLM Anthropic→OpenAI translation proxy (Docker)";
-      After = [ "network.target" ];
+      After = [ "network.target" "sops-nix.service" ];
+      Requires = [ "sops-nix.service" ];
     };
     Service = {
       ExecStartPre = [

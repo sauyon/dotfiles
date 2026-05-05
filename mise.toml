@@ -26,9 +26,9 @@ SA_EMAIL="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
 KEY_PATH="$HOME/.config/sops/gcp-key.json"
 
 gcloud services enable secretmanager.googleapis.com cloudkms.googleapis.com --project="$PROJECT"
-gcloud kms keyrings create "$KEYRING" --location="$LOCATION" --project="$PROJECT"
-gcloud kms keys create "$KEY" --keyring="$KEYRING" --location="$LOCATION" --purpose=encryption --project="$PROJECT"
-gcloud iam service-accounts create "$SA_NAME" --display-name="Nix sops-nix Secret Access" --project="$PROJECT"
+gcloud kms keyrings create "$KEYRING" --location="$LOCATION" --project="$PROJECT" 2>/dev/null || true
+gcloud kms keys create "$KEY" --keyring="$KEYRING" --location="$LOCATION" --purpose=encryption --project="$PROJECT" 2>/dev/null || true
+gcloud iam service-accounts create "$SA_NAME" --display-name="Nix sops-nix Secret Access" --project="$PROJECT" 2>/dev/null || true
 
 gcloud kms keys add-iam-policy-binding "$KEY" \
     --keyring="$KEYRING" --location="$LOCATION" \
@@ -43,3 +43,41 @@ mkdir -p "$(dirname "$KEY_PATH")"
 gcloud iam service-accounts keys create "$KEY_PATH" \
     --iam-account="$SA_EMAIL" --project="$PROJECT"
 '''
+
+[tasks.sops-fix]
+description = "Fix sops-nix Docker-created root-owned directories and restart"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+# sops-nix templates that Docker may have clobbered with root-owned directories
+paths=(
+  "$HOME/.config/litellm/config.yaml"
+  "$HOME/.rampart/config.yaml"
+  "$HOME/.rampart/token"
+)
+
+needs_fix=false
+for p in "${paths[@]}"; do
+  if [ -d "$p" ]; then
+    echo "fixing root-owned directory: $p"
+    needs_fix=true
+  fi
+done
+
+if [ "$needs_fix" = true ]; then
+  for p in "${paths[@]}"; do
+    if [ -d "$p" ]; then
+      sudo rm -rf "$p"
+      mkdir -p "$(dirname "$p")"
+    fi
+  done
+fi
+
+systemctl --user restart sops-nix
+systemctl --user status sops-nix --no-pager || true
+'''
+
+[tasks.sops-restart]
+description = "Restart sops-nix, fixing Docker path conflicts first"
+depends = ["sops-fix"]

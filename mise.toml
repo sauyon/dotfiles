@@ -1,0 +1,45 @@
+[tools]
+aws = { version = "latest", symlink_bins = "true" }
+fnox = "latest"
+helm = "latest"
+kcs = "latest"
+usage = "latest"
+uv = "0.11.2"
+gcloud = "latest"
+sops = "latest"
+
+[settings]
+experimental = true
+
+[tasks.gcp-setup]
+description = "Setup GCP KMS and Service Account for sops-nix"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT="sauyon-dotfiles"
+LOCATION="global"
+KEYRING="nix-keyring"
+KEY="nix-key"
+SA_NAME="nix-secret-manager"
+SA_EMAIL="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
+KEY_PATH="$HOME/.config/sops/gcp-key.json"
+
+gcloud services enable secretmanager.googleapis.com cloudkms.googleapis.com --project="$PROJECT"
+gcloud kms keyrings create "$KEYRING" --location="$LOCATION" --project="$PROJECT"
+gcloud kms keys create "$KEY" --keyring="$KEYRING" --location="$LOCATION" --purpose=encryption --project="$PROJECT"
+gcloud iam service-accounts create "$SA_NAME" --display-name="Nix sops-nix Secret Access" --project="$PROJECT"
+
+gcloud kms keys add-iam-policy-binding "$KEY" \
+    --keyring="$KEYRING" --location="$LOCATION" \
+    --member="serviceAccount:$SA_EMAIL" \
+    --role="roles/cloudkms.cryptoKeyEncrypterDecrypter" --project="$PROJECT"
+
+gcloud projects add-iam-policy-binding "$PROJECT" \
+    --member="serviceAccount:$SA_EMAIL" \
+    --role="roles/secretmanager.secretAccessor"
+
+mkdir -p "$(dirname "$KEY_PATH")"
+gcloud iam service-accounts keys create "$KEY_PATH" \
+    --iam-account="$SA_EMAIL" --project="$PROJECT"
+'''

@@ -16,7 +16,6 @@ rec {
   RUSTUP_HOME = "${xdg.dataHome}/rustup";
   WEECHAT_HOME = "${xdg.configHome}/weechat";
   ASPELL_CONF = "per-conf ${xdg.configHome}/aspell/aspell.conf; personal ${xdg.configHome}/aspell/en.personal; repl ${xdg.configHome}/aspell/en.prepl";
-  RIPGREP_CONFIG_PATH = "${xdg.configHome}/ripgrep.conf";
   OPENCLAW_CONFIG_PATH = "${xdg.configHome}/openclaw/openclaw.json";
   OPENCLAW_STATE_DIR = "${xdg.dataHome}/openclaw";
   ZSH_CACHE_DIR = "${xdg.cacheHome}/zsh";

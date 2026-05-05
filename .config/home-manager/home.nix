@@ -478,6 +478,32 @@ in
 
   systemd.user.sessionVariables = config.home.sessionVariables;
 
+  # ── Emacs ──────────────────────────────────────────────────────────────────
+  home.file.".emacs.d/init.el".source = ./emacs/init.el;
+  home.file.".emacs.d/lisp/mode-init.el".source = ./emacs/lisp/mode-init.el;
+  home.file.".emacs.d/lisp/pref-init.el".source = ./emacs/lisp/pref-init.el;
+  home.file.".emacs.d/lisp/root-find.el".source = ./emacs/lisp/root-find.el;
+
+  # ── Scripts ────────────────────────────────────────────────────────────────
+  home.file.".local/bin/bootstrap.sh" = { executable = true; source = ./scripts/bootstrap.sh; };
+  home.file.".local/bin/mprisinfo" = { executable = true; source = ./scripts/mprisinfo; };
+  home.file.".local/bin/reyubikey" = { executable = true; source = ./scripts/reyubikey; };
+  home.file.".local/bin/upload" = { executable = true; source = ./scripts/upload; };
+  home.file.".local/bin/yank" = { executable = true; source = ./scripts/yank; };
+
+  # ── Pulse ──────────────────────────────────────────────────────────────────
+  xdg.configFile."pulse/client.conf".text = "cookie-file = /.cache/pulse/cookie\n";
+
+  # ── Quodlibet ──────────────────────────────────────────────────────────────
+  xdg.configFile."quodlibet/config".source = ./quodlibet-config;
+  xdg.configFile."quodlibet/lists/renamepatterns.saved".text = ''
+    ~/drive/music/<albumartist!=Various|<albumartist>|<organization>>/<album>/<discnumber|<discnumber>-><tracknumber>. <title><version| - <version>>
+    drive
+  '';
+
+  # ── p10k ───────────────────────────────────────────────────────────────────
+  xdg.configFile."zsh/.p10k.zsh".source = ./p10k.zsh;
+
   home.file.".local/bin/hyprland-graceful-exit" = {
     executable = true;
     text = ''
@@ -544,7 +570,6 @@ in
     coder
     comma
     cosign
-    ripgrep
     lnav
     bat
     mise
@@ -661,6 +686,58 @@ in
       settings = {
         path = "${config.home.homeDirectory}/images/wallpapers/${hostname}.png";
       };
+    };
+
+    kanshi = lib.optionalAttrs (!isDarwin) {
+      enable = true;
+      settings = [
+        {
+          output = {
+            criteria = "BOE NE160QDM-NZ6 Unknown";
+            mode = "2560x1600";
+            position = "0,0";
+            scale = 1.0;
+            transform = "normal";
+            alias = "UTSUHO";
+          };
+        }
+        {
+          output = {
+            criteria = "BOE 0x095F Unknown";
+            mode = "2256x1504";
+            position = "0,0";
+            scale = 1.0;
+            transform = "normal";
+            alias = "SETSUNA";
+          };
+        }
+        {
+          profile = {
+            name = "setsuna";
+            outputs = [
+              { criteria = "SETSUNA"; status = "enable"; scale = 1.0; }
+            ];
+          };
+        }
+        {
+          profile = {
+            name = "home";
+            outputs = [
+              { criteria = "GIGA-BYTE TECHNOLOGY CO., LTD. AORUS FO48U 21170B001458"; mode = "3840x2160"; position = "0,0"; scale = 2.0; }
+              { criteria = "eDP-1"; status = "disable"; }
+            ];
+          };
+        }
+        {
+          profile = {
+            name = "Modular";
+            outputs = [
+              { criteria = "Dell Inc. DELL P3424WEB F2VTM04"; mode = "3440x1440"; position = "-528,-1440"; transform = "normal"; scale = 1.0; }
+              { criteria = "UTSUHO"; status = "enable"; }
+            ];
+          };
+        }
+      ];
     };
 
     gpg-agent = lib.optionalAttrs (!isDarwin) {
@@ -964,9 +1041,19 @@ in
       enable = true;
       gitCredentialHelper.enable = true;
     };
+    ripgrep = {
+      enable = true;
+      arguments = [
+        "--smart-case"
+        "--type-add"
+        "ql:*.{ql,qll}"
+        "--hidden"
+      ];
+    };
     dircolors = {
       enable = true;
       enableZshIntegration = true;
+      extraConfig = builtins.readFile ./dircolors;
     };
     direnv = {
       enable = true;

@@ -8,6 +8,7 @@
   enable = true;
   enableCompletion = true;
   autosuggestion.enable = true;
+  autosuggestion.highlight = "fg=2";
   syntaxHighlighting.enable = true;
 
   autocd = true;
@@ -40,14 +41,177 @@
     fi
 
     eval "$(${pkgs.mise}/bin/mise activate zsh)"
+
+    # pnpm
+    export PNPM_HOME="/home/sauyon/.local/share/pnpm"
+    case ":$PATH:" in
+      *":$PNPM_HOME:"*) ;;
+      *) export PATH="$PNPM_HOME:$PATH" ;;
+    esac
   '';
 
   initContent = ''
-    export "XDG_CONFIG_HOME=$HOME/.config"
-    source "$XDG_CONFIG_HOME/zsh/utils"
-    source "$XDG_CONFIG_HOME/zsh/config"
-    source "$XDG_CONFIG_HOME/zsh/aliases"
+    # ── Utils ──────────────────────────────────────────────────────────────
+    if [ -z $_SAUYON_UTILS_RUN ]; then
+    _SAUYON_UTILS_RUN=true
 
+    include() { [[ -f "$@" ]] && source "$@" }
+
+    is_ssh() { [[ -n $SSH_CONNECTION ]] || [[ -n $SSH_CLIENT ]] || [[ -n $SSH_TTY ]] }
+    non_gui() { ! xhost &> /dev/null && [ -z $WAYLAND_DISPLAY ] }
+
+    platform=unknown
+    local unamestr=`uname`
+    if [[ "$unamestr" == 'Linux' ]]; then
+      platform=linux
+    elif [[ "$unamestr" == 'Darwin' ]]; then
+      platform=osx
+    fi
+
+    exists() {
+      type "$1" &> /dev/null
+    }
+
+    fi
+
+    # ── Config ─────────────────────────────────────────────────────────────
+    export "XDG_CONFIG_HOME=$HOME/.config"
+
+    # completions
+    fpath+="$HOME/.config/zsh/.zfunc"
+    compinit -u
+
+    # Enable Powerlevel10k instant prompt.
+    if [[ -r "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh" ]]; then
+      source "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh"
+    fi
+
+    # Nebius CLI
+    if [ -f '/home/sauyon/.nebius/path.zsh.inc' ]; then source '/home/sauyon/.nebius/path.zsh.inc'; fi
+    if [ -f '/home/sauyon/.nebius/completion.zsh.inc' ]; then source '/home/sauyon/.nebius/completion.zsh.inc'; fi
+
+    [[ ! -f ~/.config/zsh/.p10k.zsh ]] || source ~/.config/zsh/.p10k.zsh
+
+    # LD_LIBRARY_PATH?!
+    LD_LIBRARY_PATH=$HOME/.rustc/rust/rustc/lib:$LD_LIBRARY_PATH
+
+    # Needed for nix :(
+    [[ -z $LOCALE_ARCHIVE ]] && export LOCALE_ARCHIVE=/usr/lib/locale/locale-archive
+
+    # Nix!
+    export NIX_PATH=nixpkgs=channel:nixpkgs-unstable:home-manager=https://github.com/rycee/home-manager/archive/master.tar.gz
+
+    # Emacs ftw!
+    if non_gui; then
+      export EDITOR='emacsclient -t'
+    else
+      export EDITOR='emacsclient'
+    fi
+
+    export QT_STYLE_OVERRIDE=gtk
+    export GTK_OVERLAY_SCROLLING=0
+    export MOZ_ENABLE_WAYLAND=1
+    export BENTOML_HOME="$XDG_CONFIG_HOME/bentoml"
+
+    # Smart command-not-found with pkgfile
+    if exists pkgfile; then
+      command_not_found_handler() {
+        local pkgs cmd="$1"
+
+        pkgs=(''${(f)"$(pkgfile -b -v -- "$cmd" 2>/dev/null)"})
+        if [[ -n "$pkgs" ]]; then
+          printf '%s may be found in the following packages:\n' "$cmd"
+          printf '  %s\n' $pkgs[@]
+          return 127
+        fi
+
+        printf 'zsh: command not found: %s\n' "$cmd"
+
+        return 127
+      }
+    fi
+
+    # Ok, fine, sometimes emacs is stupid. But at least it knows it.
+    [[ $TERM == "dumb" ]] && unsetopt zle && PS1='$ '
+
+    if [[ -f /tmp/checkupdates.log ]]; then
+      cat /tmp/checkupdates.log
+    fi
+
+    if [[ -f /usr/share/nvm/init-nvm.sh ]]; then
+      source /usr/share/nvm/init-nvm.sh
+    fi
+
+    export AWS_KEY_PAIR_NAME=sauyon-tofu
+    export BENTOCLOUDCTL_PRIVATE_KEY_PATH="$HOME/.ssh/id_sauyon_tofu"
+    export PATH="/opt/homebrew/opt/rustup/bin:$PATH"
+
+    # ── Aliases & functions ────────────────────────────────────────────────
+    # Add an "alert" alias for long running commands.  Use like so:
+    #   sleep 10; alert
+    alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '"'"'s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert\s*$//'"'"')"'
+    alias cowfortune='fortune | cowsay'
+
+    if [[ -f /usr/bin/man ]]; then
+      man() { env man $@ 2>/dev/null || /usr/bin/man $@ }
+    fi
+
+    nsk() {
+      mkdir .gcroots
+      if [[ -f shell.nix ]]; then
+        nix-instantiate shell.nix --indirect --add-root $(pwd)/.gcroots/shell.drv
+        nix-shell $(readlink $(pwd)/.gcroots/shell.drv) "$@"
+      elif [[ -f default.nix ]]; then
+        nix-instantiate default.nix --indirect --add-root $(pwd)/.gcroots/default.drv
+        nix-shell $(readlink $(pwd)/.gcroots/default.drv) "$@"
+      fi
+    }
+
+    function workspace() {
+      sleep 0.05 && (hyprctl dispatch workspace $1 || swaymsg workspace $1)
+    }
+
+    if non_gui; then
+      alias edit="emacsclient -t"
+      sedit() { emacsclient -te "(find-file-root \"''${''${1:A}//\"/\\\"}\")" }
+    elif exists swaymsg; then
+      edit() { emacsclient -n "$@" && workspace 2 }
+      sedit() { emacsclient -ne "(find-file-root \"''${''${1:A}//\"/\\\"}\")" && workspace 2 }
+    else
+      edit() { emacsclient -n "$@" }
+      sedit() { emacsclient -ne "(find-file-root \"''${''${1:A}//\"/\\\"}\")" }
+    fi
+
+    kdn() {
+      kubectl debug --profile=sysadmin --image=ubuntu -it "node/$1" -- bash
+    }
+
+    kdnh() {
+      kubectl debug --profile=sysadmin --image=ubuntu -it "node/$1" -- nsenter --mount=/host/proc/1/ns/mnt -- bash
+    }
+
+    venv:activate() {source "$1/bin/activate"}
+
+    if exists gist; then
+      up() {
+        local MIME
+        while [[ $# > 0 ]]; do
+          MIME=$(file -b --mime-type "$1")
+          if [[ $MIME =~ "^text/" ]]; then
+            if [[ -z $OUT ]]; then
+              OUT="$(gist "$1")"
+            else
+              OUT="''${OUT}\n$(gist "$1")"
+            fi
+          fi
+          shift
+        done
+        echo $OUT | xclip -selection clipboard
+        echo $OUT
+      }
+    fi
+
+    # ── Remaining init ─────────────────────────────────────────────────────
     # mise completions
     if [[ ! -f "$ZSH_CACHE_DIR/completions/_mise" ]]; then
       typeset -g -A _comps
@@ -142,8 +306,6 @@
     nre = "sudo -i nixos-rebuild switch";
     nreu = "sudo -i nixos-rebuild switch --upgrade";
 
-    swaycheatsheet = "egrep '^s*bind' $XDG_CONFIG_HOME/sway/config | sed -E 's/ --[S-]*b//g' | cut -d ' ' -f 2- | sed -E 's/ +/	/' | column -ts $'	' -c 100 -W2 -o ' | ' | less";
-
     gcf = "git commit --fixup";
     gcaf = "git commit -a --fixup";
 
@@ -177,7 +339,7 @@
     za = "zellij attach -c";
     zl = "zellij list-sessions | rg -v EXITED";
 
-		hm = "home-manager";
-		hms = "home-manager switch";
+    hm = "home-manager";
+    hms = "home-manager switch";
   };
 }

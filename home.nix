@@ -720,7 +720,7 @@ in
           profile = {
             name = "setsuna";
             outputs = [
-              { criteria = "SETSUNA"; status = "enable"; scale = 1.0; }
+              { criteria = "$SETSUNA"; status = "enable"; scale = 1.0; }
             ];
           };
         }
@@ -738,7 +738,7 @@ in
             name = "Modular";
             outputs = [
               { criteria = "Dell Inc. DELL P3424WEB F2VTM04"; mode = "3440x1440"; position = "-528,-1440"; transform = "normal"; scale = 1.0; }
-              { criteria = "UTSUHO"; status = "enable"; }
+              { criteria = "$UTSUHO"; status = "enable"; }
             ];
           };
         }

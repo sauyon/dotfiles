@@ -340,6 +340,6 @@
     zl = "zellij list-sessions | rg -v EXITED";
 
     hm = "home-manager";
-    hms = "home-manager switch";
+    hms = "home-manager switch --flake ~/devel/dotfiles --impure";
   };
 }

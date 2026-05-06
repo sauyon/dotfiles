@@ -1,13 +1,22 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    home-manager = {
+      url = "github:nix-community/home-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nix-darwin = {
       url = "github:LnL7/nix-darwin";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
-  outputs = { nixpkgs, nix-darwin, ... }: {
+  outputs = { nixpkgs, home-manager, nix-darwin, ... }: {
+    homeConfigurations.sauyon = home-manager.lib.homeManagerConfiguration {
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      modules = [ ./home.nix ];
+    };
+
     darwinConfigurations.mari = nix-darwin.lib.darwinSystem {
       system = "aarch64-darwin";
       modules = [

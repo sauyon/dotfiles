@@ -60,14 +60,6 @@
     is_ssh() { [[ -n $SSH_CONNECTION ]] || [[ -n $SSH_CLIENT ]] || [[ -n $SSH_TTY ]] }
     non_gui() { ! xhost &> /dev/null && [ -z $WAYLAND_DISPLAY ] }
 
-    platform=unknown
-    local unamestr=`uname`
-    if [[ "$unamestr" == 'Linux' ]]; then
-      platform=linux
-    elif [[ "$unamestr" == 'Darwin' ]]; then
-      platform=osx
-    fi
-
     exists() {
       type "$1" &> /dev/null
     }
@@ -168,15 +160,12 @@
     }
 
     function workspace() {
-      sleep 0.05 && (hyprctl dispatch workspace $1 || swaymsg workspace $1)
+      sleep 0.05 && hyprctl dispatch workspace $1
     }
 
     if non_gui; then
       alias edit="emacsclient -t"
       sedit() { emacsclient -te "(find-file-root \"''${''${1:A}//\"/\\\"}\")" }
-    elif exists swaymsg; then
-      edit() { emacsclient -n "$@" && workspace 2 }
-      sedit() { emacsclient -ne "(find-file-root \"''${''${1:A}//\"/\\\"}\")" && workspace 2 }
     else
       edit() { emacsclient -n "$@" }
       sedit() { emacsclient -ne "(find-file-root \"''${''${1:A}//\"/\\\"}\")" }
@@ -223,8 +212,6 @@
     [ -f /etc/profile.d/google-cloud-cli.sh ] && source /etc/profile.d/google-cloud-cli.sh
 
     [ -f $HOME/.nix-profile/etc/profile.d/nix.sh ] && [ -z $NIX_PATH ] && source $HOME/.nix-profile/etc/profile.d/nix.sh
-
-    PAGER="${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --"
 
     yank() { printf '\033]52;c;%s\a' "$(base64 | tr -d '\n')"; }
 

@@ -7,48 +7,35 @@
   ...
 }:
 rec {
-  EDITOR = "emacsclient";
-
   # Unclutter home directory
   LESSHISTFILE = "${xdg.dataHome}/less/history";
-  WINEPREFIX = "${xdg.dataHome}/wineprefixes/default";
   CARGO_HOME = "${xdg.dataHome}/cargo";
   RUSTUP_HOME = "${xdg.dataHome}/rustup";
-  WEECHAT_HOME = "${xdg.configHome}/weechat";
   ASPELL_CONF = "per-conf ${xdg.configHome}/aspell/aspell.conf; personal ${xdg.configHome}/aspell/en.personal; repl ${xdg.configHome}/aspell/en.prepl";
-  OPENCLAW_CONFIG_PATH = "${xdg.configHome}/openclaw/openclaw.json";
-  OPENCLAW_STATE_DIR = "${xdg.dataHome}/openclaw";
   ZSH_CACHE_DIR = "${xdg.cacheHome}/zsh";
 
-  ANDROID_HOME = "/opt/android-sdk";
   GOPATH = "${home}/devel/go";
 
   PATH = "$PATH:/snap/bin:$GOPATH/bin:${xdg.dataHome}/cargo/bin:${home}/.local/bin:${home}/.krew/bin";
 
   GRAVEYARD = "$XDG_RUNTIME_DIR/trash";
 
-  PAGER = "${pkgs.bat}/bin/bat --paging=always --color=always --";
+  PAGER = "${pkgs.bat}/bin/bat --paging=always --color=always --decorations=never --";
   BAT_PAGER = "${pkgs.less}/bin/less";
   LESS = "-RFx4";
 
   # gpg for ssh
   GPG_TTY = "$(tty)";
 
-  NIXPKGS = "${home}/devel/nixpkgs";
-
   "_JAVA_AWT_WM_NONREPARENTING" = "1";
 
   QT_QPA_PLATFORM = "wayland";
   QT_WAYLAND_DISABLE_WINDOWDECORATION = "1";
 
-  STUDIO_JDK = "/usr/lib/jvm/java-11-openjdk/";
-
   MOZ_ENABLE_WAYLAND = "1";
   MOZ_LEGACY_PROFILES = "1";
 
   TG_PROVIDER_CACHE = "1";
-
-
 }
 // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
   BROWSER = "firefox";

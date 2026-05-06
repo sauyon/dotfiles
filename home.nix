@@ -578,7 +578,6 @@ in
     cosign
     lnav
     bat
-    mise
     rustup
     nixfmt
     kubectl
@@ -761,8 +760,6 @@ in
         "secrets"
       ];
     };
-
-    # emacs.enable = !isDarwin;
 
     hypridle = lib.optionalAttrs (!isDarwin) {
       enable = true;
@@ -1074,7 +1071,6 @@ in
       enableZshIntegration = true;
       options = [ "--cmd cd" ];
     };
-    # emacs.enable = !isDarwin;
 
     fzf.enable = true;
 
@@ -1123,7 +1119,7 @@ in
         safe.directory = [
           "/tf/*"
         ];
-        init.defaulBranch = "main";
+        init.defaultBranch = "main";
         commit = {
           verbose = true;
         };
@@ -1281,21 +1277,6 @@ in
         default_mode = "locked";
         pane_frames = false;
         show_startup_tips = false;
-
-        # 	bind "Alt g" { SwitchToMode "Locked"; }
-        # 	bind "Alt d" { Detach; }
-        # 	bind "Alt q" { Quit; }
-        # 	bind "Alt n" { NewPane; }
-        # 	bind "Alt w" { CloseFocus; SwitchToMode "Normal"; }
-        # 	bind "Alt f" { ToggleFocusFullscreen; SwitchToMode "Normal"; }
-        # 	bind "Alt h" "Alt Left" { MoveFocusOrTab "Left"; }
-        # 	bind "Alt l" "Alt Right" { MoveFocusOrTab "Right"; }
-        # 	bind "Alt j" "Alt Down" { MoveFocus "Down"; }
-        # 	bind "Alt k" "Alt Up" { MoveFocus "Up"; }
-        # 	bind "Alt =" "Alt +" { Resize "Increase"; }
-        # 	bind "Alt -" { Resize "Decrease"; }
-        # 	bind "Alt [" { PreviousSwapLayout; }
-        # 	bind "Alt ]" { NextSwapLayout; }
       };
     };
   };

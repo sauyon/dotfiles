@@ -11,22 +11,6 @@ let
   ao-mcp-pkg = ao-mcp.packages.${system}.default;
   ao-mcp-server = "${ao-mcp-pkg}/bin/ao-mcp-server";
   agentguard-pkg = agentguard.packages.${system}.default;
-
-  rampartVerifyUpstream = pkgs.fetchFromGitHub {
-    owner = "peg";
-    repo = "rampart-verify";
-    rev = "7443934";
-    hash = "sha256-ZeX44Hpei+/XzZzUsPH6CRrLcRO5SRFvIIxlhwSmkOs=";
-  };
-
-  # Patch: use OpenAIProvider when OPENAI_BASE_URL is set (upstream only checks for "gpt")
-  rampartVerifySrc = pkgs.runCommand "rampart-verify-patched" {} ''
-    cp -r ${rampartVerifyUpstream} $out
-    chmod -R u+w $out
-    sed -i 's/"gpt" in model.lower()/"gpt" in model.lower() or os.getenv("OPENAI_BASE_URL")/' $out/providers.py
-    # Strengthen parse_llm_response: check entire response for decision keywords
-    sed -i 's/# Unclear response — fail open\./# Check entire response for decision keywords\n    full_upper = response.upper()\n    if "DENY" in full_upper:\n        return "deny", "Action denied by security review"\n    if "ALLOW" in full_upper:\n        return "allow", None/' $out/server.py
-  '';
 in
 {
   # ── Rampart plugin for Hermes ────────────────────────────────────────────

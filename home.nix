@@ -782,6 +782,30 @@ in
         ];
       };
     };
+
+    mako = lib.optionalAttrs (!isDarwin) {
+      enable = true;
+      settings = {
+        background-color = "#1a1b26e6";
+        text-color = "#c0caf5";
+        border-color = "#7aa2f7";
+        border-size = 2;
+        border-radius = 8;
+        default-timeout = 5000;
+        font = "NotoSans Nerd Font 11";
+        padding = "10";
+        margin = "8";
+        max-visible = 5;
+        anchor = "top-right";
+        "urgency=high" = {
+          border-color = "#f7768e";
+          default-timeout = 0;
+        };
+        "urgency=low" = {
+          border-color = "#565f89";
+        };
+      };
+    };
   };
 
   targets.genericLinux.nixGL.packages = nixgl.packages.${system};
@@ -877,66 +901,184 @@ in
         ];
       };
     };
-    hyprpanel = {
-      enable = !isDarwin;
-      systemd.enable = false;
+    waybar = let
+      fontSize = if hostname == "setsuna" then 20 else 17;
+      barHeight = if hostname == "setsuna" then 48 else 42;
+      shared = {
+        layer = "top";
+        position = "top";
+        height = barHeight;
+        spacing = 0;
 
-      settings = {
-        theme.font = {
-          name = "NotoSans Nerd Font";
-        } // lib.optionalAttrs (hostname == "setsuna") {
-          size = "14px";
+        "hyprland/workspaces" = {
+          format = "{id}";
+          on-click = "activate";
+          sort-by-number = true;
         };
-
-        theme.bar = lib.optionalAttrs (hostname == "setsuna") {
-          scaling = 125;
+        "hyprland/window" = {
+          format = "{title}";
+          max-length = 60;
+          separate-outputs = true;
         };
-
-        bar = {
-          clock.format = "%a %m-%d %H:%M:%S";
-          "customModules.ram.icon" = "󰍛";
-          layouts = {
-            "eDP-1" = {
-              left = [
-                "dashboard"
-                "workspaces"
-                "windowtitle"
-              ];
-              middle = [ "media" ];
-              right = [
-                "volume"
-                "network"
-                "battery"
-                "clock"
-                "notifications"
-              ];
-            };
-
-            "*" = {
-              left = [
-                "dashboard"
-                "workspaces"
-                "windowtitle"
-              ];
-              middle = [ "media" ];
-              right = [
-                "volume"
-                "network"
-                "bluetooth"
-                "systray"
-                "ram"
-                "clock"
-                "notifications"
-              ];
-            };
-          };
-
-          network.truncation_size = 30;
-          workspaces.show_numbered = true;
-
-          "customModules.storage.paths" = [ "/" ];
+        mpris = {
+          format = "{player_icon} {dynamic}";
+          format-paused = "{status_icon} {dynamic}";
+          player-icons.default = "";
+          status-icons.paused = "";
+          dynamic-len = 40;
+        };
+        wireplumber = {
+          format = "{icon} {volume}%";
+          format-muted = "󰝟";
+          format-icons = [ "" "" "" ];
+          on-click = "pavucontrol";
+          scroll-step = 5;
+        };
+        network = {
+          format-wifi = "  {essid}";
+          format-ethernet = " {ifname}";
+          format-disconnected = "󰖪 offline";
+          tooltip-format = "{ifname}: {ipaddr}";
+          max-length = 30;
+        };
+        bluetooth = {
+          format = " {status}";
+          format-disabled = "󰂲";
+          format-connected = " {device_alias}";
+          format-connected-battery = " {device_alias} {device_battery_percentage}%";
+          tooltip-format = "{controller_alias}\n{num_connections} connected";
+        };
+        tray = {
+          spacing = 8;
+          icon-size = 18;
+        };
+        memory = {
+          format = "󰍛 {percentage}%";
+          interval = 2;
+        };
+        battery = {
+          states = { warning = 30; critical = 15; };
+          format = "{icon} {capacity}%";
+          format-charging = " {capacity}%";
+          format-plugged = " {capacity}%";
+          format-icons = [ "" "" "" "" "" ];
+        };
+        clock = {
+          format = "{:%a %m-%d %H:%M:%S}";
+          interval = 1;
+          tooltip-format = "<tt>{calendar}</tt>";
+        };
+        "custom/notifications" = {
+          exec = ''makoctl mode | grep -qx do-not-disturb && echo '{"text":"󰂛","class":"dnd"}' || echo '{"text":"󰂚"}' '';
+          return-type = "json";
+          interval = 2;
+          on-click = "makoctl dismiss --all";
+          on-click-right = "makoctl mode -t do-not-disturb";
         };
       };
+    in {
+      enable = !isDarwin;
+      settings = [
+        (shared // {
+          output = [ "eDP-1" ];
+          modules-left = [ "hyprland/workspaces" "hyprland/window" ];
+          modules-center = [ "mpris" ];
+          modules-right = [ "wireplumber" "network" "battery" "tray" "clock" "custom/notifications" ];
+        })
+        (shared // {
+          output = [ "!eDP-1" ];
+          modules-left = [ "hyprland/workspaces" "hyprland/window" ];
+          modules-center = [ "mpris" ];
+          modules-right = [ "wireplumber" "network" "bluetooth" "tray" "memory" "clock" "custom/notifications" ];
+        })
+      ];
+      style = ''
+        @define-color bg          #1a1b26;
+        @define-color bg-darker   #16161e;
+        @define-color bg-lighter  #24283b;
+        @define-color fg          #c0caf5;
+        @define-color fg-dim      #a9b1d6;
+        @define-color comment     #565f89;
+        @define-color border      #292e42;
+        @define-color red         #f7768e;
+        @define-color orange      #ff9e64;
+        @define-color yellow      #e0af68;
+        @define-color green       #9ece6a;
+        @define-color cyan        #7dcfc2;
+        @define-color blue        #7aa2f7;
+        @define-color purple      #bb9af7;
+
+        * {
+          font-family: "NotoSans Nerd Font", sans-serif;
+          font-size: ${toString fontSize}px;
+          border: none;
+          border-radius: 0;
+          min-height: 0;
+        }
+
+        window#waybar {
+          background: alpha(@bg, 0.95);
+          color: @fg;
+          border-bottom: 1px solid @border;
+        }
+
+        #workspaces button {
+          background: transparent;
+          color: @fg-dim;
+          padding: 0 12px;
+          margin: 0;
+          border-bottom: 6px solid transparent;
+          transition: color 150ms, border-color 150ms;
+        }
+        #workspaces button:hover {
+          background: alpha(#a695d0, 0.12);
+          color: @fg;
+          box-shadow: none;
+        }
+        #workspaces button.active {
+          color: @fg;
+          border-bottom: 6px solid #a695d0;
+        }
+        #workspaces button.urgent {
+          color: @red;
+          border-bottom: 6px solid @red;
+        }
+
+        #window { padding: 0 12px; color: @fg-dim; }
+        window#waybar.empty #window { background: transparent; }
+
+        #mpris { padding: 0 12px; color: @purple; }
+
+        #wireplumber,
+        #network,
+        #bluetooth,
+        #tray,
+        #memory,
+        #battery,
+        #clock,
+        #custom-notifications { padding: 0 10px; }
+
+        #wireplumber { color: @cyan; }
+        #wireplumber.muted { color: @comment; }
+        #network { color: @green; }
+        #network.disconnected { color: @red; }
+        #bluetooth { color: @blue; }
+        #bluetooth.disabled, #bluetooth.off { color: @comment; }
+        #memory { color: @orange; }
+        #battery { color: @green; }
+        #battery.warning:not(.charging) { color: @yellow; }
+        #battery.critical:not(.charging) { color: @red; }
+        #battery.charging { color: @cyan; }
+        #clock { color: @fg; font-weight: 600; }
+        #custom-notifications { color: @yellow; }
+        #custom-notifications.dnd { color: @comment; }
+
+        tooltip {
+          background: @bg-darker;
+          border: 1px solid @border;
+        }
+        tooltip label { color: @fg; padding: 6px; }
+      '';
     };
 
     thunderbird = {

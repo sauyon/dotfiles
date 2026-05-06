@@ -56,7 +56,8 @@
     "exec-once" = [
       "dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP"
       "kanshi"
-      "hyprpanel"
+      "waybar"
+      "mako"
       "elephant"
       "walker --gapplication-service"
     ];
@@ -75,7 +76,7 @@
       "$mainMod SHIFT, S, exec, ${pkgs.hyprshot}/bin/hyprshot -m region"
       "$mainMod, E, exec, emacsclient -c"
 
-      "$mainMod, O, exec, hyprpanel clearNotifications"
+      "$mainMod, O, exec, makoctl dismiss --all"
 
       "$mainMod, B, movefocus, l"
       "$mainMod, F, movefocus, r"

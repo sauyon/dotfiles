@@ -2,6 +2,15 @@
   config,
   lib,
   pkgs,
+  sops-nix,
+  walker,
+  nixgl,
+  agent-orchestrator,
+  ao-mcp,
+  rampart,
+  hermes-agent,
+  agentguard,
+  system,
   ...
 }:
 
@@ -10,13 +19,10 @@ let
   machine = import ./machine.nix;
   hostname = machine.hostname;
 
-  sops-nix = builtins.getFlake "github:Mic92/sops-nix/8eaee5c45428b28b8c47a83e4c09dccec5f279b5";
-  walker-flake = builtins.getFlake "github:abenz1267/walker";
-  nixGL = (builtins.getFlake "github:guibou/nixGL").packages.${pkgs.stdenv.hostPlatform.system}.default;
-
-  agent-orchestrator = (builtins.getFlake "github:sauyon/agent-orchestrator").packages.${pkgs.stdenv.hostPlatform.system}.default;
-  ao-mcp = (builtins.getFlake "github:sauyon/ao-mcp").packages.${pkgs.stdenv.hostPlatform.system}.default;
-  rampart = (builtins.getFlake "github:sauyon/rampart-1").packages.${pkgs.stdenv.hostPlatform.system}.default;
+  nixGL = nixgl.packages.${system}.default;
+  agent-orchestrator-pkg = agent-orchestrator.packages.${system}.default;
+  ao-mcp-pkg = ao-mcp.packages.${system}.default;
+  rampart-pkg = rampart.packages.${system}.default;
 
   ao-run = pkgs.writeShellScriptBin "ao-run" ''
     docker network inspect agent-net >/dev/null 2>&1 || docker network create agent-net
@@ -378,7 +384,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker-flake.homeManagerModules.default ./hermes.nix ./gemini.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./hermes.nix ./gemini.nix ];
 
   home.stateVersion = "26.05";
 
@@ -559,11 +565,11 @@ in
   };
 
   home.packages = [
-    agent-orchestrator
-    ao-mcp
+    agent-orchestrator-pkg
+    ao-mcp-pkg
     ao-run
     claude-prof
-    rampart
+    rampart-pkg
   ] ++ (with pkgs; [
     bfs
     btop
@@ -781,7 +787,7 @@ in
     };
   };
 
-  targets.genericLinux.nixGL.packages = (builtins.getFlake "github:guibou/nixGL").packages.${pkgs.stdenv.hostPlatform.system};
+  targets.genericLinux.nixGL.packages = nixgl.packages.${system};
 
   wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin) (import ./hyprland.nix (pkgs));
 

@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, hermes-agent, ao-mcp, agentguard, system, ... }:
 
 let
 
@@ -7,10 +7,10 @@ let
   relPluginDir = ".local/share/hermes/plugins/rampart";
   relAgentguardPluginDir = ".local/share/hermes/plugins/agentguard";
 
-  hermes-agent = (builtins.getFlake "github:sauyon/hermes-agent").packages.${pkgs.stdenv.hostPlatform.system}.default;
-  ao-mcp-pkg = (builtins.getFlake "github:sauyon/ao-mcp").packages.${pkgs.stdenv.hostPlatform.system}.default;
+  hermes-agent-pkg = hermes-agent.packages.${system}.default;
+  ao-mcp-pkg = ao-mcp.packages.${system}.default;
   ao-mcp-server = "${ao-mcp-pkg}/bin/ao-mcp-server";
-  agentguard = (builtins.getFlake "github:sauyon/agentguard").packages.${pkgs.stdenv.hostPlatform.system}.default;
+  agentguard-pkg = agentguard.packages.${system}.default;
 
   rampartVerifyUpstream = pkgs.fetchFromGitHub {
     owner = "peg";
@@ -161,7 +161,7 @@ in
         "-e API_SERVER_HOST=0.0.0.0"
         "--entrypoint sh"
         "debian:bookworm-slim"
-        "-c" "'export RAMPART_TOKEN=$(cat /run/secrets/rampart-token) RAMPART_URL=$(cat /run/secrets/rampart-url) API_SERVER_KEY=$(cat /run/secrets/gateway-token); exec ${hermes-agent}/bin/hermes gateway run'"
+        "-c" "'export RAMPART_TOKEN=$(cat /run/secrets/rampart-token) RAMPART_URL=$(cat /run/secrets/rampart-url) API_SERVER_KEY=$(cat /run/secrets/gateway-token); exec ${hermes-agent-pkg}/bin/hermes gateway run'"
       ];
       ExecStop = "${pkgs.docker}/bin/docker stop hermes-gw";
       Restart = "on-failure";
@@ -190,7 +190,7 @@ in
         "-v /nix/store:/nix/store:ro"
         "-v ${config.xdg.dataHome}/agentguard:/data"
         "-e AGENTGUARD_HOME=/data"
-        "--entrypoint ${agentguard}/bin/agentguard"
+        "--entrypoint ${agentguard-pkg}/bin/agentguard"
         "debian:bookworm-slim"
         "patrol" "--level" "strict"
       ];

@@ -575,13 +575,6 @@ in
   # ── Pulse ──────────────────────────────────────────────────────────────────
   xdg.configFile."pulse/client.conf".text = "cookie-file = /.cache/pulse/cookie\n";
 
-  # ── Quodlibet ──────────────────────────────────────────────────────────────
-  xdg.configFile."quodlibet/config".source = ./quodlibet-config;
-  xdg.configFile."quodlibet/lists/renamepatterns.saved".text = ''
-    ~/drive/music/<albumartist!=Various|<albumartist>|<organization>>/<album>/<discnumber|<discnumber>-><tracknumber>. <title><version| - <version>>
-    drive
-  '';
-
   # ── p10k ───────────────────────────────────────────────────────────────────
   xdg.configFile."zsh/.p10k.zsh".source = ./p10k.zsh;
 

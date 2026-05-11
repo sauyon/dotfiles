@@ -306,11 +306,11 @@
         "nixpkgs": "nixpkgs_7"
       },
       "locked": {
-        "lastModified": 1778014500,
-        "narHash": "sha256-VdXksFkV2G6pwav3CWMp6uMXaHHWCHjGIfoWyGfUed8=",
+        "lastModified": 1778483029,
+        "narHash": "sha256-/PPNhpMXNm1t79dAfpHJRmN/9+XR3uNH3jjzsi6z2DQ=",
         "owner": "sauyon",
         "repo": "rampart-1",
-        "rev": "74ac4811073d36f379c737e3af513bc2f3754f67",
+        "rev": "95a7e9dadf97ded61bf741c9cde34e1c204f2d18",
         "type": "github"
       },
       "original": {

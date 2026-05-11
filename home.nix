@@ -629,6 +629,7 @@ in
   ] ++ (with pkgs; [
     bfs
     btop
+    claude-agent-acp
     coder
     comma
     cosign
@@ -691,6 +692,20 @@ in
           ./patches/hyprlock-skip-dtors-on-early-fail.patch
         ];
       });
+    })
+    (final: prev: {
+      claude-agent-acp = prev.buildNpmPackage rec {
+        pname = "claude-agent-acp";
+        version = "0.33.1";
+        src = prev.fetchFromGitHub {
+          owner = "agentclientprotocol";
+          repo = "claude-agent-acp";
+          rev = "v${version}";
+          hash = "sha256-FwcIJf/tfH6prDFKtOo7X1mTocibf4Ne6JHOS9ITG8U=";
+        };
+        npmDepsHash = "sha256-y795LyNjSJjTpIqtA5bC/AgeFLghM0yU5xQRD3m+Ajs=";
+        dontNpmPrune = true;
+      };
     })
   ];
 

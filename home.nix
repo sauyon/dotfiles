@@ -24,6 +24,63 @@ let
   ao-mcp-pkg = ao-mcp.packages.${system}.default;
   rampart-pkg = rampart.packages.${system}.default;
 
+  caffeine = pkgs.writeShellScriptBin "caffeine" ''
+    set -eu
+    PIDFILE="''${XDG_RUNTIME_DIR:-/tmp}/caffeine.pid"
+    is_on() { [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
+    case "''${1:-toggle}" in
+      toggle)
+        if is_on; then
+          kill "$(cat "$PIDFILE")" 2>/dev/null || true
+          rm -f "$PIDFILE"
+        else
+          systemd-inhibit --what=idle --who=caffeine --why="user toggle" \
+            sleep infinity & disown
+          echo $! > "$PIDFILE"
+        fi
+        pkill -RTMIN+10 waybar 2>/dev/null || true
+        ;;
+      waybar)
+        if is_on; then
+          echo '{"text":"","class":"on","tooltip":"Idle inhibited (caffeine on)"}'
+        else
+          echo '{"text":"󰒲","class":"off","tooltip":"Idle enabled"}'
+        fi
+        ;;
+    esac
+  '';
+
+  hypr-fullscreen-inhibit = pkgs.writeShellScriptBin "hypr-fullscreen-inhibit" ''
+    set -u
+    PIDFILE="''${XDG_RUNTIME_DIR:-/tmp}/hypr-fullscreen-inhibit.pid"
+
+    is_on()    { [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
+    has_full() { ${pkgs.hyprland}/bin/hyprctl clients -j | ${pkgs.jq}/bin/jq -e 'any(.fullscreen != 0)' >/dev/null; }
+
+    start_lock() {
+      is_on && return
+      systemd-inhibit --what=idle --who=hypr-fullscreen \
+        --why="fullscreen window" sleep infinity & disown
+      echo $! > "$PIDFILE"
+    }
+    stop_lock() {
+      is_on || { rm -f "$PIDFILE"; return; }
+      kill "$(cat "$PIDFILE")" 2>/dev/null || true
+      rm -f "$PIDFILE"
+    }
+    sync() { if has_full; then start_lock; else stop_lock; fi; }
+
+    trap 'stop_lock; exit 0' INT TERM EXIT
+
+    sync
+    SOCK="''${XDG_RUNTIME_DIR}/hypr/''${HYPRLAND_INSTANCE_SIGNATURE}/.socket2.sock"
+    ${pkgs.socat}/bin/socat -u "UNIX-CONNECT:$SOCK" - | while IFS= read -r ev; do
+      case "$ev" in
+        fullscreen*|closewindow*|openwindow*|workspace*) sync ;;
+      esac
+    done
+  '';
+
   ao-run = pkgs.writeShellScriptBin "ao-run" ''
     docker network inspect agent-net >/dev/null 2>&1 || docker network create agent-net
 
@@ -568,7 +625,9 @@ in
     agent-orchestrator-pkg
     ao-mcp-pkg
     ao-run
+    caffeine
     claude-prof
+    hypr-fullscreen-inhibit
     rampart-pkg
   ] ++ (with pkgs; [
     bfs
@@ -975,21 +1034,29 @@ in
           on-click = "makoctl dismiss --all";
           on-click-right = "makoctl mode -t do-not-disturb";
         };
+        "custom/caffeine" = {
+          exec = "${caffeine}/bin/caffeine waybar";
+          return-type = "json";
+          interval = 5;
+          signal = 10;
+          on-click = "${caffeine}/bin/caffeine toggle";
+        };
       };
     in {
       enable = !isDarwin;
+      systemd.enable = !isDarwin;
       settings = [
         (shared // {
           output = [ "eDP-1" ];
           modules-left = [ "hyprland/workspaces" "hyprland/window" ];
           modules-center = [ "mpris" ];
-          modules-right = [ "wireplumber" "network" "battery" "tray" "clock" "custom/notifications" ];
+          modules-right = [ "wireplumber" "network" "battery" "tray" "custom/caffeine" "clock" "custom/notifications" ];
         })
         (shared // {
           output = [ "!eDP-1" ];
           modules-left = [ "hyprland/workspaces" "hyprland/window" ];
           modules-center = [ "mpris" ];
-          modules-right = [ "wireplumber" "network" "bluetooth" "tray" "memory" "clock" "custom/notifications" ];
+          modules-right = [ "wireplumber" "network" "bluetooth" "tray" "memory" "custom/caffeine" "clock" "custom/notifications" ];
         })
       ];
       style = ''
@@ -1056,7 +1123,11 @@ in
         #memory,
         #battery,
         #clock,
+        #custom-caffeine,
         #custom-notifications { padding: 0 10px; }
+
+        #custom-caffeine.off { color: @comment; }
+        #custom-caffeine.on { color: @yellow; }
 
         #wireplumber { color: @cyan; }
         #wireplumber.muted { color: @comment; }

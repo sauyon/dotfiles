@@ -267,6 +267,21 @@ let
           matcher = ".*";
           hooks = [ { type = "command"; command = "rampart hook"; } ];
         }
+        {
+          matcher = "Bash";
+          hooks = [ {
+            type = "command";
+            # Block `gh pr create` outside the quite-app worktree. The hook
+            # JSON arrives on stdin; we must inspect tool_input.command
+            # ourselves because `matcher` only filters on tool name.
+            command = ''
+              case "$PWD" in /home/sauyon/devel/quite-app*) exit 0 ;; esac
+              input=$(cat)
+              case "$input" in *'"command":"gh pr create'*) ;; *) exit 0 ;; esac
+              printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Do not run `gh pr create`. Print a PR creation link instead (e.g. https://github.com/<owner>/<repo>/compare/<base>...<head>?expand=1, or https://github.com/<owner>/<repo>/pull/new/<branch>) and let the user create the PR themselves."}}'
+            '';
+          } ];
+        }
       ];
       PostToolUseFailure = [
         {
@@ -341,7 +356,6 @@ let
         "Skill(evaluate)"
       ];
       deny = [
-        "Bash(gh pr create*)"
         "mcp__github__create_pull_request"
       ];
       defaultMode = "default";

@@ -1247,6 +1247,14 @@ in
           "signon.rememberSignons" = false;
           "browser.newtab.extensionControlled" = false;
           "browser.ml.chat.enabled" = false;
+          # WebTransport workaround: this profile reports hasThirdPartyRoots=1
+          # for every QUIC connection (including public sites that chain to
+          # built-in roots), so Firefox's third-party-roots policy kills H3.
+          # HTTPS silently falls back to H2; WebTransport has no fallback and
+          # fails with "WebTransport connection rejected". See
+          # netwerk/protocol/http/Http3Session.cpp Authenticated() and
+          # bugzilla 1929093.
+          "network.http.http3.disable_when_third_party_roots_found" = false;
         };
       };
     };

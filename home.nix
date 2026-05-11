@@ -618,20 +618,6 @@ in
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
-  systemd.user.services.xremap = lib.optionalAttrs (!isDarwin) {
-    Unit = {
-      Description = "xremap key remapper";
-      After = [ "graphical-session.target" ];
-      PartOf = [ "graphical-session.target" ];
-    };
-    Service = {
-      ExecStart = "${pkgs.xremap}/bin/xremap ${config.xdg.configHome}/xremap/config.yml";
-      Restart = "on-failure";
-      RestartSec = 3;
-    };
-    Install.WantedBy = [ "graphical-session.target" ];
-  };
-
   home.packages = [
     agent-orchestrator-pkg
     ao-mcp-pkg
@@ -1540,28 +1526,6 @@ in
       music = "${config.home.homeDirectory}/drive/music";
       pictures = "${config.home.homeDirectory}/images";
     };
-
-    configFile."xremap/config.yml".text = ''
-      keymap:
-        - name: Electron apps (Super to Ctrl shortcuts)
-          application:
-            only:
-              - Slack
-              - vesktop
-          remap:
-            Super_L-a: C-a
-            Super_L-c: C-c
-            Super_L-v: C-v
-            Super_L-x: C-x
-            Super_L-z: C-z
-            Super_L-Shift-z: C-Shift-z
-            Super_L-w: C-w
-            Super_L-t: C-t
-            Super_L-l: C-l
-            Super_L-k: C-k
-            Super_L-s: C-s
-            Super_L-Shift-v: C-Shift-v
-    '';
 
     configFile."newtab.html".text = newtabHtml;
 

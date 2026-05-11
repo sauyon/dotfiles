@@ -1011,6 +1011,7 @@ in
           format-disconnected = "󰖪 offline";
           tooltip-format = "{ifname}: {ipaddr}";
           max-length = 30;
+          on-click = "ghostty -e nmtui";
         };
         bluetooth = {
           format = " {status}";
@@ -1030,8 +1031,11 @@ in
         battery = {
           states = { warning = 30; critical = 15; };
           format = "{icon} {capacity}%";
-          format-charging = " {capacity}%";
-          format-plugged = " {capacity}%";
+          format-charging = "󰂄 {capacity}% (+{time})";
+          format-discharging = "{icon} {capacity}% (-{time})";
+          format-plugged = "󰚥 {capacity}%";
+          format-full = "󰁹 {capacity}%";
+          format-time = "{H}:{M:02}";
           format-icons = [ "" "" "" "" "" ];
         };
         clock = {

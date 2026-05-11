@@ -1313,6 +1313,8 @@ in
 
     man = {
       enable = true;
+      mandoc.enable = true;
+      man-db.enable = false;
     };
 
     git = {

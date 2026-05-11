@@ -896,7 +896,7 @@ in
         background = [
           {
             monitor = "";
-            path = "screenshot";
+            # path = "screenshot";   # disabled to debug deadlock
             blur_passes = 3;
             blur_size = 8;
           }

@@ -1,0 +1,41 @@
+Workaround for static-destructor-order crash in hyprlock 0.9.5.
+
+When hyprlock fails to bind ext-session-lock-v1 or fails to acquire the
+session lock, it calls exit(1). That triggers the C++ runtime's static
+destructor chain, during which CSCDMAFrame::~CSCDMAFrame() calls
+eglDestroyImage(g_pEGL->eglDisplay, m_image). g_pEGL is a namespace-scope
+std::unique_ptr<CEGL> whose underlying CEGL has already been destroyed by
+the time the frame's destructor runs; the unique_ptr's internal raw
+pointer is left in a freed-but-non-null state (post-delete null-assignment
+is elided), so the null check passes and the deref of g_pEGL->eglDisplay
+segfaults.
+
+Replacing exit(1) with _exit(1) on these failure paths skips static
+destructors entirely, avoiding the crash without altering the intended
+process termination semantics (we are bailing out before the lock UI ever
+appears -- nothing useful to flush or clean up).
+
+This is a workaround, not a root-cause fix. The proper fix is upstream
+(make ~CSCDMAFrame validate the EGL display, or explicitly tear down image
+caches before exit). See diagnosis in dotfiles git history.
+
+--- a/src/core/hyprlock.cpp
++++ b/src/core/hyprlock.cpp
+@@ -341,7 +341,7 @@
+
+     if (!m_sWaylandState.sessionLock) {
+         Log::logger->log(Log::CRIT, "Couldn't bind to ext-session-lock-v1, does your compositor support it?");
+-        exit(1);
++        _exit(1);
+     }
+
+     // Gather info about monitors
+@@ -371,7 +371,7 @@
+         m_sLoopState.timerEvent = true;
+         m_sLoopState.timerCV.notify_all();
+         g_pAuth->terminate();
+-        exit(1);
++        _exit(1);
+     }
+
+     const auto fingerprintAuth = g_pAuth->getImpl(AUTH_IMPL_FINGERPRINT);

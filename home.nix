@@ -685,6 +685,13 @@ in
         });
       };
     })
+    (final: prev: {
+      hyprlock = prev.hyprlock.overrideAttrs (old: {
+        patches = (old.patches or []) ++ [
+          ./patches/hyprlock-skip-dtors-on-early-fail.patch
+        ];
+      });
+    })
   ];
 
   gtk = lib.optionalAttrs (!isDarwin) {
@@ -821,7 +828,7 @@ in
       enable = true;
       settings = {
         general = {
-          lock_cmd = "pidof hyprlock || /usr/bin/hyprlock";
+          lock_cmd = "hyprctl dispatch dpms on; pidof hyprlock || ${config.programs.hyprlock.package}/bin/hyprlock";
           before_sleep_cmd = "loginctl lock-session";
           after_sleep_cmd = "hyprctl dispatch dpms on";
         };

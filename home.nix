@@ -836,7 +836,7 @@ in
       enable = true;
       settings = {
         general = {
-          lock_cmd = "hyprctl dispatch dpms on; pidof hyprlock || ${config.programs.hyprlock.package}/bin/hyprlock";
+          lock_cmd = "pidof hyprlock || ${config.programs.hyprlock.package}/bin/hyprlock";
           before_sleep_cmd = "loginctl lock-session";
           after_sleep_cmd = "hyprctl dispatch dpms on";
         };

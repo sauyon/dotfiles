@@ -764,7 +764,7 @@ in
             criteria = "BOE NE160QDM-NZ6 Unknown";
             mode = "2560x1600";
             position = "0,0";
-            scale = 1.0;
+            scale = 2.0;
             transform = "normal";
             alias = "UTSUHO";
           };
@@ -789,6 +789,14 @@ in
         }
         {
           profile = {
+            name = "utsuho";
+            outputs = [
+              { criteria = "$UTSUHO"; status = "enable"; scale = 1.0; }
+            ];
+          };
+        }
+        {
+          profile = {
             name = "home";
             outputs = [
               { criteria = "GIGA-BYTE TECHNOLOGY CO., LTD. AORUS FO48U 21170B001458"; mode = "3840x2160"; position = "0,0"; scale = 2.0; }
@@ -801,7 +809,7 @@ in
             name = "Modular";
             outputs = [
               { criteria = "Dell Inc. DELL P3424WEB F2VTM04"; mode = "3440x1440"; position = "-528,-1440"; transform = "normal"; scale = 1.0; }
-              { criteria = "$UTSUHO"; status = "enable"; }
+              { criteria = "$UTSUHO"; status = "enable"; scale = 1.0; }
             ];
           };
         }

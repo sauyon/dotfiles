@@ -68,6 +68,7 @@
       "$mainMod SHIFT, semicolon, togglefloating,"
       "$mainMod, semicolon, exec, hyprctl dispatch focuswindow $(if [[ $(hyprctl activewindow -j | jq .\"floating\") == \"true\" ]]; then echo \"tiled\"; else echo \"floating\"; fi;)"
       "$mainMod, space, exec, $menu"
+      "ALT, space, exec, $menu"
       # "$mainMod SHIFT, P, pseudo, # dwindle"
       # "$mainMod, V, togglesplit, # dwindle"
       # "$mainMod, G, togglegroup"

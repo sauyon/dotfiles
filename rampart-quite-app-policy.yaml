@@ -1,0 +1,17 @@
+policies:
+  - name: restrict-gh-pr-create-to-quite-app
+    description: "Deny `gh pr create` everywhere except inside quite-app"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: deny
+        when:
+          command_matches:
+            - "gh pr create"
+            - "gh pr create *"
+          session_not_matches:
+            - "quite-app"
+            - "quite-app/*"
+            - "*/quite-app"
+            - "*/quite-app/*"
+        message: "gh pr create is only allowed inside quite-app"

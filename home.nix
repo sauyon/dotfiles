@@ -540,6 +540,17 @@ in
     fi
   '';
 
+  # Firefox 67+ keys profile-per-install via [Install<HASH>] sections inside
+  # profiles.ini (gated by `Version=2`), which override `Default=1`. Every nix
+  # firefox bump produces a new install hash, so Firefox creates a fresh
+  # *.default-release profile and pins it, ignoring the home-manager-managed
+  # one. Drop Version= to make Firefox honor Default=1 (same posture as
+  # Darwin), and rm the legacy installs.ini backup so it can't re-seed the
+  # Install section on next launch.
+  home.activation.firefoxInstallsIni = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    $DRY_RUN_CMD rm -f "$HOME/.mozilla/firefox/installs.ini"
+  '';
+
   xdg.userDirs.setSessionVariables = true;
 
   home.username = let v = builtins.getEnv "USER"; in if v != "" then v else "sauyon";
@@ -1242,6 +1253,14 @@ in
     };
     firefox = {
       enable = true;
+      # home-manager 26.05 default is `${xdg.configHome}/mozilla/firefox`, but
+      # env.nix sets MOZ_LEGACY_PROFILES=1 (and the system Arch firefox uses
+      # legacy unconditionally), so keep both halves on .mozilla/firefox.
+      configPath = ".mozilla/firefox";
+      # Drop Version= so Firefox uses non-dedicated profile mode and honors
+      # Default=1 — without this, Firefox 67+ pins profile-per-install via
+      # [Install<HASH>] sections in profiles.ini and ignores Default=.
+      profileVersion = null;
       policies = {
         Homepage = {
           URL = "https://ko.ag/newtab.html";

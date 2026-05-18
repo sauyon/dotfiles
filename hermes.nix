@@ -113,6 +113,7 @@ in
 
   # ── Hermes gateway (API server for orchestrator→user communication) ──────
   # Runs on agent-net so the AO orchestrator can POST questions to hermes-gw:8642
+  /* DISABLED
   systemd.user.services.hermes-gateway = {
     Unit = {
       Description = "Hermes Agent gateway — API server for orchestrator relay";
@@ -155,6 +156,7 @@ in
       WantedBy = [ "default.target" ];
     };
   };
+  */
 
   # ── AgentGuard patrol timer (every 6 hours) ──────────────────────────────
   # Runs in a container (agentguard is a Node.js package, not available on host).
@@ -194,6 +196,7 @@ in
     };
   };
 
+  /* DISABLED
   systemd.user.services.litellm = {
     Unit = {
       Description = "LiteLLM Anthropic→OpenAI translation proxy (Docker)";
@@ -223,6 +226,7 @@ in
       WantedBy = [ "default.target" ];
     };
   };
+  */
 
   # ── sops-nix secret management ──────────────────────────────────────────────
   sops.defaultSopsFile = ./secrets.yaml;
@@ -240,6 +244,7 @@ in
   sops.secrets.aoApiKey = {};
 
   # ── sops-managed config files (contain secrets, never touch nix store) ─────
+  /* DISABLED
   sops.templates."hermes-orchestrator-config" = {
     path = "${config.home.homeDirectory}/.hermes-orchestrator/config.yaml";
     mode = "0600";
@@ -347,6 +352,7 @@ in
             api_key: ${config.sops.placeholder.apiKey}
     '';
   };
+  */
 
   home.activation.hermesPermissions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     chmod 700 "${stateDir}" 2>/dev/null || true

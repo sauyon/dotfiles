@@ -626,9 +626,9 @@ in
   };
 
   home.packages = [
-    agent-orchestrator-pkg
-    ao-mcp-pkg
-    ao-run
+    # DISABLED: agent-orchestrator-pkg
+    # DISABLED: ao-mcp-pkg
+    # DISABLED: ao-run
     caffeine
     claude-prof
     hypr-fullscreen-inhibit

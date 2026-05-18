@@ -465,6 +465,12 @@ in
     source = ./rampart-standard-policy.yaml;
   };
 
+  # ── Claude skills ──────────────────────────────────────────────────────────
+  home.file.".claude/skills/linear-flow/SKILL.md".source =
+    ./.claude/skills/linear-flow/SKILL.md;
+  home.file.".claude/skills/linear-flow/DESIGN.md".source =
+    ./.claude/skills/linear-flow/DESIGN.md;
+
   # Merge nix-declared Claude settings into a mutable ~/.claude/settings.json.
   # Using jq's recursive merge (.[0] * .[1]) so nix values win on conflict while
   # any keys Claude wrote at runtime (MCP servers, extra permissions, etc.) are

@@ -905,6 +905,7 @@ in
     };
   };
 
+  targets.genericLinux.enable = !isDarwin;
   targets.genericLinux.nixGL.packages = nixgl.packages.${system};
 
   wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin) (import ./hyprland.nix (pkgs));

@@ -7,10 +7,19 @@ let
       url = "https://registry.npmjs.org/@google/gemini-cli/-/gemini-cli-${version}.tgz";
       hash = "sha256-dWMqrnskl/+INM6A8z456JOMMhCIVacKMWXlVYTAFaQ=";
     };
+    nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
     postInstall = (old.postInstall or "") + ''
       if [ -d $out/lib/gemini/bundle ]; then
         cp -r $out/lib/gemini/bundle/* $out/lib/gemini/
       fi
+      wrapProgram $out/bin/gemini \
+        --prefix LD_PRELOAD : "${pkgs.nss_wrapper}/lib/libnss_wrapper.so" \
+        --run '
+          export NSS_WRAPPER_PASSWD=$(mktemp)
+          export NSS_WRAPPER_GROUP=$(mktemp)
+          echo "$USER:x:$(id -u):$(id -g):$USER:$HOME:$SHELL" > "$NSS_WRAPPER_PASSWD"
+          echo "$USER:x:$(id -g):" > "$NSS_WRAPPER_GROUP"
+        '
     '';
   });
 in
@@ -19,6 +28,10 @@ in
     enable = true;
     package = gemini-cli-latest;
     settings = {
+      general = {
+        enableAutoUpdate = false;
+        enableAutoUpdateNotification = false;
+      };
       security = {
         auth = {
           selectedType = "oauth-personal";

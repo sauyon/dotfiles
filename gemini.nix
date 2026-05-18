@@ -38,21 +38,6 @@ in
       model = {
         name = "auto";
       };
-      hooks = {
-        BeforeTool = [
-          {
-            matcher = "run_shell_command|write_file|replace|read_file";
-            hooks = [
-              {
-                name = "rampart-audit";
-                type = "command";
-                # Note: Home Manager will put this script in the same directory or we can use the absolute path
-                command = "${config.home.homeDirectory}/.local/bin/gemini-rampart-hook";
-              }
-            ];
-          }
-        ];
-      };
       experimental = {
         worktrees = true;
         memoryManager = true;

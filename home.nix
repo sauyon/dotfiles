@@ -508,10 +508,6 @@ in
     source = ./rampart-standard-policy.yaml;
   };
 
-  home.file.".rampart/policies/quite-app.yaml" = {
-    source = ./rampart-quite-app-policy.yaml;
-  };
-
   # Merge nix-declared Claude settings into a mutable ~/.claude/settings.json.
   # Using jq's recursive merge (.[0] * .[1]) so nix values win on conflict while
   # any keys Claude wrote at runtime (MCP servers, extra permissions, etc.) are

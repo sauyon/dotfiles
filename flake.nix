@@ -24,15 +24,17 @@
 
   outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, rampart, hermes-agent, agentguard, ... }:
   let
-    system = "x86_64-linux";
-  in {
-    homeConfigurations.sauyon = home-manager.lib.homeManagerConfiguration {
+    mkHome = system: home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.${system};
       extraSpecialArgs = {
-        inherit sops-nix walker nixgl agent-orchestrator ao-mcp rampart hermes-agent agentguard system;
+        inherit sops-nix walker nixgl agent-orchestrator ao-mcp rampart hermes-agent agentguard;
+        inherit system;
       };
       modules = [ ./home.nix ];
     };
+  in {
+    homeConfigurations.sauyon = mkHome "x86_64-linux";
+    homeConfigurations."sauyon@darwin" = mkHome "aarch64-darwin";
 
     darwinConfigurations.mari = nix-darwin.lib.darwinSystem {
       system = "aarch64-darwin";

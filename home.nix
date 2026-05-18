@@ -19,10 +19,10 @@ let
   machine = import ./machine.nix;
   hostname = machine.hostname;
 
-  nixGL = nixgl.packages.${system}.default;
-  agent-orchestrator-pkg = agent-orchestrator.packages.${system}.default;
-  ao-mcp-pkg = ao-mcp.packages.${system}.default;
-  rampart-pkg = rampart.packages.${system}.default;
+  nixGL = if isDarwin then null else nixgl.packages.${system}.default;
+  agent-orchestrator-pkg = if isDarwin then null else agent-orchestrator.packages.${system}.default;
+  ao-mcp-pkg = if isDarwin then null else ao-mcp.packages.${system}.default;
+  rampart-pkg = if isDarwin then null else rampart.packages.${system}.default;
 
   caffeine = pkgs.writeShellScriptBin "caffeine" ''
     set -eu
@@ -275,7 +275,7 @@ let
             # JSON arrives on stdin; we must inspect tool_input.command
             # ourselves because `matcher` only filters on tool name.
             command = ''
-              case "$PWD" in /home/sauyon/devel/quite-app*) exit 0 ;; esac
+              case "$PWD" in ${config.home.homeDirectory}/devel/quite-app*) exit 0 ;; esac
               input=$(cat)
               case "$input" in *'"command":"gh pr create'*) ;; *) exit 0 ;; esac
               printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Do not run `gh pr create`. Print a PR creation link instead (e.g. https://github.com/<owner>/<repo>/compare/<base>...<head>?expand=1, or https://github.com/<owner>/<repo>/pull/new/<branch>) and let the user create the PR themselves."}}'
@@ -462,7 +462,7 @@ in
   # ── sops-nix ────────────────────────────────────────────────────────────────
   sops.defaultSopsFile = ./secrets.yaml;
   sops.age.keyFile = null;
-  sops.age.sshKeyPaths = [];
+  sops.age.sshKeyPaths = if isDarwin then [ "${config.home.homeDirectory}/.ssh/id_ed25519" ] else [];
   sops.gnupg.sshKeyPaths = [];
   sops.environment.GOOGLE_APPLICATION_CREDENTIALS = "${config.home.homeDirectory}/.config/sops/gcp-key.json";
 
@@ -550,7 +550,7 @@ in
   xdg.userDirs.setSessionVariables = true;
 
   home.username = let v = builtins.getEnv "USER"; in if v != "" then v else "sauyon";
-  home.homeDirectory = let v = builtins.getEnv "HOME"; in if v != "" then v else "/home/sauyon";
+  home.homeDirectory = let v = builtins.getEnv "HOME"; in if v != "" then v else (if isDarwin then "/Users/sauyon" else "/home/sauyon");
 
   home.sessionVariables =
     import ./env.nix (
@@ -564,7 +564,7 @@ in
       QT_FONT_DPI = "120";
     });
 
-  systemd.user.sessionVariables = config.home.sessionVariables;
+  systemd.user.sessionVariables = lib.mkIf (!isDarwin) config.home.sessionVariables;
 
   # ── Emacs ──────────────────────────────────────────────────────────────────
   home.file.".emacs.d/init.el".source = ./emacs/init.el;
@@ -573,19 +573,20 @@ in
   home.file.".emacs.d/lisp/root-find.el".source = ./emacs/lisp/root-find.el;
 
   # ── Scripts ────────────────────────────────────────────────────────────────
-  home.file.".local/bin/bootstrap.sh" = { executable = true; source = ./scripts/bootstrap.sh; };
-  home.file.".local/bin/mprisinfo" = { executable = true; source = ./scripts/mprisinfo; };
-  home.file.".local/bin/reyubikey" = { executable = true; source = ./scripts/reyubikey; };
-  home.file.".local/bin/upload" = { executable = true; source = ./scripts/upload; };
-  home.file.".local/bin/yank" = { executable = true; source = ./scripts/yank; };
+  # On darwin, .local/bin is a symlink to the dotfiles repo; skip HM management.
+  home.file.".local/bin/bootstrap.sh" = lib.mkIf (!isDarwin) { executable = true; source = ./scripts/bootstrap.sh; };
+  home.file.".local/bin/mprisinfo" = lib.mkIf (!isDarwin) { executable = true; source = ./scripts/mprisinfo; };
+  home.file.".local/bin/reyubikey" = lib.mkIf (!isDarwin) { executable = true; source = ./scripts/reyubikey; };
+  home.file.".local/bin/upload" = lib.mkIf (!isDarwin) { executable = true; source = ./scripts/upload; };
+  home.file.".local/bin/yank" = lib.mkIf (!isDarwin) { executable = true; source = ./scripts/yank; };
 
   # ── Pulse ──────────────────────────────────────────────────────────────────
-  xdg.configFile."pulse/client.conf".text = "cookie-file = /.cache/pulse/cookie\n";
+  xdg.configFile."pulse/client.conf" = lib.mkIf (!isDarwin) { text = "cookie-file = /.cache/pulse/cookie\n"; };
 
   # ── p10k ───────────────────────────────────────────────────────────────────
   xdg.configFile."zsh/.p10k.zsh".source = ./p10k.zsh;
 
-  home.file.".local/bin/hyprland-graceful-exit" = {
+  home.file.".local/bin/hyprland-graceful-exit" = lib.mkIf (!isDarwin) {
     executable = true;
     text = ''
       #!/usr/bin/env bash
@@ -626,13 +627,7 @@ in
   };
 
   home.packages = [
-    # DISABLED: agent-orchestrator-pkg
-    # DISABLED: ao-mcp-pkg
-    # DISABLED: ao-run
-    caffeine
     claude-prof
-    hypr-fullscreen-inhibit
-    rampart-pkg
   ] ++ (with pkgs; [
     bfs
     btop
@@ -649,14 +644,20 @@ in
     kubectx
     unzip
     zip
-    slack
-    vesktop
     (emacsPackages.treesit-grammars.with-grammars (grammars: with grammars; [
       tree-sitter-tsx
       tree-sitter-typescript
     ]))
   ]) ++ lib.optionals (!isDarwin) [
+    agent-orchestrator-pkg
+    ao-mcp-pkg
+    ao-run
+    caffeine
+    hypr-fullscreen-inhibit
+    rampart-pkg
     pkgs.hyprpicker
+    pkgs.slack
+    pkgs.vesktop
   ];
 
   nixpkgs.config = {
@@ -902,7 +903,7 @@ in
   };
 
   targets.genericLinux.enable = !isDarwin;
-  targets.genericLinux.nixGL.packages = nixgl.packages.${system};
+  targets.genericLinux.nixGL.packages = lib.mkIf (!isDarwin) nixgl.packages.${system};
 
   wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin) (import ./hyprland.nix (pkgs));
 
@@ -916,7 +917,7 @@ in
 
 
   programs = {
-    hyprlock = {
+    hyprlock = lib.optionalAttrs (!isDarwin) {
       enable = true;
       package = config.lib.nixGL.wrap pkgs.hyprlock;
       settings = {
@@ -1191,7 +1192,7 @@ in
       '';
     };
 
-    thunderbird = {
+    thunderbird = lib.optionalAttrs (!isDarwin) {
       enable = true;
       profiles.default = {
         isDefault = true;
@@ -1264,13 +1265,13 @@ in
           StartPage = "homepage";
         };
       };
-      nativeMessagingHosts = [
+      nativeMessagingHosts = lib.optionals (!isDarwin) [
         pkgs.tridactyl-native
       ];
       profiles.default = {
-        extensions.packages = with pkgs.nur.repos.rycee.firefox-addons; [
+        extensions.packages = lib.optionals (!isDarwin) (with pkgs.nur.repos.rycee.firefox-addons; [
           tridactyl
-        ];
+        ]);
         settings = {
           "sidebar.verticalTabs" = true;
           "ui.key.accelKey" = 91;

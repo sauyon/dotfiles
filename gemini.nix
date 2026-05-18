@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   gemini-cli-latest = pkgs.gemini-cli-bin.overrideAttrs (old: rec {
@@ -49,7 +49,7 @@ in
     };
   };
 
-  home.file.".local/bin/gemini-rampart-hook" = {
+  home.file.".local/bin/gemini-rampart-hook" = lib.mkIf (!pkgs.stdenv.isDarwin) {
     executable = true;
     source = ./gemini-rampart-hook.sh;
   };

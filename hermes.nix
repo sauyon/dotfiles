@@ -1,5 +1,7 @@
 { config, lib, pkgs, hermes-agent, ao-mcp, agentguard, system, ... }:
 
+if builtins.match ".*-darwin" system != null then {} else
+
 let
 
   stateDir = "${config.xdg.dataHome}/hermes";

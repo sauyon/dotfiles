@@ -151,103 +151,60 @@ let
 
   claude-prof = pkgs.writeShellScriptBin "claude-prof" ''
     set -euo pipefail
-    PROFILES_DIR="''${XDG_DATA_HOME:-$HOME/.local/share}/claude-profiles"
-    CREDENTIALS="$HOME/.claude/.credentials.json"
-    CURRENT_FILE="$PROFILES_DIR/.current"
+    CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
 
     cmd="''${1:-help}"
     shift || true
 
+    profile_dir() { echo "$CONFIG_HOME/claude-$1"; }
+
     case "$cmd" in
       list|ls)
-        if ! ls "$PROFILES_DIR"/*.json 2>/dev/null | grep -q .; then
-          echo "No profiles saved."
-          exit 0
-        fi
-        current=""
-        [ -f "$CURRENT_FILE" ] && current="$(cat "$CURRENT_FILE")"
-        for f in "$PROFILES_DIR"/*.json; do
-          name="$(basename "$f" .json)"
-          if [ "$name" = "$current" ]; then
-            echo "* $name"
-          else
-            echo "  $name"
-          fi
+        found=0
+        for d in "$CONFIG_HOME"/claude-*/; do
+          [ -d "$d" ] || continue
+          basename "$d" | sed 's/^claude-//'
+          found=1
         done
-        ;;
-      use|switch)
-        name="''${1:?usage: claude-prof use <name>}"
-        src="$PROFILES_DIR/$name.json"
-        [ -f "$src" ] || { echo "error: profile '$name' not found"; exit 1; }
-        cp "$src" "$CREDENTIALS"
-        echo "$name" > "$CURRENT_FILE"
-        echo "Switched to profile: $name"
-        ;;
-      save)
-        name="''${1:?usage: claude-prof save <name>}"
-        mkdir -p "$PROFILES_DIR"
-        [ -f "$CREDENTIALS" ] || { echo "error: no credentials found at $CREDENTIALS"; exit 1; }
-        cp "$CREDENTIALS" "$PROFILES_DIR/$name.json"
-        echo "$name" > "$CURRENT_FILE"
-        echo "Saved profile: $name"
-        ;;
-      show|current)
-        if [ -f "$CURRENT_FILE" ]; then
-          cat "$CURRENT_FILE"
-        else
-          echo "(unknown)"
-        fi
+        [ "$found" = 1 ] || echo "No profiles."
         ;;
       rm|delete)
         name="''${1:?usage: claude-prof rm <name>}"
-        src="$PROFILES_DIR/$name.json"
-        [ -f "$src" ] || { echo "error: profile '$name' not found"; exit 1; }
-        rm "$src"
-        if [ -f "$CURRENT_FILE" ] && [ "$(cat "$CURRENT_FILE")" = "$name" ]; then
-          rm "$CURRENT_FILE"
-        fi
+        dir="$(profile_dir "$name")"
+        [ -d "$dir" ] || { echo "error: profile '$name' not found"; exit 1; }
+        rm -rf "$dir"
         echo "Deleted profile: $name"
         ;;
       run)
         name="''${1:?usage: claude-prof run <name> [claude-args...]}"
         shift
-        src="$PROFILES_DIR/$name.json"
-        [ -f "$src" ] || { echo "error: profile '$name' not found"; exit 1; }
+        dir="$(profile_dir "$name")"
+        mkdir -p "$dir"
 
-        PROFILE_HOME="$PROFILES_DIR/$name.home"
-        PROFILE_CLAUDE="$PROFILE_HOME/.claude"
-        mkdir -p "$PROFILE_CLAUDE"
-
-        # Profile-specific credentials (always refresh from saved profile)
-        cp "$src" "$PROFILE_CLAUDE/.credentials.json"
-        chmod 600 "$PROFILE_CLAUDE/.credentials.json"
-
-        # Symlink shared config from real home so settings/memory/instructions are consistent
+        # Share settings/memory/instructions across profiles; only credentials
+        # are per-profile. Log in once per profile via /login on first run.
         for f in settings.json settings.local.json CLAUDE.md; do
           real="$HOME/.claude/$f"
-          link="$PROFILE_CLAUDE/$f"
+          link="$dir/$f"
           [ -e "$real" ] || continue
           [ -e "$link" ] || ln -sf "$real" "$link"
         done
         for d in projects; do
           real="$HOME/.claude/$d"
-          link="$PROFILE_CLAUDE/$d"
+          link="$dir/$d"
           [ -e "$real" ] || continue
           [ -e "$link" ] || ln -sf "$real" "$link"
         done
 
-        HOME="$PROFILE_HOME" exec claude "$@"
+        exec env CLAUDE_CONFIG_DIR="$dir" claude "$@"
         ;;
       help|--help|-h)
         echo "Usage: claude-prof <command> [args]"
         echo ""
         echo "Commands:"
-        echo "  list               list saved profiles (* = active)"
-        echo "  use <name>         switch global credentials to a profile"
-        echo "  save <name>        save current credentials as a profile"
-        echo "  run <name> [args]  run claude in isolated session with a profile"
-        echo "  show               print the active profile name"
-        echo "  rm <name>          delete a saved profile"
+        echo "  list               list profiles"
+        echo "  run <name> [args]  run claude with the named profile"
+        echo "  rm <name>          delete a profile"
         ;;
       *)
         echo "error: unknown command '$cmd'. Try 'claude-prof help'." >&2

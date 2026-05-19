@@ -327,6 +327,8 @@
     zl = "zellij list-sessions | rg -v EXITED";
 
     hm = "home-manager";
-    hms = "home-manager switch --flake ~/devel/dotfiles";
+    hms = let
+      configName = if pkgs.stdenv.isDarwin then "sauyon@darwin" else "sauyon";
+    in "home-manager switch --flake ${home}/devel/dotfiles#${configName}";
   };
 }

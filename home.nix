@@ -868,7 +868,7 @@ in
   targets.genericLinux.enable = !isDarwin;
   targets.genericLinux.nixGL.packages = lib.mkIf (!isDarwin) nixgl.packages.${system};
 
-  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin) (import ./hyprland.nix (pkgs));
+  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin) (import ./hyprland.nix { inherit pkgs config; });
 
   dconf.settings = lib.optionalAttrs (hostname == "setsuna") {
     "org/gnome/desktop/interface" = {

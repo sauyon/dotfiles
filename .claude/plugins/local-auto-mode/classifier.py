@@ -93,7 +93,15 @@ CLASSIFY_TOOL = {
 }
 
 
-REPRO_PATH = Path(os.path.expanduser("~/.cache/local-auto-mode/last-bad.json"))
+REPRO_DIR = Path(os.path.expanduser("~/.cache/local-auto-mode"))
+
+
+def _latest_repro() -> Path | None:
+    try:
+        files = sorted(REPRO_DIR.glob("bad-*.json"))
+        return files[-1] if files else None
+    except OSError:
+        return None
 
 
 def _looks_truncated(reason: str) -> bool:
@@ -143,19 +151,24 @@ def load_agent_instructions(cwd: str) -> str:
     return "\n\n".join(pieces)
 
 
-def _save_repro(request_payload: dict, response_body: dict | str, note: str) -> None:
+def _save_repro(request_payload: dict, response_body: dict | str, note: str) -> Path | None:
+    """Write a timestamped repro and return its path (or None on failure)."""
+    import datetime
     try:
-        REPRO_PATH.parent.mkdir(parents=True, exist_ok=True)
+        REPRO_DIR.mkdir(parents=True, exist_ok=True)
+        ts = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
+        path = REPRO_DIR / f"bad-{ts}.json"
         # Strip the api key before saving the payload as a repro.
-        REPRO_PATH.write_text(json.dumps({
+        path.write_text(json.dumps({
             "note": note,
             "endpoint": f"{ENDPOINT}/chat/completions",
             "model": MODEL,
             "request": request_payload,
             "response": response_body,
         }, indent=2, default=str))
+        return path
     except OSError:
-        pass
+        return None
 
 
 def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tail: str) -> tuple[str, str]:
@@ -254,8 +267,9 @@ def main() -> None:
 
     if warning:
         print(f"local-auto-mode WARNING: {warning}", file=sys.stderr)
-        if REPRO_PATH.exists():
-            print(f"  repro saved to {REPRO_PATH}", file=sys.stderr)
+        latest = _latest_repro()
+        if latest:
+            print(f"  repro saved to {latest}", file=sys.stderr)
 
     if decision == "deny":
         print(f"Blocked by local classifier: {reason}", file=sys.stderr)

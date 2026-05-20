@@ -61,6 +61,33 @@ def fast_path(tool_name: str, tool_input: dict) -> str | None:
     return None
 
 
+CLASSIFY_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "classify_result",
+        "description": "Report the security classification result for the agent action",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "thinking": {
+                    "type": "string",
+                    "description": "Brief step-by-step reasoning.",
+                },
+                "shouldBlock": {
+                    "type": "boolean",
+                    "description": "Whether the action should be blocked (true) or allowed (false)",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Brief explanation of the classification decision",
+                },
+            },
+            "required": ["shouldBlock", "reason"],
+        },
+    },
+}
+
+
 def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tail: str) -> tuple[str, str]:
     """Call the local LLM and return (decision, reason)."""
     user_msg = build_user_prompt(tool_name, tool_input, cwd, transcript_tail)
@@ -71,7 +98,9 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_msg},
         ],
-        "max_tokens": 100,
+        "tools": [CLASSIFY_TOOL],
+        "tool_choice": {"type": "function", "function": {"name": "classify_result"}},
+        "max_tokens": 400,
         "temperature": 0,
     }).encode()
 
@@ -87,14 +116,28 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
 
     resp = urllib.request.urlopen(req, timeout=TIMEOUT)
     body = json.loads(resp.read())
-    text = body["choices"][0]["message"]["content"].strip()
+    msg = body["choices"][0]["message"]
 
+    tool_calls = msg.get("tool_calls") or []
+    if tool_calls:
+        args = tool_calls[0].get("function", {}).get("arguments", "{}")
+        try:
+            parsed = json.loads(args) if isinstance(args, str) else args
+            should_block = bool(parsed.get("shouldBlock"))
+            reason = (parsed.get("reason") or "").strip()
+            return ("deny" if should_block else "allow", reason or ("blocked" if should_block else "allowed"))
+        except (json.JSONDecodeError, AttributeError):
+            pass
+
+    # Fallback: parse free-text shouldBlock if the model didn't honor tool_choice.
+    text = (msg.get("content") or "").strip()
     import re
-    upper = text.upper()
-    for token in ("ALLOW", "DENY", "ASK"):
-        if re.search(rf'\b{token}\b', upper):
-            reason = re.sub(rf'^.*?\b{token}\b[:\s]*', '', text, count=1).strip() or token.lower()
-            return token.lower(), reason
+    m = re.search(r'"?shouldBlock"?\s*[:=]\s*(true|false)', text, re.IGNORECASE)
+    if m:
+        should_block = m.group(1).lower() == "true"
+        reason_m = re.search(r'"?reason"?\s*[:=]\s*"?([^"\n]+)', text, re.IGNORECASE)
+        reason = (reason_m.group(1).strip() if reason_m else "").rstrip('",') or ("blocked" if should_block else "allowed")
+        return ("deny" if should_block else "allow", reason)
 
     return "ask", f"unparseable response: {text[:80]}"
 

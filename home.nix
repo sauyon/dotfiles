@@ -415,7 +415,7 @@ in
   # ── sops-nix ────────────────────────────────────────────────────────────────
   sops.defaultSopsFile = ./secrets.yaml;
   sops.age.keyFile = null;
-  sops.age.sshKeyPaths = if isDarwin then [ "${config.home.homeDirectory}/.ssh/id_ed25519" ] else [];
+  sops.age.sshKeyPaths = [ "${config.home.homeDirectory}/.ssh/id_ed25519" ];
   sops.gnupg.sshKeyPaths = [];
   sops.environment.GOOGLE_APPLICATION_CREDENTIALS = "${config.home.homeDirectory}/.config/sops/gcp-key.json";
 

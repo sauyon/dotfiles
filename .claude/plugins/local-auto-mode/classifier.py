@@ -93,11 +93,29 @@ CLASSIFY_TOOL = {
 }
 
 
+REPRO_PATH = Path(os.path.expanduser("~/.cache/local-auto-mode/last-bad.json"))
+
+
+def _save_repro(request_payload: dict, response_body: dict | str, note: str) -> None:
+    try:
+        REPRO_PATH.parent.mkdir(parents=True, exist_ok=True)
+        # Strip the api key before saving the payload as a repro.
+        REPRO_PATH.write_text(json.dumps({
+            "note": note,
+            "endpoint": f"{ENDPOINT}/chat/completions",
+            "model": MODEL,
+            "request": request_payload,
+            "response": response_body,
+        }, indent=2, default=str))
+    except OSError:
+        pass
+
+
 def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tail: str) -> tuple[str, str]:
     """Call the local LLM and return (decision, reason)."""
     user_msg = build_user_prompt(tool_name, tool_input, cwd, transcript_tail)
 
-    payload = json.dumps({
+    request_payload = {
         "model": MODEL,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
@@ -107,7 +125,8 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
         "tool_choice": {"type": "function", "function": {"name": "classify_result"}},
         "max_tokens": 400,
         "temperature": 0,
-    }).encode()
+    }
+    payload = json.dumps(request_payload).encode()
 
     req = urllib.request.Request(
         f"{ENDPOINT}/chat/completions",
@@ -120,7 +139,13 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
     )
 
     resp = urllib.request.urlopen(req, timeout=TIMEOUT)
-    body = json.loads(resp.read())
+    raw = resp.read()
+    try:
+        body = json.loads(raw)
+    except json.JSONDecodeError:
+        _save_repro(request_payload, raw.decode("utf-8", errors="replace"), "non-JSON response body")
+        return "ask", f"unparseable response: {raw[:80].decode('utf-8', errors='replace')}"
+
     msg = body["choices"][0]["message"]
 
     tool_calls = msg.get("tool_calls") or []
@@ -144,6 +169,7 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
         reason = (reason_m.group(1).strip() if reason_m else "").rstrip('",') or ("blocked" if should_block else "allowed")
         return ("ask" if should_block else "allow", reason)
 
+    _save_repro(request_payload, body, "no tool_call and no shouldBlock in content")
     return "ask", f"unparseable response: {text[:80]}"
 
 
@@ -174,6 +200,8 @@ def main() -> None:
 
     if warning:
         print(f"local-auto-mode WARNING: {warning}", file=sys.stderr)
+        if REPRO_PATH.exists():
+            print(f"  repro saved to {REPRO_PATH}", file=sys.stderr)
 
     if decision == "deny":
         print(f"Blocked by local classifier: {reason}", file=sys.stderr)

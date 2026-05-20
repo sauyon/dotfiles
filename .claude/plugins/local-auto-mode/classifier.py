@@ -181,11 +181,11 @@ def main() -> None:
 
     result = {
         "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
             "permissionDecision": decision,
+            "permissionDecisionReason": reason,
         },
     }
-    if decision == "ask":
-        result["systemMessage"] = f"Local classifier deferred to user: {reason}"
 
     json.dump(result, sys.stdout)
     sys.exit(0)

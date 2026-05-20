@@ -94,6 +94,7 @@ CLASSIFY_TOOL = {
 
 
 REPRO_DIR = Path(os.path.expanduser("~/.cache/local-auto-mode"))
+LATEST_PATH = REPRO_DIR / "last.json"
 
 
 def _latest_repro() -> Path | None:
@@ -102,6 +103,21 @@ def _latest_repro() -> Path | None:
         return files[-1] if files else None
     except OSError:
         return None
+
+
+def _save_latest(request_payload: dict, response_body: dict | str, decision: str, reason: str) -> None:
+    try:
+        REPRO_DIR.mkdir(parents=True, exist_ok=True)
+        LATEST_PATH.write_text(json.dumps({
+            "decision": decision,
+            "reason": reason,
+            "endpoint": f"{ENDPOINT}/chat/completions",
+            "model": MODEL,
+            "request": request_payload,
+            "response": response_body,
+        }, indent=2, default=str))
+    except OSError:
+        pass
 
 
 def _looks_truncated(reason: str) -> bool:
@@ -222,7 +238,10 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
             reason = (parsed.get("reason") or "").strip()
             if _looks_truncated(reason):
                 _save_repro(request_payload, body, f"suspicious reason field: {reason!r}")
-            return ("ask" if should_block else "allow", reason or ("blocked" if should_block else "allowed"))
+            decision = "ask" if should_block else "allow"
+            final_reason = reason or ("blocked" if should_block else "allowed")
+            _save_latest(request_payload, body, decision, final_reason)
+            return decision, final_reason
         except (json.JSONDecodeError, AttributeError):
             pass
 

@@ -4,10 +4,15 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import urllib.request
 import urllib.error
 from pathlib import Path
+
+# home-manager symlinks each .py to its own nix store path, so Python's
+# resolved sys.path[0] has no siblings. Add the unresolved script dir.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import ENDPOINT, MODEL, TIMEOUT, get_api_key
 from prompt import SYSTEM_PROMPT, build_user_prompt
@@ -125,7 +130,7 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
             parsed = json.loads(args) if isinstance(args, str) else args
             should_block = bool(parsed.get("shouldBlock"))
             reason = (parsed.get("reason") or "").strip()
-            return ("deny" if should_block else "allow", reason or ("blocked" if should_block else "allowed"))
+            return ("ask" if should_block else "allow", reason or ("blocked" if should_block else "allowed"))
         except (json.JSONDecodeError, AttributeError):
             pass
 
@@ -137,7 +142,7 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
         should_block = m.group(1).lower() == "true"
         reason_m = re.search(r'"?reason"?\s*[:=]\s*"?([^"\n]+)', text, re.IGNORECASE)
         reason = (reason_m.group(1).strip() if reason_m else "").rstrip('",') or ("blocked" if should_block else "allowed")
-        return ("deny" if should_block else "allow", reason)
+        return ("ask" if should_block else "allow", reason)
 
     return "ask", f"unparseable response: {text[:80]}"
 

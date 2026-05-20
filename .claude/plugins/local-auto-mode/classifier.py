@@ -93,42 +93,74 @@ CLASSIFY_TOOL = {
 }
 
 
-REPRO_DIR = Path(os.path.expanduser("~/.cache/local-auto-mode"))
-FULL_LOG_KEEP = 30  # how many full-*.json files to retain
+LOG_DIR = Path(os.path.expanduser("~/.cache/local-auto-mode"))
+LOG_DB_PATH = LOG_DIR / "log.db"
+LOG_KEEP = 100  # how many recent classifications to retain in the ring buffer
 
 
-def _latest_repro() -> Path | None:
-    try:
-        files = sorted(REPRO_DIR.glob("bad-*.json"))
-        return files[-1] if files else None
-    except OSError:
-        return None
+def _log_db():
+    """Open the SQLite ring buffer; create schema if needed."""
+    import sqlite3
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(str(LOG_DB_PATH))
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS classifications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          ts TEXT NOT NULL,
+          decision TEXT NOT NULL,
+          reason TEXT,
+          suspicious INTEGER NOT NULL DEFAULT 0,
+          note TEXT,
+          endpoint TEXT,
+          model TEXT,
+          request_json TEXT NOT NULL,
+          response_json TEXT NOT NULL
+        )
+    """)
+    db.commit()
+    return db
 
 
-def _save_latest(request_payload: dict, response_body: dict | str, decision: str, reason: str) -> None:
-    """Append a timestamped full classification dump and prune older ones."""
+def _log_classification(
+    request_payload: dict,
+    response_body,
+    decision: str,
+    reason: str,
+    suspicious: bool = False,
+    note: str = "",
+) -> None:
+    """Append a row to the ring buffer and prune to LOG_KEEP."""
     import datetime
     try:
-        REPRO_DIR.mkdir(parents=True, exist_ok=True)
-        ts = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S-%f")
-        path = REPRO_DIR / f"full-{ts}.json"
-        path.write_text(json.dumps({
-            "decision": decision,
-            "reason": reason,
-            "endpoint": f"{ENDPOINT}/chat/completions",
-            "model": MODEL,
-            "request": request_payload,
-            "response": response_body,
-        }, indent=2, default=str))
-        # Prune older entries beyond the keep window.
-        existing = sorted(REPRO_DIR.glob("full-*.json"))
-        for stale in existing[:-FULL_LOG_KEEP]:
-            try:
-                stale.unlink()
-            except OSError:
-                pass
-    except OSError:
+        db = _log_db()
+        ts = datetime.datetime.now().isoformat()
+        req_json = json.dumps(request_payload, default=str)
+        resp_json = response_body if isinstance(response_body, str) else json.dumps(response_body, default=str)
+        db.execute(
+            "INSERT INTO classifications (ts, decision, reason, suspicious, note, endpoint, model, request_json, response_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (ts, decision, reason, 1 if suspicious else 0, note, f"{ENDPOINT}/chat/completions", MODEL, req_json, resp_json),
+        )
+        # Keep only the LOG_KEEP most recent rows.
+        db.execute(
+            "DELETE FROM classifications WHERE id IN (SELECT id FROM classifications ORDER BY id DESC LIMIT -1 OFFSET ?)",
+            (LOG_KEEP,),
+        )
+        db.commit()
+        db.close()
+    except Exception:
         pass
+
+
+def _latest_suspicious_id() -> int | None:
+    try:
+        db = _log_db()
+        row = db.execute(
+            "SELECT id FROM classifications WHERE suspicious = 1 ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        db.close()
+        return row[0] if row else None
+    except Exception:
+        return None
 
 
 def _looks_truncated(reason: str) -> bool:
@@ -178,26 +210,6 @@ def load_agent_instructions(cwd: str) -> str:
     return "\n\n".join(pieces)
 
 
-def _save_repro(request_payload: dict, response_body: dict | str, note: str) -> Path | None:
-    """Write a timestamped repro and return its path (or None on failure)."""
-    import datetime
-    try:
-        REPRO_DIR.mkdir(parents=True, exist_ok=True)
-        ts = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        path = REPRO_DIR / f"bad-{ts}.json"
-        # Strip the api key before saving the payload as a repro.
-        path.write_text(json.dumps({
-            "note": note,
-            "endpoint": f"{ENDPOINT}/chat/completions",
-            "model": MODEL,
-            "request": request_payload,
-            "response": response_body,
-        }, indent=2, default=str))
-        return path
-    except OSError:
-        return None
-
-
 def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tail: str) -> tuple[str, str]:
     """Call the local LLM and return (decision, reason)."""
     user_msg = build_user_prompt(tool_name, tool_input, cwd, transcript_tail)
@@ -235,8 +247,10 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
     try:
         body = json.loads(raw)
     except json.JSONDecodeError:
-        _save_repro(request_payload, raw.decode("utf-8", errors="replace"), "non-JSON response body")
-        return "ask", f"unparseable response: {raw[:80].decode('utf-8', errors='replace')}"
+        decoded = raw.decode("utf-8", errors="replace")
+        reason = f"unparseable response: {decoded[:80]}"
+        _log_classification(request_payload, decoded, "ask", reason, suspicious=True, note="non-JSON response body")
+        return "ask", reason
 
     msg = body["choices"][0]["message"]
 
@@ -247,11 +261,14 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
             parsed = json.loads(args) if isinstance(args, str) else args
             should_block = bool(parsed.get("shouldBlock"))
             reason = (parsed.get("reason") or "").strip()
-            if _looks_truncated(reason):
-                _save_repro(request_payload, body, f"suspicious reason field: {reason!r}")
+            suspicious = _looks_truncated(reason)
             decision = "ask" if should_block else "allow"
             final_reason = reason or ("blocked" if should_block else "allowed")
-            _save_latest(request_payload, body, decision, final_reason)
+            _log_classification(
+                request_payload, body, decision, final_reason,
+                suspicious=suspicious,
+                note=f"suspicious reason field: {reason!r}" if suspicious else "",
+            )
             return decision, final_reason
         except (json.JSONDecodeError, AttributeError):
             pass
@@ -264,10 +281,13 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
         should_block = m.group(1).lower() == "true"
         reason_m = re.search(r'"?reason"?\s*[:=]\s*"?([^"\n]+)', text, re.IGNORECASE)
         reason = (reason_m.group(1).strip() if reason_m else "").rstrip('",') or ("blocked" if should_block else "allowed")
-        return ("ask" if should_block else "allow", reason)
+        decision = "ask" if should_block else "allow"
+        _log_classification(request_payload, body, decision, reason, suspicious=True, note="free-text fallback (no tool_call)")
+        return decision, reason
 
-    _save_repro(request_payload, body, "no tool_call and no shouldBlock in content")
-    return "ask", f"unparseable response: {text[:80]}"
+    reason = f"unparseable response: {text[:80]}"
+    _log_classification(request_payload, body, "ask", reason, suspicious=True, note="no tool_call and no shouldBlock in content")
+    return "ask", reason
 
 
 def main() -> None:
@@ -297,9 +317,9 @@ def main() -> None:
 
     if warning:
         print(f"local-auto-mode WARNING: {warning}", file=sys.stderr)
-        latest = _latest_repro()
-        if latest:
-            print(f"  repro saved to {latest}", file=sys.stderr)
+        latest_id = _latest_suspicious_id()
+        if latest_id is not None:
+            print(f"  see sqlite3 {LOG_DB_PATH} 'select * from classifications where id={latest_id}'", file=sys.stderr)
 
     if decision == "deny":
         print(f"Blocked by local classifier: {reason}", file=sys.stderr)

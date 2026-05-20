@@ -94,7 +94,7 @@ CLASSIFY_TOOL = {
 
 
 REPRO_DIR = Path(os.path.expanduser("~/.cache/local-auto-mode"))
-LATEST_PATH = REPRO_DIR / "last.json"
+FULL_LOG_KEEP = 30  # how many full-*.json files to retain
 
 
 def _latest_repro() -> Path | None:
@@ -106,9 +106,13 @@ def _latest_repro() -> Path | None:
 
 
 def _save_latest(request_payload: dict, response_body: dict | str, decision: str, reason: str) -> None:
+    """Append a timestamped full classification dump and prune older ones."""
+    import datetime
     try:
         REPRO_DIR.mkdir(parents=True, exist_ok=True)
-        LATEST_PATH.write_text(json.dumps({
+        ts = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S-%f")
+        path = REPRO_DIR / f"full-{ts}.json"
+        path.write_text(json.dumps({
             "decision": decision,
             "reason": reason,
             "endpoint": f"{ENDPOINT}/chat/completions",
@@ -116,6 +120,13 @@ def _save_latest(request_payload: dict, response_body: dict | str, decision: str
             "request": request_payload,
             "response": response_body,
         }, indent=2, default=str))
+        # Prune older entries beyond the keep window.
+        existing = sorted(REPRO_DIR.glob("full-*.json"))
+        for stale in existing[:-FULL_LOG_KEEP]:
+            try:
+                stale.unlink()
+            except OSError:
+                pass
     except OSError:
         pass
 

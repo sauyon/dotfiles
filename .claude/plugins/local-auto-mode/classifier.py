@@ -153,14 +153,22 @@ def main() -> None:
     decision = fast_path(tool_name, tool_input)
     reason = "fast-path rule"
 
+    warning = None
     if decision is None:
         try:
             transcript_tail = read_transcript_tail(transcript_path) if transcript_path else ""
             decision, reason = classify_with_llm(tool_name, tool_input, cwd, transcript_tail)
+            if reason.startswith("unparseable response:"):
+                warning = f"local classifier returned {reason}"
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             decision, reason = "ask", f"classifier unreachable: {exc}"
+            warning = reason
         except Exception as exc:
             decision, reason = "ask", f"classifier error: {exc}"
+            warning = reason
+
+    if warning:
+        print(f"local-auto-mode WARNING: {warning}", file=sys.stderr)
 
     if decision == "deny":
         print(f"Blocked by local classifier: {reason}", file=sys.stderr)

@@ -1,4 +1,4 @@
-{ config, lib, pkgs, hermes-agent, ao-mcp, agentguard, system, ... }:
+{ config, lib, pkgs, hermes-agent, ao-mcp, system, ... }:
 
 if builtins.match ".*-darwin" system != null then {} else
 
@@ -7,12 +7,10 @@ let
   stateDir = "${config.xdg.dataHome}/hermes";
   pluginDir = "${stateDir}/plugins";
   relPluginDir = ".local/share/hermes/plugins/rampart";
-  relAgentguardPluginDir = ".local/share/hermes/plugins/agentguard";
 
   hermes-agent-pkg = hermes-agent.packages.${system}.default;
   ao-mcp-pkg = ao-mcp.packages.${system}.default;
   ao-mcp-server = "${ao-mcp-pkg}/bin/ao-mcp-server";
-  agentguard-pkg = agentguard.packages.${system}.default;
 in
 {
   # ── Rampart plugin for Hermes ────────────────────────────────────────────
@@ -24,91 +22,6 @@ in
     name = "rampart";
     version = "0.9.15";
     description = "Rampart AI agent firewall — policy enforcement via preflight API";
-    author = "sauyon";
-    hooks = [ "pre_tool_call" ];
-  };
-
-  # ── AgentGuard plugin for Hermes ─────────────────────────────────────────
-  # Uses httpx (already a hermes dependency) to call AgentGuard's REST API
-  # on the host via the agentguard-patrol service, rather than shelling out
-  # to the Node binary (which isn't available inside the container).
-  home.file."${relAgentguardPluginDir}/__init__.py".text = ''
-    """AgentGuard security plugin for Hermes Agent.
-
-    Pattern-based security checks for common dangerous operations.
-    Complements Rampart's policy engine with additional heuristics.
-    """
-    import logging
-    import os
-    import re
-
-    logger = logging.getLogger(__name__)
-
-    _LEVEL = os.environ.get("AGENTGUARD_LEVEL", "strict")
-
-    # Patterns that should always be blocked regardless of level
-    _DENY_PATTERNS = [
-        re.compile(r"rm\s+(-\w+\s+)*\s*/(?!tmp)"),      # rm -rf / (except /tmp)
-        re.compile(r"mkfs\b[.\w]*"),                        # format disk (mkfs, mkfs.ext4, etc)
-        re.compile(r"dd\s+.*of\s*=\s*/dev/"),             # overwrite device
-        re.compile(r"chmod\s+0?777\s+/"),                 # open permissions on root
-        re.compile(r"curl\b.*\|\s*(?:ba)?sh"),            # pipe to shell
-        re.compile(r"wget\b.*\|\s*(?:ba)?sh"),            # pipe to shell
-        re.compile(r"eval\s*\(.*base64"),                 # eval base64
-        re.compile(r"\.ssh/authorized_keys"),             # SSH key injection
-        re.compile(r"/etc/(?:passwd|shadow|sudoers)"),    # sensitive system files
-        re.compile(r"iptables\s+.*-j\s+DROP"),            # firewall manipulation
-    ]
-
-    # Additional patterns for strict mode
-    _STRICT_PATTERNS = [
-        re.compile(r"nc\s+(-[elp]+\s+)?.*\d{2,5}"),     # netcat listeners
-        re.compile(r"nmap\b"),                            # port scanning
-        re.compile(r"tcpdump\b"),                         # packet capture
-        re.compile(r"strace\b"),                          # process tracing
-        re.compile(r"env\s+.*=.*\bsh\b"),                 # env-based shell escape
-    ]
-
-    _TOOL_MAP = {
-        "terminal": "exec",
-        "read_file": "read",
-        "write_file": "write",
-        "patch": "write",
-    }
-
-
-    def _check(tool_name, args):
-        tool_type = _TOOL_MAP.get(tool_name, tool_name)
-        if tool_type != "exec":
-            return None
-
-        command = args.get("command", str(args))
-
-        for pattern in _DENY_PATTERNS:
-            if pattern.search(command):
-                return {"action": "block", "message": f"AgentGuard: blocked by security pattern ({pattern.pattern})"}
-
-        if _LEVEL == "strict":
-            for pattern in _STRICT_PATTERNS:
-                if pattern.search(command):
-                    return {"action": "block", "message": f"AgentGuard: blocked by strict pattern ({pattern.pattern})"}
-
-        return None
-
-
-    def _on_pre_tool_call(tool_name, args, **kwargs):
-        return _check(tool_name, args)
-
-
-    def register(ctx):
-        ctx.register_hook("pre_tool_call", _on_pre_tool_call)
-        logger.info("AgentGuard plugin registered (level=%s)", _LEVEL)
-  '';
-
-  home.file."${relAgentguardPluginDir}/plugin.yaml".text = builtins.toJSON {
-    name = "agentguard";
-    version = "1.0.14";
-    description = "GoPlus AgentGuard — AI agent security plugin";
     author = "sauyon";
     hooks = [ "pre_tool_call" ];
   };
@@ -159,44 +72,6 @@ in
     };
   };
   */
-
-  # ── AgentGuard patrol timer (every 6 hours) ──────────────────────────────
-  # Runs in a container (agentguard is a Node.js package, not available on host).
-  systemd.user.services.agentguard-patrol = {
-    Unit = {
-      Description = "AgentGuard patrol checks — scan skills and audit logs";
-    };
-    Service = {
-      Type = "oneshot";
-      ExecStartPre = [
-        "-${pkgs.docker}/bin/docker rm -f agentguard-patrol"
-      ];
-      ExecStart = builtins.concatStringsSep " " [
-        "${pkgs.docker}/bin/docker run --rm"
-        "--name agentguard-patrol"
-        "--network agent-net"
-        "-v /nix/store:/nix/store:ro"
-        "-v ${config.xdg.dataHome}/agentguard:/data"
-        "-e AGENTGUARD_HOME=/data"
-        "--entrypoint ${agentguard-pkg}/bin/agentguard"
-        "debian:bookworm-slim"
-        "patrol" "--level" "strict"
-      ];
-    };
-  };
-
-  systemd.user.timers.agentguard-patrol = {
-    Unit = {
-      Description = "Run AgentGuard patrol checks every 6 hours";
-    };
-    Timer = {
-      OnCalendar = "*-*-* 0/6:00:00";
-      Persistent = true;
-    };
-    Install = {
-      WantedBy = [ "timers.target" ];
-    };
-  };
 
   /* DISABLED
   systemd.user.services.litellm = {

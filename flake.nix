@@ -19,15 +19,14 @@
     ao-mcp.url = "github:sauyon/ao-mcp";
     rampart.url = "github:sauyon/rampart-1";
     hermes-agent.url = "github:sauyon/hermes-agent";
-    agentguard.url = "github:sauyon/agentguard";
   };
 
-  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, rampart, hermes-agent, agentguard, ... }:
+  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, rampart, hermes-agent, ... }:
   let
     mkHome = system: home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.${system};
       extraSpecialArgs = {
-        inherit sops-nix walker nixgl agent-orchestrator ao-mcp rampart hermes-agent agentguard;
+        inherit sops-nix walker nixgl agent-orchestrator ao-mcp rampart hermes-agent;
         inherit system;
       };
       modules = [ ./home.nix ];

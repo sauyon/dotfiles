@@ -9,7 +9,6 @@
   ao-mcp,
   rampart,
   hermes-agent,
-  agentguard,
   system,
   ...
 }:

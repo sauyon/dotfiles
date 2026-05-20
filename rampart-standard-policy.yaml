@@ -1838,6 +1838,469 @@ policies:
             - "msiexec /x*"
         message: "Windows package installation requires approval"
 
+  # ---------------------------------------------------------------------------
+  # AUTO-MODE PARITY — pattern-expressible BLOCK rules mirrored from Claude Code's
+  # auto-mode classifier. Many auto-mode rules require LLM judgment (scope
+  # escalation, intent inference, content semantics) and aren't encoded here.
+  # ---------------------------------------------------------------------------
+
+  - name: block-git-destructive
+    description: "Git force-push / remote history rewrites / remote branch deletes — auto-mode 'Git Destructive'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: deny
+        when:
+          command_matches:
+            - "git push --force"
+            - "git push --force *"
+            - "git push -f"
+            - "git push -f *"
+            - "git push * --force"
+            - "git push * --force *"
+            - "git push * -f"
+            - "git push * -f *"
+            - "git push --force-with-lease"
+            - "git push --force-with-lease *"
+            - "git push * --force-with-lease"
+            - "git push * --force-with-lease *"
+            - "git push --delete *"
+            - "git push -d *"
+            - "git push * --delete *"
+            - "git push * -d *"
+            - "git push * :*"
+            - "git update-ref -d refs/remotes/**"
+            - "git push --mirror *"
+            - "git push --mirror"
+        message: "Git destructive remote operation blocked — force-push / history rewrite / remote branch delete (auto-mode 'Git Destructive')"
+
+  - name: ask-git-push-default-branch
+    description: "Pushes targeting main/master bypass PR review — auto-mode 'Git Push to Default Branch'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: ask
+        when:
+          command_matches:
+            - "git push * main"
+            - "git push * master"
+            - "git push * HEAD:main"
+            - "git push * HEAD:master"
+            - "git push * *:main"
+            - "git push * *:master"
+            - "git push * main:*"
+            - "git push * master:*"
+        message: "Push to main/master branch requires approval (auto-mode 'Git Push to Default Branch')"
+
+  - name: block-git-local-destruction
+    description: "Git ops that irreversibly drop local untracked/uncommitted state — auto-mode 'Irreversible Local Destruction'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: deny
+        when:
+          command_matches:
+            - "git reset --hard"
+            - "git reset --hard *"
+            - "git clean -fdx"
+            - "git clean -fdx *"
+            - "git clean -fxd"
+            - "git clean -fxd *"
+            - "git clean -fd"
+            - "git clean -fd *"
+            - "git clean -xdf"
+            - "git clean -xdf *"
+            - "git checkout ."
+            - "git checkout -- ."
+            - "git checkout -- *"
+            - "git restore ."
+            - "git restore --source=* ."
+            - "git restore --staged --worktree ."
+            - "git restore --worktree ."
+        message: "Git operation that irreversibly discards local changes blocked (auto-mode 'Irreversible Local Destruction')"
+
+  - name: block-cloud-storage-mass-delete
+    description: "Mass deletion / bucket removal on cloud object storage — auto-mode 'Cloud Storage Mass Delete'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: deny
+        when:
+          command_matches:
+            - "aws s3 rm s3://** --recursive"
+            - "aws s3 rm s3://** --recursive *"
+            - "aws s3 rm --recursive s3://**"
+            - "aws s3 rm --recursive s3://** *"
+            - "aws s3 rb s3://**"
+            - "aws s3 rb s3://** *"
+            - "aws s3api delete-bucket *"
+            - "aws s3api delete-objects *"
+            - "gsutil -m rm -r gs://**"
+            - "gsutil rm -r gs://**"
+            - "gsutil -m rm gs://**/**"
+            - "gsutil rb gs://**"
+            - "gcloud storage rm --recursive gs://**"
+            - "gcloud storage rm -r gs://**"
+            - "gcloud storage rm gs://** --recursive"
+            - "gcloud storage buckets delete *"
+            - "az storage blob delete-batch *"
+            - "az storage container delete *"
+        message: "Cloud storage mass deletion blocked (auto-mode 'Cloud Storage Mass Delete')"
+
+  - name: ask-remote-shell-exec
+    description: "Reads/writes on remote/shared hosts via exec — auto-mode 'Remote Shell Writes' / 'Production Reads'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: ask
+        when:
+          command_matches:
+            - "kubectl exec *"
+            - "kubectl --* exec *"
+            - "kubectl cp * *:**"
+            - "kubectl cp *:** *"
+            - "docker exec *"
+            - "docker exec -* *"
+            - "podman exec *"
+            - "ssh *@*"
+            - "ssh -* *@*"
+            - "ssh * -- *"
+            - "nsenter *"
+        message: "Remote shell access requires approval — may target shared/production host (auto-mode 'Remote Shell Writes' / 'Production Reads')"
+
+  - name: block-cred-store-exploration
+    description: "Bulk reads of cloud/k8s/vault secret stores — auto-mode 'Credential Exploration'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: deny
+        when:
+          command_matches:
+            - "kubectl get secret *"
+            - "kubectl get secrets *"
+            - "kubectl get secrets"
+            - "kubectl describe secret *"
+            - "kubectl --* get secret *"
+            - "kubectl --* get secrets *"
+            - "aws secretsmanager get-secret-value *"
+            - "aws secretsmanager list-secrets *"
+            - "aws secretsmanager list-secrets"
+            - "aws ssm get-parameter *"
+            - "aws ssm get-parameters *"
+            - "aws ssm get-parameters-by-path *"
+            - "gcloud secrets versions access *"
+            - "gcloud secrets list"
+            - "gcloud secrets list *"
+            - "az keyvault secret show *"
+            - "az keyvault secret list *"
+            - "vault read secret/**"
+            - "vault kv get *"
+            - "vault kv list *"
+        message: "Bulk secret-store access blocked (auto-mode 'Credential Exploration')"
+
+  - name: ask-permission-grant
+    description: "IAM / RBAC / repo-collaborator grants — auto-mode 'Permission Grant'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: ask
+        when:
+          command_matches:
+            - "aws iam attach-user-policy *"
+            - "aws iam attach-role-policy *"
+            - "aws iam attach-group-policy *"
+            - "aws iam add-user-to-group *"
+            - "aws iam create-access-key *"
+            - "aws iam put-user-policy *"
+            - "aws iam put-role-policy *"
+            - "aws iam create-login-profile *"
+            - "gcloud projects add-iam-policy-binding *"
+            - "gcloud organizations add-iam-policy-binding *"
+            - "gcloud iam service-accounts keys create *"
+            - "az role assignment create *"
+            - "az ad app permission *"
+            - "kubectl create rolebinding *"
+            - "kubectl create clusterrolebinding *"
+            - "kubectl create role *"
+            - "kubectl create clusterrole *"
+            - "gh api * /collaborators/**"
+            - "gh api --method PUT * /collaborators/**"
+            - "gh api --method PUT */teams/**/repos/**"
+        message: "Permission/role grant requires approval (auto-mode 'Permission Grant')"
+
+  - name: block-tls-auth-weaken
+    description: "Disabling TLS verification or auth — auto-mode 'TLS/Auth Weaken'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: deny
+        when:
+          command_contains:
+            - "GIT_SSL_NO_VERIFY=1"
+            - "GIT_SSL_NO_VERIFY=true"
+            - "NODE_TLS_REJECT_UNAUTHORIZED=0"
+            - "PYTHONHTTPSVERIFY=0"
+            - "--allow-unauthenticated"
+            - "--insecure-skip-tls-verify"
+            - "insecure-skip-tls-verify: true"
+            - "npm config set strict-ssl false"
+            - "npm config set ca null"
+        message: "TLS verification / authentication weakening blocked (auto-mode 'TLS/Auth Weaken')"
+      - action: ask
+        when:
+          command_matches:
+            - "curl -k *"
+            - "curl --insecure *"
+            - "curl * -k *"
+            - "curl * --insecure *"
+            - "wget --no-check-certificate *"
+            - "wget * --no-check-certificate *"
+        message: "Insecure TLS request requires approval (auto-mode 'TLS/Auth Weaken')"
+
+  - name: block-security-weaken
+    description: "Disabling host security mitigations (SELinux/firewall/AV) — auto-mode 'Security Weaken'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: deny
+        when:
+          command_matches:
+            - "setenforce 0"
+            - "setenforce Permissive"
+            - "aa-disable *"
+            - "aa-complain *"
+            - "systemctl stop firewalld"
+            - "systemctl stop firewalld *"
+            - "systemctl disable firewalld"
+            - "systemctl disable firewalld *"
+            - "systemctl mask firewalld"
+            - "systemctl stop ufw"
+            - "systemctl disable ufw"
+            - "ufw disable"
+            - "ufw --force disable"
+            - "ufw reset"
+            - "ufw --force reset"
+            - "iptables -F"
+            - "iptables -F *"
+            - "iptables -P INPUT ACCEPT"
+            - "iptables -P FORWARD ACCEPT"
+            - "iptables --flush"
+            - "ip6tables -F"
+            - "ip6tables --flush"
+            - "nft flush ruleset"
+            - "nft flush ruleset *"
+          command_contains:
+            - "Set-MpPreference -DisableRealtimeMonitoring"
+            - "Set-MpPreference -DisableIOAVProtection"
+            - "Set-MpPreference -DisableBehaviorMonitoring"
+            - "Set-MpPreference -DisableScriptScanning"
+            - "Add-MpPreference -ExclusionPath"
+        message: "Host security mitigation disable blocked (auto-mode 'Security Weaken')"
+
+  - name: block-unsafe-agent-flags
+    description: "Spawning agents with safety gates disabled — auto-mode 'Create Unsafe Agents'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: deny
+        when:
+          command_contains:
+            - "--dangerously-skip-permissions"
+            - "--no-sandbox"
+            - "--disable-sandbox"
+            - "--bypass-permissions"
+            - "--yolo"
+            - "--auto-approve-all"
+            - "--allow-any-tool"
+        message: "Spawning an agent without safety gates blocked (auto-mode 'Create Unsafe Agents')"
+
+  - name: ask-blind-apply
+    description: "Apply/destroy with auto-approve / force flags — auto-mode 'Blind Apply'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: ask
+        when:
+          command_matches:
+            - "terraform apply -auto-approve"
+            - "terraform apply -auto-approve *"
+            - "terraform apply * -auto-approve"
+            - "terraform apply * -auto-approve *"
+            - "terraform destroy -auto-approve"
+            - "terraform destroy -auto-approve *"
+            - "terraform destroy * -auto-approve"
+            - "terraform destroy * -auto-approve *"
+            - "pulumi up --yes"
+            - "pulumi up --yes *"
+            - "pulumi up * --yes"
+            - "pulumi destroy --yes"
+            - "pulumi destroy --yes *"
+            - "pulumi destroy * --yes"
+            - "helm upgrade --install * --force"
+            - "helm upgrade * --force"
+            - "helm upgrade * --force *"
+            - "kubectl apply * --force"
+            - "kubectl apply * --force *"
+            - "kubectl delete * --force --grace-period=0"
+            - "kubectl delete * --grace-period=0 --force"
+        message: "Apply / destroy with auto-approve or force requires approval (auto-mode 'Blind Apply')"
+
+  - name: block-audit-log-tampering
+    description: "Disabling logging or deleting audit trails / git hooks — auto-mode 'Logging/Audit Tampering'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: deny
+        when:
+          command_matches:
+            - "systemctl stop rsyslog"
+            - "systemctl stop rsyslog *"
+            - "systemctl disable rsyslog"
+            - "systemctl disable rsyslog *"
+            - "systemctl mask rsyslog"
+            - "systemctl stop systemd-journald"
+            - "systemctl disable systemd-journald"
+            - "systemctl mask systemd-journald"
+            - "systemctl stop auditd"
+            - "systemctl disable auditd"
+            - "systemctl mask auditd"
+            - "service rsyslog stop"
+            - "service auditd stop"
+            - "auditctl -e 0"
+            - "auditctl -D"
+            - "rm -rf /var/log/audit"
+            - "rm -rf /var/log/audit/**"
+            - "rm -f /var/log/audit/**"
+            - "rm /var/log/audit/audit.log"
+            - "rm /var/log/wtmp"
+            - "rm /var/log/btmp"
+            - "rm /var/log/lastlog"
+            - "rm /var/log/secure"
+            - "rm /var/log/auth.log"
+            - "rm -rf .git/hooks"
+            - "rm -rf .git/hooks/**"
+            - "rm -rf .git/hooks/*"
+            - "rm .git/hooks/*"
+            - "rm -f .git/hooks/*"
+          command_contains:
+            - "> /var/log/audit/audit.log"
+            - "> /var/log/auth.log"
+            - "> /var/log/secure"
+            - "> /var/log/wtmp"
+            - "git config --unset core.hooksPath"
+            - "git config core.hooksPath /dev/null"
+            - "Clear-EventLog"
+            - "wevtutil cl "
+            - "Remove-EventLog "
+        message: "Logging/audit tampering blocked (auto-mode 'Logging/Audit Tampering')"
+
+  - name: block-create-public-surface
+    description: "Publishing packages or making repos public — auto-mode 'Create Public Surface'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: deny
+        when:
+          command_matches:
+            - "gh repo create * --public"
+            - "gh repo create * --public *"
+            - "gh repo edit * --visibility public"
+            - "gh repo edit * --visibility public *"
+            - "gh gist create * --public"
+            - "gh gist create --public *"
+            - "npm publish"
+            - "npm publish *"
+            - "yarn publish"
+            - "yarn publish *"
+            - "pnpm publish"
+            - "pnpm publish *"
+            - "cargo publish"
+            - "cargo publish *"
+            - "twine upload *"
+            - "poetry publish"
+            - "poetry publish *"
+            - "gem push *"
+            - "mvn deploy"
+            - "mvn deploy *"
+            - "gradle publish"
+            - "gradle publish *"
+          command_not_matches:
+            - "npm publish * --dry-run"
+            - "npm publish --dry-run *"
+            - "npm publish --dry-run"
+            - "yarn publish * --dry-run"
+            - "pnpm publish * --dry-run"
+            - "cargo publish * --dry-run"
+            - "cargo publish --dry-run *"
+            - "cargo publish --dry-run"
+            - "twine upload * --repository testpypi *"
+            - "twine upload --repository testpypi *"
+            - "poetry publish * --dry-run"
+            - "poetry publish --dry-run"
+        message: "Public publication / repo visibility change blocked (auto-mode 'Create Public Surface')"
+
+  - name: block-container-host-mount
+    description: "Container runs that mount the host filesystem or grant privileged access — auto-mode 'Expose Local Services'"
+    match:
+      tool: ["exec"]
+    rules:
+      - action: deny
+        when:
+          command_contains:
+            - "docker run -v /:/"
+            - "docker run * -v /:/"
+            - "docker run -v /:/host"
+            - "docker run * -v /:/host"
+            - "podman run -v /:/"
+            - "podman run * -v /:/"
+            - "docker run -v /etc:"
+            - "docker run * -v /etc:"
+            - "docker run -v /root:"
+            - "docker run * -v /root:"
+            - "docker run -v /var/run/docker.sock:"
+            - "docker run * -v /var/run/docker.sock:"
+        message: "Container host-filesystem / docker-socket mount blocked (auto-mode 'Expose Local Services')"
+      - action: ask
+        when:
+          command_matches:
+            - "docker run * --privileged *"
+            - "docker run --privileged *"
+            - "podman run * --privileged *"
+            - "podman run --privileged *"
+            - "docker run * --net=host *"
+            - "docker run --net=host *"
+            - "docker run * --network=host *"
+            - "docker run --network=host *"
+            - "docker run * --pid=host *"
+            - "docker run --pid=host *"
+        message: "Privileged / host-namespace container requires approval (auto-mode 'Expose Local Services')"
+
+  - name: block-ssh-key-persistence
+    description: "Appending SSH keys to authorized_keys — auto-mode 'Unauthorized Persistence'"
+    match:
+      tool: ["exec", "write", "edit"]
+    rules:
+      - action: deny
+        when:
+          command_contains:
+            - ">> ~/.ssh/authorized_keys"
+            - ">> /root/.ssh/authorized_keys"
+            - ">>~/.ssh/authorized_keys"
+            - ">>/root/.ssh/authorized_keys"
+            - "> ~/.ssh/authorized_keys"
+            - "> /root/.ssh/authorized_keys"
+            - "| tee -a ~/.ssh/authorized_keys"
+            - "| tee -a /root/.ssh/authorized_keys"
+            - "| tee ~/.ssh/authorized_keys"
+            - "ssh-copy-id "
+        message: "SSH key persistence to authorized_keys blocked (auto-mode 'Unauthorized Persistence')"
+      - action: deny
+        when:
+          path_matches:
+            - "**/.ssh/authorized_keys"
+            - "**/.ssh/authorized_keys2"
+        message: "Write to authorized_keys blocked (auto-mode 'Unauthorized Persistence')"
+
   # Explicit catch-all at lowest priority (10000) to preserve permissive behavior
   # for the standard profile without using default_action: allow (which triggers
   # a lint warning). deny-wins evaluation means all deny/ask rules above still

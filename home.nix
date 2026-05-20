@@ -7,8 +7,8 @@
   nixgl,
   agent-orchestrator,
   ao-mcp,
-  rampart,
-  hermes-agent,
+
+
   system,
   ...
 }:
@@ -21,7 +21,6 @@ let
   nixGL = if isDarwin then null else nixgl.packages.${system}.default;
   agent-orchestrator-pkg = if isDarwin then null else agent-orchestrator.packages.${system}.default;
   ao-mcp-pkg = if isDarwin then null else ao-mcp.packages.${system}.default;
-  rampart-pkg = if isDarwin then null else rampart.packages.${system}.default;
 
   caffeine = pkgs.writeShellScriptBin "caffeine" ''
     set -eu
@@ -130,8 +129,7 @@ let
       --network agent-net \
       -v "$AO_CONFIG":/work/agent-orchestrator.yaml \
       -e AO_CONFIG_PATH=/work/agent-orchestrator.yaml \
-      -e RAMPART_URL=http://rampart:9090 \
-      -e RAMPART_TOKEN="$(cat ~/.rampart/token 2>/dev/null)" \
+
       -v ~/devel:/repos \
       -v ~/.config/gh:"$CONTAINER_HOME"/.config/gh:ro \
       -v ~/.aws:"$CONTAINER_HOME"/.aws:ro \
@@ -221,7 +219,11 @@ let
       PreToolUse = [
         {
           matcher = ".*";
-          hooks = [ { type = "command"; command = "rampart hook"; } ];
+          hooks = [ {
+            type = "command";
+            command = "python3 ${config.home.homeDirectory}/.claude/plugins/local-auto-mode/classifier.py";
+            timeout = 15;
+          } ];
         }
         {
           matcher = "Bash";
@@ -239,12 +241,7 @@ let
           } ];
         }
       ];
-      PostToolUseFailure = [
-        {
-          matcher = ".*";
-          hooks = [ { type = "command"; command = "rampart hook"; } ];
-        }
-      ];
+      PostToolUseFailure = [];
     };
     permissions = {
       allow = [
@@ -411,7 +408,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./hermes.nix ./gemini.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./gemini.nix ];
 
   home.stateVersion = "26.05";
 
@@ -422,46 +419,10 @@ in
   sops.gnupg.sshKeyPaths = [];
   sops.environment.GOOGLE_APPLICATION_CREDENTIALS = "${config.home.homeDirectory}/.config/sops/gcp-key.json";
 
-  # ── Rampart secrets ─────────────────────────────────────────────────────────
-  sops.secrets.rampartToken = { path = "${config.home.homeDirectory}/.rampart/token"; mode = "0600"; };
-  sops.secrets.rampartUrl = {};
-
-  sops.templates."rampart-config" = {
-    path = "${config.home.homeDirectory}/.rampart/config.yaml";
+  # ── Modular API (local auto-mode classifier) ────────────────────────────────
+  sops.secrets.modularApiKey = {
+    path = "${config.home.homeDirectory}/.config/local-auto-mode/api-key";
     mode = "0600";
-    content = ''
-      url: ${config.sops.placeholder.rampartUrl}
-    '';
-  };
-
-  sops.templates."rampart-env" = {
-    path = "${config.xdg.configHome}/environment.d/rampart.conf";
-    content = ''
-      RAMPART_URL=${config.sops.placeholder.rampartUrl}
-      RAMPART_API=${config.sops.placeholder.rampartUrl}
-    '';
-  };
-
-  sops.templates."rampart-verify-policy" = {
-    path = "${config.home.homeDirectory}/.rampart/policies/verify.yaml";
-    mode = "0600";
-    content = ''
-      version: "1"
-      policies:
-        - name: semantic-verify
-          rules:
-          - action: webhook
-            webhook:
-              url: https://rampart:${config.sops.placeholder.rampartToken}@rampart-verify.ko.ag/verify
-              timeout: 15s
-              fail_open: true
-              on_deny: require_approval
-              message: Sent to semantic verification
-    '';
-  };
-
-  home.file.".rampart/policies/standard.yaml" = {
-    source = ./rampart-standard-policy.yaml;
   };
 
   # ── Claude skills ──────────────────────────────────────────────────────────
@@ -469,6 +430,16 @@ in
     ./.claude/skills/linear-flow/SKILL.md;
   home.file.".claude/skills/linear-flow/DESIGN.md".source =
     ./.claude/skills/linear-flow/DESIGN.md;
+
+  # ── Claude plugins ─────────────────────────────────────────────────────────
+  home.file.".claude/plugins/local-auto-mode/hooks.json".source =
+    ./.claude/plugins/local-auto-mode/hooks.json;
+  home.file.".claude/plugins/local-auto-mode/classifier.py".source =
+    ./.claude/plugins/local-auto-mode/classifier.py;
+  home.file.".claude/plugins/local-auto-mode/prompt.py".source =
+    ./.claude/plugins/local-auto-mode/prompt.py;
+  home.file.".claude/plugins/local-auto-mode/config.py".source =
+    ./.claude/plugins/local-auto-mode/config.py;
 
   # Merge nix-declared Claude settings into a mutable ~/.claude/settings.json.
   # Using jq's recursive merge (.[0] * .[1]) so nix values win on conflict while
@@ -478,22 +449,14 @@ in
     DEST="$HOME/.claude/settings.json"
     NIX="${claudeSettingsFile}"
     $DRY_RUN_CMD mkdir -p "$HOME/.claude"
-    _url=$(cat ${config.sops.secrets.rampartUrl.path} 2>/dev/null || true)
-    if [ -n "$_url" ]; then
-      _extra=$(${pkgs.jq}/bin/jq -n --arg v "$_url" '{env:{RAMPART_URL:$v}}')
-    else
-      _extra='null'
-    fi
     if [ -e "$DEST" ] && [ ! -L "$DEST" ]; then
       TMP=$(mktemp)
-      ${pkgs.jq}/bin/jq -s '.[0] * .[1] * (.[2] // {})' "$DEST" "$NIX" <(echo "$_extra") > "$TMP"
+      ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$DEST" "$NIX" > "$TMP"
       $DRY_RUN_CMD mv "$TMP" "$DEST"
     else
       # First run or was previously a symlink from programs.claude-code.settings
       $DRY_RUN_CMD rm -f "$DEST"
-      TMP=$(mktemp)
-      ${pkgs.jq}/bin/jq -s '.[0] * (.[1] // {})' "$NIX" <(echo "$_extra") > "$TMP"
-      $DRY_RUN_CMD mv "$TMP" "$DEST"
+      $DRY_RUN_CMD cp "$NIX" "$DEST"
       $DRY_RUN_CMD chmod 644 "$DEST"
     fi
   '';
@@ -506,7 +469,7 @@ in
   # Darwin), and rm the legacy installs.ini backup so it can't re-seed the
   # Install section on next launch.
   home.activation.firefoxInstallsIni = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    $DRY_RUN_CMD rm -f "$HOME/.mozilla/firefox/installs.ini"
+    $DRY_RUN_CMD rm -f "$HOME/${config.programs.firefox.configPath}/installs.ini"
   '';
 
   xdg.userDirs.setSessionVariables = true;
@@ -616,7 +579,7 @@ in
     ao-run
     caffeine
     hypr-fullscreen-inhibit
-    rampart-pkg
+
     pkgs.hyprpicker
     pkgs.slack
     pkgs.vesktop
@@ -1213,10 +1176,10 @@ in
     };
     firefox = {
       enable = true;
-      # home-manager 26.05 default is `${xdg.configHome}/mozilla/firefox`, but
-      # env.nix sets MOZ_LEGACY_PROFILES=1 (and the system Arch firefox uses
-      # legacy unconditionally), so keep both halves on .mozilla/firefox.
-      configPath = ".mozilla/firefox";
+      # On Linux, env.nix sets MOZ_LEGACY_PROFILES=1 (and system Arch firefox
+      # uses legacy unconditionally), so use .mozilla/firefox.
+      # On macOS, Firefox reads from ~/Library/Application Support/Firefox.
+      configPath = if isDarwin then "Library/Application Support/Firefox" else ".mozilla/firefox";
       # Drop Version= so Firefox uses non-dedicated profile mode and honors
       # Default=1 — without this, Firefox 67+ pins profile-per-install via
       # [Install<HASH>] sections in profiles.ini and ignores Default=.
@@ -1881,14 +1844,6 @@ ${indentYaml 12 orchestratorRules}
       # MCP servers available to all Claude Code agent sessions
       RUN mkdir -p /home/$HOST_USER/.claude && cat > /home/$HOST_USER/.claude/settings.json << 'MCPCFG'
       {
-        "hooks": {
-          "PreToolUse": [
-            {
-              "matcher": ".*",
-              "hooks": [{ "type": "command", "command": "rampart-remote-hook" }]
-            }
-          ]
-        },
         "mcpServers": {
           "playwright": {
             "command": "npx",
@@ -1940,54 +1895,8 @@ ${indentYaml 12 orchestratorRules}
       SETUPMCP
       RUN chmod +x /usr/local/bin/setup-mcps
 
-      # Rampart hook for container agents: calls internal rampart instance.
-      # Returns allow/deny only (never ask) — headless container mode.
-      # Fail-open if rampart unreachable (container is already sandboxed).
-      RUN cat > /usr/local/bin/rampart-remote-hook << 'RAMPARTSCRIPT'
-      #!/usr/bin/env bash
-      set -euo pipefail
-      RAMPART_URL="''${RAMPART_URL:-http://rampart:9090}"
-      RAMPART_TOKEN="''${RAMPART_TOKEN:-}"
-      input=$(cat)
-      tool=$(echo "$input" | jq -r '.tool_name // empty')
-      hook_event=$(echo "$input" | jq -r '.hook_event_name // "PreToolUse"')
-      if [ -z "$tool" ]; then
-        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow"}}'
-        exit 0
-      fi
-      params=$(echo "$input" | jq -c '.tool_input // {}')
-      session=$(echo "$input" | jq -r '.session_id // "default"')
-      auth_header=""
-      if [ -n "$RAMPART_TOKEN" ]; then
-        auth_header="Authorization: Bearer ''${RAMPART_TOKEN}"
-      fi
-      response=$(curl -s --max-time 5 \
-        -X POST "''${RAMPART_URL}/v1/tool/''${tool}" \
-        -H "Content-Type: application/json" \
-        ''${auth_header:+-H "$auth_header"} \
-        -d "{\"agent\":\"claude-code\",\"session\":\"''${session}\",\"params\":''${params}}" \
-        2>/dev/null) || true
-      if [ -z "$response" ]; then
-        echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"allow"}}'
-        exit 0
-      fi
-      decision=$(echo "$response" | jq -r '.decision // "allow"' 2>/dev/null) || decision="allow"
-      message=$(echo "$response" | jq -r '.message // empty' 2>/dev/null) || message=""
-      case "$decision" in
-        deny)
-          if [ -n "$message" ]; then echo "Rampart: ''${message}" >&2; else echo "Rampart: Command blocked by remote policy" >&2; fi
-          exit 2
-          ;;
-        *)
-          echo '{"hookSpecificOutput":{"hookEventName":"'"''${hook_event}"'","permissionDecision":"allow"}}'
-          ;;
-      esac
-      RAMPARTSCRIPT
-      RUN chmod +x /usr/local/bin/rampart-remote-hook
-
       # Wrapper: auto-trust workspace + inject API key via apiKeyHelper.
-      # Strips --dangerously-skip-permissions — the rampart PreToolUse hook handles
-      # permission decisions instead. Uses $HOME so it works for any user.
+      # Uses $HOME so it works for any user.
       RUN mv /usr/local/bin/claude /usr/local/bin/claude-real && \
           cat > /usr/local/bin/claude << 'WRAPPER'
       #!/bin/sh
@@ -2006,14 +1915,7 @@ ${indentYaml 12 orchestratorRules}
       fi
       # Bootstrap bcctl-mcp venv on first run (bind mount not available at build time)
       setup-mcps 2>/dev/null
-      # Strip --dangerously-skip-permissions: rampart hook handles permissions instead
-      FILTERED=""
-      for arg in "$@"; do
-        case "$arg" in
-          --dangerously-skip-permissions) ;;
-          *) FILTERED="$FILTERED${FILTERED:+ }$arg" ;;
-        esac
-      done
+      FILTERED="$*"
       if [ -n "$AO_ANTHROPIC_KEY" ]; then
         # Merge apiKeyHelper into global settings (preserves MCP server config)
         SFILE=$(mktemp /tmp/claude-settings.XXXXXX.json)

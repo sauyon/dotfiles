@@ -2,11 +2,12 @@
 aws = { version = "latest", symlink_bins = "true" }
 fnox = "latest"
 helm = "latest"
-kcs = "latest"
+"vfox:sauyon/vfox-kcs" = "latest"
 usage = "latest"
 uv = "0.11.2"
 gcloud = "latest"
 sops = "latest"
+python = "3.12"
 
 [settings]
 experimental = true
@@ -44,6 +45,10 @@ gcloud iam service-accounts keys create "$KEY_PATH" \
     --iam-account="$SA_EMAIL" --project="$PROJECT"
 '''
 
+[tasks.sops]
+description = "Run sops with GCP credentials"
+run = 'GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/sops/gcp-key.json" sops "$@"'
+
 [tasks.sops-fix]
 description = "Fix sops-nix Docker-created root-owned directories and restart"
 run = '''
@@ -53,8 +58,6 @@ set -euo pipefail
 # sops-nix templates that Docker may have clobbered with root-owned directories
 paths=(
   "$HOME/.config/litellm/config.yaml"
-  "$HOME/.rampart/config.yaml"
-  "$HOME/.rampart/token"
 )
 
 needs_fix=false

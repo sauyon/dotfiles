@@ -17,16 +17,15 @@
     nixgl.url = "github:guibou/nixGL";
     agent-orchestrator.url = "github:sauyon/agent-orchestrator";
     ao-mcp.url = "github:sauyon/ao-mcp";
-    rampart.url = "github:sauyon/rampart-1";
-    hermes-agent.url = "github:sauyon/hermes-agent";
+
   };
 
-  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, rampart, hermes-agent, ... }:
+  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, ... }:
   let
     mkHome = system: home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.${system};
       extraSpecialArgs = {
-        inherit sops-nix walker nixgl agent-orchestrator ao-mcp rampart hermes-agent;
+        inherit sops-nix walker nixgl agent-orchestrator ao-mcp;
         inherit system;
       };
       modules = [ ./home.nix ];

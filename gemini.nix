@@ -12,6 +12,7 @@ let
       if [ -d $out/lib/gemini/bundle ]; then
         cp -r $out/lib/gemini/bundle/* $out/lib/gemini/
       fi
+    '' + lib.optionalString (!pkgs.stdenv.isDarwin) ''
       wrapProgram $out/bin/gemini \
         --prefix LD_PRELOAD : "${pkgs.nss_wrapper}/lib/libnss_wrapper.so" \
         --run '
@@ -62,8 +63,4 @@ in
     };
   };
 
-  home.file.".local/bin/gemini-rampart-hook" = lib.mkIf (!pkgs.stdenv.isDarwin) {
-    executable = true;
-    source = ./gemini-rampart-hook.sh;
-  };
 }

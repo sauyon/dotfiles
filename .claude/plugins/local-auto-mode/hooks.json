@@ -1,0 +1,17 @@
+{
+  "description": "Local LLM-based auto mode classifier",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PLUGIN_ROOT}/classifier.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

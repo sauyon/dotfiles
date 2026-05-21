@@ -14,6 +14,16 @@
 (define-key input-decode-map [(control ?i)] [control-i])
 (define-key input-decode-map [(control ?I)] [(shift control-i)])
 
+;; ghostty (TERM=xterm-ghostty) sends ESC [ I / ESC [ O on focus change,
+;; but emacs only sets up the decoder for plain "xterm". Without these,
+;; the trailing I lands as self-insert in the current buffer.
+(define-key input-decode-map "\e[I" [focus-in])
+(define-key input-decode-map "\e[O" [focus-out])
+(add-hook 'tty-setup-hook
+          (lambda ()
+            (define-key input-decode-map "\e[I" [focus-in])
+            (define-key input-decode-map "\e[O" [focus-out])))
+
 ; This doesn't need to be in a separate file :thinking:
 (global-set-key (kbd "<f8>") 'recompile)
 (global-set-key (kbd "<f5>") 'revert-buffer)

@@ -16,9 +16,8 @@
 let
   isDarwin = pkgs.stdenv.isDarwin;
   machine = import ./machine.nix;
-  hardware = import ./hardware.nix;
   hostname = machine.hostname;
-  isDesktop = hardware.gui or true;
+  isDesktop = machine.isDesktop or true;
 
   nixGL = if isDarwin || !isDesktop then null else nixgl.packages.${system}.default;
   agent-orchestrator-pkg = if isDarwin then null else agent-orchestrator.packages.${system}.default;

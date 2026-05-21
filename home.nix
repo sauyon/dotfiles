@@ -415,7 +415,12 @@ in
 
   # ── sops-nix ────────────────────────────────────────────────────────────────
   sops.defaultSopsFile = ./secrets.yaml;
-  sops.age.keyFile = null;
+  # Decryption is GCP KMS (see .sops.yaml + GOOGLE_APPLICATION_CREDENTIALS below).
+  # sops-nix asserts that *some* age/gpg key source be configured even when KMS
+  # does all the work, and sops-install-secrets opens the configured keyFile at
+  # runtime — so we declare an empty managed file just to satisfy both.
+  home.file.".config/sops/age-unused.txt".text = "";
+  sops.age.keyFile = "${config.home.homeDirectory}/.config/sops/age-unused.txt";
   sops.age.sshKeyPaths = [];
   sops.gnupg.sshKeyPaths = [];
   sops.environment.GOOGLE_APPLICATION_CREDENTIALS = "${config.home.homeDirectory}/.config/sops/gcp-key.json";

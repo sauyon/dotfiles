@@ -1,3 +1,4 @@
 {
   hostname = "utsuho";
+  isDesktop = true;
 }

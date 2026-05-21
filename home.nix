@@ -17,8 +17,9 @@ let
   isDarwin = pkgs.stdenv.isDarwin;
   machine = import ./machine.nix;
   hostname = machine.hostname;
+  isDesktop = machine.isDesktop or true;
 
-  nixGL = if isDarwin then null else nixgl.packages.${system}.default;
+  nixGL = if isDarwin || !isDesktop then null else nixgl.packages.${system}.default;
   agent-orchestrator-pkg = if isDarwin then null else agent-orchestrator.packages.${system}.default;
   ao-mcp-pkg = if isDarwin then null else ao-mcp.packages.${system}.default;
 
@@ -511,7 +512,7 @@ in
   # ── p10k ───────────────────────────────────────────────────────────────────
   xdg.configFile."zsh/.p10k.zsh".source = ./p10k.zsh;
 
-  home.file.".local/bin/hyprland-graceful-exit" = lib.mkIf (!isDarwin) {
+  home.file.".local/bin/hyprland-graceful-exit" = lib.mkIf (!isDarwin && isDesktop) {
     executable = true;
     text = ''
       #!/usr/bin/env bash
@@ -536,7 +537,7 @@ in
   };
 
 
-  systemd.user.services.hyprland-cleanup = lib.optionalAttrs (!isDarwin) {
+  systemd.user.services.hyprland-cleanup = lib.optionalAttrs (!isDarwin && isDesktop) {
     Unit = {
       Description = "Gracefully close all Hyprland windows on session end";
       PartOf = [ "graphical-session.target" ];
@@ -577,6 +578,7 @@ in
     agent-orchestrator-pkg
     ao-mcp-pkg
     ao-run
+  ] ++ lib.optionals (!isDarwin && isDesktop) [
     caffeine
     hypr-fullscreen-inhibit
 
@@ -642,7 +644,7 @@ in
     })
   ];
 
-  gtk = lib.optionalAttrs (!isDarwin) {
+  gtk = lib.optionalAttrs (!isDarwin && isDesktop) {
     enable = true;
     colorScheme = "dark";
     gtk2.configLocation = "${config.xdg.configHome}/gtk-2.0/gtkrc";
@@ -685,26 +687,26 @@ in
     };
   };
 
-  qt = lib.optionalAttrs (!isDarwin) {
+  qt = lib.optionalAttrs (!isDarwin && isDesktop) {
     enable = true;
     platformTheme.name = "gtk2";
   };
 
-  programs.walker = lib.optionalAttrs (!isDarwin) {
+  programs.walker = lib.optionalAttrs (!isDarwin && isDesktop) {
     enable = true;
     runAsService = true;
   };
 
   services = {
     hyprpaper = {
-      enable = !isDarwin;
+      enable = !isDarwin && isDesktop;
       package = config.lib.nixGL.wrap pkgs.hyprpaper;
       settings = {
         path = "${config.home.homeDirectory}/images/wallpapers/${hostname}.png";
       };
     };
 
-    kanshi = lib.optionalAttrs (!isDarwin) {
+    kanshi = lib.optionalAttrs (!isDarwin && isDesktop) {
       enable = true;
       settings = [
         {
@@ -769,10 +771,10 @@ in
       enableSshSupport = true;
       defaultCacheTtl = 600;
       maxCacheTtl = 1200;
-      pinentry.package = pkgs.pinentry-gnome3;
+      pinentry.package = if isDesktop then pkgs.pinentry-gnome3 else pkgs.pinentry-curses;
     };
 
-    gnome-keyring = lib.optionalAttrs (!isDarwin) {
+    gnome-keyring = lib.optionalAttrs (!isDarwin && isDesktop) {
       enable = true;
       components = [
         "pkcs11"
@@ -780,7 +782,7 @@ in
       ];
     };
 
-    hypridle = lib.optionalAttrs (!isDarwin) {
+    hypridle = lib.optionalAttrs (!isDarwin && isDesktop) {
       enable = true;
       settings = {
         general = {
@@ -802,7 +804,7 @@ in
       };
     };
 
-    mako = lib.optionalAttrs (!isDarwin) {
+    mako = lib.optionalAttrs (!isDarwin && isDesktop) {
       enable = true;
       settings = {
         background-color = "#1a1b26e6";
@@ -828,9 +830,9 @@ in
   };
 
   targets.genericLinux.enable = !isDarwin;
-  targets.genericLinux.nixGL.packages = lib.mkIf (!isDarwin) nixgl.packages.${system};
+  targets.genericLinux.nixGL.packages = lib.mkIf (!isDarwin && isDesktop) nixgl.packages.${system};
 
-  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin) (import ./hyprland.nix { inherit pkgs config; });
+  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config; });
 
   dconf.settings = lib.optionalAttrs (hostname == "setsuna") {
     "org/gnome/desktop/interface" = {
@@ -842,7 +844,7 @@ in
 
 
   programs = {
-    hyprlock = lib.optionalAttrs (!isDarwin) {
+    hyprlock = lib.optionalAttrs (!isDarwin && isDesktop) {
       enable = true;
       package = config.lib.nixGL.wrap pkgs.hyprlock;
       settings = {
@@ -1008,8 +1010,8 @@ in
         };
       };
     in {
-      enable = !isDarwin;
-      systemd.enable = !isDarwin;
+      enable = !isDarwin && isDesktop;
+      systemd.enable = !isDarwin && isDesktop;
       settings = [
         (shared // {
           output = [ "eDP-1" ];
@@ -1117,7 +1119,7 @@ in
       '';
     };
 
-    thunderbird = lib.optionalAttrs (!isDarwin) {
+    thunderbird = lib.optionalAttrs (!isDarwin && isDesktop) {
       enable = true;
       profiles.default = {
         isDefault = true;
@@ -1175,7 +1177,7 @@ in
       };
     };
     firefox = {
-      enable = true;
+      enable = isDesktop;
       # On Linux, env.nix sets MOZ_LEGACY_PROFILES=1 (and system Arch firefox
       # uses legacy unconditionally), so use .mozilla/firefox.
       # On macOS, Firefox reads from ~/Library/Application Support/Firefox.
@@ -1216,7 +1218,7 @@ in
       };
     };
     ghostty = {
-      enable = true;
+      enable = isDesktop;
       package = null;
       enableZshIntegration = true;
       systemd.enable = false;
@@ -1481,14 +1483,14 @@ in
     mime.enable = !isDarwin;
 
     portal = {
-      enable = !isDarwin;
+      enable = !isDarwin && isDesktop;
       config = {
         common.default = [ "hyprland;gtk" ];
       };
     };
 
     mimeApps = {
-      enable = !isDarwin;
+      enable = !isDarwin && isDesktop;
 
       defaultApplications = {
         "text/html" = "firefox.desktop";

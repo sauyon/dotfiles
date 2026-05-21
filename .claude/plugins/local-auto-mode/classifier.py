@@ -292,6 +292,10 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
 
 def main() -> None:
     hook_input = json.loads(sys.stdin.read())
+    # Defer to Claude's built-in handling when the user has opted into a
+    # session-wide permission mode that already bypasses or replaces prompts.
+    if hook_input.get("permission_mode") in ("bypassPermissions", "auto"):
+        sys.exit(0)
     tool_name = hook_input.get("tool_name", "")
     tool_input = hook_input.get("tool_input", {})
     cwd = hook_input.get("cwd", "")

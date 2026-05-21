@@ -120,7 +120,7 @@
 										 lua-mode magit magit-find-file magit-gh-pulls marginalia mmm-mode mo-git-blame
 										 nix-mode nix-update nixos-options orderless outline-toc pkgbuild-mode
 										 pretty-sha-path projectile projectile-ripgrep protobuf-mode quelpa
-										 quelpa-use-package rustic scala-mode2 scss-mode shfmt smali-mode smart-jump
+										 quelpa-use-package rust-mode rustic scala-mode2 scss-mode shfmt smali-mode smart-jump
 										 smart-tabs-mode swiper systemd terraform-mode toml-mode vertico
 										 vertico-posframe vterm web-mode ws-butler yaml-mode))
  '(pcap-mode-tshark-executable nil)

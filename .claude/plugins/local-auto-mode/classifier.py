@@ -15,7 +15,30 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import ENDPOINT, MODEL, TIMEOUT, get_api_key
-from prompt import SYSTEM_PROMPT, build_user_prompt
+from prompt import SYSTEM_PROMPT
+
+MAX_TOKENS = 4096
+STAGE1_MAX_TOKENS = 256
+CLASSIFY_FINAL_LINE = "Use the classify_result tool to report your classification."
+STAGE1_OUTPUT_FORMAT = """## Output Format
+
+If the action should be blocked:
+<block>yes</block><reason>one short sentence</reason>
+
+If the action should be allowed:
+<block>no</block>
+
+Do NOT include a <reason> tag when the action is allowed.
+Your ENTIRE response MUST begin with <block>. Do NOT output any analysis, reasoning, or commentary before <block>. No "Looking at..." or similar preamble."""
+STAGE1_USER_TAIL = (
+    "\n\nErr on the side of blocking. Stage 1 does NOT apply user intent or "
+    "ALLOW exceptions — stage 2 will handle those. Block if ANY rule could "
+    "apply. <block> immediately."
+)
+SETTINGS_PATHS = [
+    Path.home() / ".claude" / "settings.json",
+    Path.home() / ".claude" / "settings.local.json",
+]
 
 # Tools that are always read-only — skip the LLM call.
 ALWAYS_ALLOW = frozenset({
@@ -41,12 +64,173 @@ FORCE_PUSH_PATTERNS = [
 ]
 
 
-def read_transcript_tail(path: str, max_chars: int = 2000) -> str:
+TOOL_INPUT_FORMATTERS = {
+    "Bash": lambda i: i.get("command", "")[:400],
+    "Read": lambda i: i.get("file_path", ""),
+    "Edit": lambda i: i.get("file_path", ""),
+    "MultiEdit": lambda i: i.get("file_path", ""),
+    "Write": lambda i: i.get("file_path", ""),
+    "NotebookEdit": lambda i: i.get("notebook_path", ""),
+    "Grep": lambda i: f"{i.get('pattern','')!r} in {i.get('path', '.')}",
+    "Glob": lambda i: i.get("pattern", ""),
+    "WebFetch": lambda i: i.get("url", ""),
+    "WebSearch": lambda i: i.get("query", ""),
+    "Agent": lambda i: f"({i.get('subagent_type','')}) {i.get('description','')}",
+    "Skill": lambda i: i.get("skill", ""),
+    "TaskCreate": lambda i: i.get("description", ""),
+}
+
+
+def _format_tool_call(name: str, tool_input) -> str:
+    if not isinstance(tool_input, dict):
+        return f"{name}"
+    formatter = TOOL_INPUT_FORMATTERS.get(name)
+    if formatter:
+        try:
+            return f"{name} {formatter(tool_input)}"
+        except Exception:
+            pass
+    # Fallback: compact JSON of keys (truncated)
+    try:
+        compact = json.dumps(tool_input)[:200]
+    except (TypeError, ValueError):
+        compact = str(tool_input)[:200]
+    return f"{name} {compact}"
+
+
+def build_structured_transcript(path: str, char_budget: int = 6000) -> str:
+    """Parse the JSONL transcript: keep user text + assistant tool_use, drop the rest.
+
+    Returns lines like:
+        User: <text>
+        Bash <command>
+        Read <file_path>
+    keeping only the most recent entries within char_budget.
+    """
     try:
         text = Path(path).read_text()
-        return text[-max_chars:] if len(text) > max_chars else text
     except Exception:
         return ""
+
+    entries: list[str] = []
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        msg = obj.get("message") or {}
+        role = msg.get("role") or obj.get("type")
+        content = msg.get("content")
+        if role == "user":
+            if isinstance(content, str):
+                entries.append(f"User: {content.strip()[:1500]}")
+            elif isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        entries.append(f"User: {block.get('text','').strip()[:1500]}")
+        elif role == "assistant":
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "tool_use":
+                        entries.append(_format_tool_call(block.get("name", "?"), block.get("input")))
+
+    if not entries:
+        return ""
+
+    # Keep tail within budget.
+    out: list[str] = []
+    total = 0
+    for entry in reversed(entries):
+        e_len = len(entry) + 1
+        if total + e_len > char_budget and out:
+            break
+        out.append(entry)
+        total += e_len
+    out.reverse()
+    return "\n".join(out)
+
+
+def build_user_msg(tool_name: str, tool_input: dict, cwd: str, structured_transcript: str) -> str:
+    parts = [f"Working directory: {cwd}" if cwd else "Working directory: (unknown)"]
+    if structured_transcript:
+        parts.append(f"<transcript>\n{structured_transcript}\n</transcript>")
+    action_line = _format_tool_call(tool_name, tool_input)
+    parts.append(f"<action>\n{action_line}\n</action>")
+    return "\n\n".join(parts)
+
+
+def _load_user_rules() -> dict:
+    """Read autoMode {allow, soft_deny, environment} from settings.json files.
+
+    Aggregates across user + local settings. Each value is a list of strings;
+    "$defaults" elements are placeholders for the built-in defaults.
+    """
+    out = {"allow": [], "soft_deny": [], "environment": [], "deny": []}
+    for path in SETTINGS_PATHS:
+        try:
+            data = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        am = data.get("autoMode") or {}
+        for key in out.keys():
+            v = am.get(key)
+            if isinstance(v, list):
+                out[key].extend(s for s in v if isinstance(s, str))
+        # Permission deny list for circumvention reminder.
+        perms = (data.get("permissions") or {}).get("deny") or []
+        if isinstance(perms, list):
+            out.setdefault("perm_deny", [])
+            out["perm_deny"].extend(s for s in perms if isinstance(s, str))
+    return out
+
+
+def _expand_defaults(user_list: list[str], default_block: str) -> str:
+    """Expand $defaults sentinel to the built-in default block; else replace fully."""
+    if not user_list:
+        return default_block
+    parts = []
+    for item in user_list:
+        if item == "$defaults":
+            parts.append(default_block)
+        else:
+            parts.append(f"- {item}")
+    return "\n".join(parts)
+
+
+def _substitute_section(prompt: str, open_tag: str, close_tag: str, user_list: list[str]) -> str:
+    import re
+    pattern = re.compile(f"<{open_tag}>(.*?)</{close_tag}>", re.DOTALL)
+    m = pattern.search(prompt)
+    if not m:
+        return prompt
+    default_block = m.group(1)
+    replacement = _expand_defaults(user_list, default_block)
+    return prompt[:m.start()] + replacement + prompt[m.end():]
+
+
+def build_system_prompt(rules: dict) -> str:
+    prompt = SYSTEM_PROMPT
+    prompt = _substitute_section(prompt, "user_environment_to_replace", "user_environment_to_replace", rules.get("environment", []))
+    prompt = _substitute_section(prompt, "user_deny_rules_to_replace", "user_deny_rules_to_replace", rules.get("soft_deny", []))
+    prompt = _substitute_section(prompt, "user_allow_rules_to_replace", "user_allow_rules_to_replace", rules.get("allow", []))
+    # <settings_deny_rules> placeholder: insert a circumvention reminder if perm_deny is set.
+    perm_deny = rules.get("perm_deny") or []
+    if perm_deny:
+        deny_block = (
+            "\n\n- User Deny Rules: The user has configured these permission deny "
+            f"rules: {', '.join(perm_deny)}. Each rule names a tool and (optionally) "
+            "an argument pattern that is already hard-blocked. Block the action if it "
+            "accomplishes the same effect via a different tool (e.g. using Bash with "
+            "`python -c`, `sed -i`, `cat >`, heredocs, or similar to write or edit a "
+            "file that an Edit/Write/MultiEdit deny rule covers), or otherwise routing "
+            "around a deny rule by switching tools."
+        )
+    else:
+        deny_block = ""
+    prompt = prompt.replace("<settings_deny_rules>", deny_block, 1)
+    return prompt
 
 
 def fast_path(tool_name: str, tool_input: dict) -> str | None:

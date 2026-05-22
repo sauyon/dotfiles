@@ -431,6 +431,9 @@ in
     mode = "0600";
   };
 
+  # ── Global Claude preferences (loaded into every conversation) ────────────
+  home.file.".claude/CLAUDE.md".source = ./.claude/CLAUDE.md;
+
   # ── Claude skills ──────────────────────────────────────────────────────────
   home.file.".claude/skills/linear-flow/SKILL.md".source =
     ./.claude/skills/linear-flow/SKILL.md;
@@ -465,6 +468,39 @@ in
       $DRY_RUN_CMD cp "$NIX" "$DEST"
       $DRY_RUN_CMD chmod 644 "$DEST"
     fi
+  '';
+
+  # Auto-install Claude Code plugins via the `claude plugin` CLI. Idempotent:
+  # marketplace is added if missing, each plugin is installed if not already
+  # tracked in installed_plugins.json. Runs after writeBoundary so the wrapper
+  # script `claude` is already on PATH from programs.claude-code or wherever
+  # else it's exposed.
+  home.activation.claudePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    PLUGINS=(
+      "superpowers@claude-plugins-official"
+    )
+    MARKETPLACE="claude-plugins-official"
+    MARKETPLACE_SOURCE="anthropics/claude-plugins-official"
+    INSTALLED="$HOME/.claude/plugins/installed_plugins.json"
+
+    # Need `claude` on PATH. If absent (fresh machine pre-npm-install), skip.
+    if ! command -v claude >/dev/null 2>&1; then
+      echo "claudePlugins: claude CLI not on PATH yet — skipping plugin install"
+      exit 0
+    fi
+
+    # Register marketplace if not already known.
+    if ! claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE"; then
+      $DRY_RUN_CMD claude plugin marketplace add "$MARKETPLACE_SOURCE"
+    fi
+
+    # Install each plugin if not already tracked.
+    for p in "''${PLUGINS[@]}"; do
+      if [ -f "$INSTALLED" ] && grep -q "\"$p\"" "$INSTALLED"; then
+        continue
+      fi
+      $DRY_RUN_CMD claude plugin install "$p" --scope user
+    done
   '';
 
   # Firefox 67+ keys profile-per-install via [Install<HASH>] sections inside

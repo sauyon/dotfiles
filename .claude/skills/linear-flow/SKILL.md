@@ -1,6 +1,6 @@
 ---
 name: linear-flow
-description: Use in work repos (github.com/modular, modularml, bentoml) when starting substantive work ("help me X", "can you X", "add/create/implement/update/replace/fix Y"), when the user mentions Linear ("linear", "the ticket", "the issue", or an issue ID like MOD-1234), or before running `gh pr create`. Tracks the current Linear issue per Claude session in `~/.claude/linear-sessions/`, suggests existing issues or creates new ones, and injects Linear references into PR bodies with closing vs. non-closing magic words based on whether the PR fully resolves the issue. Skips personal repos (dotfiles, hyprland, emacs, AUR), status-only queries, and quick one-off commands.
+description: Use in work repos (github.com/modular, modularml, bentoml) BEFORE responding to any of: substantive work ("help me X", "can you X", "add/create/implement/update/replace/fix Y"), brainstorming / design / planning ("let's brainstorm", "let's design", "let's think about", "let's plan", "how should we", "what do you think about", "what would it take to", "what are our options for", "should we"), explicit Linear mentions ("linear", "the ticket", "the issue", or an issue ID like MOD-1234), or `gh pr create`. ALSO fire BEFORE invoking any planning/design/spec skill — most notably the `brainstorming` skill from the superpowers plugin, but also `writing-plans`, `writing-specs`, or any equivalent. The skill must fire BEFORE the agent starts thinking through the problem — brainstorming first and tracking later is a footgun, because by the time a ticket gets filed the agent has already done unscoped work. Tracks the current Linear issue per Claude session in `~/.claude/linear-sessions/`, suggests existing issues or creates new ones, and injects Linear references into PR bodies with closing vs. non-closing magic words. Skips personal repos (dotfiles, hyprland, emacs, AUR), status-only queries, and quick one-off commands.
 ---
 
 # linear-flow
@@ -22,9 +22,9 @@ Touch `lastSeen` on every activation. Lazily prune `*.json` whose `lastSeen` is 
 
 Decide which flow applies, then run it. The trigger comes from the skill description; this section is for execution.
 
-### Flow A — starting work
+### Flow A — starting work (or brainstorming)
 
-Run when the user's request is a new piece of substantive work and there's no existing session mapping.
+Run when the user's request is a new piece of substantive work — including brainstorming/design/planning conversations — and there's no existing session mapping. **Fire before responding to the substance**, not after; once the agent has reasoned through the problem and proposed a direction, the discussion is unscoped and a ticket filed afterward inherits whatever drift accumulated.
 
 1. **Linear-tracked context check:**
    - **In a git repo:** read `git remote get-url origin` (fallback `upstream`). Extract the org segment.
@@ -41,6 +41,7 @@ Run when the user's request is a new piece of substantive work and there's no ex
       - Infer team from cwd via `config.json` `team_defaults`. Confirm team before creating. If no match, ask.
       - Draft a title from the user's request. Show it for approval/edit before creating.
       - Use `mcp__claude_ai_Linear__save_issue` to create. Status: team default (don't auto-move to In Progress; Linear's git integration handles that on branch copy).
+      - **Assignee:** default to `me` (the user). Only set someone else when the user explicitly names them ("file under @bob", "assign to Steve"). Never create an unassigned issue.
       - On success, update `team_defaults` in `config.json` so the inference improves.
    6. **Skip:** write `{"skip": true, "cwd": "$PWD"}` and exit.
 
@@ -96,3 +97,4 @@ Run when about to call `gh pr create`, regardless of how that command was invoke
 - **Silent exits matter.** When the org check fails or the topic is personal, the skill must produce no user-visible output. Mentioning Linear in personal-repo work is noise.
 - **Never auto-create issues.** All issue creates pass through user confirmation showing team + title.
 - **Never alter Linear status from this skill.** That's Linear's GitHub integration's job.
+- **Default assignee = `me`.** Any `mcp__claude_ai_Linear__save_issue` call that creates an issue (no `id` argument) must include `assignee: "me"` unless the user explicitly names a different assignee in the request ("file under @bob", "assign to Steve"). This applies to all flows, not just Flow A — including ad-hoc follow-up tickets filed during a session. Never create an unassigned issue.

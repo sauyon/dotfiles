@@ -157,20 +157,3 @@ Use the classify_result tool to report your classification.
 """
 
 
-def build_user_prompt(tool_name: str, tool_input: dict, cwd: str, transcript_tail: str) -> str:
-    import json
-
-    input_str = json.dumps(tool_input, indent=2)
-    if len(input_str) > 3000:
-        input_str = input_str[:3000] + "\n... (truncated)"
-
-    parts = [
-        f"Working directory: {cwd}",
-        f"Tool: {tool_name}",
-        f"Input:\n{input_str}",
-    ]
-
-    if transcript_tail:
-        parts.append(f"Recent conversation context:\n{transcript_tail}")
-
-    return "\n\n".join(parts)

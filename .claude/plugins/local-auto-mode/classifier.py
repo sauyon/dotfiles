@@ -394,16 +394,75 @@ def load_agent_instructions(cwd: str) -> str:
     return "\n\n".join(pieces)
 
 
-def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tail: str) -> tuple[str, str]:
-    """Call the local LLM and return (decision, reason)."""
-    user_msg = build_user_prompt(tool_name, tool_input, cwd, transcript_tail)
-    messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
-    agent_instructions = load_agent_instructions(cwd)
+def _post_chat(payload: dict) -> dict:
+    """Send a chat/completions request; return parsed body or {'_raw': str} on non-JSON."""
+    req = urllib.request.Request(
+        f"{ENDPOINT}/chat/completions",
+        data=json.dumps(payload).encode(),
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {get_api_key()}",
+        },
+        method="POST",
+    )
+    resp = urllib.request.urlopen(req, timeout=TIMEOUT)
+    raw = resp.read()
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {"_raw": raw.decode("utf-8", errors="replace")}
+
+
+def stage1_fast_allow(system_prompt: str, user_msg: str, agent_instructions: str) -> tuple[str | None, dict, dict]:
+    """Stage 1: XML fast-allow.
+
+    Returns (decision_or_none, request_payload, response_body).
+    decision is "allow" only when stage 1 returns `<block>no</block>`. None means stage 2 is needed.
+    """
+    stage1_prompt = system_prompt.replace(CLASSIFY_FINAL_LINE, STAGE1_OUTPUT_FORMAT)
+    messages: list[dict] = [{"role": "system", "content": stage1_prompt}]
     if agent_instructions:
-        messages.append({
-            "role": "user",
-            "content": AGENT_INSTRUCTIONS_PROMPT + agent_instructions,
-        })
+        messages.append({"role": "user", "content": AGENT_INSTRUCTIONS_PROMPT + agent_instructions})
+    messages.append({"role": "user", "content": user_msg + STAGE1_USER_TAIL})
+
+    payload = {
+        "model": MODEL,
+        "messages": messages,
+        "max_tokens": STAGE1_MAX_TOKENS,
+        "temperature": 0,
+    }
+    body = _post_chat(payload)
+    if "_raw" in body:
+        return None, payload, body
+
+    msg = body["choices"][0]["message"]
+    text = (msg.get("content") or "").strip()
+    import re
+    m = re.search(r"<block>\s*(yes|no)\s*</block>", text, re.IGNORECASE)
+    if not m:
+        return None, payload, body
+    decision = "allow" if m.group(1).lower() == "no" else None
+    return decision, payload, body
+
+
+def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, structured_transcript: str) -> tuple[str, str]:
+    """Two-stage classifier. Returns (decision, reason)."""
+    user_rules = _load_user_rules()
+    system_prompt = build_system_prompt(user_rules)
+    agent_instructions = load_agent_instructions(cwd)
+    user_msg = build_user_msg(tool_name, tool_input, cwd, structured_transcript)
+
+    # ── Stage 1: XML fast-allow ──
+    s1_decision, s1_payload, s1_body = stage1_fast_allow(system_prompt, user_msg, agent_instructions)
+    if s1_decision == "allow":
+        reason = "stage 1 fast-allow"
+        _log_classification(s1_payload, s1_body, "allow", reason, note="stage 1 fast-allow")
+        return "allow", reason
+
+    # ── Stage 2: structured tool-call classification ──
+    messages: list[dict] = [{"role": "system", "content": system_prompt}]
+    if agent_instructions:
+        messages.append({"role": "user", "content": AGENT_INSTRUCTIONS_PROMPT + agent_instructions})
     messages.append({"role": "user", "content": user_msg})
 
     request_payload = {
@@ -411,33 +470,16 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, transcript_tai
         "messages": messages,
         "tools": [CLASSIFY_TOOL],
         "tool_choice": {"type": "function", "function": {"name": "classify_result"}},
-        "max_tokens": 400,
+        "max_tokens": MAX_TOKENS,
         "temperature": 0,
     }
-    payload = json.dumps(request_payload).encode()
-
-    req = urllib.request.Request(
-        f"{ENDPOINT}/chat/completions",
-        data=payload,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {get_api_key()}",
-        },
-        method="POST",
-    )
-
-    resp = urllib.request.urlopen(req, timeout=TIMEOUT)
-    raw = resp.read()
-    try:
-        body = json.loads(raw)
-    except json.JSONDecodeError:
-        decoded = raw.decode("utf-8", errors="replace")
-        reason = f"unparseable response: {decoded[:80]}"
-        _log_classification(request_payload, decoded, "ask", reason, suspicious=True, note="non-JSON response body")
+    body = _post_chat(request_payload)
+    if "_raw" in body:
+        reason = f"unparseable response: {body['_raw'][:80]}"
+        _log_classification(request_payload, body["_raw"], "ask", reason, suspicious=True, note="non-JSON response body")
         return "ask", reason
 
     msg = body["choices"][0]["message"]
-
     tool_calls = msg.get("tool_calls") or []
     if tool_calls:
         args = tool_calls[0].get("function", {}).get("arguments", "{}")
@@ -492,8 +534,8 @@ def main() -> None:
     warning = None
     if decision is None:
         try:
-            transcript_tail = read_transcript_tail(transcript_path) if transcript_path else ""
-            decision, reason = classify_with_llm(tool_name, tool_input, cwd, transcript_tail)
+            structured_transcript = build_structured_transcript(transcript_path) if transcript_path else ""
+            decision, reason = classify_with_llm(tool_name, tool_input, cwd, structured_transcript)
             if reason.startswith("unparseable response:"):
                 warning = f"local classifier returned {reason}"
         except (urllib.error.URLError, TimeoutError, OSError) as exc:

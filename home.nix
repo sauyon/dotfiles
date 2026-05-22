@@ -312,7 +312,6 @@ let
       deny = [
         "mcp__github__create_pull_request"
       ];
-      defaultMode = "auto";
     };
     enabledPlugins = {
       "rust-analyzer-lsp@claude-plugins-official" = true;

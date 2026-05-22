@@ -40,7 +40,9 @@
       eval "$(/opt/homebrew/bin/brew shellenv)"
     fi
 
-    eval "$(${pkgs.mise}/bin/mise activate zsh)"
+    if command -v mise >/dev/null 2>&1; then
+      eval "$(mise activate zsh)"
+    fi
 
     # pnpm
     export PNPM_HOME="/home/sauyon/.local/share/pnpm"
@@ -202,12 +204,14 @@
 
     # ── Remaining init ─────────────────────────────────────────────────────
     # mise completions
-    if [[ ! -f "$ZSH_CACHE_DIR/completions/_mise" ]]; then
-      typeset -g -A _comps
-      autoload -Uz _mise
-      _comps[mise]=_mise
+    if command -v mise >/dev/null 2>&1; then
+      if [[ ! -f "$ZSH_CACHE_DIR/completions/_mise" ]]; then
+        typeset -g -A _comps
+        autoload -Uz _mise
+        _comps[mise]=_mise
+      fi
+      mise completion zsh >| "$ZSH_CACHE_DIR/completions/_mise" &|
     fi
-    ${pkgs.mise}/bin/mise completion zsh >| "$ZSH_CACHE_DIR/completions/_mise" &|
 
     [ -f /etc/profile.d/google-cloud-cli.sh ] && source /etc/profile.d/google-cloud-cli.sh
 

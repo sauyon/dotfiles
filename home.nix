@@ -1302,11 +1302,6 @@ in
     };
     direnv = {
       enable = true;
-      mise.enable = true;
-    };
-    mise = {
-      enable = true;
-      enableZshIntegration = false;
     };
     zoxide = {
       enable = true;

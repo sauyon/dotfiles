@@ -483,7 +483,12 @@ in
     MARKETPLACE_SOURCE="anthropics/claude-plugins-official"
     INSTALLED="$HOME/.claude/plugins/installed_plugins.json"
 
-    # Need `claude` on PATH. If absent (fresh machine pre-npm-install), skip.
+    # The activation environment has a stripped PATH that doesn't include
+    # ~/.nix-profile/bin where home-manager places claude. Expose it.
+    export PATH="${config.home.profileDirectory}/bin:$PATH"
+
+    # If claude still isn't available (fresh machine pre-bootstrap), skip
+    # rather than fail the activation.
     if ! command -v claude >/dev/null 2>&1; then
       echo "claudePlugins: claude CLI not on PATH yet — skipping plugin install"
       exit 0

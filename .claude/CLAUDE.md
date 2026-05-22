@@ -1,6 +1,6 @@
 ## Public Communication Discipline
 
-ALWAYS ask for explicit confirmation when posting public communications, even when explicitly asked, unless 
+ALWAYS ask for explicit confirmation when posting public communications, even when explicitly asked to.
 
 NEVER create a pull request without explicitly asking the user for confirmation first.
 

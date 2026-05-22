@@ -84,3 +84,15 @@ systemctl --user status sops-nix --no-pager || true
 [tasks.sops-restart]
 description = "Restart sops-nix, fixing Docker path conflicts first"
 depends = ["sops-fix"]
+
+[tasks.hms]
+description = "Apply home-manager configuration from this flake"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+case "$(uname -s)" in
+  Darwin) config="sauyon@darwin" ;;
+  *)      config="sauyon" ;;
+esac
+exec home-manager switch --flake "$HOME/devel/dotfiles#$config" "$@"
+'''

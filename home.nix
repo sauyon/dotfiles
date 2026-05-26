@@ -18,6 +18,12 @@ let
   machine = import ./machine.nix;
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
+  gpu = machine.gpu or null;
+
+  btopPkg =
+    if gpu == "amd" then pkgs.btop-rocm
+    else if gpu == "nvidia" then pkgs.btop-cuda
+    else pkgs.btop;
 
   hidpi = let
     scale = if hostname == "setsuna" || hostname == "fujiwara" then 1.25 else 1.0;
@@ -678,7 +684,7 @@ in
     claude-prof
   ] ++ (with pkgs; [
     bfs
-    btop
+    btopPkg
     google-fonts
     claude-agent-acp
     coder

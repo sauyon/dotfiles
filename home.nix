@@ -535,7 +535,10 @@ in
       QT_FONT_DPI = "120";
     });
 
-  systemd.user.sessionVariables = lib.mkIf (!isDarwin) config.home.sessionVariables;
+  # TERMINFO_DIRS is already set under systemd by home-manager's generic-linux
+  # module; exclude it from this propagation to avoid a conflicting definition.
+  systemd.user.sessionVariables =
+    lib.mkIf (!isDarwin) (removeAttrs config.home.sessionVariables [ "TERMINFO_DIRS" ]);
 
   # ── Emacs ──────────────────────────────────────────────────────────────────
   home.file.".emacs.d/init.el".source = ./emacs/init.el;
@@ -602,6 +605,7 @@ in
   ] ++ (with pkgs; [
     bfs
     btop
+    ghostty.terminfo
     claude-agent-acp
     coder
     comma

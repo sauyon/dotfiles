@@ -41,4 +41,10 @@ rec {
   BROWSER = "firefox";
   SSH_AGENT_PID = "";
   SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/gnupg/S.gpg-agent.ssh";
+
+  # Nix-built ncurses doesn't search the distro paths by default, and
+  # home-manager's generic-linux only wires TERMINFO_DIRS for systemd units,
+  # not interactive shells. Set it here so Nix-built tools (less, etc.)
+  # find both Nix-installed terminfo (e.g. ghostty) and the distro's.
+  TERMINFO_DIRS = "${home}/.nix-profile/share/terminfo:/usr/share/terminfo";
 }

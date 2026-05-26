@@ -51,7 +51,7 @@
       focus_on_activate = true;
     };
 
-    "$terminal" = "ghostty";
+    "$terminal" = "warp-terminal";
     "$menu" = "walker";
     "$mainMod" = "SUPER";
 

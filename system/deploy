@@ -4,3 +4,4 @@ cd "$(dirname "$0")"
 find etc/ -type d | while read -r d; do sudo mkdir -p "/${d}"; done
 find etc/ -type f | while read -r f; do sudo cp -v "${f}" "/${f}"; done
 sudo systemctl daemon-reload
+sudo systemctl enable --now systemd-oomd

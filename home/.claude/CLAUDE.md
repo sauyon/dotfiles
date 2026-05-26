@@ -4,7 +4,9 @@ ALWAYS ask for explicit confirmation when posting public communications, even wh
 
 NEVER create a pull request without explicitly asking the user for confirmation first.
 
-NEVER post comments, reviews, or replies on a PR (including `gh pr comment`, `gh pr review`, `gh api .../comments`, or any other write to a PR's discussion) without explicitly asking the user for confirmation first. This includes pinging reviewers, leaving "ready for re-review" notes, replying to review threads, and resolving/marking review conversations. Read-only operations (`gh pr view`, `gh pr checks`, fetching diffs/comments) are fine.
+NEVER post comments, reviews, or replies on a PR (including `gh pr comment`, `gh pr review`, `gh api .../comments`, or any other write to a PR's discussion) without explicitly asking the user for confirmation first. This includes pinging reviewers, leaving "ready for re-review" notes, and replying to review threads. Read-only operations (`gh pr view`, `gh pr checks`, fetching diffs/comments) are fine.
+
+Resolving or dismissing existing review threads (marking conversations as resolved) does NOT require confirmation — do it when asked.
 
 ## MCloud / Modular Cloud Access
 

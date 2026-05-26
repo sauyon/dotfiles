@@ -72,7 +72,7 @@
     ];
 
     bind = [
-      "$mainMod, return, exec, $terminal --new-window"
+      "$mainMod, return, exec, $terminal"
       "$mainMod SHIFT, W, killactive,"
       "$mainMod SHIFT, E, exec, hyprland-graceful-exit"
       "$mainMod SHIFT, semicolon, togglefloating,"

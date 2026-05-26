@@ -42,7 +42,7 @@
 "workspace:show_command_search": super-p
 "workspace:show_settings": "super-,"
 "workspace:increase_font_size": "super-="
-"workspace:decrease_font_size": super-minus
+"workspace:decrease_font_size": "meta--"
 "workspace:reset_font_size": super-0
 "terminal:copy": super-c
 "terminal:paste": super-v

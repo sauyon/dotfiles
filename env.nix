@@ -35,6 +35,8 @@ rec {
   MOZ_ENABLE_WAYLAND = "1";
   MOZ_LEGACY_PROFILES = "1";
 
+  WARP_ENABLE_WAYLAND = "1";
+
   TG_PROVIDER_CACHE = "1";
 }
 // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {

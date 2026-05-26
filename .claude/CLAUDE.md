@@ -36,3 +36,5 @@ When in doubt, lean shorter and less formal. If I provide a draft and ask for ed
 ## Secret Handling
 
 NEVER cat or echo secrets, or otherwise run bash tool commands that will log them in the conversation. Get them directly in each tool call, eg with env vars `MY_SECRET=$(cat secretfile) command`.
+
+Secrets in argv (e.g. `curl -H "Authorization: Bearer $TOKEN"`) or inline env are visible via `/proc/<pid>/cmdline` and `environ` — any later `ps -ef` leaks them. For curl, use `-K /path/to/config` with `header = "..."` lines, or `-H @file`. To check process liveness use `pgrep -f name` or `kill -0 <pid>`, not `ps -ef`.

@@ -1,4 +1,4 @@
 {
-  hostname = "utsuho";
+  hostname = "fujiwara";
   gui = true;
 }

@@ -3,6 +3,7 @@
 let
   opencodeConfig = {
     "$schema" = "https://opencode.ai/config.json";
+    plugin = [ "opencode-model-stats" ];
     provider = {
       mcloud = {
         npm = "@ai-sdk/openai-compatible";

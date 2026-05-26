@@ -896,9 +896,12 @@ in
 
   wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config; });
 
-  dconf.settings = lib.optionalAttrs (hostname == "setsuna") {
-    "org/gnome/desktop/interface" = {
-      text-scaling-factor = 1.25;
+  dconf = {
+    enable = hostname == "setsuna";
+    settings = lib.optionalAttrs (hostname == "setsuna") {
+      "org/gnome/desktop/interface" = {
+        text-scaling-factor = 1.25;
+      };
     };
   };
 

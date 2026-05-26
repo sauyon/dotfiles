@@ -1433,6 +1433,9 @@ in
           hostname = "kanon.alai-ionian.ts.net";
           port = 59048;
         };
+        "yui mio ritsu mugi azusa" = {
+          forwardAgent = true;
+        };
         "testserver" = {
           hostname = "35.163.118.10";
           user = "ubuntu";

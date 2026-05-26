@@ -20,6 +20,10 @@
       ", preferred, auto, 1"
     ];
 
+    env = [
+      "WARP_ENABLE_WAYLAND,1"
+    ];
+
     input = {
       repeat_delay = 200;
       repeat_rate = 60;

@@ -19,6 +19,11 @@ let
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
 
+  textScale =
+    if hostname == "setsuna" then 1.25
+    else 1.0;
+  isHiDPI = textScale != 1.0;
+
   nixGL =
     if isDarwin || !isDesktop then
       null
@@ -537,8 +542,8 @@ in
         home = config.home.homeDirectory;
       }
     )
-    // (lib.optionalAttrs (hostname == "setsuna") {
-      QT_FONT_DPI = "120";
+    // (lib.optionalAttrs isHiDPI {
+      QT_FONT_DPI = toString (builtins.floor (96.0 * textScale));
     });
 
   # TERMINFO_DIRS is already set under systemd by home-manager's generic-linux
@@ -1017,8 +1022,8 @@ in
       };
     };
     waybar = let
-      fontSize = if hostname == "setsuna" then 20 else 17;
-      barHeight = if hostname == "setsuna" then 48 else 42;
+      fontSize = if isHiDPI then 20 else 17;
+      barHeight = if isHiDPI then 48 else 42;
       shared = {
         layer = "top";
         position = "top";
@@ -1325,7 +1330,7 @@ in
           "super+t=new_tab"
           "ctrl+comma=unbind"
         ];
-      } // lib.optionalAttrs (hostname == "setsuna") {
+      } // lib.optionalAttrs isHiDPI {
         font-size = 14;
       };
     };

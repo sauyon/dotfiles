@@ -31,6 +31,14 @@ nix run github:nix-community/home-manager -- switch --flake ~/devel/dotfiles#sau
 
 After the first switch, `home-manager switch` is available directly.
 
+## System config
+
+Files under `system/` mirror `/` and require root to deploy:
+
+```bash
+system/deploy
+```
+
 ## Secrets (sops-nix)
 
 Secrets are decrypted using `~/.ssh/id_ed25519` as an age identity. On a new machine, either copy your existing key or generate one and add it as a sops recipient:

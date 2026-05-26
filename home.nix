@@ -658,6 +658,7 @@ in
     coder
     comma
     cosign
+    cryptomator-cli
     lnav
     bat
     rustup

@@ -611,7 +611,6 @@ in
   ] ++ (with pkgs; [
     bfs
     btop
-    ghostty.terminfo
     claude-agent-acp
     coder
     comma
@@ -633,6 +632,8 @@ in
     agent-orchestrator-pkg
     ao-mcp-pkg
     ao-run
+  ] ++ lib.optionals (!isDesktop) [
+    pkgs.ghostty.terminfo
   ] ++ lib.optionals (!isDarwin && isDesktop) [
     caffeine
     hypr-fullscreen-inhibit
@@ -1284,7 +1285,7 @@ in
     };
     ghostty = {
       enable = isDesktop;
-      package = null;
+      package = if isDarwin then pkgs.ghostty else config.lib.nixGL.wrap pkgs.ghostty;
       enableZshIntegration = true;
       systemd.enable = false;
       # installBatSyntax = true;

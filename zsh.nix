@@ -221,12 +221,6 @@
 
     bindkey '^T' transpose-chars
 
-    if [ -n "$SSH_CONNECTION" ] || [ -n "$SSH_CLIENT" ]; then
-        if [ -z "$ZELLIJ_SESSION_NAME" ]; then
-            zellij attach -c main_ssh
-        fi
-    fi
-
     eval $(kcs init)
 
     # The greeting. Yeah, yeah, I'm unimaginative. :'(

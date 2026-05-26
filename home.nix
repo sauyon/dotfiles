@@ -513,24 +513,24 @@ in
     export PATH="${config.home.profileDirectory}/bin:$PATH"
 
     # If claude still isn't available (fresh machine pre-bootstrap), skip
-    # rather than fail the activation.
+    # rather than fail the activation. Avoid `exit` here — it terminates the
+    # entire home-manager activation script, not just this step.
     if ! command -v claude >/dev/null 2>&1; then
       echo "claudePlugins: claude CLI not on PATH yet — skipping plugin install"
-      exit 0
-    fi
-
-    # Register marketplace if not already known.
-    if ! claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE"; then
-      $DRY_RUN_CMD claude plugin marketplace add "$MARKETPLACE_SOURCE"
-    fi
-
-    # Install each plugin if not already tracked.
-    for p in "''${PLUGINS[@]}"; do
-      if [ -f "$INSTALLED" ] && grep -q "\"$p\"" "$INSTALLED"; then
-        continue
+    else
+      # Register marketplace if not already known.
+      if ! claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE"; then
+        $DRY_RUN_CMD claude plugin marketplace add "$MARKETPLACE_SOURCE"
       fi
-      $DRY_RUN_CMD claude plugin install "$p" --scope user
-    done
+
+      # Install each plugin if not already tracked.
+      for p in "''${PLUGINS[@]}"; do
+        if [ -f "$INSTALLED" ] && grep -q "\"$p\"" "$INSTALLED"; then
+          continue
+        fi
+        $DRY_RUN_CMD claude plugin install "$p" --scope user
+      done
+    fi
   '';
 
   # Firefox 67+ keys profile-per-install via [Install<HASH>] sections inside

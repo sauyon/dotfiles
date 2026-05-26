@@ -360,6 +360,11 @@ let
     autoDreamEnabled = true;
     skipDangerousModePermissionPrompt = true;
     skipAutoPermissionPrompt = true;
+    statusLine = {
+      type = "command";
+      command = "${config.home.homeDirectory}/.claude/statusline-command.sh";
+      padding = 0;
+    };
   };
   claudeSettingsFile = pkgs.writeText "claude-settings-nix.json" (builtins.toJSON claudeSettings);
 
@@ -485,6 +490,12 @@ in
 
   # ── Global Claude preferences (loaded into every conversation) ────────────
   home.file.".claude/CLAUDE.md".source = ./home/.claude/CLAUDE.md;
+
+  # ── Claude statusline ──────────────────────────────────────────────────────
+  home.file.".claude/statusline-command.sh" = {
+    source = ./home/.claude/statusline-command.sh;
+    executable = true;
+  };
 
   # ── Claude skills ──────────────────────────────────────────────────────────
   home.file.".claude/skills/linear-flow/SKILL.md".source =

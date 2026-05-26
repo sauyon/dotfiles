@@ -660,6 +660,7 @@ in
     cosign
     cryptomator-cli
     lnav
+    opencode
     bat
     rustup
     nixfmt

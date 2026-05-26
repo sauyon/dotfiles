@@ -31,6 +31,8 @@ let
     ghosttyFontSize = 14;
   };
 
+  edgeGap = if hostname == "fujiwara" then 20 else 0;
+
   nixGL =
     if isDarwin || !isDesktop then
       null
@@ -964,7 +966,7 @@ in
   targets.genericLinux.enable = !isDarwin;
   targets.genericLinux.nixGL.packages = lib.mkIf (!isDarwin && isDesktop) nixgl.packages.${system};
 
-  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config hostname; });
+  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config edgeGap; });
 
   dconf = {
     enable = hostname == "setsuna";
@@ -1061,7 +1063,6 @@ in
     waybar = let
       fontSize = hidpi.waybarFontSize;
       barHeight = hidpi.waybarBarHeight;
-      edgeGap = if hostname == "fujiwara" then 12 else 0;
       shared = {
         layer = "top";
         position = "top";

@@ -342,6 +342,21 @@ let
     enabledPlugins = {
       "rust-analyzer-lsp@claude-plugins-official" = true;
     };
+    mcpServers = {
+      unifi = {
+        type = "stdio";
+        command = "sh";
+        args = [
+          "-c"
+          "UNIFI_API_KEY=$(cat ${config.home.homeDirectory}/.config/unifi/api-key) exec ${config.home.homeDirectory}/.local/share/mise/shims/uvx unifi-mcp-server"
+        ];
+        env = {
+          UNIFI_API_TYPE = "local";
+          UNIFI_LOCAL_HOST = "10.0.0.1";
+          UNIFI_LOCAL_VERIFY_SSL = "false";
+        };
+      };
+    };
     autoDreamEnabled = true;
     skipDangerousModePermissionPrompt = true;
     skipAutoPermissionPrompt = true;
@@ -459,6 +474,12 @@ in
   # ── ko.ag API (opencode provider) ──────────────────────────────────────────
   sops.secrets.koAgApiKey = {
     path = "${config.home.homeDirectory}/.config/opencode/ko-ag-key";
+    mode = "0600";
+  };
+
+  # ── UniFi API key (unifi-mcp-server) ───────────────────────────────────────
+  sops.secrets.unifiApiKey = {
+    path = "${config.home.homeDirectory}/.config/unifi/api-key";
     mode = "0600";
   };
 

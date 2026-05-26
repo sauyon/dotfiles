@@ -41,9 +41,9 @@
 "find:find_prev_occurrence": "super-shift-G"
 "workspace:show_command_search": super-p
 "workspace:show_settings": "super-,"
-"workspace:increase_zoom": "super-="
-"workspace:decrease_zoom": "super--"
-"workspace:reset_zoom": super-0
+"workspace:increase_font_size": "super-="
+"workspace:decrease_font_size": super-minus
+"workspace:reset_font_size": super-0
 "terminal:copy": super-c
 "terminal:paste": super-v
 "terminal:clear_blocks": super-k

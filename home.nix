@@ -621,6 +621,26 @@ in
   # ── Pulse ──────────────────────────────────────────────────────────────────
   xdg.configFile."pulse/client.conf" = lib.mkIf (!isDarwin) { text = "cookie-file = /.cache/pulse/cookie\n"; };
 
+  # ── WirePlumber ────────────────────────────────────────────────────────────
+  # Disable the AB13X USB headset adapter on fujiwara — unused, but keeps
+  # auto-grabbing default-sink when plugged in.
+  xdg.configFile."wireplumber/wireplumber.conf.d/51-disable-ab13x.conf" = lib.mkIf (hostname == "fujiwara") {
+    text = ''
+      monitor.alsa.rules = [
+        {
+          matches = [
+            { device.name = "alsa_card.usb-Generic_USB_Audio_20210726905926-00" }
+          ]
+          actions = {
+            update-props = {
+              device.disabled = true
+            }
+          }
+        }
+      ]
+    '';
+  };
+
   # ── p10k ───────────────────────────────────────────────────────────────────
   xdg.configFile."zsh/.p10k.zsh".source = ./home/p10k.zsh;
 

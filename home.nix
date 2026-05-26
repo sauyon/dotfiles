@@ -705,6 +705,7 @@ in
     pkgs.vesktop
     (config.lib.nixGL.wrap pkgs.warp-terminal)
     pkgs.wayvnc
+    pkgs.xdg-utils
   ];
 
   nixpkgs.config = {

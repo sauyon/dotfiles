@@ -60,7 +60,6 @@
       "mako"
       "hypr-fullscreen-inhibit"
       "elephant"
-      "walker --gapplication-service"
     ];
 
     bind = [

@@ -19,7 +19,13 @@ let
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
 
-  nixGL = if isDarwin || !isDesktop then null else nixgl.packages.${system}.default;
+  nixGL =
+    if isDarwin || !isDesktop then
+      null
+    else
+      pkgs.writeShellScriptBin "nixGL" ''
+        exec ${nixgl.packages.${system}.nixGLIntel}/bin/nixGLIntel "$@"
+      '';
   agent-orchestrator-pkg = if isDarwin then null else agent-orchestrator.packages.${system}.default;
   ao-mcp-pkg = if isDarwin then null else ao-mcp.packages.${system}.default;
 
@@ -630,6 +636,7 @@ in
   ] ++ lib.optionals (!isDarwin && isDesktop) [
     caffeine
     hypr-fullscreen-inhibit
+    nixGL
 
     pkgs.hyprpicker
     pkgs.slack

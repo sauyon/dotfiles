@@ -19,10 +19,17 @@ let
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
 
-  textScale =
-    if hostname == "setsuna" || hostname == "fujiwara" then 1.25
-    else 1.0;
-  isHiDPI = textScale != 1.0;
+  hidpi = let
+    scale = if hostname == "setsuna" || hostname == "fujiwara" then 1.25 else 1.0;
+    enabled = scale != 1.0;
+  in {
+    inherit scale enabled;
+    qtFontDpi = builtins.floor (96.0 * scale);
+    cursorSize = if enabled then 48 else 24;
+    waybarFontSize = if enabled then 20 else 17;
+    waybarBarHeight = if enabled then 48 else 42;
+    ghosttyFontSize = 14;
+  };
 
   nixGL =
     if isDarwin || !isDesktop then
@@ -542,13 +549,13 @@ in
         home = config.home.homeDirectory;
       }
     )
-    // (lib.optionalAttrs isHiDPI {
-      QT_FONT_DPI = toString (builtins.floor (96.0 * textScale));
+    // (lib.optionalAttrs hidpi.enabled {
+      QT_FONT_DPI = toString hidpi.qtFontDpi;
     })
     # setsuna scales GTK via dconf (text-scaling-factor); other HiDPI hosts
     # don't have a dconf D-Bus service, so use GDK_DPI_SCALE instead.
-    // (lib.optionalAttrs (isHiDPI && hostname != "setsuna") {
-      GDK_DPI_SCALE = toString textScale;
+    // (lib.optionalAttrs (hidpi.enabled && hostname != "setsuna") {
+      GDK_DPI_SCALE = toString hidpi.scale;
     });
 
   # TERMINFO_DIRS is already set under systemd by home-manager's generic-linux
@@ -747,6 +754,13 @@ in
       };
     })
   ];
+
+  home.pointerCursor = lib.mkIf (!isDarwin && isDesktop) {
+    package = pkgs.yaru-theme;
+    name = "Yaru";
+    size = hidpi.cursorSize;
+    gtk.enable = true;
+  };
 
   gtk = lib.optionalAttrs (!isDarwin && isDesktop) {
     enable = true;
@@ -956,7 +970,7 @@ in
     enable = hostname == "setsuna";
     settings = lib.optionalAttrs (hostname == "setsuna") {
       "org/gnome/desktop/interface" = {
-        text-scaling-factor = 1.25;
+        text-scaling-factor = hidpi.scale;
       };
     };
   };
@@ -1045,8 +1059,8 @@ in
       };
     };
     waybar = let
-      fontSize = if isHiDPI then 20 else 17;
-      barHeight = if isHiDPI then 48 else 42;
+      fontSize = hidpi.waybarFontSize;
+      barHeight = hidpi.waybarBarHeight;
       edgeGap = if hostname == "fujiwara" then 12 else 0;
       shared = {
         layer = "top";
@@ -1357,8 +1371,8 @@ in
           "super+t=new_tab"
           "ctrl+comma=unbind"
         ];
-      } // lib.optionalAttrs isHiDPI {
-        font-size = 14;
+      } // lib.optionalAttrs hidpi.enabled {
+        font-size = hidpi.ghosttyFontSize;
       };
     };
     gh = {

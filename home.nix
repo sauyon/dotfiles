@@ -442,23 +442,23 @@ in
   };
 
   # ── Global Claude preferences (loaded into every conversation) ────────────
-  home.file.".claude/CLAUDE.md".source = ./.claude/CLAUDE.md;
+  home.file.".claude/CLAUDE.md".source = ./home/.claude/CLAUDE.md;
 
   # ── Claude skills ──────────────────────────────────────────────────────────
   home.file.".claude/skills/linear-flow/SKILL.md".source =
-    ./.claude/skills/linear-flow/SKILL.md;
+    ./home/.claude/skills/linear-flow/SKILL.md;
   home.file.".claude/skills/linear-flow/DESIGN.md".source =
-    ./.claude/skills/linear-flow/DESIGN.md;
+    ./home/.claude/skills/linear-flow/DESIGN.md;
 
   # ── Claude plugins ─────────────────────────────────────────────────────────
   home.file.".claude/plugins/local-auto-mode/hooks.json".source =
-    ./.claude/plugins/local-auto-mode/hooks.json;
+    ./home/.claude/plugins/local-auto-mode/hooks.json;
   home.file.".claude/plugins/local-auto-mode/classifier.py".source =
-    ./.claude/plugins/local-auto-mode/classifier.py;
+    ./home/.claude/plugins/local-auto-mode/classifier.py;
   home.file.".claude/plugins/local-auto-mode/prompt.py".source =
-    ./.claude/plugins/local-auto-mode/prompt.py;
+    ./home/.claude/plugins/local-auto-mode/prompt.py;
   home.file.".claude/plugins/local-auto-mode/config.py".source =
-    ./.claude/plugins/local-auto-mode/config.py;
+    ./home/.claude/plugins/local-auto-mode/config.py;
 
   # Merge nix-declared Claude settings into a mutable ~/.claude/settings.json.
   # Using jq's recursive merge (.[0] * .[1]) so nix values win on conflict while
@@ -557,24 +557,24 @@ in
     lib.mkIf (!isDarwin) (removeAttrs config.home.sessionVariables [ "TERMINFO_DIRS" ]);
 
   # ── Emacs ──────────────────────────────────────────────────────────────────
-  home.file.".emacs.d/init.el".source = ./emacs/init.el;
-  home.file.".emacs.d/lisp/mode-init.el".source = ./emacs/lisp/mode-init.el;
-  home.file.".emacs.d/lisp/pref-init.el".source = ./emacs/lisp/pref-init.el;
-  home.file.".emacs.d/lisp/root-find.el".source = ./emacs/lisp/root-find.el;
+  home.file.".emacs.d/init.el".source = ./home/emacs/init.el;
+  home.file.".emacs.d/lisp/mode-init.el".source = ./home/emacs/lisp/mode-init.el;
+  home.file.".emacs.d/lisp/pref-init.el".source = ./home/emacs/lisp/pref-init.el;
+  home.file.".emacs.d/lisp/root-find.el".source = ./home/emacs/lisp/root-find.el;
 
   # ── Scripts ────────────────────────────────────────────────────────────────
   # On darwin, .local/bin is a symlink to the dotfiles repo; skip HM management.
-  home.file.".local/bin/bootstrap.sh" = lib.mkIf (!isDarwin) { executable = true; source = ./scripts/bootstrap.sh; };
-  home.file.".local/bin/mprisinfo" = lib.mkIf (!isDarwin) { executable = true; source = ./scripts/mprisinfo; };
-  home.file.".local/bin/reyubikey" = lib.mkIf (!isDarwin) { executable = true; source = ./scripts/reyubikey; };
-  home.file.".local/bin/upload" = lib.mkIf (!isDarwin) { executable = true; source = ./scripts/upload; };
-  home.file.".local/bin/yank" = lib.mkIf (!isDarwin) { executable = true; source = ./scripts/yank; };
+  home.file.".local/bin/bootstrap.sh" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/bootstrap.sh; };
+  home.file.".local/bin/mprisinfo" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/mprisinfo; };
+  home.file.".local/bin/reyubikey" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/reyubikey; };
+  home.file.".local/bin/upload" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/upload; };
+  home.file.".local/bin/yank" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/yank; };
 
   # ── Pulse ──────────────────────────────────────────────────────────────────
   xdg.configFile."pulse/client.conf" = lib.mkIf (!isDarwin) { text = "cookie-file = /.cache/pulse/cookie\n"; };
 
   # ── p10k ───────────────────────────────────────────────────────────────────
-  xdg.configFile."zsh/.p10k.zsh".source = ./p10k.zsh;
+  xdg.configFile."zsh/.p10k.zsh".source = ./home/p10k.zsh;
 
   home.file.".local/bin/hyprland-graceful-exit" = lib.mkIf (!isDarwin && isDesktop) {
     executable = true;
@@ -1368,7 +1368,7 @@ in
     dircolors = {
       enable = true;
       enableZshIntegration = true;
-      extraConfig = builtins.readFile ./dircolors;
+      extraConfig = builtins.readFile ./home/dircolors;
     };
     direnv = {
       enable = true;

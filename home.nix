@@ -703,6 +703,7 @@ in
     pkgs.hyprpicker
     pkgs.slack
     pkgs.vesktop
+    (config.lib.nixGL.wrap pkgs.warp-terminal)
     pkgs.wayvnc
   ];
 

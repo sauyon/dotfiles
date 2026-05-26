@@ -5,7 +5,7 @@
 }:
 {
   enable = true;
-  package = null;
+  package = pkgs.hyprland;
   settings = {
     general = {
       gaps_in = 0;

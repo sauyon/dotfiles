@@ -647,6 +647,7 @@ in
   ] ++ (with pkgs; [
     bfs
     btop
+    google-fonts
     claude-agent-acp
     coder
     comma

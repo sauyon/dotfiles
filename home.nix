@@ -1096,6 +1096,7 @@ in
         ];
 
         auth = {
+          "pam:module" = "login";
           "fingerprint:enabled" = true;
         };
 

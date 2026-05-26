@@ -419,7 +419,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./gemini.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./gemini.nix ./opencode.nix ];
 
   home.stateVersion = "26.05";
 

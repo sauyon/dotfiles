@@ -839,6 +839,17 @@ in
       });
     })
     (final: prev: {
+      # Warp's binary dlopens libwayland-client.so.0 via winit, but the nixpkgs
+      # build doesn't include wayland in RUNPATH — autoPatchelfHook only sees
+      # linked deps, not dlopen'd ones. Without this, warp silently falls back
+      # to X11 even when WARP_ENABLE_WAYLAND=1.
+      warp-terminal = prev.warp-terminal.overrideAttrs (old: {
+        runtimeDependencies = (old.runtimeDependencies or []) ++ [
+          final.wayland
+        ];
+      });
+    })
+    (final: prev: {
       claude-agent-acp = prev.buildNpmPackage rec {
         pname = "claude-agent-acp";
         version = "0.33.1";

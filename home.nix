@@ -20,7 +20,7 @@ let
   isDesktop = machine.gui or true;
 
   textScale =
-    if hostname == "setsuna" then 1.25
+    if hostname == "setsuna" || hostname == "fujiwara" then 1.25
     else 1.0;
   isHiDPI = textScale != 1.0;
 
@@ -544,6 +544,11 @@ in
     )
     // (lib.optionalAttrs isHiDPI {
       QT_FONT_DPI = toString (builtins.floor (96.0 * textScale));
+    })
+    # setsuna scales GTK via dconf (text-scaling-factor); other HiDPI hosts
+    # don't have a dconf D-Bus service, so use GDK_DPI_SCALE instead.
+    // (lib.optionalAttrs (isHiDPI && hostname != "setsuna") {
+      GDK_DPI_SCALE = toString textScale;
     });
 
   # TERMINFO_DIRS is already set under systemd by home-manager's generic-linux
@@ -852,6 +857,14 @@ in
             ];
           };
         }
+        {
+          profile = {
+            name = "fujiwara";
+            outputs = [
+              { criteria = "Samsung Electric Company S90F 0x01000E00"; mode = "3840x2160"; position = "0,0"; scale = 1.0; }
+            ];
+          };
+        }
       ];
     };
 
@@ -927,7 +940,7 @@ in
   targets.genericLinux.enable = !isDarwin;
   targets.genericLinux.nixGL.packages = lib.mkIf (!isDarwin && isDesktop) nixgl.packages.${system};
 
-  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config; });
+  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config hostname; });
 
   dconf = {
     enable = hostname == "setsuna";
@@ -1024,11 +1037,15 @@ in
     waybar = let
       fontSize = if isHiDPI then 20 else 17;
       barHeight = if isHiDPI then 48 else 42;
+      edgeGap = if hostname == "fujiwara" then 12 else 0;
       shared = {
         layer = "top";
         position = "top";
         height = barHeight;
         spacing = 0;
+        margin-top = edgeGap;
+        margin-left = edgeGap;
+        margin-right = edgeGap;
 
         "hyprland/workspaces" = {
           format = "{id}";

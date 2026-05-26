@@ -1,6 +1,7 @@
 {
   pkgs,
   config,
+  hostname,
   ...
 }:
 {
@@ -9,7 +10,7 @@
   settings = {
     general = {
       gaps_in = 0;
-      gaps_out = 0;
+      gaps_out = if hostname == "fujiwara" then "0 12 12 12" else "0";
 
       border_size = 1;
     };

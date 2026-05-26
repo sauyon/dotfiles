@@ -591,6 +591,32 @@ in
   };
 
 
+  systemd.user.services.wayvnc = lib.optionalAttrs (!isDarwin && isDesktop) {
+    Unit = {
+      Description = "WayVNC server bound to the tailscale interface";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+    };
+    Service = {
+      ExecStart = pkgs.writeShellScript "wayvnc-tailscale" ''
+        set -eu
+        for _ in $(seq 1 60); do
+          ip=$(${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null | head -n1 || true)
+          [ -n "''${ip:-}" ] && break
+          sleep 1
+        done
+        if [ -z "''${ip:-}" ]; then
+          echo "tailscale IPv4 not available" >&2
+          exit 1
+        fi
+        exec ${pkgs.wayvnc}/bin/wayvnc "$ip"
+      '';
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
+
   systemd.user.services.hyprland-cleanup = lib.optionalAttrs (!isDarwin && isDesktop) {
     Unit = {
       Description = "Gracefully close all Hyprland windows on session end";
@@ -642,6 +668,7 @@ in
     pkgs.hyprpicker
     pkgs.slack
     pkgs.vesktop
+    pkgs.wayvnc
   ];
 
   nixpkgs.config = {

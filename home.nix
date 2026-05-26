@@ -641,6 +641,19 @@ in
     '';
   };
 
+  # ── psi-notify ─────────────────────────────────────────────────────────────
+  xdg.configFile."psi-notify" = lib.mkIf (!isDarwin && isDesktop) {
+    text = ''
+      update 5
+      log_pressures false
+
+      threshold memory some avg10 15.00
+      threshold memory full avg10 5.00
+      threshold io some avg10 25.00
+      threshold io full avg10 15.00
+    '';
+  };
+
   # ── p10k ───────────────────────────────────────────────────────────────────
   xdg.configFile."zsh/.p10k.zsh".source = ./home/p10k.zsh;
 
@@ -706,6 +719,23 @@ in
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
+  systemd.user.services.psi-notify = lib.optionalAttrs (!isDarwin && isDesktop) {
+    Unit = {
+      Description = "Desktop notifications when system resources are under pressure";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+    };
+    Service = {
+      Type = "notify";
+      ExecStart = "${pkgs.psi-notify}/bin/psi-notify";
+      ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
+      Restart = "on-failure";
+      RestartSec = 5;
+      WatchdogSec = "2s";
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
+
   systemd.user.services.hyprland-cleanup = lib.optionalAttrs (!isDarwin && isDesktop) {
     Unit = {
       Description = "Gracefully close all Hyprland windows on session end";
@@ -759,6 +789,7 @@ in
 
     pkgs.emacs30-pgtk
     pkgs.hyprpicker
+    pkgs.psi-notify
     pkgs.slack
     pkgs.vesktop
     (config.lib.nixGL.wrap pkgs.warp-terminal)

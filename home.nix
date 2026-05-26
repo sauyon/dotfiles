@@ -824,10 +824,16 @@ in
 
     gpg-agent = lib.optionalAttrs (!isDarwin) {
       enable = true;
-      enableSshSupport = true;
+      # SSH support handled by ssh-tpm-agent (below), which falls back here
+      # for non-TPM keys via the fallback socket arg.
+      enableSshSupport = false;
       defaultCacheTtl = 600;
       maxCacheTtl = 1200;
       pinentry.package = if isDesktop then pkgs.pinentry-gnome3 else pkgs.pinentry-curses;
+    };
+
+    ssh-tpm-agent = lib.optionalAttrs (!isDarwin) {
+      enable = true;
     };
 
     gnome-keyring = lib.optionalAttrs (!isDarwin && isDesktop) {

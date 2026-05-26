@@ -562,6 +562,12 @@ in
   home.file.".emacs.d/lisp/pref-init.el".source = ./home/emacs/lisp/pref-init.el;
   home.file.".emacs.d/lisp/root-find.el".source = ./home/emacs/lisp/root-find.el;
 
+  services.emacs = lib.mkIf (!isDarwin && isDesktop) {
+    enable = true;
+    package = pkgs.emacs30-pgtk;
+    client.enable = true;
+  };
+
   # ── Scripts ────────────────────────────────────────────────────────────────
   # On darwin, .local/bin is a symlink to the dotfiles repo; skip HM management.
   home.file.".local/bin/bootstrap.sh" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/bootstrap.sh; };
@@ -676,6 +682,7 @@ in
     hypr-fullscreen-inhibit
     nixGL
 
+    pkgs.emacs30-pgtk
     pkgs.hyprpicker
     pkgs.slack
     pkgs.vesktop
@@ -1440,8 +1447,7 @@ in
         };
         core = {
           pager = "${pkgs.diff-so-fancy}/bin/diff-so-fancy | ${pkgs.less}/bin/less -RFx4";
-          editor = "/usr/bin/emacsclient -t";
-          # editor = "${pkgs.emacs}/bin/emacsclient -t";
+          editor = if isDarwin then "/usr/bin/emacsclient -t" else "${pkgs.emacs30-pgtk}/bin/emacsclient -t";
           whitespace = "trailing-space,space-before-tab";
         };
         diff.algorithm = "histogram";

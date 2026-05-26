@@ -597,6 +597,17 @@ in
   # ── p10k ───────────────────────────────────────────────────────────────────
   xdg.configFile."zsh/.p10k.zsh".source = ./home/p10k.zsh;
 
+  # ── Warp ───────────────────────────────────────────────────────────────────
+  xdg.configFile."warp-terminal/keybindings.yaml" = lib.mkIf (!isDarwin && isDesktop) {
+    source = ./home/warp/keybindings.yaml;
+  };
+  xdg.configFile."warp-terminal/user_preferences.json" = lib.mkIf (!isDarwin && isDesktop) {
+    source = ./home/warp/user_preferences.json;
+  };
+  home.file.".local/share/warp-terminal/tab_configs/startup_config.toml" = lib.mkIf (!isDarwin && isDesktop) {
+    source = ./home/warp/tab_configs/startup_config.toml;
+  };
+
   home.file.".local/bin/hyprland-graceful-exit" = lib.mkIf (!isDarwin && isDesktop) {
     executable = true;
     text = ''

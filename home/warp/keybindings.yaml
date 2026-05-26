@@ -1,0 +1,4 @@
+---
+"editor_view:move_to_line_start": ctrl-a
+"editor_view:select_all": ctrl-shift-A
+"editor_view:move_to_line_end": ctrl-e

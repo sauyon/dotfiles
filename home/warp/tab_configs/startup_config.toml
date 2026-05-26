@@ -1,0 +1,8 @@
+name = "New tab: sauyon"
+
+[[panes]]
+id = "main"
+type = "terminal"
+directory = "/home/sauyon"
+
+[params]

@@ -1597,6 +1597,10 @@ in
 
     portal = {
       enable = !isDarwin && isDesktop;
+      extraPortals = lib.optionals (!isDarwin && isDesktop) [
+        pkgs.xdg-desktop-portal-gtk
+      ];
+      xdgOpenUsePortal = !isDarwin && isDesktop;
       config = {
         common.default = [ "hyprland;gtk" ];
       };
@@ -1629,6 +1633,30 @@ in
     };
 
     configFile."newtab.html".text = newtabHtml;
+
+    # Standalone home-manager doesn't put ~/.nix-profile/share/systemd/user in
+    # systemd's search path, so the dbus-activated portal services fail with
+    # "unknown unit" and ghostty's OpenURI portal call falls back to spawning
+    # xdg-open (and the browser) as a child. Symlink the units in so dbus
+    # activation finds them.
+    configFile."systemd/user/xdg-desktop-portal.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${pkgs.xdg-desktop-portal}/share/systemd/user/xdg-desktop-portal.service";
+    };
+    configFile."systemd/user/xdg-document-portal.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${pkgs.xdg-desktop-portal}/share/systemd/user/xdg-document-portal.service";
+    };
+    configFile."systemd/user/xdg-permission-store.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${pkgs.xdg-desktop-portal}/share/systemd/user/xdg-permission-store.service";
+    };
+    configFile."systemd/user/xdg-desktop-portal-rewrite-launchers.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${pkgs.xdg-desktop-portal}/share/systemd/user/xdg-desktop-portal-rewrite-launchers.service";
+    };
+    configFile."systemd/user/xdg-desktop-portal-gtk.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${pkgs.xdg-desktop-portal-gtk}/share/systemd/user/xdg-desktop-portal-gtk.service";
+    };
+    configFile."systemd/user/xdg-desktop-portal-hyprland.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${pkgs.xdg-desktop-portal-hyprland}/share/systemd/user/xdg-desktop-portal-hyprland.service";
+    };
 
     configFile."agent-orchestrator/config.yaml".text = let
       # Indent a multiline string for embedding inside a YAML block scalar.

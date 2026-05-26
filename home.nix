@@ -450,6 +450,12 @@ in
     mode = "0600";
   };
 
+  # ── ko.ag API (opencode provider) ──────────────────────────────────────────
+  sops.secrets.koAgApiKey = {
+    path = "${config.home.homeDirectory}/.config/opencode/ko-ag-key";
+    mode = "0600";
+  };
+
   # ── Global Claude preferences (loaded into every conversation) ────────────
   home.file.".claude/CLAUDE.md".source = ./home/.claude/CLAUDE.md;
 

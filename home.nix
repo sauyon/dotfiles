@@ -722,12 +722,57 @@ in
           echo "tailscale IPv4 not available" >&2
           exit 1
         fi
-        exec ${pkgs.wayvnc}/bin/wayvnc "$ip"
+        headless=""
+        for _ in $(seq 1 30); do
+          headless=$(${pkgs.hyprland}/bin/hyprctl monitors all -j 2>/dev/null \
+            | ${pkgs.jq}/bin/jq -r 'map(select(.name | startswith("HEADLESS-"))) | .[0].name // empty')
+          [ -n "$headless" ] && break
+          sleep 1
+        done
+        if [ -z "$headless" ]; then
+          echo "no HEADLESS-* output found in Hyprland" >&2
+          exit 1
+        fi
+        exec ${pkgs.wayvnc}/bin/wayvnc --output="$headless" "$ip"
       '';
       Restart = "on-failure";
       RestartSec = 5;
     };
     Install.WantedBy = [ "graphical-session.target" ];
+  };
+
+  systemd.user.sockets.wayvnc-lan = lib.optionalAttrs (!isDarwin && isDesktop) {
+    Unit.Description = "WayVNC LAN listener (forwards to tailscale-bound wayvnc)";
+    Socket = {
+      ListenStream = "10.0.7.100:5900";
+      FreeBind = true;
+    };
+    Install.WantedBy = [ "sockets.target" ];
+  };
+
+  systemd.user.services.wayvnc-lan = lib.optionalAttrs (!isDarwin && isDesktop) {
+    Unit = {
+      Description = "Proxy LAN VNC connections to tailscale-bound wayvnc";
+      Requires = [ "wayvnc.service" "wayvnc-lan.socket" ];
+      After = [ "wayvnc.service" "wayvnc-lan.socket" ];
+    };
+    Service = {
+      ExecStart = pkgs.writeShellScript "wayvnc-lan-proxy" ''
+        set -eu
+        for _ in $(seq 1 60); do
+          ip=$(${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null | head -n1 || true)
+          [ -n "''${ip:-}" ] && break
+          sleep 1
+        done
+        if [ -z "''${ip:-}" ]; then
+          echo "tailscale IPv4 not available" >&2
+          exit 1
+        fi
+        exec /usr/lib/systemd/systemd-socket-proxyd "$ip:5900"
+      '';
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
   };
 
   systemd.user.services.psi-notify = lib.optionalAttrs (!isDarwin && isDesktop) {

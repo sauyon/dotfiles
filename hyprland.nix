@@ -66,6 +66,24 @@
 
     "exec-once" = [
       "dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP"
+      "${pkgs.writeShellScript "hypr-headless-mirror" ''
+        set -eu
+        ${pkgs.hyprland}/bin/hyprctl output create headless
+        name=""
+        for _ in $(seq 1 30); do
+          name=$(${pkgs.hyprland}/bin/hyprctl monitors all -j 2>/dev/null \
+            | ${pkgs.jq}/bin/jq -r 'map(select(.name | startswith("HEADLESS-"))) | .[0].name // empty')
+          [ -n "$name" ] && break
+          sleep 0.2
+        done
+        if [ -z "$name" ]; then
+          echo "headless output not created" >&2
+          exit 1
+        fi
+        ${pkgs.hyprland}/bin/hyprctl keyword monitor "$name, 1920x1080@60, auto, 1"
+        sleep 0.5
+        ${pkgs.hyprland}/bin/hyprctl keyword monitor "HDMI-A-1, 3840x2160@120, 0x0, 1, bitdepth, 10, cm, srgb, mirror, $name"
+      ''}"
       "mako"
       "hypr-fullscreen-inhibit"
       "elephant"

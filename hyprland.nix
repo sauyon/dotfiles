@@ -2,6 +2,7 @@
   pkgs,
   config,
   edgeGap,
+  hyprDpmsPhysical,
   ...
 }:
 {
@@ -165,8 +166,8 @@
       ", XF86AudioPlay, exec, ${pkgs.playerctl}/bin/playerctl play-pause"
       ", XF86AudioPrev, exec, ${pkgs.playerctl}/bin/playerctl previous"
 
-      ", switch:on:Lid Switch, exec, hyprctl dispatch dpms off && hyprctl dispatch exec ${config.programs.hyprlock.package}/bin/hyprlock"
-      ", switch:off:Lid Switch, exec, hyprctl dispatch dpms on"
+      ", switch:on:Lid Switch, exec, ${hyprDpmsPhysical} off && hyprctl dispatch exec ${config.programs.hyprlock.package}/bin/hyprlock"
+      ", switch:off:Lid Switch, exec, ${hyprDpmsPhysical} on"
     ];
   };
 }

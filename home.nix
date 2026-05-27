@@ -49,6 +49,17 @@ let
   agent-orchestrator-pkg = if isDarwin then null else agent-orchestrator.packages.${system}.default;
   ao-mcp-pkg = if isDarwin then null else ao-mcp.packages.${system}.default;
 
+  # Dispatch dpms only to physical outputs, skipping HEADLESS-* so the wayvnc
+  # capture target stays alive when the screen idles or the lid closes.
+  hyprDpmsPhysical = pkgs.writeShellScript "hypr-dpms-physical" ''
+    set -eu
+    ${pkgs.hyprland}/bin/hyprctl monitors all -j \
+      | ${pkgs.jq}/bin/jq -r '.[] | select(.name | startswith("HEADLESS-") | not) | .name' \
+      | while read -r mon; do
+          ${pkgs.hyprland}/bin/hyprctl dispatch dpms "$1" "$mon"
+        done
+  '';
+
   caffeine = pkgs.writeShellScriptBin "caffeine" ''
     set -eu
     PIDFILE="''${XDG_RUNTIME_DIR:-/tmp}/caffeine.pid"
@@ -1086,13 +1097,13 @@ in
         general = {
           lock_cmd = "pidof hyprlock || ${config.programs.hyprlock.package}/bin/hyprlock";
           before_sleep_cmd = "loginctl lock-session";
-          after_sleep_cmd = "hyprctl dispatch dpms on";
+          after_sleep_cmd = "${hyprDpmsPhysical} on";
         };
         listener = [
           {
             timeout = 300;
-            on-timeout = "hyprctl dispatch dpms off";
-            on-resume = "hyprctl dispatch dpms on";
+            on-timeout = "${hyprDpmsPhysical} off";
+            on-resume = "${hyprDpmsPhysical} on";
           }
           {
             timeout = 600;
@@ -1130,7 +1141,7 @@ in
   targets.genericLinux.enable = !isDarwin;
   targets.genericLinux.nixGL.packages = lib.mkIf (!isDarwin && isDesktop) nixgl.packages.${system};
 
-  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config edgeGap; });
+  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config edgeGap hyprDpmsPhysical; });
 
   dconf = {
     enable = hostname == "setsuna";

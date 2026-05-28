@@ -2366,6 +2366,9 @@ ${indentYaml 12 orchestratorRules}
       " Detach tab to new window
       bind gd tabdetach
 
+      " Reopen current tab in a container (prompts for container name or index)
+      bind gC js -p (async () => { const [tab] = await browser.tabs.query({active:true,currentWindow:true}); const ids = await browser.contextualIdentities.query({}); if (!ids.length) return; const list = ids.map((c,i) => `''${i+1}: ''${c.name}`).join('\n'); const ans = prompt('Reopen in container:\n' + list); if (!ans) return; const target = ids.find(c => c.name.toLowerCase() === ans.toLowerCase()) || ids[parseInt(ans,10) - 1]; if (!target) return; await browser.tabs.create({url: tab.url, cookieStoreId: target.cookieStoreId, index: tab.index + 1, active: true}); await browser.tabs.remove(tab.id); })()
+
       " Only hint search results on Google/DDG
       bindurl www.google.com f hint -Jc #search a
       bindurl www.google.com F hint -Jbc #search a

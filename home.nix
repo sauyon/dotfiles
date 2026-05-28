@@ -2347,8 +2347,10 @@ ${indentYaml 12 orchestratorRules}
       " Detach tab to new window
       bind gd tabdetach
 
-      " Reopen current tab in a container (prompts for container name or index)
-      bind gC js (async () => { const [tab] = await browser.tabs.query({active:true,currentWindow:true}); const ids = await browser.contextualIdentities.query({}); if (!ids.length) return; const list = ids.map((c,i) => `''${i+1}: ''${c.name}`).join('\n'); const ans = prompt('Reopen in container:\n' + list); if (!ans) return; const target = ids.find(c => c.name.toLowerCase() === ans.toLowerCase()) || ids[parseInt(ans,10) - 1]; if (!target) return; await browser.tabs.create({url: tab.url, cookieStoreId: target.cookieStoreId, index: tab.index + 1, active: true}); await browser.tabs.remove(tab.id); })()
+      " Reopen current tab in a container: gC opens `:_reopencontainer ` in
+      " the cmdline, type container name (case-insensitive) and submit.
+      command _reopencontainer jsb -d€ (async()=>{try{const n=JS_ARGS.slice(1).join(" ");if(!n)return;const[t]=await browser.tabs.query({active:true,currentWindow:true});const a=await browser.contextualIdentities.query({});const c=a.find(x=>x.name.toLowerCase()===n.toLowerCase());if(!c)return;await browser.tabs.create({url:t.url,cookieStoreId:c.cookieStoreId,index:t.index+1,active:true});await browser.tabs.remove(t.id);}catch(e){console.error(e);}})() €
+      bind gC fillcmdline _reopencontainer
 
       " Only hint search results on Google/DDG
       bindurl www.google.com f hint -Jc #search a

@@ -632,6 +632,13 @@ in
     client.enable = true;
   };
 
+  # nix-built glibc ships no libnss_systemd.so.2, so getpwnam(systemd-homed
+  # user) fails and emacs aborts init with "User <name> has no home directory"
+  # before loading init.el. Point at Arch's NSS plugins (glibc versions match,
+  # ABI-compatible).
+  systemd.user.services.emacs.Service.Environment =
+    lib.mkIf (!isDarwin && isDesktop) "LD_LIBRARY_PATH=/usr/lib";
+
   # ── Scripts ────────────────────────────────────────────────────────────────
   # On darwin, .local/bin is a symlink to the dotfiles repo; skip HM management.
   home.file.".local/bin/bootstrap.sh" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/bootstrap.sh; };

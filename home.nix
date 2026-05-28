@@ -2374,10 +2374,9 @@ ${indentYaml 12 orchestratorRules}
       " Detach tab to new window
       bind gd tabdetach
 
-      " Reopen current tab in a container: gC opens `:_reopencontainer ` in
-      " the cmdline, type container name (case-insensitive) and submit.
-      command _reopencontainer jsb -d€ (async()=>{try{const n=JS_ARGS.slice(1).join(" ");if(!n)return;const[t]=await browser.tabs.query({active:true,currentWindow:true});const a=await browser.contextualIdentities.query({});const c=a.find(x=>x.name.toLowerCase()===n.toLowerCase());if(!c)return;await browser.tabs.create({url:t.url,cookieStoreId:c.cookieStoreId,index:t.index+1,active:true});await browser.tabs.remove(t.id);}catch(e){console.error(e);}})() €
-      bind gC fillcmdline _reopencontainer
+      " Reopen current tab in a container via a fuzzy picker. JS lives in
+      " ~/.config/tridactyl/reopencontainer.js (deployed below by home-manager).
+      bind gC js -r reopencontainer.js
 
       " Only hint search results on Google/DDG
       bindurl www.google.com f hint -Jc #search a
@@ -2420,6 +2419,145 @@ ${indentYaml 12 orchestratorRules}
 
       " Wayland clipboard
       set externalclipboardcmd wl-copy
+    '';
+
+    configFile."tridactyl/reopencontainer.js".text = ''
+      // Fuzzy picker that reopens the current tab in a chosen container.
+      // Invoked from tridactylrc via `:js -r reopencontainer.js` on gC.
+      (async () => {
+        try {
+          const containers = await tri.browserBg.contextualIdentities.query({});
+          if (!containers.length) return;
+          const [tab] = await tri.browserBg.tabs.query({active: true, currentWindow: true});
+          const url = tab.url;
+          const oldId = tab.id;
+          const newIndex = tab.index + 1;
+
+          const existing = document.getElementById("__tri_cpicker");
+          if (existing) existing.remove();
+
+          try { tri.excmds.mode("ignore"); } catch (e) {}
+
+          const root = document.createElement("div");
+          root.id = "__tri_cpicker";
+          root.style.cssText = "position:fixed;top:15%;left:50%;transform:translateX(-50%);z-index:2147483647;background:#1e1e1e;color:#eee;border:1px solid #555;border-radius:6px;padding:8px;min-width:320px;max-width:480px;font-family:monospace;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,0.6);";
+
+          const input = document.createElement("input");
+          input.type = "text";
+          input.placeholder = "fuzzy container...";
+          input.spellcheck = false;
+          input.autocomplete = "off";
+          input.style.cssText = "width:100%;background:#111;color:#eee;border:1px solid #444;padding:6px 8px;box-sizing:border-box;font-family:inherit;font-size:inherit;outline:none;border-radius:3px;";
+
+          const listEl = document.createElement("div");
+          listEl.style.cssText = "margin-top:6px;max-height:320px;overflow-y:auto;";
+
+          const hint = document.createElement("div");
+          hint.textContent = "enter: select   esc: cancel   up/down or ^p/^n: move";
+          hint.style.cssText = "margin-top:6px;font-size:11px;color:#888;";
+
+          root.appendChild(input);
+          root.appendChild(listEl);
+          root.appendChild(hint);
+          document.body.appendChild(root);
+
+          let selected = 0;
+          let filtered = containers.slice();
+
+          const score = (q, s) => {
+            if (!q) return 1;
+            q = q.toLowerCase();
+            s = s.toLowerCase();
+            let qi = 0;
+            let sc = 0;
+            let lastIdx = -1;
+            for (let si = 0; si < s.length && qi < q.length; si++) {
+              if (s[si] === q[qi]) {
+                sc += (si === lastIdx + 1 ? 2 : 1);
+                lastIdx = si;
+                qi++;
+              }
+            }
+            return qi === q.length ? sc : 0;
+          };
+
+          const render = () => {
+            listEl.textContent = "";
+            filtered.forEach((c, i) => {
+              const item = document.createElement("div");
+              item.textContent = c.name;
+              item.style.cssText = "padding:4px 8px;cursor:pointer;border-radius:3px;" + (i === selected ? "background:#0066cc;color:#fff;" : "");
+              item.addEventListener("mousedown", (e) => {
+                e.preventDefault();
+                selected = i;
+                pick();
+              });
+              listEl.appendChild(item);
+            });
+          };
+
+          const refilter = () => {
+            const q = input.value.trim();
+            if (!q) {
+              filtered = containers.slice();
+            } else {
+              filtered = containers
+                .map(c => ({ c, s: score(q, c.name) }))
+                .filter(x => x.s > 0)
+                .sort((a, b) => b.s - a.s)
+                .map(x => x.c);
+            }
+            selected = 0;
+            render();
+          };
+
+          let cleanedUp = false;
+          const cleanup = () => {
+            if (cleanedUp) return;
+            cleanedUp = true;
+            root.remove();
+            document.removeEventListener("keydown", onKey, true);
+            try { tri.excmds.mode("normal"); } catch (e) {}
+          };
+
+          const pick = async () => {
+            const target = filtered[selected];
+            cleanup();
+            if (!target) return;
+            try {
+              await tri.browserBg.tabs.create({ url, cookieStoreId: target.cookieStoreId, index: newIndex, active: true });
+              await tri.browserBg.tabs.remove(oldId);
+            } catch (e) {
+              console.error("reopencontainer pick:", e);
+            }
+          };
+
+          const onKey = (e) => {
+            const k = e.key;
+            if (k === "Escape") {
+              e.preventDefault(); e.stopImmediatePropagation();
+              cleanup();
+            } else if (k === "Enter") {
+              e.preventDefault(); e.stopImmediatePropagation();
+              pick();
+            } else if (k === "ArrowDown" || (e.ctrlKey && k === "n")) {
+              e.preventDefault(); e.stopImmediatePropagation();
+              if (filtered.length) { selected = (selected + 1) % filtered.length; render(); }
+            } else if (k === "ArrowUp" || (e.ctrlKey && k === "p")) {
+              e.preventDefault(); e.stopImmediatePropagation();
+              if (filtered.length) { selected = (selected - 1 + filtered.length) % filtered.length; render(); }
+            }
+          };
+
+          document.addEventListener("keydown", onKey, true);
+          input.addEventListener("input", refilter);
+
+          render();
+          input.focus();
+        } catch (e) {
+          console.error("reopencontainer:", e);
+        }
+      })()
     '';
   };
 }

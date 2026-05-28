@@ -66,12 +66,30 @@ let
     paths = [ drv ];
     nativeBuildInputs = [ pkgs.makeBinaryWrapper ];
     postBuild = ''
-      for f in "$out"/bin/*; do
-        [ -L "$f" ] || continue
-        tgt=$(readlink -f "$f")
-        rm "$f"
-        makeWrapper "$tgt" "$f" \
-          --prefix LD_LIBRARY_PATH : ${hostNssDir}/lib
+      # Wrap top-level executables in bin/ and libexec/ so they preload the
+      # host libnss_systemd.so.2.
+      for d in bin libexec; do
+        [ -d "$out/$d" ] || continue
+        for f in "$out/$d"/*; do
+          [ -L "$f" ] || continue
+          tgt=$(readlink -f "$f")
+          [ -f "$tgt" ] && [ -x "$tgt" ] || continue
+          rm "$f"
+          makeWrapper "$tgt" "$f" \
+            --prefix LD_LIBRARY_PATH : ${hostNssDir}/lib
+        done
+      done
+      # Service files (systemd + dbus) embed the unwrapped store path in
+      # ExecStart=/Exec=; rewrite them so dbus/systemd activation hits the
+      # wrappers above instead of the unwrapped binary.
+      for dir in share/systemd/user share/dbus-1/services share/dbus-1/system-services; do
+        [ -d "$out/$dir" ] || continue
+        for f in "$out/$dir"/*; do
+          [ -L "$f" ] || continue
+          tgt=$(readlink -f "$f")
+          rm "$f"
+          sed "s|${drv}|$out|g" "$tgt" > "$f"
+        done
       done
     '';
   };
@@ -1866,7 +1884,7 @@ in
     portal = {
       enable = !isDarwin && isDesktop;
       extraPortals = lib.optionals (!isDarwin && isDesktop) [
-        pkgs.xdg-desktop-portal-gtk
+        (withHostNss pkgs.xdg-desktop-portal-gtk)
       ];
       xdgOpenUsePortal = !isDarwin && isDesktop;
       config = {
@@ -1908,22 +1926,22 @@ in
     # xdg-open (and the browser) as a child. Symlink the units in so dbus
     # activation finds them.
     configFile."systemd/user/xdg-desktop-portal.service" = lib.mkIf (!isDarwin && isDesktop) {
-      source = "${pkgs.xdg-desktop-portal}/share/systemd/user/xdg-desktop-portal.service";
+      source = "${withHostNss pkgs.xdg-desktop-portal}/share/systemd/user/xdg-desktop-portal.service";
     };
     configFile."systemd/user/xdg-document-portal.service" = lib.mkIf (!isDarwin && isDesktop) {
-      source = "${pkgs.xdg-desktop-portal}/share/systemd/user/xdg-document-portal.service";
+      source = "${withHostNss pkgs.xdg-desktop-portal}/share/systemd/user/xdg-document-portal.service";
     };
     configFile."systemd/user/xdg-permission-store.service" = lib.mkIf (!isDarwin && isDesktop) {
-      source = "${pkgs.xdg-desktop-portal}/share/systemd/user/xdg-permission-store.service";
+      source = "${withHostNss pkgs.xdg-desktop-portal}/share/systemd/user/xdg-permission-store.service";
     };
     configFile."systemd/user/xdg-desktop-portal-rewrite-launchers.service" = lib.mkIf (!isDarwin && isDesktop) {
-      source = "${pkgs.xdg-desktop-portal}/share/systemd/user/xdg-desktop-portal-rewrite-launchers.service";
+      source = "${withHostNss pkgs.xdg-desktop-portal}/share/systemd/user/xdg-desktop-portal-rewrite-launchers.service";
     };
     configFile."systemd/user/xdg-desktop-portal-gtk.service" = lib.mkIf (!isDarwin && isDesktop) {
-      source = "${pkgs.xdg-desktop-portal-gtk}/share/systemd/user/xdg-desktop-portal-gtk.service";
+      source = "${withHostNss pkgs.xdg-desktop-portal-gtk}/share/systemd/user/xdg-desktop-portal-gtk.service";
     };
     configFile."systemd/user/xdg-desktop-portal-hyprland.service" = lib.mkIf (!isDarwin && isDesktop) {
-      source = "${pkgs.xdg-desktop-portal-hyprland}/share/systemd/user/xdg-desktop-portal-hyprland.service";
+      source = "${withHostNss pkgs.xdg-desktop-portal-hyprland}/share/systemd/user/xdg-desktop-portal-hyprland.service";
     };
 
     configFile."agent-orchestrator/config.yaml".text = let

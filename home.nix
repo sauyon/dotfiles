@@ -733,18 +733,7 @@ in
           echo "tailscale IPv4 not available" >&2
           exit 1
         fi
-        headless=""
-        for _ in $(seq 1 30); do
-          headless=$(${pkgs.hyprland}/bin/hyprctl monitors all -j 2>/dev/null \
-            | ${pkgs.jq}/bin/jq -r 'map(select(.name | startswith("HEADLESS-"))) | .[0].name // empty')
-          [ -n "$headless" ] && break
-          sleep 1
-        done
-        if [ -z "$headless" ]; then
-          echo "no HEADLESS-* output found in Hyprland" >&2
-          exit 1
-        fi
-        exec ${pkgs.wayvnc}/bin/wayvnc --output="$headless" "$ip"
+        exec ${pkgs.wayvnc}/bin/wayvnc --detached "$ip"
       '';
       Restart = "on-failure";
       RestartSec = 5;
@@ -786,29 +775,30 @@ in
     };
   };
 
-  systemd.user.services.wayvnc-headless-toggle = lib.optionalAttrs (!isDarwin && isDesktop) {
+  systemd.user.services.wayvnc-output-pin = lib.optionalAttrs (!isDarwin && isDesktop) {
     Unit = {
-      Description = "Create a Hyprland headless output while a wayvnc client is connected";
+      Description = "Keep wayvnc attached and pinned to HEADLESS-1 across Hyprland monitor hotplug";
       PartOf = [ "graphical-session.target" "wayvnc.service" ];
       After = [ "wayvnc.service" ];
       BindsTo = [ "wayvnc.service" ];
     };
     Service = {
-      ExecStart = pkgs.writeShellScript "wayvnc-headless-toggle" ''
+      ExecStart = pkgs.writeShellScript "wayvnc-output-pin" ''
         set -eu
 
-        hyprctl=${pkgs.hyprland}/bin/hyprctl
         wayvncctl=${pkgs.wayvnc}/bin/wayvncctl
-        jq=${pkgs.jq}/bin/jq
+        socat=${pkgs.socat}/bin/socat
 
-        created=""
+        target="HEADLESS-1"
 
-        cleanup() {
-          if [ -n "$created" ]; then
-            "$hyprctl" output remove "$created" >/dev/null 2>&1 || true
-          fi
+        pin() {
+          # attach is a no-op (errors) if already attached; output-set is what
+          # actually re-pins wayvnc after Hyprland recreates the wl_output on a
+          # mirror transition.
+          "$wayvncctl" attach "$WAYLAND_DISPLAY" >/dev/null 2>&1 || true
+          sleep 0.2
+          "$wayvncctl" output-set "$target" >/dev/null 2>&1 || true
         }
-        trap cleanup EXIT INT TERM
 
         # wait for the wayvnc IPC socket
         for _ in $(seq 1 30); do
@@ -816,28 +806,19 @@ in
           sleep 1
         done
 
-        while IFS= read -r evt; do
-          method=$(printf '%s\n' "$evt" | "$jq" -r '.method // empty')
-          count=$(printf '%s\n' "$evt" | "$jq" -r '.params."connection-count" // empty')
-          case "$method" in
-            client-connected)
-              if [ "$count" = "1" ] && [ -z "$created" ]; then
-                line=$("$hyprctl" output create headless || true)
-                created=$(printf '%s\n' "$line" | grep -oE 'HEADLESS-[0-9]+' | head -n1 || true)
-                if [ -n "$created" ]; then
-                  "$wayvncctl" output-set "$created" >/dev/null 2>&1 || true
-                fi
-              fi
-              ;;
-            client-disconnected)
-              if [ "$count" = "0" ] && [ -n "$created" ]; then
-                "$wayvncctl" output-cycle >/dev/null 2>&1 || true
-                "$hyprctl" output remove "$created" >/dev/null 2>&1 || true
-                created=""
-              fi
+        pin
+
+        hypr_sock="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
+        "$socat" -U - "UNIX-CONNECT:$hypr_sock" | while IFS= read -r evt; do
+          case "$evt" in
+            monitoraddedv2*|monitorremovedv2*)
+              # debounce: let Hyprland finish recreating HEADLESS-1's wl_output
+              # before we re-issue output-set
+              sleep 0.3
+              pin
               ;;
           esac
-        done < <("$wayvncctl" --json event-receive)
+        done
       '';
       Restart = "on-failure";
       RestartSec = 5;

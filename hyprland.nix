@@ -81,9 +81,7 @@
           echo "headless output not created" >&2
           exit 1
         fi
-        ${pkgs.hyprland}/bin/hyprctl keyword monitor "$name, 1920x1080@60, auto, 1"
-        sleep 0.5
-        ${pkgs.hyprland}/bin/hyprctl keyword monitor "HDMI-A-1, 3840x2160@120, 0x0, 1, bitdepth, 10, cm, srgb, mirror, $name"
+        ${pkgs.hyprland}/bin/hyprctl keyword monitor "$name, 1920x1080@60, auto, 1, mirror, HDMI-A-1"
       ''}"
       "mako"
       "hypr-fullscreen-inhibit"

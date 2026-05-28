@@ -889,6 +889,7 @@ in
     cosign
     cryptomator-cli
     lnav
+    mosh
     opencode
     bat
     rustup

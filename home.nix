@@ -786,6 +786,65 @@ in
     };
   };
 
+  systemd.user.services.wayvnc-headless-toggle = lib.optionalAttrs (!isDarwin && isDesktop) {
+    Unit = {
+      Description = "Create a Hyprland headless output while a wayvnc client is connected";
+      PartOf = [ "graphical-session.target" "wayvnc.service" ];
+      After = [ "wayvnc.service" ];
+      BindsTo = [ "wayvnc.service" ];
+    };
+    Service = {
+      ExecStart = pkgs.writeShellScript "wayvnc-headless-toggle" ''
+        set -eu
+
+        hyprctl=${pkgs.hyprland}/bin/hyprctl
+        wayvncctl=${pkgs.wayvnc}/bin/wayvncctl
+        jq=${pkgs.jq}/bin/jq
+
+        created=""
+
+        cleanup() {
+          if [ -n "$created" ]; then
+            "$hyprctl" output remove "$created" >/dev/null 2>&1 || true
+          fi
+        }
+        trap cleanup EXIT INT TERM
+
+        # wait for the wayvnc IPC socket
+        for _ in $(seq 1 30); do
+          "$wayvncctl" --json get-clients >/dev/null 2>&1 && break
+          sleep 1
+        done
+
+        while IFS= read -r evt; do
+          method=$(printf '%s\n' "$evt" | "$jq" -r '.method // empty')
+          count=$(printf '%s\n' "$evt" | "$jq" -r '.params."connection-count" // empty')
+          case "$method" in
+            client-connected)
+              if [ "$count" = "1" ] && [ -z "$created" ]; then
+                line=$("$hyprctl" output create headless || true)
+                created=$(printf '%s\n' "$line" | grep -oE 'HEADLESS-[0-9]+' | head -n1 || true)
+                if [ -n "$created" ]; then
+                  "$wayvncctl" output-set "$created" >/dev/null 2>&1 || true
+                fi
+              fi
+              ;;
+            client-disconnected)
+              if [ "$count" = "0" ] && [ -n "$created" ]; then
+                "$wayvncctl" output-cycle >/dev/null 2>&1 || true
+                "$hyprctl" output remove "$created" >/dev/null 2>&1 || true
+                created=""
+              fi
+              ;;
+          esac
+        done < <("$wayvncctl" --json event-receive)
+      '';
+      Restart = "on-failure";
+      RestartSec = 5;
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
+
   systemd.user.services.psi-notify = lib.optionalAttrs (!isDarwin && isDesktop) {
     Unit = {
       Description = "Desktop notifications when system resources are under pressure";

@@ -137,12 +137,9 @@
     # Ok, fine, sometimes emacs is stupid. But at least it knows it.
     [[ $TERM == "dumb" ]] && unsetopt zle && PS1='$ '
 
-    # mosh carries 24-bit color through; bump TERM so apps emit it,
-    # and set COLORTERM since SSH/mosh don't pass it by default.
-    if is_mosh; then
-      export TERM=xterm-direct
-      export COLORTERM=truecolor
-    fi
+    # SSH/mosh don't propagate COLORTERM by default; set it so apps that
+    # gate truecolor on it (tmux, vim plugins) work over mosh.
+    is_mosh && export COLORTERM=truecolor
 
     if [[ -f /tmp/checkupdates.log ]]; then
       cat /tmp/checkupdates.log

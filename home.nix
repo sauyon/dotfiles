@@ -1003,6 +1003,22 @@ in
       });
     })
     (final: prev: {
+      mosh = prev.mosh.overrideAttrs (old: {
+        version = "1.4.0-blink-master";
+        src = prev.fetchFromGitHub {
+          owner = "sauyon";
+          repo = "mosh";
+          rev = "91b48f1061072e910cdb8ecd672988628cfa05ed";
+          sha256 = "00f1v6xm53gr0hfsnmdhgqbdnfkdbd0sv6sdkhqrln3acrcsrwzh";
+        };
+        # nixpkgs cherry-picks an upstream macOS compile fix that's
+        # already in our base — drop it to avoid "patch already applied".
+        patches = builtins.filter
+          (p: !(prev.lib.hasInfix "eee1a8cf" (toString p)))
+          old.patches;
+      });
+    })
+    (final: prev: {
       claude-agent-acp = prev.buildNpmPackage rec {
         pname = "claude-agent-acp";
         version = "0.33.1";

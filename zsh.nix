@@ -60,15 +60,6 @@
     include() { [[ -f "$@" ]] && source "$@" }
 
     is_ssh() { [[ -n $SSH_CONNECTION ]] || [[ -n $SSH_CLIENT ]] || [[ -n $SSH_TTY ]] }
-    is_mosh() {
-      local pid=$PPID
-      while [[ $pid -gt 1 ]]; do
-        [[ "$(ps -o comm= -p $pid 2>/dev/null)" == *mosh-server* ]] && return 0
-        pid=$(ps -o ppid= -p $pid 2>/dev/null | tr -d ' ')
-        [[ -z $pid ]] && return 1
-      done
-      return 1
-    }
     non_gui() { ! xhost &> /dev/null && [ -z $WAYLAND_DISPLAY ] }
 
     exists() {
@@ -136,10 +127,6 @@
 
     # Ok, fine, sometimes emacs is stupid. But at least it knows it.
     [[ $TERM == "dumb" ]] && unsetopt zle && PS1='$ '
-
-    # SSH/mosh don't propagate COLORTERM by default; set it so apps that
-    # gate truecolor on it (tmux, vim plugins) work over mosh.
-    is_mosh && export COLORTERM=truecolor
 
     if [[ -f /tmp/checkupdates.log ]]; then
       cat /tmp/checkupdates.log

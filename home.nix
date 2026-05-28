@@ -49,6 +49,33 @@ let
   agent-orchestrator-pkg = if isDarwin then null else agent-orchestrator.packages.${system}.default;
   ao-mcp-pkg = if isDarwin then null else ao-mcp.packages.${system}.default;
 
+  # nix's glibc ships no libnss_systemd.so.2 and only searches the nix store,
+  # so getpwnam on a systemd-homed user (anyone not in /etc/passwd) fails from
+  # nix-built binaries on Arch. Symlink the host's plugin into a private dir
+  # and `withHostNss` wraps a package's binaries with a narrowly-scoped
+  # LD_LIBRARY_PATH pointing at it. Apply to any nix package that needs to
+  # resolve the current user. Inert on systems without the host file (the
+  # dangling symlink just fails to dlopen and NSS skips it).
+  hostNssDir = pkgs.runCommand "host-libnss-systemd" { } ''
+    mkdir -p $out/lib
+    ln -s /usr/lib/libnss_systemd.so.2 $out/lib/libnss_systemd.so.2
+  '';
+
+  withHostNss = drv: pkgs.symlinkJoin {
+    name = "${drv.name or "pkg"}-host-nss";
+    paths = [ drv ];
+    nativeBuildInputs = [ pkgs.makeBinaryWrapper ];
+    postBuild = ''
+      for f in "$out"/bin/*; do
+        [ -L "$f" ] || continue
+        tgt=$(readlink -f "$f")
+        rm "$f"
+        makeWrapper "$tgt" "$f" \
+          --prefix LD_LIBRARY_PATH : ${hostNssDir}/lib
+      done
+    '';
+  };
+
   # Dispatch dpms only to physical outputs, skipping HEADLESS-* so the wayvnc
   # capture target stays alive when the screen idles or the lid closes.
   hyprDpmsPhysical = pkgs.writeShellScript "hypr-dpms-physical" ''
@@ -628,16 +655,9 @@ in
 
   services.emacs = lib.mkIf (!isDarwin && isDesktop) {
     enable = true;
-    package = pkgs.emacs30-pgtk;
+    package = withHostNss pkgs.emacs30-pgtk;
     client.enable = true;
   };
-
-  # nix-built glibc ships no libnss_systemd.so.2, so getpwnam(systemd-homed
-  # user) fails and emacs aborts init with "User <name> has no home directory"
-  # before loading init.el. Point at Arch's NSS plugins (glibc versions match,
-  # ABI-compatible).
-  systemd.user.services.emacs.Service.Environment =
-    lib.mkIf (!isDarwin && isDesktop) "LD_LIBRARY_PATH=/usr/lib";
 
   # ── Scripts ────────────────────────────────────────────────────────────────
   # On darwin, .local/bin is a symlink to the dotfiles repo; skip HM management.

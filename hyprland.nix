@@ -3,6 +3,7 @@
   config,
   edgeGap,
   hyprDpmsPhysical,
+  mirrorOutput ? null,
   ...
 }:
 {
@@ -81,7 +82,7 @@
           echo "headless output not created" >&2
           exit 1
         fi
-        ${pkgs.hyprland}/bin/hyprctl keyword monitor "$name, 1920x1080@60, auto, 1, mirror, HDMI-A-1"
+        ${pkgs.hyprland}/bin/hyprctl keyword monitor "$name, 1920x1080@60, auto, 1${if mirrorOutput != null then ", mirror, ${mirrorOutput}" else ""}"
       ''}"
       "mako"
       "hypr-fullscreen-inhibit"

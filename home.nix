@@ -19,6 +19,7 @@ let
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
   gpu = machine.gpu or null;
+  mirrorOutput = machine.mirrorOutput or null;
 
   btopPkg =
     if gpu == "amd" then pkgs.btop-rocm
@@ -879,7 +880,7 @@ in
     };
     Service = {
       Type = "notify";
-      ExecStart = "${pkgs.psi-notify}/bin/psi-notify";
+      ExecStart = "${withHostNss pkgs.psi-notify}/bin/psi-notify";
       ExecReload = "${pkgs.coreutils}/bin/kill -HUP $MAINPID";
       Restart = "on-failure";
       RestartSec = 5;
@@ -1240,10 +1241,14 @@ in
     };
   };
 
+  # services.gpg-agent generates its systemd unit from programs.gpg.package;
+  # wrap so gpg-agent's getpwnam/getpwuid hits the host's libnss_systemd.
+  programs.gpg.package = lib.mkIf (!isDarwin) (withHostNss pkgs.gnupg);
+
   targets.genericLinux.enable = !isDarwin;
   targets.genericLinux.nixGL.packages = lib.mkIf (!isDarwin && isDesktop) nixgl.packages.${system};
 
-  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config edgeGap hyprDpmsPhysical; });
+  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config edgeGap hyprDpmsPhysical mirrorOutput; });
 
   dconf = {
     enable = hostname == "setsuna";

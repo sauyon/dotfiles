@@ -821,55 +821,9 @@ in
     };
   };
 
-  systemd.user.services.wayvnc-output-pin = lib.optionalAttrs (!isDarwin && isDesktop) {
-    Unit = {
-      Description = "Keep wayvnc attached and pinned to HEADLESS-1 across Hyprland monitor hotplug";
-      PartOf = [ "graphical-session.target" "wayvnc.service" ];
-      After = [ "wayvnc.service" ];
-      BindsTo = [ "wayvnc.service" ];
-    };
-    Service = {
-      ExecStart = pkgs.writeShellScript "wayvnc-output-pin" ''
-        set -eu
-
-        wayvncctl=${pkgs.wayvnc}/bin/wayvncctl
-        socat=${pkgs.socat}/bin/socat
-
-        target="HEADLESS-1"
-
-        pin() {
-          # attach is a no-op (errors) if already attached; output-set is what
-          # actually re-pins wayvnc after Hyprland recreates the wl_output on a
-          # mirror transition.
-          "$wayvncctl" attach "$WAYLAND_DISPLAY" >/dev/null 2>&1 || true
-          sleep 0.2
-          "$wayvncctl" output-set "$target" >/dev/null 2>&1 || true
-        }
-
-        # wait for the wayvnc IPC socket
-        for _ in $(seq 1 30); do
-          "$wayvncctl" --json get-clients >/dev/null 2>&1 && break
-          sleep 1
-        done
-
-        pin
-
-        hypr_sock="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
-        "$socat" -U - "UNIX-CONNECT:$hypr_sock" | while IFS= read -r evt; do
-          case "$evt" in
-            monitoraddedv2*|monitorremovedv2*)
-              # debounce: let Hyprland finish recreating HEADLESS-1's wl_output
-              # before we re-issue output-set
-              sleep 0.3
-              pin
-              ;;
-          esac
-        done
-      '';
-      Restart = "on-failure";
-      RestartSec = 5;
-    };
-    Install.WantedBy = [ "graphical-session.target" ];
+  services.hypr-wayvnc-virtual-display = lib.mkIf (!isDarwin && isDesktop) {
+    enable = true;
+    headless.mirrorOutput = mirrorOutput;
   };
 
   systemd.user.services.psi-notify = lib.optionalAttrs (!isDarwin && isDesktop) {
@@ -946,7 +900,7 @@ in
     pkgs.psi-notify
     pkgs.slack
     pkgs.vesktop
-    (config.lib.nixGL.wrap pkgs.warp-terminal)
+    (config.lib.nixGL.wrap (withHostNss pkgs.warp-terminal))
     pkgs.wayvnc
     pkgs.xdg-utils
   ];
@@ -1248,7 +1202,7 @@ in
   targets.genericLinux.enable = !isDarwin;
   targets.genericLinux.nixGL.packages = lib.mkIf (!isDarwin && isDesktop) nixgl.packages.${system};
 
-  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config edgeGap hyprDpmsPhysical mirrorOutput; });
+  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config edgeGap hyprDpmsPhysical; });
 
   dconf = {
     enable = hostname == "setsuna";

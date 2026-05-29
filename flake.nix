@@ -17,10 +17,11 @@
     nixgl.url = "github:guibou/nixGL";
     agent-orchestrator.url = "github:sauyon/agent-orchestrator";
     ao-mcp.url = "github:sauyon/ao-mcp";
+    hypr-wayvnc-virtual-display.url = "github:sauyon/hypr-wayvnc-virtual-display";
 
   };
 
-  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, ... }:
+  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, hypr-wayvnc-virtual-display, ... }:
   let
     mkHome = system: home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.${system};
@@ -28,7 +29,9 @@
         inherit sops-nix walker nixgl agent-orchestrator ao-mcp;
         inherit system;
       };
-      modules = [ ./home.nix ];
+      modules = [ ./home.nix ] ++ nixpkgs.lib.optionals (nixpkgs.lib.hasSuffix "-linux" system) [
+        hypr-wayvnc-virtual-display.homeManagerModules.default
+      ];
     };
   in {
     homeConfigurations.sauyon = mkHome "x86_64-linux";

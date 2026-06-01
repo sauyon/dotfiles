@@ -1747,6 +1747,13 @@ in
         "yui mio meiko ritsu mugi azusa" = {
           forwardAgent = true;
         };
+        # meiko hasn't been re-added to tailscale post-NixOS-rebuild, so
+        # MagicDNS doesn't resolve `meiko` yet. Pin to its UCG-reserved
+        # LAN address until tailscale is back on the box; can be dropped
+        # once `tailscale status | grep meiko` shows it online.
+        "meiko" = {
+          hostname = "10.0.7.110";
+        };
         "testserver" = {
           hostname = "35.163.118.10";
           user = "ubuntu";

@@ -1305,9 +1305,6 @@ in
         position = "top";
         height = barHeight;
         spacing = 0;
-        margin-top = edgeGap;
-        margin-left = edgeGap;
-        margin-right = edgeGap;
 
         "hyprland/workspaces" = {
           format = "{id}";
@@ -1398,6 +1395,9 @@ in
         })
         (shared // {
           output = [ "!eDP-1" "*" ];
+          margin-top = edgeGap;
+          margin-left = edgeGap;
+          margin-right = edgeGap;
           modules-left = [ "hyprland/workspaces" "hyprland/window" ];
           modules-center = [ "mpris" ];
           modules-right = [ "wireplumber" "network" "bluetooth" "tray" "memory" "custom/caffeine" "clock" "custom/notifications" ];

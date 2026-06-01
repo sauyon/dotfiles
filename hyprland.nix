@@ -11,7 +11,7 @@
   settings = {
     general = {
       gaps_in = 0;
-      gaps_out = "0, ${toString edgeGap}, ${toString edgeGap}, ${toString edgeGap}";
+      gaps_out = 0;
 
       border_size = 1;
     };
@@ -19,6 +19,10 @@
     monitor = [
       "HDMI-A-1, 3840x2160@120, 0x0, 1, bitdepth, 10, cm, srgb"
       ", preferred, auto, 1"
+    ];
+
+    workspace = [
+      "m[HDMI-A-1], gapsout:0 ${toString edgeGap} ${toString edgeGap} ${toString edgeGap}"
     ];
 
     env = [

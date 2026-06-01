@@ -1391,7 +1391,7 @@ in
           output = [ "eDP-1" ];
           modules-left = [ "hyprland/workspaces" "hyprland/window" ];
           modules-center = [ "mpris" ];
-          modules-right = [ "wireplumber" "network" "battery" "tray" "custom/caffeine" "clock" "custom/notifications" ];
+          modules-right = [ "wireplumber" "network" "battery" "tray" "memory" "custom/caffeine" "clock" "custom/notifications" ];
         })
         (shared // {
           output = [ "!eDP-1" "*" ];

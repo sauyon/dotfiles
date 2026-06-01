@@ -1744,7 +1744,7 @@ in
           hostname = "kanon.alai-ionian.ts.net";
           port = 59048;
         };
-        "yui mio ritsu mugi azusa" = {
+        "yui mio meiko ritsu mugi azusa" = {
           forwardAgent = true;
         };
         "testserver" = {

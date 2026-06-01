@@ -42,7 +42,11 @@ rec {
 // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
   BROWSER = "firefox";
   SSH_AGENT_PID = "";
-  SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/gnupg/S.gpg-agent.ssh";
+  # ssh-tpm-agent is the primary SSH agent (programs.ssh-tpm-agent.enable
+  # in home.nix); gpg-agent has SSH support explicitly disabled there.
+  # ssh-tpm-agent itself falls back to gpg's S.gpg-agent.ssh for non-TPM
+  # keys via its --fallback arg.
+  SSH_AUTH_SOCK = "$XDG_RUNTIME_DIR/ssh-tpm-agent.sock";
 
   # Nix-built ncurses doesn't search the distro paths by default, and
   # home-manager's generic-linux only wires TERMINFO_DIRS for systemd units,

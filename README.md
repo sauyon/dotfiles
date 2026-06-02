@@ -39,6 +39,16 @@ Files under `system/` mirror `/` and require root to deploy:
 system/deploy
 ```
 
+## Storage tuning
+
+One-shot tuning for the btrfs-on-LUKS-on-loop-on-ext4 home stack: sets LUKS
+workqueue-bypass flags, `noatime` on host `/home`, grows btrfs into LUKS
+device slack. Idempotent. The LUKS step prompts for the passphrase.
+
+```bash
+system/storage-tuning.sh
+```
+
 ## Secrets (sops-nix)
 
 Secrets are decrypted using `~/.ssh/id_ed25519` as an age identity. On a new machine, either copy your existing key or generate one and add it as a sops recipient:

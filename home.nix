@@ -124,7 +124,7 @@ let
         ;;
       waybar)
         if is_on; then
-          echo '{"text":"","class":"on","tooltip":"Idle inhibited (caffeine on)"}'
+          echo '{"text":"󰛊","class":"on","tooltip":"Idle inhibited (caffeine on)"}'
         else
           echo '{"text":"󰒲","class":"off","tooltip":"Idle enabled"}'
         fi

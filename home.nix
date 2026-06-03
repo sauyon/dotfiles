@@ -958,6 +958,47 @@ in
       });
     })
     (final: prev: {
+      # wayvnc 0.9.1 (still current in nixpkgs as of 2026-06; bump PR
+      # NixOS/nixpkgs#515606 is open but draft) has a UAF when an output it
+      # captures gets destroyed mid-session, which makes any on-demand
+      # headless-output design crash wayvnc with `wl_display invalid object`
+      # in `wl_display_dispatch_queue_pending`. Bumping to wayvnc master
+      # picks up the deferred-detach + cancel-on-readd commits (dba849620,
+      # 86688dc17, 3bcf77d10) that explicitly support outputs appearing and
+      # disappearing during a session. Pulled the aml/neatvnc 1.0.0 bumps
+      # from the same nixpkgs PR since master requires those API versions.
+      aml = prev.aml.overrideAttrs (_: {
+        version = "1.0.0";
+        src = prev.fetchFromGitHub {
+          owner = "any1";
+          repo = "aml";
+          tag = "v1.0.0";
+          hash = "sha256-10gm6YphZrpLShj3NUj/AG24dSVLZAZbbnXr7GiF4DI=";
+        };
+      });
+      neatvnc = (prev.neatvnc.override { aml = final.aml; }).overrideAttrs (old: {
+        version = "1.0.0";
+        src = prev.fetchFromGitHub {
+          owner = "any1";
+          repo = "neatvnc";
+          rev = "v1.0.0";
+          hash = "sha256-yEWNiazRxc8G7ToqOcTtCXEuBCgXO64v31Xx1YeOPCM=";
+        };
+        # 1.0.0 adds a vencrypt rfb-handshake test that shells out to
+        # openssl to generate a throwaway cert; matches the nixpkgs bump PR.
+        nativeCheckInputs = (old.nativeCheckInputs or []) ++ [ prev.openssl ];
+      });
+      wayvnc = (prev.wayvnc.override { aml = final.aml; neatvnc = final.neatvnc; }).overrideAttrs (_: {
+        version = "0.11.0-unstable-2026-06-02";
+        src = prev.fetchFromGitHub {
+          owner = "any1";
+          repo = "wayvnc";
+          rev = "3bcf77d10cabc3c4807e6051257db5db2bddabb6";
+          hash = "sha256-1Ntc/WeJT8ft3rrXkcMGr6za4UBIgea6y6WGb07+GYo=";
+        };
+      });
+    })
+    (final: prev: {
       mosh = prev.mosh.overrideAttrs (old: {
         version = "1.4.0-blink-master";
         src = prev.fetchFromGitHub {

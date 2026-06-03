@@ -19,7 +19,6 @@ let
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
   gpu = machine.gpu or null;
-  mirrorOutput = machine.mirrorOutput or null;
 
   btopPkg =
     if gpu == "amd" then pkgs.btop-rocm
@@ -823,7 +822,6 @@ in
 
   services.hypr-wayvnc-virtual-display = lib.mkIf (!isDarwin && isDesktop) {
     enable = true;
-    headless.mirrorOutput = mirrorOutput;
   };
 
   systemd.user.services.psi-notify = lib.optionalAttrs (!isDarwin && isDesktop) {

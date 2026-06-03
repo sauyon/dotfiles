@@ -2,3 +2,4 @@ result
 __pycache__/
 /.config/
 hardware.nix
+machine.nix

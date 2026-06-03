@@ -13,7 +13,9 @@ git clone https://github.com/sauyon/dotfiles ~/devel/dotfiles
 cat > ~/devel/dotfiles/machine.nix << 'EOF'
 {
   hostname = "mymachine";
-  isDesktop = true;  # false for headless servers
+  gui = true;  # false for headless servers
+  # gpu = "amd";  # or "nvidia"; omit for Intel/none
+  # mirrorOutput = "eDP-1";  # physical output the wayvnc headless display mirrors
 }
 EOF
 

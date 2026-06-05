@@ -760,70 +760,6 @@ in
   };
 
 
-  systemd.user.services.wayvnc = lib.optionalAttrs (!isDarwin && isDesktop) {
-    Unit = {
-      Description = "WayVNC server bound to the tailscale interface";
-      PartOf = [ "graphical-session.target" ];
-      After = [ "graphical-session.target" ];
-    };
-    Service = {
-      ExecStart = pkgs.writeShellScript "wayvnc-tailscale" ''
-        set -eu
-        for _ in $(seq 1 60); do
-          ip=$(${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null | head -n1 || true)
-          [ -n "''${ip:-}" ] && break
-          sleep 1
-        done
-        if [ -z "''${ip:-}" ]; then
-          echo "tailscale IPv4 not available" >&2
-          exit 1
-        fi
-        exec ${pkgs.wayvnc}/bin/wayvnc --detached "$ip"
-      '';
-      Restart = "on-failure";
-      RestartSec = 5;
-    };
-    Install.WantedBy = [ "graphical-session.target" ];
-  };
-
-  systemd.user.sockets.wayvnc-lan = lib.optionalAttrs (!isDarwin && isDesktop) {
-    Unit.Description = "WayVNC LAN listener (forwards to tailscale-bound wayvnc)";
-    Socket = {
-      ListenStream = "10.0.7.100:5900";
-      FreeBind = true;
-    };
-    Install.WantedBy = [ "sockets.target" ];
-  };
-
-  systemd.user.services.wayvnc-lan = lib.optionalAttrs (!isDarwin && isDesktop) {
-    Unit = {
-      Description = "Proxy LAN VNC connections to tailscale-bound wayvnc";
-      Requires = [ "wayvnc.service" "wayvnc-lan.socket" ];
-      After = [ "wayvnc.service" "wayvnc-lan.socket" ];
-    };
-    Service = {
-      ExecStart = pkgs.writeShellScript "wayvnc-lan-proxy" ''
-        set -eu
-        for _ in $(seq 1 60); do
-          ip=$(${pkgs.tailscale}/bin/tailscale ip -4 2>/dev/null | head -n1 || true)
-          [ -n "''${ip:-}" ] && break
-          sleep 1
-        done
-        if [ -z "''${ip:-}" ]; then
-          echo "tailscale IPv4 not available" >&2
-          exit 1
-        fi
-        exec /usr/lib/systemd/systemd-socket-proxyd "$ip:5900"
-      '';
-      Restart = "on-failure";
-      RestartSec = 5;
-    };
-  };
-
-  services.hypr-wayvnc-virtual-display = lib.mkIf (!isDarwin && isDesktop) {
-    enable = true;
-  };
-
   systemd.user.services.psi-notify = lib.optionalAttrs (!isDarwin && isDesktop) {
     Unit = {
       Description = "Desktop notifications when system resources are under pressure";
@@ -899,7 +835,6 @@ in
     pkgs.slack
     pkgs.vesktop
     (config.lib.nixGL.wrap (withHostNss pkgs.warp-terminal))
-    pkgs.wayvnc
     pkgs.xdg-utils
   ];
 

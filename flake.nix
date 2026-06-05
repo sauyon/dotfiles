@@ -45,7 +45,7 @@
       gui = true;
       gpu = "amd";
     };
-    homeConfigurations."sauyon@darwin" = mkHome "aarch64-darwin" {
+    homeConfigurations.mari = mkHome "aarch64-darwin" {
       hostname = "mari";
       gui = true;
     };

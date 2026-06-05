@@ -20,8 +20,8 @@ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix 
 . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
 mise trust ~/devel/dotfiles/mise.toml
 
-# 5. Apply (hostname matches /etc/hostname)
-nix run github:nix-community/home-manager -- switch --flake ~/devel/dotfiles#$(cat /etc/hostname)
+# 5. Apply (flake attr matches hostname)
+nix run github:nix-community/home-manager -- switch --flake ~/devel/dotfiles#$HOST
 ```
 
 After the first switch, `home-manager switch` is available directly.

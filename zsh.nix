@@ -329,6 +329,6 @@
       if pkgs.stdenv.isDarwin then
         "home-manager switch --flake ${home}/devel/dotfiles#sauyon@darwin"
       else
-        "home-manager switch --flake ${home}/devel/dotfiles#$(cat /etc/hostname)";
+        "home-manager switch --flake ${home}/devel/dotfiles#$HOST";
   };
 }

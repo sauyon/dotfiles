@@ -39,7 +39,6 @@
     homeConfigurations.setsuna = linuxHome {
       hostname = "setsuna";
       gui = true;
-      gpu = "amd";
     };
     homeConfigurations.fujiwara = linuxHome {
       hostname = "fujiwara";

@@ -805,6 +805,7 @@ in
     lnav
     mosh
     opencode
+    codex
     bat
     rustup
     nixfmt

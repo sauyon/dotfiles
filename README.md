@@ -9,15 +9,8 @@ Home Manager configuration for `sauyon`.
 mkdir -p ~/devel
 git clone https://github.com/sauyon/dotfiles ~/devel/dotfiles
 
-# 2. Write machine-local config (not committed)
-cat > ~/devel/dotfiles/machine.nix << 'EOF'
-{
-  hostname = "mymachine";
-  gui = true;  # false for headless servers
-  # gpu = "amd";  # or "nvidia"; omit for Intel/none
-  # mirrorOutput = "eDP-1";  # physical output the wayvnc headless display mirrors
-}
-EOF
+# 2. If this is a new host, add a homeConfigurations entry for it in flake.nix
+#    (hostname, gui, gpu). Otherwise the matching entry already exists.
 
 # 3. Install Nix
 curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
@@ -27,8 +20,8 @@ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix 
 . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
 mise trust ~/devel/dotfiles/mise.toml
 
-# 5. Apply
-nix run github:nix-community/home-manager -- switch --flake ~/devel/dotfiles#sauyon
+# 5. Apply (hostname matches /etc/hostname)
+nix run github:nix-community/home-manager -- switch --flake ~/devel/dotfiles#$(cat /etc/hostname)
 ```
 
 After the first switch, `home-manager switch` is available directly.

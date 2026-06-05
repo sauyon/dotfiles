@@ -21,17 +21,35 @@
 
   outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, ... }:
   let
-    mkHome = system: home-manager.lib.homeManagerConfiguration {
+    mkHome = system: machine: home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.${system};
       extraSpecialArgs = {
-        inherit sops-nix walker nixgl agent-orchestrator ao-mcp;
+        inherit sops-nix walker nixgl agent-orchestrator ao-mcp machine;
         inherit system;
       };
       modules = [ ./home.nix ];
     };
+    linuxHome = mkHome "x86_64-linux";
   in {
-    homeConfigurations.sauyon = mkHome "x86_64-linux";
-    homeConfigurations."sauyon@darwin" = mkHome "aarch64-darwin";
+    homeConfigurations.utsuho = linuxHome {
+      hostname = "utsuho";
+      gui = true;
+      gpu = "amd";
+    };
+    homeConfigurations.setsuna = linuxHome {
+      hostname = "setsuna";
+      gui = true;
+      gpu = "amd";
+    };
+    homeConfigurations.fujiwara = linuxHome {
+      hostname = "fujiwara";
+      gui = true;
+      gpu = "amd";
+    };
+    homeConfigurations."sauyon@darwin" = mkHome "aarch64-darwin" {
+      hostname = "mari";
+      gui = true;
+    };
 
     darwinConfigurations.mari = nix-darwin.lib.darwinSystem {
       system = "aarch64-darwin";

@@ -7,7 +7,7 @@
   nixgl,
   agent-orchestrator,
   ao-mcp,
-
+  machine,
 
   system,
   ...
@@ -15,7 +15,6 @@
 
 let
   isDarwin = pkgs.stdenv.isDarwin;
-  machine = import ./machine.nix;
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
   gpu = machine.gpu or null;

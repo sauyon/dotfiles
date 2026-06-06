@@ -37,6 +37,9 @@ let
   };
 
   edgeGap = if hostname == "fujiwara" then 20 else 0;
+  noDpmsOutputs = [
+    "HDMI-A-1"
+  ];
 
   nixGL =
     if isDarwin || !isDesktop then
@@ -93,12 +96,13 @@ let
     '';
   };
 
-  # Dispatch dpms only to physical outputs, skipping HEADLESS-* so the wayvnc
-  # capture target stays alive when the screen idles or the lid closes.
+  # Dispatch dpms only to outputs that should sleep, keeping capture targets
+  # like JetKVM and HEADLESS-* alive when the screen idles or the lid closes.
   hyprDpmsPhysical = pkgs.writeShellScript "hypr-dpms-physical" ''
     set -eu
     ${pkgs.hyprland}/bin/hyprctl monitors all -j \
-      | ${pkgs.jq}/bin/jq -r '.[] | select(.name | startswith("HEADLESS-") | not) | .name' \
+      | ${pkgs.jq}/bin/jq -r --argjson no_dpms '${builtins.toJSON noDpmsOutputs}' \
+          '.[] | select(.name | startswith("HEADLESS-") | not) | select(.name as $name | $no_dpms | index($name) | not) | .name' \
       | while read -r mon; do
           ${pkgs.hyprland}/bin/hyprctl dispatch dpms "$1" "$mon"
         done

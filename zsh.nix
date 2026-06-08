@@ -66,6 +66,21 @@
       type "$1" &> /dev/null
     }
 
+    # Claude Remote Control for a project dir (default: cwd), via the
+    # claude-remote-control@.service template. Start/stop on the fly.
+    clp-rc() {
+      local d=''${1:-$PWD}
+      d=$(realpath "$d") || return 1
+      local unit="claude-remote-control@$(systemd-escape -p "$d").service"
+      systemctl --user start "$unit" && echo "started $unit"
+      systemctl --user --no-pager status "$unit" | head -5
+    }
+    clp-rc-stop() {
+      local d=''${1:-$PWD}
+      d=$(realpath "$d") || return 1
+      systemctl --user stop "claude-remote-control@$(systemd-escape -p "$d").service"
+    }
+
     fi
 
     # ── Config ─────────────────────────────────────────────────────────────

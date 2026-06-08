@@ -886,6 +886,39 @@ in
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
+  # `clp rc` == `claude-prof run personal remote-control`: a persistent server
+  # that lets claude.ai/code and the Claude mobile app drive local sessions in a
+  # given project. Template unit keyed on the project path so any number can run
+  # concurrently and be started on the fly (see clp-rc/clp-rc-stop in zsh.nix):
+  #   systemctl --user start claude-remote-control@$(systemd-escape -p /path/to/proj)
+  # %I unescapes the instance back to the absolute project path for WorkingDirectory.
+  # Verified headless: claude bundles its own node, connects with stdin=null and no
+  # TTY, and shuts down gracefully on SIGTERM. The project dir must have had its
+  # workspace-trust dialog accepted once (run `clp` in it), else RC refuses to start.
+  systemd.user.services."claude-remote-control@" = lib.optionalAttrs (!isDarwin) {
+    Unit = {
+      Description = "Claude Code Remote Control (personal profile) — %I";
+      After = [ "network-online.target" ];
+      Wants = [ "network-online.target" ];
+    };
+    Service = {
+      Type = "simple";
+      # `systemd-escape -p /abs/path` drops the leading slash, so %I unescapes to
+      # a relative path (home/sauyon/…); prefix `/` to restore the absolute path.
+      WorkingDirectory = "/%I";
+      Environment = "PATH=${config.home.profileDirectory}/bin:/usr/bin:/bin";
+      StandardInput = "null";
+      ExecStart = "${claude-prof}/bin/claude-prof run personal remote-control";
+      Restart = "on-failure";
+      RestartSec = 10;
+    };
+    # No [Install]/WantedBy: a template can't be started bare (HM would try and
+    # fail). Instances are started on the fly with `clp-rc [dir]`. To autostart a
+    # specific project at boot, enable that instance:
+    #   systemctl --user link is implicit; add a wants symlink instead, e.g.
+    #   xdg.configFile."systemd/user/default.target.wants/claude-remote-control@<esc>.service".
+  };
+
   programs.codexDesktopLinux = let
     fullFeatured = hostname == "fujiwara";
   in {

@@ -893,8 +893,8 @@ in
   #   systemctl --user start claude-remote-control@$(systemd-escape -p /path/to/proj)
   # %I unescapes the instance back to the absolute project path for WorkingDirectory.
   # Verified headless: claude bundles its own node, connects with stdin=null and no
-  # TTY, and shuts down gracefully on SIGTERM. The project dir must have had its
-  # workspace-trust dialog accepted once (run `clp` in it), else RC refuses to start.
+  # TTY, and shuts down gracefully on SIGTERM. RC refuses to start in an untrusted
+  # workspace, so clp-rc pre-accepts the trust dialog in the personal profile.
   systemd.user.services."claude-remote-control@" = lib.optionalAttrs (!isDarwin) {
     Unit = {
       Description = "Claude Code Remote Control (personal profile) — %I";
@@ -908,7 +908,9 @@ in
       WorkingDirectory = "/%I";
       Environment = "PATH=${config.home.profileDirectory}/bin:/usr/bin:/bin";
       StandardInput = "null";
-      ExecStart = "${claude-prof}/bin/claude-prof run personal remote-control";
+      # --spawn worktree: on-demand sessions each get their own git worktree (the
+      # pre-created cwd session stays in the project dir). Needs a git repo.
+      ExecStart = "${claude-prof}/bin/claude-prof run personal remote-control --spawn worktree";
       Restart = "on-failure";
       RestartSec = 10;
     };
@@ -939,6 +941,7 @@ in
     comma
     cosign
     cryptomator-cli
+    jq
     lnav
     mosh
     opencode

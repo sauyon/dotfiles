@@ -71,6 +71,19 @@
     clp-rc() {
       local d=''${1:-$PWD}
       d=$(realpath "$d") || return 1
+      git -C "$d" rev-parse --is-inside-work-tree &>/dev/null \
+        || echo "clp-rc: warning: $d is not a git repo; --spawn worktree needs one" >&2
+      # Pre-accept the workspace-trust dialog in the personal profile so headless
+      # RC doesn't refuse to start (it can't answer the prompt with no TTY).
+      local cfg="''${XDG_CONFIG_HOME:-$HOME/.config}/claude-personal/.claude.json"
+      if [[ -f "$cfg" ]]; then
+        local tmp="$cfg.clp-rc.$$"
+        if jq --arg d "$d" '.projects[$d] = ((.projects[$d] // {}) + {hasTrustDialogAccepted: true})' "$cfg" > "$tmp"; then
+          mv "$tmp" "$cfg"
+        else
+          rm -f "$tmp"; echo "clp-rc: failed to set trust in $cfg" >&2
+        fi
+      fi
       local unit="claude-remote-control@$(systemd-escape -p "$d").service"
       systemctl --user start "$unit" && echo "started $unit"
       systemctl --user --no-pager status "$unit" | head -5

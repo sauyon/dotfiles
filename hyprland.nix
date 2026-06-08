@@ -63,6 +63,9 @@
       disable_hyprland_logo = true;
       disable_splash_rendering = true;
       focus_on_activate = true;
+      # Let a fresh hyprlock take over the lock if the original client dies
+      # (e.g. when hms restarts hypridle.service and SIGTERMs the cgroup).
+      allow_session_lock_restore = true;
     };
 
     "$terminal" = "warp-terminal";

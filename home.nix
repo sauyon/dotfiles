@@ -108,6 +108,50 @@ let
         done
   '';
 
+  # Recover Hyprland after hyprlock dies with the session still locked
+  # (ext_session_lock_v1 keeps the screen locked when the client disappears).
+  # Run this from another TTY or SSH; it relies on misc:allow_session_lock_restore
+  # so a fresh hyprlock can take over the orphaned lock.
+  hypr-unstuck-lock = pkgs.writeShellScriptBin "hypr-unstuck-lock" ''
+    set -eu
+
+    RUN="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+    HIS="$(ls "$RUN/hypr" 2>/dev/null | head -1 || true)"
+    if [ -z "$HIS" ]; then
+      echo "no hyprland instance under $RUN/hypr" >&2
+      exit 1
+    fi
+    WD="$(ls "$RUN" 2>/dev/null | grep -E '^wayland-[0-9]+$' | head -1 || true)"
+    if [ -z "$WD" ]; then
+      echo "no wayland socket under $RUN" >&2
+      exit 1
+    fi
+
+    if pgrep -u "$(id -u)" -x hyprlock >/dev/null 2>&1; then
+      echo "hyprlock already running"
+      exit 0
+    fi
+
+    # nixpkgs pam_unix.so hardcodes /run/wrappers/bin/unix_chkpwd; recreate the
+    # symlink that doesn't survive reboot, otherwise the new hyprlock won't auth.
+    if [ ! -e /run/wrappers/bin/unix_chkpwd ] && [ -x /usr/sbin/unix_chkpwd ]; then
+      echo "restoring /run/wrappers/bin/unix_chkpwd (sudo)..."
+      sudo mkdir -p /run/wrappers/bin
+      sudo ln -sf /usr/sbin/unix_chkpwd /run/wrappers/bin/unix_chkpwd
+    fi
+
+    HYPRLAND_INSTANCE_SIGNATURE="$HIS" \
+      ${pkgs.hyprland}/bin/hyprctl keyword misc:allow_session_lock_restore 1 >/dev/null
+
+    echo "launching hyprlock in transient user.slice unit..."
+    exec ${pkgs.systemd}/bin/systemd-run --user --collect --quiet \
+      --unit="hyprlock-rescue-$$" \
+      --description="hyprlock rescue" \
+      -E HYPRLAND_INSTANCE_SIGNATURE="$HIS" \
+      -E WAYLAND_DISPLAY="$WD" \
+      -- ${config.programs.hyprlock.package}/bin/hyprlock
+  '';
+
   caffeine = pkgs.writeShellScriptBin "caffeine" ''
     set -eu
     PIDFILE="''${XDG_RUNTIME_DIR:-/tmp}/caffeine.pid"
@@ -831,6 +875,7 @@ in
   ] ++ lib.optionals (!isDarwin && isDesktop) [
     caffeine
     hypr-fullscreen-inhibit
+    hypr-unstuck-lock
     nixGL
 
     pkgs.emacs30-pgtk

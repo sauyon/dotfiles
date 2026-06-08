@@ -371,6 +371,19 @@ let
             '';
           } ];
         }
+        {
+          matcher = "mcp__github__create_pull_request";
+          hooks = [ {
+            type = "command";
+            # Mirror the `gh pr create` hook for the GitHub MCP tool: block PR
+            # creation outside the quite-app worktree. A flat permissions.deny
+            # can't be scoped to a directory, so gate on $PWD here instead.
+            command = ''
+              case "$PWD" in ${config.home.homeDirectory}/devel/quite-app*) exit 0 ;; esac
+              printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Do not create pull requests here. Print a PR creation link instead (e.g. https://github.com/<owner>/<repo>/pull/new/<branch>) and let the user create the PR themselves."}}'
+            '';
+          } ];
+        }
       ];
       PostToolUseFailure = [];
     };
@@ -439,8 +452,18 @@ let
         "mcp__github__search_users"
         "Skill(evaluate)"
       ];
-      deny = [
-        "mcp__github__create_pull_request"
+      # PR creation is gated per-repo by the PreToolUse hooks above (denied
+      # everywhere except the quite-app worktree), not by a blanket deny. A
+      # flat deny here can't be scoped to a directory, and the auto-mode
+      # classifier reads it as a global block — over-blocking quite-app.
+      deny = [];
+    };
+    # Tell the auto-mode classifier PR creation is fine inside quite-app, so it
+    # doesn't block the hook-allowed path there. (cwd is in the classifier's
+    # prompt; outside quite-app the hooks above still deny deterministically.)
+    autoMode = {
+      allow = [
+        "Creating a pull request (`gh pr create`, a `gh api` POST to a repo's pulls endpoint, or mcp__github__create_pull_request) is ALLOWED when the working directory is under ${config.home.homeDirectory}/devel/quite-app. PR creation stays blocked in every other directory."
       ];
     };
     enabledPlugins = {

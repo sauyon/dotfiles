@@ -5,10 +5,18 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import urllib.request
 import urllib.error
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python < 3.11 fallback
+    tomllib = None
 
 # home-manager symlinks each .py to its own nix store path, so Python's
 # resolved sys.path[0] has no siblings. Add the unresolved script dir.
@@ -38,6 +46,11 @@ STAGE1_USER_TAIL = (
 SETTINGS_PATHS = [
     Path.home() / ".claude" / "settings.json",
     Path.home() / ".claude" / "settings.local.json",
+    Path.home() / ".codex" / "settings.json",
+    Path.home() / ".codex" / "settings.local.json",
+]
+CODEX_CONFIG_PATHS = [
+    Path.home() / ".codex" / "config.toml",
 ]
 
 # Tools that are always read-only — skip the LLM call.
@@ -161,29 +174,151 @@ def build_user_msg(tool_name: str, tool_input: dict, cwd: str, structured_transc
     return "\n\n".join(parts)
 
 
-def _load_user_rules() -> dict:
-    """Read autoMode {allow, soft_deny, environment} from settings.json files.
+@dataclass(frozen=True)
+class HookInput:
+    tool_name: str
+    tool_input: dict
+    cwd: str
+    transcript_path: str
+    permission_mode: str
+
+
+def normalize_hook_input(hook_input: dict) -> HookInput:
+    """Normalize Claude-compatible and Codex-shaped hook inputs."""
+    tool_name = hook_input.get("tool_name")
+    tool_input = hook_input.get("tool_input")
+
+    tool = hook_input.get("tool")
+    if not tool_name and isinstance(tool, dict):
+        tool_name = tool.get("name") or tool.get("tool_name")
+        tool_input = tool.get("input") or tool.get("tool_input")
+
+    if not tool_name:
+        tool_name = hook_input.get("toolName") or hook_input.get("name") or ""
+    if not isinstance(tool_input, dict):
+        tool_input = hook_input.get("input") if isinstance(hook_input.get("input"), dict) else {}
+
+    transcript = hook_input.get("transcript")
+    transcript_path = hook_input.get("transcript_path", "")
+    if not transcript_path and isinstance(transcript, dict):
+        transcript_path = transcript.get("path") or transcript.get("transcript_path") or ""
+
+    return HookInput(
+        tool_name=str(tool_name or ""),
+        tool_input=tool_input,
+        cwd=str(hook_input.get("cwd") or hook_input.get("working_directory") or ""),
+        transcript_path=str(transcript_path or ""),
+        permission_mode=str(hook_input.get("permission_mode") or ""),
+    )
+
+
+def _merge_auto_mode(out: dict, auto_mode: dict) -> None:
+    for key in ("allow", "soft_deny", "environment", "deny"):
+        v = auto_mode.get(key)
+        if isinstance(v, list):
+            out[key].extend(s for s in v if isinstance(s, str))
+
+    fast_path = auto_mode.get("fast_path") or auto_mode.get("fastPath")
+    if isinstance(fast_path, list):
+        out["fast_path"].extend(r for r in fast_path if isinstance(r, dict))
+
+
+def _merge_permission_deny(out: dict, data: dict) -> None:
+    perms = (data.get("permissions") or {}).get("deny") or []
+    if isinstance(perms, list):
+        out.setdefault("perm_deny", [])
+        out["perm_deny"].extend(s for s in perms if isinstance(s, str))
+
+
+def _parse_simple_toml_value(raw: str) -> Any:
+    raw = raw.strip()
+    if raw.startswith('"') and raw.endswith('"'):
+        return json.loads(raw)
+    if raw.startswith("[") and raw.endswith("]"):
+        try:
+            value = json.loads(raw)
+        except json.JSONDecodeError:
+            return []
+        return value if isinstance(value, list) else []
+    if raw in ("true", "false"):
+        return raw == "true"
+    return raw
+
+
+def _parse_simple_toml(text: str) -> dict:
+    """Parse the small TOML subset Codex hook config needs on Python 3.9."""
+    data: dict[str, Any] = {}
+    current: dict[str, Any] | None = None
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[[") and line.endswith("]]"):
+            path = line[2:-2].strip().split(".")
+            parent = data
+            for part in path[:-1]:
+                parent = parent.setdefault(part, {})
+            current = {}
+            parent.setdefault(path[-1], []).append(current)
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            path = line[1:-1].strip().split(".")
+            current = data
+            for part in path:
+                current = current.setdefault(part, {})
+            continue
+        if current is None or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        current[key.strip()] = _parse_simple_toml_value(value)
+    return data
+
+
+def _load_toml_file(path: Path) -> dict:
+    text = path.read_text()
+    if tomllib is not None:
+        return tomllib.loads(text)
+    return _parse_simple_toml(text)
+
+
+def load_auto_mode_config() -> dict:
+    """Read autoMode settings from Claude JSON settings and Codex JSON/TOML config.
 
     Aggregates across user + local settings. Each value is a list of strings;
     "$defaults" elements are placeholders for the built-in defaults.
     """
-    out = {"allow": [], "soft_deny": [], "environment": [], "deny": []}
+    out = {"allow": [], "soft_deny": [], "environment": [], "deny": [], "fast_path": []}
     for path in SETTINGS_PATHS:
+        if path is None:
+            continue
         try:
             data = json.loads(path.read_text())
         except (OSError, json.JSONDecodeError):
             continue
         am = data.get("autoMode") or {}
-        for key in out.keys():
-            v = am.get(key)
-            if isinstance(v, list):
-                out[key].extend(s for s in v if isinstance(s, str))
-        # Permission deny list for circumvention reminder.
-        perms = (data.get("permissions") or {}).get("deny") or []
-        if isinstance(perms, list):
-            out.setdefault("perm_deny", [])
-            out["perm_deny"].extend(s for s in perms if isinstance(s, str))
+        if isinstance(am, dict):
+            _merge_auto_mode(out, am)
+        _merge_permission_deny(out, data)
+
+    for path in CODEX_CONFIG_PATHS:
+        if path is None:
+            continue
+        try:
+            data = _load_toml_file(path)
+        except OSError:
+            continue
+        except Exception:
+            continue
+        am = data.get("autoMode") or data.get("auto_mode") or {}
+        if isinstance(am, dict):
+            _merge_auto_mode(out, am)
+        _merge_permission_deny(out, data)
+
     return out
+
+
+def _load_user_rules() -> dict:
+    return load_auto_mode_config()
 
 
 def _expand_defaults(user_list: list[str], default_block: str) -> str:
@@ -233,19 +368,70 @@ def build_system_prompt(rules: dict) -> str:
     return prompt
 
 
-def fast_path(tool_name: str, tool_input: dict) -> str | None:
-    """Return a decision string if we can skip the LLM, else None."""
-    if tool_name in ALWAYS_ALLOW:
-        return "allow"
+def _rule_matches_value(actual: Any, expected: Any, contains: bool) -> bool:
+    if contains:
+        return str(expected) in str(actual)
+    return actual == expected
 
+
+def _rule_matches_input(tool_input: dict, expected: dict, contains: bool) -> bool:
+    for key, value in expected.items():
+        if not _rule_matches_value(tool_input.get(key), value, contains):
+            return False
+    return True
+
+
+def _fast_path_rule_matches(rule: dict, tool_name: str, tool_input: dict) -> bool:
+    expected_tool = rule.get("tool")
+    if expected_tool and expected_tool != tool_name:
+        return False
+
+    command = tool_input.get("command", "") if isinstance(tool_input, dict) else ""
+    if "command" in rule and command != rule["command"]:
+        return False
+    if "command_prefix" in rule and not command.startswith(str(rule["command_prefix"])):
+        return False
+    if "command_regex" in rule:
+        try:
+            if not re.search(str(rule["command_regex"]), command):
+                return False
+        except re.error:
+            return False
+
+    input_equals = rule.get("input_equals")
+    if isinstance(input_equals, dict) and not _rule_matches_input(tool_input, input_equals, contains=False):
+        return False
+
+    input_contains = rule.get("input_contains")
+    if isinstance(input_contains, dict) and not _rule_matches_input(tool_input, input_contains, contains=True):
+        return False
+
+    matcher_keys = {"tool", "command", "command_prefix", "command_regex", "input_equals", "input_contains"}
+    return any(key in rule for key in matcher_keys)
+
+
+def fast_path(tool_name: str, tool_input: dict, rules: dict | None = None) -> tuple[str, str] | None:
+    """Return (decision, reason) if we can skip the LLM, else None."""
     if tool_name == "Bash":
         cmd = tool_input.get("command", "")
         for pat in HARD_DENY_PATTERNS:
             if pat in cmd:
-                return "deny"
+                return "deny", "fast-path hard deny rule"
         for pat in FORCE_PUSH_PATTERNS:
             if pat in cmd and ("main" in cmd or "master" in cmd):
-                return "deny"
+                return "deny", "fast-path hard deny rule"
+
+    for rule in (rules or {}).get("fast_path", []):
+        if not isinstance(rule, dict) or not _fast_path_rule_matches(rule, tool_name, tool_input):
+            continue
+        decision = str(rule.get("decision", "")).lower()
+        if decision not in ("allow", "ask", "deny"):
+            continue
+        reason = str(rule.get("reason") or "fast-path configured rule")
+        return decision, reason
+
+    if tool_name in ALWAYS_ALLOW:
+        return "allow", "fast-path default read-only tool"
 
     return None
 
@@ -518,18 +704,24 @@ def classify_with_llm(tool_name: str, tool_input: dict, cwd: str, structured_tra
 
 def main() -> None:
     hook_input = json.loads(sys.stdin.read())
+    event = normalize_hook_input(hook_input)
     # Defer to Claude's built-in handling when the user has opted into a
     # session-wide permission mode that already bypasses or replaces prompts.
-    if hook_input.get("permission_mode") in ("bypassPermissions", "auto"):
+    if event.permission_mode in ("bypassPermissions", "auto"):
         sys.exit(0)
-    tool_name = hook_input.get("tool_name", "")
-    tool_input = hook_input.get("tool_input", {})
-    cwd = hook_input.get("cwd", "")
-    transcript_path = hook_input.get("transcript_path", "")
+    tool_name = event.tool_name
+    tool_input = event.tool_input
+    cwd = event.cwd
+    transcript_path = event.transcript_path
 
     # Fast path — no LLM needed.
-    decision = fast_path(tool_name, tool_input)
-    reason = "fast-path rule"
+    rules = load_auto_mode_config()
+    fast_decision = fast_path(tool_name, tool_input, rules)
+    if fast_decision is None:
+        decision = None
+        reason = ""
+    else:
+        decision, reason = fast_decision
 
     warning = None
     if decision is None:

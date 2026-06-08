@@ -7,6 +7,7 @@
   nixgl,
   agent-orchestrator,
   ao-mcp,
+  codex-desktop-linux,
   machine,
 
   system,
@@ -557,7 +558,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./gemini.nix ./opencode.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default codex-desktop-linux.homeManagerModules.default ./gemini.nix ./opencode.nix ];
 
   home.stateVersion = "26.05";
 
@@ -705,6 +706,9 @@ in
     # don't have a dconf D-Bus service, so use GDK_DPI_SCALE instead.
     // (lib.optionalAttrs (hidpi.enabled && hostname != "setsuna") {
       GDK_DPI_SCALE = toString hidpi.scale;
+    })
+    // (lib.optionalAttrs (!isDarwin && isDesktop) {
+      CODEX_CLI_PATH = "${pkgs.codex}/bin/codex";
     });
 
   # TERMINFO_DIRS is already set under systemd by home-manager's generic-linux
@@ -837,6 +841,15 @@ in
       ExecStop = "${config.home.homeDirectory}/.local/bin/hyprland-graceful-exit --no-exit";
     };
     Install.WantedBy = [ "graphical-session.target" ];
+  };
+
+  programs.codexDesktopLinux = let
+    fullFeatured = hostname == "fujiwara";
+  in {
+    enable = !isDarwin && isDesktop;
+    computerUseUi.enable = fullFeatured;
+    remoteMobileControl.enable = fullFeatured;
+    remoteControl.enable = fullFeatured;
   };
 
   home.packages = [

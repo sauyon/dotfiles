@@ -26,7 +26,8 @@ let
           baseURL = "https://ai.ko.ag/v1";
         };
         models = {
-          "gemma4:31b" = { name = "Gemma 4 31B"; };
+          "Huihui-Qwen3.6-35B-A3B-abliterated-Q4_K" = { name = "Qwen3.6 35B A3B (abliterated)"; };
+          "gemma-4-26B-A4B-it" = { name = "Gemma 4 26B A4B"; };
         };
       };
     };

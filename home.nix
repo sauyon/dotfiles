@@ -656,6 +656,8 @@ in
     ./home/.claude/skills/linear-flow/SKILL.md;
   home.file.".claude/skills/linear-flow/DESIGN.md".source =
     ./home/.claude/skills/linear-flow/DESIGN.md;
+  home.file.".claude/skills/gemini-review/SKILL.md".source =
+    ./home/.claude/skills/gemini-review/SKILL.md;
 
   # ── Claude plugins ─────────────────────────────────────────────────────────
   home.file.".claude/plugins/local-auto-mode/hooks.json".source =

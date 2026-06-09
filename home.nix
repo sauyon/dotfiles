@@ -463,6 +463,7 @@ let
     # prompt; outside quite-app the hooks above still deny deterministically.)
     autoMode = {
       allow = [
+        "$defaults"
         "Creating a pull request (`gh pr create`, a `gh api` POST to a repo's pulls endpoint, or mcp__github__create_pull_request) is ALLOWED when the working directory is under ${config.home.homeDirectory}/devel/quite-app. PR creation stays blocked in every other directory."
       ];
     };

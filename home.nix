@@ -609,7 +609,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default codex-desktop-linux.homeManagerModules.default ./gemini.nix ./opencode.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default codex-desktop-linux.homeManagerModules.default ./antigravity.nix ./opencode.nix ];
 
   home.stateVersion = "26.05";
 

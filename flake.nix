@@ -57,12 +57,32 @@
     darwinConfigurations.mari = nix-darwin.lib.darwinSystem {
       system = "aarch64-darwin";
       modules = [
+        sops-nix.darwinModules.sops
         {
           programs.zsh.enable = true;
           nix.enable = true;
           nix.settings.experimental-features = [ "nix-command" "flakes" ];
           system.stateVersion = 6;
           nixpkgs.hostPlatform = "aarch64-darwin";
+
+          environment.etc."sops/age-unused.txt".text = "";
+          sops.defaultSopsFile = ./secrets.yaml;
+          sops.age.keyFile = "/etc/sops/age-unused.txt";
+          sops.age.sshKeyPaths = [ ];
+          sops.gnupg.sshKeyPaths = [ ];
+          sops.environment.GOOGLE_APPLICATION_CREDENTIALS = "/Users/sauyon/.config/sops/gcp-key.json";
+          sops.secrets."ssh-authorized-keys-sauyon" = {
+            mode = "0644";
+          };
+
+          services.openssh = {
+            enable = true;
+            extraConfig = ''
+              AuthorizedKeysFile /run/secrets/ssh-authorized-keys-sauyon
+              PermitRootLogin no
+              PasswordAuthentication no
+            '';
+          };
         }
       ];
     };

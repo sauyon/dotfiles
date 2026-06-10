@@ -950,7 +950,7 @@ in
   programs.codexDesktopLinux = let
     fullFeatured = hostname == "fujiwara";
   in {
-    enable = !isDarwin && isDesktop;
+    enable = false;  # TEMP: upstream Codex.dmg hash drift; re-enable when fixed
     computerUseUi.enable = fullFeatured;
     remoteMobileControl.enable = fullFeatured;
     remoteControl.enable = fullFeatured;
@@ -971,7 +971,7 @@ in
     lnav
     mosh
     opencode
-    codex
+    # codex  # TEMP: upstream Codex.dmg hash drift; re-enable when nixpkgs/codex-desktop-linux catches up
     bat
     rustup
     nixfmt
@@ -1003,6 +1003,7 @@ in
     pkgs.slack
     pkgs.vesktop
     (config.lib.nixGL.wrap (withHostNss pkgs.warp-terminal))
+    pkgs.xauth
     pkgs.xdg-utils
   ];
 
@@ -1336,8 +1337,8 @@ in
         ];
 
         auth = {
-          "pam:module" = "login";
-          "fingerprint:enabled" = true;
+          pam.module = "login";
+          fingerprint.enabled = true;
         };
 
         input-field = [

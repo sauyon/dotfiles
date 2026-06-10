@@ -966,7 +966,6 @@ in
     coder
     comma
     cosign
-    cryptomator-cli
     jq
     lnav
     mosh
@@ -989,6 +988,7 @@ in
     agent-orchestrator-pkg
     ao-mcp-pkg
     ao-run
+    pkgs.cryptomator-cli
   ] ++ lib.optionals (!isDesktop) [
     pkgs.ghostty.terminfo
   ] ++ lib.optionals (!isDarwin && isDesktop) [
@@ -1696,9 +1696,9 @@ in
         };
       };
     };
-    ghostty = {
+    ghostty = lib.mkIf (!isDarwin) {
       enable = isDesktop;
-      package = if isDarwin then pkgs.ghostty else config.lib.nixGL.wrap pkgs.ghostty;
+      package = config.lib.nixGL.wrap pkgs.ghostty;
       enableZshIntegration = true;
       systemd.enable = false;
       # installBatSyntax = true;

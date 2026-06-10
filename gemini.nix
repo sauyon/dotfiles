@@ -25,7 +25,7 @@ let
   });
 in
 {
-  programs.gemini-cli = {
+  programs.antigravity-cli = {
     enable = true;
     package = gemini-cli-latest;
     settings = {

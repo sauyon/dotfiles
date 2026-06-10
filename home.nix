@@ -1488,6 +1488,26 @@ in
     in {
       enable = !isDarwin && isDesktop;
       systemd.enable = !isDarwin && isDesktop;
+      # Released waybar (0.15.0, 2026-02) predates the fix for Hyprland's Lua
+      # IPC dispatch protocol, so workspace clicks silently no-op under
+      # `configType = "lua"`. Pin to the master commit carrying Alexays/waybar
+      # PR #5013, which probes the socket and emits `hl.dsp.focus({ workspace })`.
+      # Drop this override once a release > 0.15.0 ships the fix.
+      # cavaSupport=false: master vendors a newer libcava than nixpkgs 0.15.0
+      # pins, so the cava subproject can't resolve offline. We don't use the
+      # cava module, so disable it rather than vendor the matching libcava.
+      package = (pkgs.waybar.override { cavaSupport = false; }).overrideAttrs (old: {
+        version = "0.15.0-unstable-2026-05-04";
+        src = pkgs.fetchFromGitHub {
+          owner = "Alexays";
+          repo = "waybar";
+          rev = "05945748dccce28bf96d26d8f64a9e69a8dd49ba";
+          hash = "sha256-51R3mIt8cLNvh/X5qe9vOqeJCj0U9KRyemVE5y+OhiU=";
+        };
+        # master's binary still self-reports v0.15.0, so the nixpkgs
+        # versionCheckHook (asserting --version matches `version`) fails.
+        doInstallCheck = false;
+      });
       settings = [
         (shared // {
           output = [ "eDP-1" ];

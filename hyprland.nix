@@ -178,7 +178,10 @@ in
         (dsp "${mainMod} + SHIFT + W" "hl.dsp.window.close()")
         (exec "${mainMod} + SHIFT + E" "hyprland-graceful-exit")
         (dsp "${mainMod} + SHIFT + semicolon" ''hl.dsp.window.float({ action = "toggle" })'')
-        (exec "${mainMod} + semicolon" ''hyprctl dispatch focuswindow $(if [[ $(hyprctl activewindow -j | jq ."floating") == "true" ]]; then echo "tiled"; else echo "floating"; fi;)'')
+        # Jump focus to the other layer (floating <-> tiled). Needs a runtime
+        # check, so it shells out; under the Lua config backend the IPC dispatch
+        # must be a Lua expression (`focuswindow X` -> hl.dsp.focus({ window = X })).
+        (exec "${mainMod} + semicolon" ''if [[ $(hyprctl activewindow -j | jq .floating) == true ]]; then t=tiled; else t=floating; fi; hyprctl dispatch "hl.dsp.focus({ window = \"$t\" })"'')
         (exec "${mainMod} + space" menu)
         (exec "ALT + space" menu)
         (exec "${mainMod} + SHIFT + Q" "${config.programs.hyprlock.package}/bin/hyprlock")
@@ -247,7 +250,8 @@ in
         (execOpts "XF86AudioPrev" "${pkgs.playerctl}/bin/playerctl previous" { locked = true; })
 
         (execOpts "switch:on:Lid Switch"
-          "${hyprDpmsPhysical} off && hyprctl dispatch exec ${config.programs.hyprlock.package}/bin/hyprlock"
+          # Lua IPC dispatch: `dispatch exec X` -> hl.dsp.exec_cmd("X").
+          "${hyprDpmsPhysical} off && hyprctl dispatch 'hl.dsp.exec_cmd(\"${config.programs.hyprlock.package}/bin/hyprlock\")'"
           { locked = true; }
         )
         (execOpts "switch:off:Lid Switch" "${hyprDpmsPhysical} on" { locked = true; })

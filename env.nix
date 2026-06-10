@@ -38,6 +38,13 @@ rec {
   WARP_ENABLE_WAYLAND = "1";
 
   TG_PROVIDER_CACHE = "1";
+
+  # `coder config-ssh` (run by IDE integrations / `coder` tooling) rewrites its
+  # target SSH config in place, which dereferences and clobbers the read-only
+  # store symlink home-manager puts at ~/.ssh/config. Redirect those writes to
+  # a throwaway file that nothing Includes; the nix-managed *.coder blocks in
+  # home.nix's programs.ssh.settings are the real source of truth.
+  CODER_SSH_CONFIG_FILE = "${xdg.configHome}/coderv2/ssh-config";
 }
 // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
   BROWSER = "firefox";

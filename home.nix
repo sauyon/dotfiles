@@ -67,6 +67,14 @@ let
   withHostNss = drv: pkgs.symlinkJoin {
     name = "${drv.name or "pkg"}-host-nss";
     paths = [ drv ];
+    # Propagate meta (notably meta.mainProgram) so lib.getExe on the wrapped
+    # package — e.g. services.gpg-agent doing getExe programs.gpg.package —
+    # doesn't fall back to the deprecated name-guessing path. Override
+    # outputsToInstall: the symlinkJoin has a single `out`, so inheriting the
+    # source's multi-output list (e.g. ["out" "man"]) breaks home-manager-path.
+    meta = (drv.meta or { }) // {
+      outputsToInstall = [ "out" ];
+    };
     nativeBuildInputs = [ pkgs.makeBinaryWrapper ];
     postBuild = ''
       # Wrap top-level executables in bin/ and libexec/ so they preload the
@@ -1847,42 +1855,45 @@ in
 
       enableDefaultConfig = false;
 
-      matchBlocks = {
+      # Migrated from the deprecated `matchBlocks`/`extraOptions` API to the
+      # freeform `settings` API: attribute names are Host patterns and values
+      # use upstream OpenSSH directive names directly.
+      settings = {
         "aur" = {
-          hostname = "aur.archlinux.org";
-          user = "aur";
+          HostName = "aur.archlinux.org";
+          User = "aur";
         };
         "github" = {
-          hostname = "github.com";
-          user = "git";
+          HostName = "github.com";
+          User = "git";
         };
         "shizuka" = {
-          port = 59049;
+          Port = 59049;
         };
         "akane" = {
-          port = 59049;
+          Port = 59049;
         };
         "kanon" = {
-          user = "root";
-          hostname = "kanon.alai-ionian.ts.net";
-          port = 59048;
+          User = "root";
+          HostName = "kanon.alai-ionian.ts.net";
+          Port = 59048;
         };
         "yui mio meiko ritsu mugi azusa" = {
-          forwardAgent = true;
+          ForwardAgent = true;
         };
         "testserver" = {
-          hostname = "35.163.118.10";
-          user = "ubuntu";
+          HostName = "35.163.118.10";
+          User = "ubuntu";
         };
         "testclient" = {
-          hostname = "52.38.68.189";
-          user = "ubuntu";
+          HostName = "52.38.68.189";
+          User = "ubuntu";
         };
         "tf" = {
-          hostname = "kanon.ko.ag";
-          port = 59048;
-          forwardAgent = true;
-          remoteForwards = [
+          HostName = "kanon.ko.ag";
+          Port = 59048;
+          ForwardAgent = true;
+          RemoteForward = [
             {
               bind.address = "/run/user/1000/gnupg/S.gpg-agent";
               host.address = "/run/user/1000/gnupg/S.gpg-agent.extra";
@@ -1890,34 +1901,30 @@ in
           ];
         };
         "prod-db-subnet-router" = {
-          user = "ec2-user";
+          User = "ec2-user";
         };
         "bcctl-subnet-router" = {
-          user = "ubuntu";
+          User = "ubuntu";
         };
 
         "coder.*" = {
-          userKnownHostsFile = "/dev/null";
-          extraOptions = {
-            ConnectTimeout = "0";
-            StrictHostKeyChecking = "no";
-            LogLevel = "ERROR";
-            ProxyCommand = "/usr/bin/coder --global-config /home/sauyon/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
-          };
+          UserKnownHostsFile = "/dev/null";
+          ConnectTimeout = "0";
+          StrictHostKeyChecking = "no";
+          LogLevel = "ERROR";
+          ProxyCommand = "/usr/bin/coder --global-config /home/sauyon/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
         };
+        # `header` is the escape hatch for a block header that carries Nix
+        # string context (the store path), which can't live in an attr name.
         "*.coder-proxy" = {
-          match = "host *.coder !exec \"${pkgs.coder}/bin/.coder-wrapped connect exists %h\"";
-          extraOptions = {
-            ProxyCommand = "${pkgs.coder}/bin/.coder-wrapped --global-config /home/sauyon/.config/coderv2 ssh --stdio --hostname-suffix coder %h";
-          };
+          header = "Match host *.coder !exec \"${pkgs.coder}/bin/.coder-wrapped connect exists %h\"";
+          ProxyCommand = "${pkgs.coder}/bin/.coder-wrapped --global-config /home/sauyon/.config/coderv2 ssh --stdio --hostname-suffix coder %h";
         };
         "*.coder" = {
-          userKnownHostsFile = "/dev/null";
-          extraOptions = {
-            ConnectTimeout = "0";
-            StrictHostKeyChecking = "no";
-            LogLevel = "ERROR";
-          };
+          UserKnownHostsFile = "/dev/null";
+          ConnectTimeout = "0";
+          StrictHostKeyChecking = "no";
+          LogLevel = "ERROR";
         };
       };
     };

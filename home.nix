@@ -978,6 +978,7 @@ in
     kubectl
     kube-capacity
     kubectx
+    tmux
     unzip
     zip
     (emacsPackages.treesit-grammars.with-grammars (grammars: with grammars; [

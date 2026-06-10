@@ -2458,7 +2458,6 @@ ${indentYaml 12 orchestratorRules}
       " vim: set filetype=vim
 
       set smoothscroll true
-      set newtab https://ko.ag/newtab.html
 
       unbind d
       bind <A-x> fillcmdline_notrail

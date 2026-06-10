@@ -1062,7 +1062,13 @@ in
       # build doesn't include wayland in RUNPATH — autoPatchelfHook only sees
       # linked deps, not dlopen'd ones. Without this, warp silently falls back
       # to X11 even when WARP_ENABLE_WAYLAND=1.
-      warp-terminal = prev.warp-terminal.overrideAttrs (old: {
+      warp-terminal = prev.warp-terminal.overrideAttrs (old: rec {
+        # nixpkgs lags behind upstream stable; pin the newer release here.
+        version = "0.2026.06.03.09.49.stable_03";
+        src = final.fetchurl {
+          url = "https://releases.warp.dev/stable/v${version}/warp-terminal-v${version}-1-x86_64.pkg.tar.zst";
+          hash = "sha256-c12nKA+pVBebx2PvyultllUr6h6t/U4QLcKpwFoG9O4=";
+        };
         runtimeDependencies = (old.runtimeDependencies or []) ++ [
           final.wayland
         ];

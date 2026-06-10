@@ -16,10 +16,15 @@ let
   menu = "walker";
 
   # Bind helpers. In the Lua config every `bind` entry is `hl.bind(keys,
-  # dispatcher, opts?)`, where keys join mods/keys with " + ". We render the
-  # dispatcher as a raw Lua expression via mkLuaInline:
-  #   exec_cmd  - run a shell command (Hyprlang `exec`)
-  #   exec_raw  - run a raw dispatcher string, like `hyprctl dispatch <...>`
+  # dispatcher, opts?)`, where keys join mods/keys with " + ".
+  #
+  # Two ways to render the dispatcher as a Lua expression via mkLuaInline:
+  #   exec  - run a shell command. `hl.dsp.exec_cmd` is Hyprlang `exec`.
+  #           (NB: `hl.dsp.exec_raw` is Hyprlang `execr` - run a *program*
+  #           without a shell. Neither runs a dispatcher; dispatchers go
+  #           through the structured `hl.dsp.*` API below.)
+  #   dsp   - a structured dispatcher, e.g. hl.dsp.focus({ direction = "left" }),
+  #           hl.dsp.window.close(), hl.dsp.window.move({ workspace = 1 }).
   # [=[ ... ]=] long brackets let shell commands keep their quotes and `]]`.
   exec = keys: cmd: {
     _args = [
@@ -34,14 +39,15 @@ let
       opts
     ];
   };
-  dispatch = keys: raw: {
+  dsp = keys: luaExpr: {
     _args = [
       keys
-      (mkLuaInline "hl.dsp.exec_raw([=[${raw}]=])")
+      (mkLuaInline luaExpr)
     ];
   };
-  # Raw Lua dispatcher with options (mouse drag/resize need { mouse = true }).
-  bindLua = keys: luaExpr: opts: {
+  # Structured dispatcher with bind options (mouse drag/resize need
+  # { mouse = true }).
+  dspOpts = keys: luaExpr: opts: {
     _args = [
       keys
       (mkLuaInline luaExpr)
@@ -61,9 +67,11 @@ let
     "9"
     "0"
   ];
-  workspaceBinds = lib.imap1 (i: k: dispatch "${mainMod} + ${k}" "workspace ${toString i}") wsKeys;
+  workspaceBinds = lib.imap1 (
+    i: k: dsp "${mainMod} + ${k}" "hl.dsp.focus({ workspace = ${toString i} })"
+  ) wsKeys;
   moveToWorkspaceBinds = lib.imap1 (
-    i: k: dispatch "${mainMod} + SHIFT + ${k}" "movetoworkspace ${toString i}"
+    i: k: dsp "${mainMod} + SHIFT + ${k}" "hl.dsp.window.move({ workspace = ${toString i} })"
   ) wsKeys;
 in
 {
@@ -167,9 +175,9 @@ in
     bind =
       [
         (exec "${mainMod} + return" terminal)
-        (dispatch "${mainMod} + SHIFT + W" "killactive")
+        (dsp "${mainMod} + SHIFT + W" "hl.dsp.window.close()")
         (exec "${mainMod} + SHIFT + E" "hyprland-graceful-exit")
-        (dispatch "${mainMod} + SHIFT + semicolon" "togglefloating")
+        (dsp "${mainMod} + SHIFT + semicolon" ''hl.dsp.window.float({ action = "toggle" })'')
         (exec "${mainMod} + semicolon" ''hyprctl dispatch focuswindow $(if [[ $(hyprctl activewindow -j | jq ."floating") == "true" ]]; then echo "tiled"; else echo "floating"; fi;)'')
         (exec "${mainMod} + space" menu)
         (exec "ALT + space" menu)
@@ -179,31 +187,31 @@ in
 
         (exec "${mainMod} + O" "makoctl dismiss --all")
 
-        (dispatch "${mainMod} + B" "movefocus l")
-        (dispatch "${mainMod} + F" "movefocus r")
-        (dispatch "${mainMod} + P" "movefocus u")
-        (dispatch "${mainMod} + N" "movefocus d")
-        (dispatch "${mainMod} + SHIFT + B" "movewindoworgroup l")
-        (dispatch "${mainMod} + SHIFT + F" "movewindoworgroup r")
-        (dispatch "${mainMod} + SHIFT + P" "movewindoworgroup u")
-        (dispatch "${mainMod} + SHIFT + N" "movewindoworgroup d")
+        (dsp "${mainMod} + B" ''hl.dsp.focus({ direction = "left" })'')
+        (dsp "${mainMod} + F" ''hl.dsp.focus({ direction = "right" })'')
+        (dsp "${mainMod} + P" ''hl.dsp.focus({ direction = "up" })'')
+        (dsp "${mainMod} + N" ''hl.dsp.focus({ direction = "down" })'')
+        (dsp "${mainMod} + SHIFT + B" ''hl.dsp.window.move({ direction = "left" })'')
+        (dsp "${mainMod} + SHIFT + F" ''hl.dsp.window.move({ direction = "right" })'')
+        (dsp "${mainMod} + SHIFT + P" ''hl.dsp.window.move({ direction = "up" })'')
+        (dsp "${mainMod} + SHIFT + N" ''hl.dsp.window.move({ direction = "down" })'')
 
-        (dispatch "${mainMod} + SHIFT + left" "movecurrentworkspacetomonitor l")
-        (dispatch "${mainMod} + SHIFT + right" "movecurrentworkspacetomonitor r")
-        (dispatch "${mainMod} + SHIFT + up" "movecurrentworkspacetomonitor u")
-        (dispatch "${mainMod} + SHIFT + down" "movecurrentworkspacetomonitor d")
+        (dsp "${mainMod} + SHIFT + left" ''hl.dsp.workspace.move({ monitor = "l" })'')
+        (dsp "${mainMod} + SHIFT + right" ''hl.dsp.workspace.move({ monitor = "r" })'')
+        (dsp "${mainMod} + SHIFT + up" ''hl.dsp.workspace.move({ monitor = "u" })'')
+        (dsp "${mainMod} + SHIFT + down" ''hl.dsp.workspace.move({ monitor = "d" })'')
 
-        (dispatch "${mainMod} + M" "fullscreen")
+        (dsp "${mainMod} + M" "hl.dsp.window.fullscreen()")
       ]
       ++ workspaceBinds
       ++ moveToWorkspaceBinds
       ++ [
-        (dispatch "${mainMod} + mouse_down" "workspace e-1")
-        (dispatch "${mainMod} + mouse_up" "workspace e+1")
+        (dsp "${mainMod} + mouse_down" ''hl.dsp.focus({ workspace = "e-1" })'')
+        (dsp "${mainMod} + mouse_up" ''hl.dsp.focus({ workspace = "e+1" })'')
 
         # Mouse drag/resize (Hyprlang bindm).
-        (bindLua "${mainMod} + mouse:272" "hl.dsp.window.drag()" { mouse = true; })
-        (bindLua "${mainMod} + mouse:273" "hl.dsp.window.resize()" { mouse = true; })
+        (dspOpts "${mainMod} + mouse:272" "hl.dsp.window.drag()" { mouse = true; })
+        (dspOpts "${mainMod} + mouse:273" "hl.dsp.window.resize()" { mouse = true; })
 
         # Volume/brightness: repeat while held and work on the lock screen
         # (Hyprlang bindel).

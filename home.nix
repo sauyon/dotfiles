@@ -988,6 +988,7 @@ in
     agent-orchestrator-pkg
     ao-mcp-pkg
     ao-run
+    pkgs.cloudflare-warp
     pkgs.cryptomator-cli
   ] ++ lib.optionals (!isDesktop) [
     pkgs.ghostty.terminfo

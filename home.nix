@@ -1051,7 +1051,22 @@ in
       };
     })
     (final: prev: {
-      hyprlock = prev.hyprlock.overrideAttrs (old: {
+      # hyprlock links Nix's libpam, whose pam_unix.so has the unix_chkpwd
+      # helper path hardcoded to /run/wrappers/bin/unix_chkpwd (a NixOS-ism --
+      # see linux-pam/package.nix). On this Arch host nothing ever creates that
+      # path and /run is tmpfs, so after every reboot password auth silently
+      # fails (fingerprint still works, masking it) until the symlink is
+      # recreated by hand. Build hyprlock against a pam that points pam_unix at
+      # Arch's own setuid helper instead, so password auth survives reboots
+      # with no /run/wrappers shim.
+      hyprlock = (prev.hyprlock.override {
+        pam = prev.pam.overrideAttrs (old: {
+          postPatch = (old.postPatch or "") + ''
+            substituteInPlace modules/module-meson.build \
+              --replace-fail "'/run/wrappers/bin/unix_chkpwd'" "'/usr/bin/unix_chkpwd'"
+          '';
+        });
+      }).overrideAttrs (old: {
         patches = (old.patches or []) ++ [
           ./patches/hyprlock-skip-dtors-on-early-fail.patch
         ];

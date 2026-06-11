@@ -1939,7 +1939,7 @@ in
           ConnectTimeout = "0";
           StrictHostKeyChecking = "no";
           LogLevel = "ERROR";
-          ProxyCommand = "/usr/bin/coder --global-config /home/sauyon/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
+          ProxyCommand = "${pkgs.coder}/bin/.coder-wrapped --global-config /home/sauyon/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
         };
         # `header` is the escape hatch for a block header that carries Nix
         # string context (the store path), which can't live in an attr name.

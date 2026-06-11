@@ -1679,6 +1679,27 @@ in
       # enableMcpIntegration = true;
       # settings is intentionally unset — managed via home.activation.claudeSettings
       # below so the file stays mutable (Claude can edit it at runtime).
+      #
+      # Pin a newer CLI than nixpkgs ships (nixpkgs lags the upstream native-binary
+      # releases). Override version + prebuilt src; the checksum is the sha256 hex
+      # from https://downloads.claude.ai/claude-code-releases/<version>/manifest.json
+      # (same source nixpkgs' own manifest.json uses). Bump both when updating.
+      package =
+        let
+          claudeVersion = "2.1.172";
+          platformKey = "${pkgs.stdenv.hostPlatform.node.platform}-${pkgs.stdenv.hostPlatform.node.arch}";
+          checksums = {
+            linux-x64 = "c0915dd1691d569aeebc7978b12e029718323685ec0dd4b5c6a453108d6be1f7";
+            darwin-arm64 = "3c31f345575bf6f261c7e19981f6491bb93eeb0ffb499e95033610a7184831ce";
+          };
+        in
+        pkgs.claude-code.overrideAttrs (_: {
+          version = claudeVersion;
+          src = pkgs.fetchurl {
+            url = "https://downloads.claude.ai/claude-code-releases/${claudeVersion}/${platformKey}/claude";
+            sha256 = checksums.${platformKey};
+          };
+        });
     };
 
     home-manager.enable = true;

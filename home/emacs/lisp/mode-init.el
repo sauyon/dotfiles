@@ -42,6 +42,12 @@
 (autoload 'markdown-mode "markdown-mode" "Markdown mode" t)
 (add-to-list 'auto-mode-alist '("\\.md\\'" . markdown-mode))
 
+;; grip-mode: live GitHub-flavored preview via the `grip` binary.
+(load "grip-path" t)
+(autoload 'grip-mode "grip-mode" "Grip mode" t)
+(with-eval-after-load 'markdown-mode
+  (define-key markdown-mode-command-map (kbd "g") #'grip-mode))
+
 ;; Go mode ---------------------------------------------------------------------
 
 (autoload 'go-mode "go-mode" "Go mode" t)

@@ -114,7 +114,7 @@
 										 dired-icon dired-preview dired-ranger dirvish dockerfile-mode doom-themes
 										 dumb-jump editorconfig elvish-mode embark-consult f fill-column-indicator
 										 flycheck-haskell flycheck-rust go-dlv go-errcheck go-guru golden-ratio
-										 google-c-style graphviz-dot-mode groovy-mode haskell-mode hcl-mode helm-swoop
+										 google-c-style graphviz-dot-mode grip-mode groovy-mode haskell-mode hcl-mode helm-swoop
 										 idle-highlight json-mod json-mode json-par jsonian latex-math-preview
 										 latex-pretty-symbols latex-unicode-math-mode lsp-pyright lsp-treemacs lsp-ui
 										 lua-mode magit magit-find-file magit-gh-pulls marginalia mmm-mode mo-git-blame

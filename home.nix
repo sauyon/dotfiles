@@ -798,6 +798,11 @@ in
   home.file.".emacs.d/lisp/mode-init.el".source = ./home/emacs/lisp/mode-init.el;
   home.file.".emacs.d/lisp/pref-init.el".source = ./home/emacs/lisp/pref-init.el;
   home.file.".emacs.d/lisp/root-find.el".source = ./home/emacs/lisp/root-find.el;
+  # grip-mode shells out to the `grip` binary; pin it to the nix store path
+  # rather than relying on it being on PATH (the .el files aren't templated).
+  home.file.".emacs.d/lisp/grip-path.el".text = ''
+    (setq grip-binary-path "${pkgs.grip}/bin/grip")
+  '';
 
   services.emacs = lib.mkIf (!isDarwin && isDesktop) {
     enable = true;

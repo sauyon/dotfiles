@@ -8,6 +8,10 @@ NEVER post comments, reviews, or replies on a PR (including `gh pr comment`, `gh
 
 Resolving or dismissing existing review threads (marking conversations as resolved) does NOT require confirmation — do it when asked.
 
+## Escalation
+
+If a major roadblock or an unexpected decision needs to be made outside of the design/brainstorming phase, escalate to me rather than deciding it yourself. This includes hitting a blocker that changes the approach, working around a denied action, or anything with a security/trust or external side effect. Default to the safe path, surface the decision, and let me choose.
+
 ## MCloud / Modular Cloud Access
 
 The `mcloud` CLI is the standing way to hit the Modular Cloud (Yatai/mcloud) admin API. It stores its config in `~/.config/mcloud/config.toml` (api_url per context) and `~/.config/mcloud/credentials.toml` (api_token per context). Available contexts include `prod` (`https://modular.console.modular.com`) and `staging`.

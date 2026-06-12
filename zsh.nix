@@ -354,5 +354,6 @@
 
     hm = "home-manager";
     hms = "home-manager switch --flake ${home}/devel/dotfiles#$HOST";
+    hmu = "nix flake update --flake ${home}/devel/dotfiles";
   };
 }

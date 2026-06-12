@@ -22,25 +22,12 @@ The OpenAPI spec lives at `${api_url}/swagger/doc.json` (e.g. `https://modular.c
 
 When you file Linear tickets on my behalf (or assigned to me), default the team to `Customer Engineering` (`CENG-`). Only use a different team when the work is genuinely for that team (e.g., asking IT to action something).
 
-## Slack Message Style
-
-When drafting Slack messages for me, match this style:
-
-- **Lower-case sentence starts** — "should be live. should we update..." not "Should be live. Should we update..."
-- "I" stays capitalized (it's the only exception)
-- Casual contractions: "it's", "don't", "we're", "shouldn't"
-- Hedge often: "I think", "probably", "should", "maybe", "not sure", "my understanding is", "for what it's worth"
-- 1-2 sentences per message, usually short. If a thought has multiple beats, prefer sending as separate sequential messages rather than one long block (Slack-native rhythm).
-- No greetings ("hey"), no sign-offs ("thanks"), no "let me know" — just the substance
-- No bullet lists, no headers, no bold/italic formatting unless it really helps
-- Soft proposals end in "?" — "should we update X first?"
-- Sparing emoji, mostly `:sweat_smile:` style, never decorative
-- Technical jargon used freely — assume the reader knows the system
-
-When in doubt, lean shorter and less formal. If I provide a draft and ask for edits, preserve any phrasings I already wrote; only change what I called out.
-
 ## Secret Handling
 
 NEVER cat or echo secrets, or otherwise run bash tool commands that will log them in the conversation. Get them directly in each tool call, eg with env vars `MY_SECRET=$(cat secretfile) command`.
 
 Secrets in argv (e.g. `curl -H "Authorization: Bearer $TOKEN"`) or inline env are visible via `/proc/<pid>/cmdline` and `environ` — any later `ps -ef` leaks them. For curl, use `-K /path/to/config` with `header = "..."` lines, or `-H @file`. To check process liveness use `pgrep -f name` or `kill -0 <pid>`, not `ps -ef`.
+
+## Brevity
+
+Be brief.

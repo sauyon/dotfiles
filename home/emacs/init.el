@@ -108,19 +108,19 @@
  '(package-archives
 	 '(("gnu" . "http://elpa.gnu.org/packages/") ("melpa" . "https://melpa.org/packages/")))
  '(package-selected-packages
-	 '(ac-haskell-proc ace-isearch ace-jump-mode ack acp aidermacs android-mode auto-dictionary bicycle
-										 bison-mode cargo cargo-mode cmake-mode combobulate company-go company-lsp
+	 '(ace-isearch ace-jump-mode ack acp aidermacs android-mode auto-dictionary bicycle
+										 bison-mode cargo cargo-mode cmake-mode company-go
 										 company-shell consult-lsp copilot dap-mode dash dict-tree dired-git-info
 										 dired-icon dired-preview dired-ranger dirvish dockerfile-mode doom-themes
 										 dumb-jump editorconfig elvish-mode embark-consult f fill-column-indicator
 										 flycheck-haskell flycheck-rust go-dlv go-errcheck go-guru golden-ratio
-										 google-c-style graphviz-dot-mode grip-mode groovy-mode haskell-mode hcl-mode helm-swoop
-										 idle-highlight json-mod json-mode json-par jsonian latex-math-preview
+										 google-c-style graphviz-dot-mode grip-mode groovy-mode haskell-mode hcl-mode
+										 json-mode json-par jsonian latex-math-preview
 										 latex-pretty-symbols latex-unicode-math-mode lsp-pyright lsp-treemacs lsp-ui
 										 lua-mode magit magit-find-file magit-gh-pulls marginalia mmm-mode mo-git-blame
 										 nix-mode nix-update nixos-options orderless outline-toc pkgbuild-mode
 										 pretty-sha-path projectile projectile-ripgrep protobuf-mode quelpa
-										 quelpa-use-package rust-mode rustic scala-mode2 scss-mode shfmt smali-mode smart-jump
+										 quelpa-use-package rust-mode rustic scss-mode shfmt smart-jump
 										 smart-tabs-mode swiper systemd terraform-mode toml-mode vertico
 										 vertico-posframe vterm web-mode ws-butler yaml-mode))
  '(pcap-mode-tshark-executable nil)

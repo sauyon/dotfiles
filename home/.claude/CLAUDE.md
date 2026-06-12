@@ -14,9 +14,7 @@ If a major roadblock or an unexpected decision needs to be made outside of the d
 
 ## MCloud / Modular Cloud Access
 
-The `mcloud` CLI is the standing way to hit the Modular Cloud (Yatai/mcloud) admin API. It stores its config in `~/.config/mcloud/config.toml` (api_url per context) and `~/.config/mcloud/credentials.toml` (api_token per context). Available contexts include `prod` (`https://modular.console.modular.com`) and `staging`.
-
-The OpenAPI spec lives at `${api_url}/swagger/doc.json` (e.g. `https://modular.console.modular.com/swagger/doc.json`). You can use the token in `~/.config/mcloud/credentials.toml`.
+The `mcloud` CLI is the standing way to hit the Modular Cloud (Yatai/mcloud) admin API.
 
 ## Linear
 

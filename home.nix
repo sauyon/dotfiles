@@ -993,6 +993,7 @@ in
     tmux
     unzip
     zip
+    grip  # GitHub-flavored markdown preview server (used by emacs grip-mode)
     (emacsPackages.treesit-grammars.with-grammars (grammars: with grammars; [
       tree-sitter-tsx
       tree-sitter-typescript

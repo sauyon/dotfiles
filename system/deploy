@@ -5,3 +5,26 @@ find etc/ -type d | while read -r d; do sudo mkdir -p "/${d}"; done
 find etc/ -type f | while read -r f; do sudo cp -v "${f}" "/${f}"; done
 sudo systemctl daemon-reload
 sudo systemctl enable --now systemd-oomd
+
+# ── attic binary cache: render the private-cache netrc from sops ──────────────
+# nix.custom.conf adds attic.ko.ag/kube as a substituter; the cache is private,
+# so the nix daemon needs a read token. We are not a nix `trusted-user`, so the
+# token must reach the daemon via /etc/determinate (root), not ~/.config/nix.
+# /etc/determinate/config.json (deployed above) points Determinate at
+# /etc/determinate/netrc.custom, which Determinate merges into its synthesized
+# netrc. The token is sops-encrypted in ../secrets.yaml: decrypt as the user
+# (GCP KMS), then install to /etc as root. The token is never printed.
+export GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-$HOME/.config/sops/gcp-key.json}"
+sops -d --extract '["atticPullToken"]' ../secrets.yaml \
+  | sed 's#^#machine attic.ko.ag password #' \
+  | sudo install -m600 -o root -g root /dev/stdin /etc/determinate/netrc.custom
+
+# ── remote builder: SSH key the nix daemon uses to reach mari ─────────────────
+# nix.custom.conf delegates aarch64-darwin builds to sauyon@mari-1 over Tailscale;
+# the daemon (root) authenticates with this key. Private key is sops-encrypted in
+# ../secrets.yaml; install root-owned, 0600. Never printed.
+sops -d --extract '["mariBuilderKey"]' ../secrets.yaml \
+  | sudo install -m600 -o root -g root /dev/stdin /etc/nix/mari-builder-key
+
+# Pick up the new substituter, trusted key, netrc, and builder.
+sudo systemctl restart nix-daemon

@@ -306,6 +306,10 @@ let
       ao start ''${@:-mcloud}
   '';
 
+  # git built with the libsecret credential helper (git-credential-libsecret),
+  # used for HTTPS auth to git.ko.ag (Forgejo behind a Cloudflare tunnel).
+  gitWithLibsecret = pkgs.git.override { withLibsecret = true; };
+
   claude-prof = pkgs.writeShellScriptBin "claude-prof" ''
     set -euo pipefail
     CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -1853,6 +1857,7 @@ in
 
     git = {
       enable = true;
+      package = gitWithLibsecret;
       ignores = [
         ".DS_Store"
         ".vscode"
@@ -1912,6 +1917,10 @@ in
         merge.tool = "meld";
         # credential."https://github.com".helper = "!/usr/bin/env gh auth git-credential";
         # credential."https://gist.github.com".helper = "!/usr/bin/env gh auth git-credential";
+        # git.ko.ag (Forgejo over HTTPS via Cloudflare tunnel): store the
+        # Forgejo token in the secret service. fj has no git credential helper,
+        # and the box isn't reachable over SSH, so HTTPS + libsecret it is.
+        credential."https://git.ko.ag".helper = "${gitWithLibsecret}/bin/git-credential-libsecret";
       };
     };
 
@@ -1937,6 +1946,10 @@ in
         };
         "github" = {
           HostName = "github.com";
+          User = "git";
+        };
+        "codeberg.org" = {
+          HostName = "codeberg.org";
           User = "git";
         };
         "shizuka" = {

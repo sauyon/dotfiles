@@ -1912,6 +1912,7 @@ in
         merge.tool = "meld";
         # credential."https://github.com".helper = "!/usr/bin/env gh auth git-credential";
         # credential."https://gist.github.com".helper = "!/usr/bin/env gh auth git-credential";
+        credential."https://codeberg.org".helper = "!${pkgs.tea}/bin/tea login helper";
       };
     };
 

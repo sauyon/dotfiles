@@ -1004,7 +1004,7 @@ in
     lnav
     mosh
     opencode
-    tea  # Gitea/Forgejo CLI (Codeberg)
+    forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg
     # codex  # TEMP: upstream Codex.dmg hash drift; re-enable when nixpkgs/codex-desktop-linux catches up
     bat
     rustup
@@ -1912,7 +1912,6 @@ in
         merge.tool = "meld";
         # credential."https://github.com".helper = "!/usr/bin/env gh auth git-credential";
         # credential."https://gist.github.com".helper = "!/usr/bin/env gh auth git-credential";
-        credential."https://codeberg.org".helper = "!${pkgs.tea}/bin/tea login helper";
       };
     };
 

@@ -1004,6 +1004,7 @@ in
     lnav
     mosh
     opencode
+    tea  # Gitea/Forgejo CLI (Codeberg)
     # codex  # TEMP: upstream Codex.dmg hash drift; re-enable when nixpkgs/codex-desktop-linux catches up
     bat
     rustup

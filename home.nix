@@ -52,6 +52,27 @@ let
   agent-orchestrator-pkg = if isDarwin then null else agent-orchestrator.packages.${system}.default;
   ao-mcp-pkg = if isDarwin then null else ao-mcp.packages.${system}.default;
 
+  # denoland's security firewall for agents. Not in nixpkgs and its `make`
+  # build pulls Go/Node/Swift, so fetch the prebuilt linux-amd64 release binary
+  # (sha from the release's SHA256SUMS). Only referenced under the fujiwara
+  # gate in home.packages, so this is never forced on other hosts.
+  clawpatrol = pkgs.stdenv.mkDerivation rec {
+    pname = "clawpatrol";
+    version = "0.2.11";
+    src = pkgs.fetchurl {
+      url = "https://github.com/denoland/clawpatrol/releases/download/v${version}/clawpatrol-linux-amd64";
+      sha256 = "b6f8e017c65e51f7b538306a64965c1112154b970b37da8c61d669237e1fec22";
+    };
+    dontUnpack = true;
+    nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+    installPhase = ''
+      runHook preInstall
+      install -Dm755 $src $out/bin/clawpatrol
+      runHook postInstall
+    '';
+    meta.mainProgram = "clawpatrol";
+  };
+
   # nix's glibc ships no libnss_systemd.so.2 and only searches the nix store,
   # so getpwnam on a systemd-homed user (anyone not in /etc/passwd) fails from
   # nix-built binaries on Arch. Symlink the host's plugin into a private dir
@@ -1020,6 +1041,8 @@ in
     (config.lib.nixGL.wrap (withHostNss pkgs.warp-terminal))
     pkgs.xauth
     pkgs.xdg-utils
+  ] ++ lib.optionals (hostname == "fujiwara") [
+    clawpatrol
   ];
 
   nixpkgs.config = {

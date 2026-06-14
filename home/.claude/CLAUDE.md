@@ -26,6 +26,10 @@ NEVER cat or echo secrets, or otherwise run bash tool commands that will log the
 
 Secrets in argv (e.g. `curl -H "Authorization: Bearer $TOKEN"`) or inline env are visible via `/proc/<pid>/cmdline` and `environ` — any later `ps -ef` leaks them. For curl, use `-K /path/to/config` with `header = "..."` lines, or `-H @file`. To check process liveness use `pgrep -f name` or `kill -0 <pid>`, not `ps -ef`.
 
+## Killing Processes
+
+NEVER kill by name, user, or pattern (`pkill`, `killall`, `kill` of a `pgrep` set). Only kill exact PIDs you launched; if you can't prove a PID is yours, ask. Never `kill -9`.
+
 ## Brevity
 
 Be brief.

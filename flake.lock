@@ -242,6 +242,22 @@
     },
     "nixpkgs_5": {
       "locked": {
+        "lastModified": 1781074563,
+        "narHash": "sha256-md8WlXOlfnIeHeOScMTTHFyf2d6iaTwPl2apR5EQ3P4=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "9ae611a455b90cf061d8f332b977e387bda8e1ca",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_6": {
+      "locked": {
         "lastModified": 1775710090,
         "narHash": "sha256-ar3rofg+awPB8QXDaFJhJ2jJhu+KqN/PRCXeyuXR76E=",
         "owner": "NixOS",
@@ -266,6 +282,7 @@
         "nixgl": "nixgl",
         "nixpkgs": "nixpkgs_4",
         "sops-nix": "sops-nix",
+        "ssh-oidc": "ssh-oidc",
         "walker": "walker"
       }
     },
@@ -287,6 +304,24 @@
         "owner": "Mic92",
         "repo": "sops-nix",
         "type": "github"
+      }
+    },
+    "ssh-oidc": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_5"
+      },
+      "locked": {
+        "lastModified": 1781544026,
+        "narHash": "sha256-zDSjN0ilzjxPMy8C7mVL/YsCVsM+peakqbhbQYsjg2w=",
+        "ref": "refs/heads/main",
+        "rev": "014c2ee90a1624743d7b87e2a2146f3bc2bd0b04",
+        "revCount": 13,
+        "type": "git",
+        "url": "https://codeberg.org/sauyon/ssh-oidc"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://codeberg.org/sauyon/ssh-oidc"
       }
     },
     "systems": {
@@ -337,7 +372,7 @@
     "walker": {
       "inputs": {
         "elephant": "elephant",
-        "nixpkgs": "nixpkgs_5",
+        "nixpkgs": "nixpkgs_6",
         "systems": "systems_3"
       },
       "locked": {

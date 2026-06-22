@@ -670,6 +670,13 @@ in
     mode = "0600";
   };
 
+  # ── Modular private endpoint base URL (opencode mcloud provider) ────────────
+  # Kept in sops so the internal hostname never lands in the committed config.
+  sops.secrets.modularApiUrl = {
+    path = "${config.home.homeDirectory}/.config/opencode/mcloud-base-url";
+    mode = "0600";
+  };
+
   # ── UniFi API key (unifi-mcp-server) ───────────────────────────────────────
   sops.secrets.unifiApiKey = {
     path = "${config.home.homeDirectory}/.config/unifi/api-key";

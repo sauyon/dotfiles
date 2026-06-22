@@ -7,16 +7,13 @@ let
     provider = {
       mcloud = {
         npm = "@ai-sdk/openai-compatible";
-        name = "Modular MAX Cloud";
-        options = {
-          baseURL = "https://model.api.modular.com/v1";
-        };
+        name = "Modular (internal)";
+        # baseURL is injected at activation from the sops secret
+        # ~/.config/opencode/mcloud-base-url so the private internal hostname
+        # never appears in the committed config.
+        options = { };
         models = {
-          "google/gemma-4-31B-it" = { name = "Gemma 4 31B"; };
-          "google/gemma-4-26B-A4B-it" = { name = "Gemma 4 26B A4B"; };
-          "nvidia/Gemma-4-31B-IT-NVFP4" = { name = "Gemma 4 31B (NVFP4)"; };
-          "nvidia/Gemma-4-26B-A4B-NVFP4" = { name = "Gemma 4 26B A4B (NVFP4)"; };
-          "nvidia/Kimi-K2.5-NVFP4" = { name = "Kimi K2.5 (NVFP4)"; };
+          "MiniMaxAI/MiniMax-M3" = { name = "MiniMax M3"; };
         };
       };
       "ko-ag" = {
@@ -76,6 +73,7 @@ in
     DEST="$HOME/.config/opencode/opencode.json"
     TMPL="${configTemplate}"
     MCLOUD_KEY_FILE="$HOME/.config/local-auto-mode/api-key"
+    MCLOUD_URL_FILE="$HOME/.config/opencode/mcloud-base-url"
     KOAG_KEY_FILE="$HOME/.config/opencode/ko-ag-key"
     $DRY_RUN_CMD mkdir -p "$HOME/.config/opencode"
     JQ_ARGS=()
@@ -83,6 +81,10 @@ in
     if [ -r "$MCLOUD_KEY_FILE" ]; then
       JQ_ARGS+=(--rawfile mcloudKey "$MCLOUD_KEY_FILE")
       JQ_FILTER="$JQ_FILTER | .provider.mcloud.options.apiKey = (\$mcloudKey | sub(\"\\n$\"; \"\"))"
+    fi
+    if [ -r "$MCLOUD_URL_FILE" ]; then
+      JQ_ARGS+=(--rawfile mcloudUrl "$MCLOUD_URL_FILE")
+      JQ_FILTER="$JQ_FILTER | .provider.mcloud.options.baseURL = (\$mcloudUrl | sub(\"\\n$\"; \"\"))"
     fi
     if [ -r "$KOAG_KEY_FILE" ]; then
       JQ_ARGS+=(--rawfile koagKey "$KOAG_KEY_FILE")

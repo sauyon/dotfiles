@@ -1065,25 +1065,6 @@ in
         pkgs = prev;
       };
     })
-    (self: super: {
-      any-nix-shell-s = super.any-nix-shell.overrideAttrs (old: {
-        src = super.fetchFromGitHub {
-          owner = "sauyon";
-          repo = "any-nix-shell";
-          rev = "3a99be0b3d76a691c940608c477955d122f37e75";
-          sha256 = "1g735n0xr50vgcw30igldhmjvb40jgk65x5qjnnxidvm1i3vykw9";
-        };
-      });
-    })
-    (final: prev: {
-      astal = prev.astal // {
-        network = prev.astal.network.overrideAttrs (old: {
-          patches = (old.patches or []) ++ [
-            ./patches/astal-network-null-bssid.patch
-          ];
-        });
-      };
-    })
     (final: prev: {
       # hyprlock links Nix's libpam, whose pam_unix.so has the unix_chkpwd
       # helper path hardcoded to /run/wrappers/bin/unix_chkpwd (a NixOS-ism --
@@ -1111,13 +1092,7 @@ in
       # build doesn't include wayland in RUNPATH — autoPatchelfHook only sees
       # linked deps, not dlopen'd ones. Without this, warp silently falls back
       # to X11 even when WARP_ENABLE_WAYLAND=1.
-      warp-terminal = prev.warp-terminal.overrideAttrs (old: rec {
-        # nixpkgs lags behind upstream stable; pin the newer release here.
-        version = "0.2026.06.03.09.49.stable_03";
-        src = final.fetchurl {
-          url = "https://releases.warp.dev/stable/v${version}/warp-terminal-v${version}-1-x86_64.pkg.tar.zst";
-          hash = "sha256-c12nKA+pVBebx2PvyultllUr6h6t/U4QLcKpwFoG9O4=";
-        };
+      warp-terminal = prev.warp-terminal.overrideAttrs (old: {
         runtimeDependencies = (old.runtimeDependencies or []) ++ [
           final.wayland
         ];

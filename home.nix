@@ -1122,6 +1122,35 @@ in
       });
     })
     (final: prev: {
+      # Pin coder to match the RDE server (rde.modular.com runs v2.31.10);
+      # nixpkgs ships the older stable 2.28.6 and the CLI warns on every
+      # invocation about the client/server version mismatch. The nixpkgs
+      # derivation just fetches a prebuilt release tarball, so bumping is a
+      # version + per-system hash swap (no Go/frontend rebuild).
+      coder = prev.coder.overrideAttrs (old: rec {
+        version = "2.31.10";
+        src = prev.fetchurl {
+          url =
+            let
+              systemName = {
+                x86_64-linux = "linux_amd64";
+                aarch64-linux = "linux_arm64";
+                x86_64-darwin = "darwin_amd64";
+                aarch64-darwin = "darwin_arm64";
+              }.${prev.stdenvNoCC.hostPlatform.system};
+              ext = if prev.stdenvNoCC.hostPlatform.isDarwin then "zip" else "tar.gz";
+            in
+            "https://github.com/coder/coder/releases/download/v${version}/coder_${version}_${systemName}.${ext}";
+          hash = {
+            x86_64-linux = "sha256-9ZhLKf0lNIX391BqzsqltiuMwDVJ8J7daRNowrkW4fE=";
+            aarch64-linux = "sha256-DcfCWUcyru3tAbNhaL5qT4okV6eu5/IJS+YhPwBAMqs=";
+            x86_64-darwin = "sha256-Pdd7mgWTexr2eWDMIixe//eFihUyYQszBFPScIaCciI=";
+            aarch64-darwin = "sha256-qYFLcyTXjgWMPjmsThxDQngklT1x36MEkCTtMzn6E6k=";
+          }.${prev.stdenvNoCC.hostPlatform.system};
+        };
+      });
+    })
+    (final: prev: {
       claude-agent-acp = prev.buildNpmPackage rec {
         pname = "claude-agent-acp";
         version = "0.33.1";

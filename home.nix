@@ -134,7 +134,7 @@ let
       | ${pkgs.jq}/bin/jq -r --argjson no_dpms '${builtins.toJSON noDpmsOutputs}' \
           '.[] | select(.name as $name | $no_dpms | index($name) | not) | .name' \
       | while read -r mon; do
-          ${pkgs.hyprland}/bin/hyprctl dispatch dpms "$1" "$mon"
+          ${pkgs.hyprland}/bin/hyprctl dispatch "hl.dsp.dpms({ mode = \"$1\", monitor = \"$mon\" })"
         done
   '';
 

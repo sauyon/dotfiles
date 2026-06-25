@@ -1045,6 +1045,7 @@ in
     hypr-unstuck-lock
     nixGL
 
+    pkgs.bitwarden-cli
     pkgs.emacs30-pgtk
     pkgs.hyprpicker
     pkgs.psi-notify

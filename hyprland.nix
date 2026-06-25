@@ -184,7 +184,11 @@ in
         (exec "${mainMod} + semicolon" ''if [[ $(hyprctl activewindow -j | jq .floating) == true ]]; then t=tiled; else t=floating; fi; hyprctl dispatch "hl.dsp.focus({ window = \"$t\" })"'')
         (exec "${mainMod} + space" menu)
         (exec "ALT + space" menu)
-        (exec "${mainMod} + SHIFT + Q" "${config.programs.hyprlock.package}/bin/hyprlock")
+        # Guard with `pidof hyprlock ||` (same as hypridle's lock_cmd): a second
+        # hyprlock instance fights the first over the Goodix fingerprint device
+        # ("Device already claimed"), which breaks fingerprint AND password auth
+        # on the lock you're typing into. Never stack a duplicate.
+        (exec "${mainMod} + SHIFT + Q" "pidof hyprlock || ${config.programs.hyprlock.package}/bin/hyprlock")
         (exec "${mainMod} + SHIFT + S" "${pkgs.hyprshot}/bin/hyprshot -m region")
         (exec "${mainMod} + E" "emacsclient -c")
 
@@ -251,7 +255,10 @@ in
 
         (execOpts "switch:on:Lid Switch"
           # Lua IPC dispatch: `dispatch exec X` -> hl.dsp.exec_cmd("X").
-          "${hyprDpmsPhysical} off && hyprctl dispatch 'hl.dsp.exec_cmd(\"${config.programs.hyprlock.package}/bin/hyprlock\")'"
+          # `pidof hyprlock ||` so a lid-close on top of an existing lock (or one
+          # already firing from suspend) can't stack a second instance that then
+          # fights over the fingerprint device. DPMS-off always runs regardless.
+          "${hyprDpmsPhysical} off && ( pidof hyprlock || hyprctl dispatch 'hl.dsp.exec_cmd(\"${config.programs.hyprlock.package}/bin/hyprlock\")' )"
           { locked = true; }
         )
         (execOpts "switch:off:Lid Switch" "${hyprDpmsPhysical} on" { locked = true; })

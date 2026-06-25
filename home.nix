@@ -73,43 +73,6 @@ let
     meta.mainProgram = "clawpatrol";
   };
 
-  cursor-agent-cli = pkgs.stdenv.mkDerivation rec {
-    pname = "cursor-agent-cli";
-    version = "2026.06.24-00-45-58-9f61de7";
-    src = pkgs.fetchurl {
-      url = "https://downloads.cursor.com/lab/${version}/linux/x64/agent-cli-package.tar.gz";
-      hash = "sha256-0lQoOpOeF6hwaWsZzelB95fVbfC0N4msuCLWCFT7D4Y=";
-    };
-
-    nativeBuildInputs = [
-      pkgs.autoPatchelfHook
-      pkgs.makeWrapper
-    ];
-    buildInputs = [
-      pkgs.stdenv.cc.cc.lib
-      pkgs.zlib
-    ];
-
-    installPhase = ''
-      runHook preInstall
-
-      mkdir -p $out/libexec/cursor-agent $out/bin
-      cp -R . $out/libexec/cursor-agent/
-      chmod +x $out/libexec/cursor-agent/{cursor-agent,node,crepectl}
-
-      patchShebangs $out/libexec/cursor-agent/cursor-agent
-      ln -s ../libexec/cursor-agent/cursor-agent $out/bin/agent
-      ln -s ../libexec/cursor-agent/cursor-agent $out/bin/cursor-agent
-
-      runHook postInstall
-    '';
-
-    meta = {
-      mainProgram = "cursor-agent";
-      platforms = [ "x86_64-linux" ];
-    };
-  };
-
   # nix's glibc ships no libnss_systemd.so.2 and only searches the nix store,
   # so getpwnam on a systemd-homed user (anyone not in /etc/passwd) fails from
   # nix-built binaries on Arch. Symlink the host's plugin into a private dir
@@ -679,7 +642,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default codex-desktop-linux.homeManagerModules.default ./antigravity.nix ./opencode.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default codex-desktop-linux.homeManagerModules.default ./antigravity.nix ./opencode.nix ./cursor-agent.nix ];
 
   home.stateVersion = "26.05";
 
@@ -1072,7 +1035,7 @@ in
     agent-orchestrator-pkg
     ao-mcp-pkg
     ao-run
-    cursor-agent-cli
+    pkgs.cursor-agent-cli
     pkgs.cloudflare-warp
     pkgs.cryptomator-cli
   ] ++ lib.optionals (!isDesktop) [

@@ -1940,6 +1940,10 @@ in
         # Forgejo token in the secret service. fj has no git credential helper,
         # and the box isn't reachable over SSH, so HTTPS + libsecret it is.
         credential."https://git.ko.ag".helper = "${gitWithLibsecret}/bin/git-credential-libsecret";
+        # huggingface.co: persist the HF token in the secret service so
+        # `hf auth login --add-to-git-credential` and direct git HTTPS clones
+        # of Hub repos / LFS pulls authenticate without re-prompting.
+        credential."https://huggingface.co".helper = "${gitWithLibsecret}/bin/git-credential-libsecret";
       };
     };
 

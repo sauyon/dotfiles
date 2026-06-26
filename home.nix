@@ -1398,7 +1398,13 @@ in
   programs = {
     hyprlock = lib.optionalAttrs (!isDarwin && isDesktop) {
       enable = true;
-      package = config.lib.nixGL.wrap pkgs.hyprlock;
+      # withHostNss: hyprlock runs under nix glibc, whose NSS can't load the
+      # host libnss_systemd.so.2, so getpwuid(uid) fails for a systemd-userdb
+      # user (sauyon, uid 60006, not in /etc/passwd). hyprlock then has no
+      # username to hand PAM and silently rejects EVERY password (fingerprint
+      # uses a separate path, masking it). Wrap NSS *outside* nixGL so the
+      # LD_LIBRARY_PATH prefix propagates through to the real binary.
+      package = withHostNss (config.lib.nixGL.wrap pkgs.hyprlock);
       settings = {
         general = {
           hide_cursor = true;

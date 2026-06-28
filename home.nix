@@ -992,6 +992,26 @@ in
     #   xdg.configFile."systemd/user/default.target.wants/claude-remote-control@<esc>.service".
   };
 
+  # `ca-rc` starts a Cursor Agent worker for a project dir so cloud/mobile sessions
+  # can drive local agents in that workspace. Template unit keyed on project path:
+  #   systemctl --user start cursor-agent-worker@$(systemd-escape -p /path/to/proj)
+  systemd.user.services."cursor-agent-worker@" = lib.optionalAttrs (!isDarwin) {
+    Unit = {
+      Description = "Cursor Agent worker — %I";
+      After = [ "network-online.target" ];
+      Wants = [ "network-online.target" ];
+    };
+    Service = {
+      Type = "simple";
+      WorkingDirectory = "/%I";
+      Environment = "PATH=${config.home.profileDirectory}/bin:/usr/bin:/bin";
+      StandardInput = "null";
+      ExecStart = "${pkgs.cursor-agent-cli}/bin/agent worker start";
+      Restart = "on-failure";
+      RestartSec = 10;
+    };
+  };
+
   programs.codexDesktopLinux = let
     fullFeatured = hostname == "fujiwara";
   in {
@@ -1012,6 +1032,7 @@ in
     comma
     cosign
     jq
+    jujutsu
     lnav
     mosh
     opencode

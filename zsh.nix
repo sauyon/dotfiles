@@ -94,6 +94,31 @@
       systemctl --user stop "claude-remote-control@$(systemd-escape -p "$d").service"
     }
 
+    # Cursor Agent worker for a project dir (default: cwd), via the
+    # cursor-agent-worker@.service template. Start/stop on the fly.
+    ca-rc() {
+      local d=''${1:-$PWD}
+      d=$(realpath "$d") || return 1
+      # Pre-accept workspace trust so headless worker start doesn't refuse (no TTY).
+      local slug="''${d#/}"
+      slug="''${slug//\//-}"
+      local trust="$HOME/.cursor/projects/$slug/.workspace-trusted"
+      if [[ ! -f "$trust" ]]; then
+        mkdir -p "$HOME/.cursor/projects/$slug"
+        jq -n --arg d "$d" --arg t "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" \
+          '{trustedAt: $t, workspacePath: $d}' > "$trust" \
+          || { echo "ca-rc: failed to write $trust" >&2; return 1; }
+      fi
+      local unit="cursor-agent-worker@$(systemd-escape -p "$d").service"
+      systemctl --user start "$unit" && echo "started $unit"
+      systemctl --user --no-pager status "$unit" | head -5
+    }
+    ca-rc-stop() {
+      local d=''${1:-$PWD}
+      d=$(realpath "$d") || return 1
+      systemctl --user stop "cursor-agent-worker@$(systemd-escape -p "$d").service"
+    }
+
     fi
 
     # ── Config ─────────────────────────────────────────────────────────────

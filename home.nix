@@ -832,9 +832,11 @@ in
   home.file.".emacs.d/lisp/root-find.el".source = ./home/emacs/lisp/root-find.el;
   # grip-mode shells out to the `grip` binary; pin it to the nix store path
   # rather than relying on it being on PATH (the .el files aren't templated).
-  home.file.".emacs.d/lisp/grip-path.el".text = ''
-    (setq grip-binary-path "${pkgs.grip}/bin/grip")
-  '';
+  home.file.".emacs.d/lisp/grip-path.el" = lib.mkIf (!isDarwin) {
+    text = ''
+      (setq grip-binary-path "${pkgs.grip}/bin/grip")
+    '';
+  };
 
   services.emacs = lib.mkIf (!isDarwin && isDesktop) {
     enable = true;
@@ -1047,12 +1049,12 @@ in
     tmux
     unzip
     zip
-    grip  # GitHub-flavored markdown preview server (used by emacs grip-mode)
     (emacsPackages.treesit-grammars.with-grammars (grammars: with grammars; [
       tree-sitter-tsx
       tree-sitter-typescript
     ]))
   ]) ++ lib.optionals (!isDarwin) [
+    pkgs.grip
     agent-orchestrator-pkg
     ao-mcp-pkg
     ao-run

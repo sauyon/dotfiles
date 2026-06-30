@@ -7,7 +7,6 @@
   nixgl,
   agent-orchestrator,
   ao-mcp,
-  codex-desktop-linux,
   machine,
 
   system,
@@ -528,33 +527,6 @@ let
     };
   };
   claudeSettingsFile = pkgs.writeText "claude-settings-nix.json" (builtins.toJSON claudeSettings);
-  codexHooks = {
-    hooks = {
-      PreToolUse = [
-        {
-          matcher = ".*";
-          hooks = [ {
-            type = "command";
-            command = "python3 ${config.home.homeDirectory}/.codex/plugins/local-auto-mode/classifier.py";
-            timeout = 15;
-          } ];
-        }
-        {
-          matcher = "Bash";
-          hooks = [ {
-            type = "command";
-            command = ''
-              case "$PWD" in ${config.home.homeDirectory}/devel/quite-app*) exit 0 ;; esac
-              input=$(cat)
-              case "$input" in *'"command":"gh pr create'*) ;; *) exit 0 ;; esac
-              printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Do not run `gh pr create`. Print a PR creation link instead (e.g. https://github.com/<owner>/<repo>/compare/<base>...<head>?expand=1, or https://github.com/<owner>/<repo>/pull/new/<branch>) and let the user create the PR themselves."}}'
-            '';
-          } ];
-        }
-      ];
-    };
-  };
-  codexHooksFile = pkgs.writeText "codex-hooks-nix.json" (builtins.toJSON codexHooks);
 
   newtabLinks = [
     { group = "Work"; links = [
@@ -642,7 +614,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default codex-desktop-linux.homeManagerModules.default ./antigravity.nix ./opencode.nix ./cursor-agent.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./antigravity.nix ./opencode.nix ./cursor-agent.nix ];
 
   home.stateVersion = "26.05";
 
@@ -709,14 +681,6 @@ in
     ./home/.claude/plugins/local-auto-mode/prompt.py;
   home.file.".claude/plugins/local-auto-mode/config.py".source =
     ./home/.claude/plugins/local-auto-mode/config.py;
-  home.file.".codex/plugins/local-auto-mode/hooks.json".source =
-    ./home/.claude/plugins/local-auto-mode/hooks.json;
-  home.file.".codex/plugins/local-auto-mode/classifier.py".source =
-    ./home/.claude/plugins/local-auto-mode/classifier.py;
-  home.file.".codex/plugins/local-auto-mode/prompt.py".source =
-    ./home/.claude/plugins/local-auto-mode/prompt.py;
-  home.file.".codex/plugins/local-auto-mode/config.py".source =
-    ./home/.claude/plugins/local-auto-mode/config.py;
 
   # Merge nix-declared Claude settings into a mutable ~/.claude/settings.json.
   # Using jq's recursive merge (.[0] * .[1]) so nix values win on conflict while
@@ -738,13 +702,6 @@ in
     fi
   '';
 
-  home.activation.codexHooks = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    DEST="$HOME/.codex/hooks.json"
-    NIX="${codexHooksFile}"
-    $DRY_RUN_CMD mkdir -p "$HOME/.codex"
-    $DRY_RUN_CMD cp "$NIX" "$DEST"
-    $DRY_RUN_CMD chmod 644 "$DEST"
-  '';
 
   # Auto-install Claude Code plugins via the `claude plugin` CLI. Idempotent:
   # marketplace is added if missing, each plugin is installed if not already
@@ -815,9 +772,6 @@ in
     # don't have a dconf D-Bus service, so use GDK_DPI_SCALE instead.
     // (lib.optionalAttrs (hidpi.enabled && hostname != "setsuna") {
       GDK_DPI_SCALE = toString hidpi.scale;
-    })
-    // (lib.optionalAttrs (!isDarwin && isDesktop) {
-      CODEX_CLI_PATH = "${pkgs.codex}/bin/codex";
     });
 
   # TERMINFO_DIRS is already set under systemd by home-manager's generic-linux
@@ -1014,15 +968,6 @@ in
     };
   };
 
-  programs.codexDesktopLinux = let
-    fullFeatured = hostname == "fujiwara";
-  in {
-    enable = false;  # TEMP: upstream Codex.dmg hash drift; re-enable when fixed
-    computerUseUi.enable = fullFeatured;
-    remoteMobileControl.enable = fullFeatured;
-    remoteControl.enable = fullFeatured;
-  };
-
   home.packages = [
     claude-prof
   ] ++ (with pkgs; [
@@ -1039,7 +984,6 @@ in
     mosh
     opencode
     forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg
-    # codex  # TEMP: upstream Codex.dmg hash drift; re-enable when nixpkgs/codex-desktop-linux catches up
     bat
     rustup
     nixfmt

@@ -17,20 +17,16 @@
     nixgl.url = "github:guibou/nixGL";
     agent-orchestrator.url = "github:sauyon/agent-orchestrator";
     ao-mcp.url = "github:sauyon/ao-mcp";
-    codex-desktop-linux = {
-      url = "github:ilysenko/codex-desktop-linux";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     # The seamless OIDC SSH gate (gate binary + nixos/darwin modules).
     ssh-oidc.url = "git+https://codeberg.org/sauyon/ssh-oidc";
   };
 
-  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, codex-desktop-linux, ssh-oidc, ... }:
+  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, ssh-oidc, ... }:
   let
     mkHome = system: machine: home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.${system};
       extraSpecialArgs = {
-        inherit sops-nix walker nixgl agent-orchestrator ao-mcp codex-desktop-linux machine;
+        inherit sops-nix walker nixgl agent-orchestrator ao-mcp machine;
         inherit system;
       };
       modules = [ ./home.nix ];

@@ -16,7 +16,11 @@ rec {
 
   GOPATH = "${home}/devel/go";
 
-  PATH = "$PATH:/snap/bin:$GOPATH/bin:${xdg.dataHome}/cargo/bin:${home}/.local/bin:${home}/.krew/bin";
+  # Prepend the home-manager profile bin so it lands in environment.d too. Login
+  # shells get it from hm-session-vars.sh, but the systemd user manager (and thus
+  # services like walker that spawn `firefox` by name) only sees this PATH; the
+  # bare $PATH it inherits from PAM is just /usr/local/bin:/usr/bin.
+  PATH = "${home}/.nix-profile/bin:$PATH:/snap/bin:$GOPATH/bin:${xdg.dataHome}/cargo/bin:${home}/.local/bin:${home}/.krew/bin";
 
   GRAVEYARD = "$XDG_RUNTIME_DIR/trash";
 

@@ -6,18 +6,34 @@ find etc/ -type f | while read -r f; do sudo cp -v "${f}" "/${f}"; done
 sudo systemctl daemon-reload
 sudo systemctl enable --now systemd-oomd
 
-# ── attic binary cache: render the private-cache netrc from sops ──────────────
-# nix.custom.conf adds attic.ko.ag/kube as a substituter; the cache is private,
-# so the nix daemon needs a read token. We are not a nix `trusted-user`, so the
-# token must reach the daemon via /etc/determinate (root), not ~/.config/nix.
-# /etc/determinate/config.json (deployed above) points Determinate at
-# /etc/determinate/netrc.custom, which Determinate merges into its synthesized
-# netrc. The token is sops-encrypted in ../secrets.yaml: decrypt as the user
-# (GCP KMS), then install to /etc as root. The token is never printed.
+# ── attic binary cache: make nix read nix.custom.conf + render the pull token ──
+# nix.custom.conf adds attic.ko.ag/kube as an extra substituter; the cache is
+# PRIVATE, so the nix daemon needs a read token. We are not a nix `trusted-user`,
+# so both the config and the token must reach the daemon at the system level.
+#
+#   • Determinate Nix auto-`!include`s nix.custom.conf from /etc/nix/nix.conf and
+#     merges /etc/determinate/netrc.custom (via config.json) into its netrc.
+#   • Plain upstream nix (e.g. utsuho) does neither, so we wire it up here:
+#       - ensure /etc/nix/nix.conf `!include`s nix.custom.conf (idempotent)
+#       - render the token to /etc/nix/netrc, the daemon's default netrc-file
+#     (On a Determinate host the extra /etc/nix/netrc copy is simply unused.)
+# The token is sops-encrypted in ../secrets.yaml: decrypt as the user (GCP KMS),
+# then install to /etc as root. The token is never printed.
 export GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-$HOME/.config/sops/gcp-key.json}"
+
+# Plain upstream nix only reads /etc/nix/nix.conf; pull in nix.custom.conf so the
+# substituter + trusted key take effect. Idempotent, and a no-op on Determinate
+# (whose own nix.conf already includes it, so the grep matches and we skip).
+if ! sudo grep -qF 'nix.custom.conf' /etc/nix/nix.conf 2>/dev/null; then
+  echo '!include nix.custom.conf' | sudo tee -a /etc/nix/nix.conf >/dev/null
+fi
+
 sops -d --extract '["atticPullToken"]' ../secrets.yaml \
   | sed 's#^#machine attic.ko.ag password #' \
   | sudo install -m600 -o root -g root /dev/stdin /etc/determinate/netrc.custom
+sops -d --extract '["atticPullToken"]' ../secrets.yaml \
+  | sed 's#^#machine attic.ko.ag password #' \
+  | sudo install -m600 -o root -g root /dev/stdin /etc/nix/netrc
 
 # ── remote builder: SSH key the nix daemon uses to reach mari ─────────────────
 # nix.custom.conf delegates aarch64-darwin builds to sauyon@mari-1 over Tailscale;

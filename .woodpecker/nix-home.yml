@@ -1,0 +1,72 @@
+# Build the Linux home-manager closures in-cluster and push them to attic, so
+# `home-manager switch` on the boxes just downloads instead of compiling.
+#
+# Mirrors the kube repo's .woodpecker/nix-nodes.yml: a fully self-contained
+# nixos/nix pod on fujiwara (32c/125G) builds into its OWN ephemeral /nix — never
+# a host store — then pushes the resulting closures to the `kube` attic cache.
+#
+# Trigger: push to main touching any nix/home source, or a manual run in the
+# Woodpecker UI (event: manual). mari (aarch64-darwin) is intentionally omitted —
+# an x86_64-linux pod can't build darwin.
+when:
+  - event: push
+    branch: master
+    path:
+      include:
+        - "flake.nix"
+        - "flake.lock"
+        - "*.nix"
+        - "home/**"
+        - "patches/**"
+        - ".woodpecker/nix-home.yml"
+  - event: manual
+
+steps:
+  - name: build-and-push
+    # nixos/nix pinned by digest (tag 2.24.10), same image the cluster uses.
+    # Single-user nix as root in-pod; builds into the pod's ephemeral /nix.
+    image: nixos/nix@sha256:a09d508c2e46d3a4c7205ff3fa0d506d626a5a966c31e879df7efe737e22f003
+    backend_options:
+      kubernetes:
+        # Land on fujiwara (the build node) purely for CPU/RAM; reuses the
+        # existing buildkit label. The build is contained to this pod.
+        nodeSelector:
+          buildkit: "true"
+        securityContext:
+          # The in-pod nix build sandbox needs mount/user namespaces.
+          privileged: true
+        resources:
+          requests:
+            cpu: "2"
+            memory: 4Gi
+          limits:
+            cpu: "8"
+            memory: 16Gi
+    environment:
+      ATTIC_TOKEN: # push token (woodpecker secret, shared with the kube repo)
+        from_secret: ATTIC_TOKEN
+      ATTIC_PUBLIC_KEY: # cache public key (woodpecker secret)
+        from_secret: ATTIC_PUBLIC_KEY
+    commands:
+      # 1. Build every Linux host's activation package. Substitute unchanged
+      #    paths from attic (don't rebuild what's cached) while keeping
+      #    cache.nixos.org. Capture the out-paths for the push step.
+      - |
+        out_paths=$(nix build --no-link --print-out-paths \
+          --extra-experimental-features 'nix-command flakes' \
+          --extra-substituters https://attic.ko.ag/kube \
+          --extra-trusted-public-keys "$ATTIC_PUBLIC_KEY" \
+          .#homeConfigurations.utsuho.activationPackage \
+          .#homeConfigurations.setsuna.activationPackage \
+          .#homeConfigurations.fujiwara.activationPackage)
+      # 2. The image lacks attic-client; run it pinned from a fixed nixpkgs rev
+      #    (same rev the kube pipeline uses). Log in, then push the built
+      #    closures to cache `kube`. Do NOT echo $ATTIC_TOKEN / enable `set -x`.
+      - |
+        nix run --extra-experimental-features 'nix-command flakes' \
+          github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#attic-client -- \
+          login ko https://attic.ko.ag "$ATTIC_TOKEN"
+      - |
+        nix run --extra-experimental-features 'nix-command flakes' \
+          github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#attic-client -- \
+          push ko:kube $out_paths

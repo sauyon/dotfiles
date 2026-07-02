@@ -418,6 +418,17 @@ let
         }
       ];
       PostToolUseFailure = [];
+      # Per-session kcs KUBECONFIG isolation: mint a session id and point
+      # KUBECONFIG at its kcs socket dir (mirrors zsh.nix `kcs init`). Written
+      # to $CLAUDE_ENV_FILE so it applies for the whole Claude session.
+      SessionStart = [
+        {
+          hooks = [ {
+            type = "command";
+            command = ''SESSION_ID="claude-$(openssl rand -hex 4)"; KCS_DIR="''${XDG_RUNTIME_DIR:-$HOME/.local/run}/kcs/sessions"; echo "export KCS_SESSION=$SESSION_ID" >> "$CLAUDE_ENV_FILE"; echo "export KUBECONFIG=$KCS_DIR/$SESSION_ID:$HOME/.kube/config" >> "$CLAUDE_ENV_FILE"'';
+          } ];
+        }
+      ];
     };
     permissions = {
       allow = [
@@ -489,6 +500,7 @@ let
       # flat deny here can't be scoped to a directory, and the auto-mode
       # classifier reads it as a global block — over-blocking quite-app.
       deny = [];
+      defaultMode = "auto";
     };
     # Tell the auto-mode classifier PR creation is fine inside quite-app, so it
     # doesn't block the hook-allowed path there. (cwd is in the classifier's
@@ -501,6 +513,12 @@ let
     };
     enabledPlugins = {
       "rust-analyzer-lsp@claude-plugins-official" = true;
+      "clangd-lsp@claude-plugins-official" = true;
+      "slack@claude-plugins-official" = true;
+      "superpowers@claude-plugins-official" = true;
+      "pyright-lsp@claude-plugins-official" = true;
+      "code-simplifier@claude-plugins-official" = true;
+      "ralph-loop@claude-plugins-official" = true;
     };
     mcpServers = {
       unifi = {
@@ -517,7 +535,12 @@ let
         };
       };
     };
+    model = "claude-fable-5[1m]";
+    theme = "dark";
+    editorMode = "normal";
     autoDreamEnabled = true;
+    agentPushNotifEnabled = true;
+    skipWorkflowUsageWarning = true;
     skipDangerousModePermissionPrompt = true;
     skipAutoPermissionPrompt = true;
     statusLine = {
@@ -526,8 +549,6 @@ let
       padding = 0;
     };
   };
-  claudeSettingsFile = pkgs.writeText "claude-settings-nix.json" (builtins.toJSON claudeSettings);
-
   newtabLinks = [
     { group = "Work"; links = [
       { name = "Gmail";       url = "https://mail.google.com"; }
@@ -681,27 +702,6 @@ in
     ./home/.claude/plugins/local-auto-mode/prompt.py;
   home.file.".claude/plugins/local-auto-mode/config.py".source =
     ./home/.claude/plugins/local-auto-mode/config.py;
-
-  # Merge nix-declared Claude settings into a mutable ~/.claude/settings.json.
-  # Using jq's recursive merge (.[0] * .[1]) so nix values win on conflict while
-  # any keys Claude wrote at runtime (MCP servers, extra permissions, etc.) are
-  # preserved across home-manager switches.
-  home.activation.claudeSettings = lib.hm.dag.entryAfter [ "writeBoundary" "sops" ] ''
-    DEST="$HOME/.claude/settings.json"
-    NIX="${claudeSettingsFile}"
-    $DRY_RUN_CMD mkdir -p "$HOME/.claude"
-    if [ -e "$DEST" ] && [ ! -L "$DEST" ]; then
-      TMP=$(mktemp)
-      ${pkgs.jq}/bin/jq -s '.[0] * .[1]' "$DEST" "$NIX" > "$TMP"
-      $DRY_RUN_CMD mv "$TMP" "$DEST"
-    else
-      # First run or was previously a symlink from programs.claude-code.settings
-      $DRY_RUN_CMD rm -f "$DEST"
-      $DRY_RUN_CMD cp "$NIX" "$DEST"
-      $DRY_RUN_CMD chmod 644 "$DEST"
-    fi
-  '';
-
 
   # Auto-install Claude Code plugins via the `claude plugin` CLI. Idempotent:
   # marketplace is added if missing, each plugin is installed if not already
@@ -903,6 +903,14 @@ in
       Description = "Gracefully close all Hyprland windows on session end";
       PartOf = [ "graphical-session.target" ];
       After = [ "graphical-session.target" ];
+      # The ExecStop below closes every Hyprland window, and it fires whenever
+      # this unit stops for *any* reason. When a home-manager switch changes a
+      # store path in this unit file, sd-switch would otherwise restart the
+      # unit and run ExecStop mid-switch, closing all windows (see the 2026-07
+      # firefox incident). keep-old tells sd-switch to leave the running unit
+      # untouched during a switch. Real logout still stops graphical-session.target,
+      # which stops this unit via PartOf and runs ExecStop as intended.
+      X-SwitchMethod = "keep-old";
     };
     Service = {
       Type = "oneshot";
@@ -1715,8 +1723,10 @@ in
     claude-code = {
       enable = true;
       # enableMcpIntegration = true;
-      # settings is intentionally unset — managed via home.activation.claudeSettings
-      # below so the file stays mutable (Claude can edit it at runtime).
+      # settings.json is fully nix-managed and read-only (no runtime writes).
+      # Everything Claude used to persist at runtime (model, theme, plugins,
+      # editorMode, …) is declared in claudeSettings above.
+      settings = claudeSettings;
       #
       # Pin a newer CLI than nixpkgs ships (nixpkgs lags the upstream native-binary
       # releases). Override version + prebuilt src; the checksum is the sha256 hex
@@ -1724,11 +1734,11 @@ in
       # (same source nixpkgs' own manifest.json uses). Bump both when updating.
       package =
         let
-          claudeVersion = "2.1.172";
+          claudeVersion = "2.1.187";
           platformKey = "${pkgs.stdenv.hostPlatform.node.platform}-${pkgs.stdenv.hostPlatform.node.arch}";
           checksums = {
-            linux-x64 = "c0915dd1691d569aeebc7978b12e029718323685ec0dd4b5c6a453108d6be1f7";
-            darwin-arm64 = "3c31f345575bf6f261c7e19981f6491bb93eeb0ffb499e95033610a7184831ce";
+            linux-x64 = "bb02fcb33626f8c599d10d8bee38585d4cf8d4225c3b497869dee7454e7bf361";
+            darwin-arm64 = "a59a16ba4922adab7a145728f215d042184d349f5f7e72cddb7fc114250a4ce3";
           };
         in
         pkgs.claude-code.overrideAttrs (_: {

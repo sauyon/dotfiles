@@ -1025,6 +1025,7 @@ in
     pkgs.emacs30-pgtk
     pkgs.hyprpicker
     pkgs.psi-notify
+    pkgs.pwvucontrol
     pkgs.slack
     # Temporarily dropped: vesktop's build pulls pnpm-10.29.2, marked insecure
     # in nixpkgs (CVE-2026-48995, CVE-2026-50014). Re-add once nixpkgs ships a

@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 ENDPOINT = os.environ.get("LOCAL_CLASSIFIER_URL", "https://model.api.modular.com/v1")
-MODEL = os.environ.get("LOCAL_CLASSIFIER_MODEL", "nvidia/Gemma-4-31B-IT-NVFP4")
+MODEL = os.environ.get("LOCAL_CLASSIFIER_MODEL", "google/gemma-4-31b-it")
 TIMEOUT = int(os.environ.get("LOCAL_CLASSIFIER_TIMEOUT", "10"))
 
 _KEY_FILE = Path(os.environ.get(

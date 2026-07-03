@@ -1490,7 +1490,7 @@ in
           format = "{icon} {volume}%";
           format-muted = "󰝟";
           format-icons = [ "" "" "" ];
-          on-click = "pavucontrol";
+          on-click = "${pkgs.pwvucontrol}/bin/pwvucontrol";
           scroll-step = 5;
         };
         network = {

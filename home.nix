@@ -404,6 +404,21 @@ let
           } ];
         }
         {
+          matcher = "Bash";
+          hooks = [ {
+            type = "command";
+            # Block `coder ssh` anywhere in a command: the ssh config already
+            # proxies coder workspaces through plain ssh (coder.* / *.coder
+            # blocks below), which keeps known-hosts handling and config in
+            # one place.
+            command = ''
+              input=$(cat)
+              case "$input" in *'coder ssh'*) ;; *) exit 0 ;; esac
+              printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Do not use `coder ssh`. The ssh config already proxies coder workspaces; use standard ssh instead: `ssh coder.<workspace>` (or `ssh <workspace>.coder`)."}}'
+            '';
+          } ];
+        }
+        {
           matcher = "mcp__github__create_pull_request";
           hooks = [ {
             type = "command";

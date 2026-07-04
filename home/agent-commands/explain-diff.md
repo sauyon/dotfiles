@@ -3,6 +3,14 @@ name: explain-diff
 description: Use when the user asks for a rich explanation of a code change, diff, branch, or PR.
 ---
 
+<!--
+Source: https://gist.github.com/geoffreylitt/a29df1b5f9865506e8952488eac3d524
+Author: Geoffrey Litt (https://github.com/geoffreylitt), retrieved 2026-07-04.
+The gist declares no license; redistributed here for personal use with
+attribution. Lightly modified: renamed from explain-diff-html, frontmatter
+description trimmed.
+-->
+
 # Explain Diff
 
 Please make me a rich, interactive explanation of the specified code change.

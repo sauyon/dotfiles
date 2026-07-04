@@ -709,8 +709,9 @@ in
     ./home/.claude/skills/gemini-review/SKILL.md;
 
   # ── Shared agent slash commands (claude / cursor / opencode) ──────────────
-  # explain-diff prompts from
+  # explain-diff prompt by Geoffrey Litt, from
   # https://gist.github.com/geoffreylitt/a29df1b5f9865506e8952488eac3d524
+  # (no license declared; see attribution note in the file)
   home.file.".claude/commands/explain-diff.md".source =
     ./home/agent-commands/explain-diff.md;
   home.file.".cursor/commands/explain-diff.md".source =

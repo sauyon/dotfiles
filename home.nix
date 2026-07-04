@@ -349,7 +349,7 @@ let
           [ -e "$real" ] || continue
           [ -e "$link" ] || ln -sf "$real" "$link"
         done
-        for d in projects; do
+        for d in projects commands; do
           real="$HOME/.claude/$d"
           link="$dir/$d"
           [ -e "$real" ] || continue
@@ -707,6 +707,16 @@ in
     ./home/.claude/skills/linear-flow/DESIGN.md;
   home.file.".claude/skills/gemini-review/SKILL.md".source =
     ./home/.claude/skills/gemini-review/SKILL.md;
+
+  # ── Shared agent slash commands (claude / cursor / opencode) ──────────────
+  # explain-diff prompts from
+  # https://gist.github.com/geoffreylitt/a29df1b5f9865506e8952488eac3d524
+  home.file.".claude/commands/explain-diff.md".source =
+    ./home/agent-commands/explain-diff.md;
+  home.file.".cursor/commands/explain-diff.md".source =
+    ./home/agent-commands/explain-diff.md;
+  xdg.configFile."opencode/command/explain-diff.md".source =
+    ./home/agent-commands/explain-diff.md;
 
   # ── Claude plugins ─────────────────────────────────────────────────────────
   home.file.".claude/plugins/local-auto-mode/hooks.json".source =

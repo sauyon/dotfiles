@@ -106,7 +106,7 @@ in
       JQ_ARGS+=(--rawfile koagKey "$KOAG_KEY_FILE")
       JQ_FILTER="$JQ_FILTER | .provider.\"ko-ag\".options.apiKey = (\$koagKey | sub(\"\\n$\"; \"\"))"
     fi
-    if [ -r "$ZAI_KEY_FILE" ]; then
+    if [ -s "$ZAI_KEY_FILE" ]; then
       JQ_ARGS+=(--rawfile zaiKey "$ZAI_KEY_FILE")
       JQ_FILTER="$JQ_FILTER | .provider.\"zai-coding-plan\".options.apiKey = (\$zaiKey | sub(\"\\n$\"; \"\")) | .provider.zai.options.apiKey = (\$zaiKey | sub(\"\\n$\"; \"\"))"
     fi

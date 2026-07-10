@@ -356,7 +356,24 @@ let
           [ -e "$link" ] || ln -sf "$real" "$link"
         done
 
-        exec env CLAUDE_CONFIG_DIR="$dir" claude "$@"
+        # Route clp (personal) through CF AI Gateway → Z.AI's Anthropic-compatible
+        # endpoint. The ko-ag sops secret is the gateway's cf-aig-authorization
+        # token (minted in the CF dashboard and shared across clients). Default
+        # model mappings point at GLM-4.7 / glm-4.5-air so clp hits Z.AI under
+        # the Claude Code model names. Other profiles (work) keep the default
+        # Anthropic upstream.
+        if [ "$name" = "personal" ] && [ -r ~/.config/opencode/ko-ag-key ]; then
+          exec env \
+            CLAUDE_CONFIG_DIR="$dir" \
+            ANTHROPIC_BASE_URL="https://ai.ko.ag/custom-zai" \
+            ANTHROPIC_AUTH_TOKEN="$(tr -d '\n' < ~/.config/opencode/ko-ag-key)" \
+            ANTHROPIC_DEFAULT_OPUS_MODEL="GLM-4.7" \
+            ANTHROPIC_DEFAULT_SONNET_MODEL="GLM-4.7" \
+            ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air" \
+            claude "$@"
+        else
+          exec env CLAUDE_CONFIG_DIR="$dir" claude "$@"
+        fi
         ;;
       help|--help|-h)
         echo "Usage: claude-prof <command> [args]"

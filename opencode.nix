@@ -4,6 +4,7 @@ let
   opencodeConfig = {
     "$schema" = "https://opencode.ai/config.json";
     plugin = [ "opencode-model-stats" ];
+  disabled_providers = [ "opencode" ];
     provider = {
       mcloud = {
         npm = "@ai-sdk/openai-compatible";
@@ -106,7 +107,7 @@ in
       JQ_ARGS+=(--rawfile koagKey "$KOAG_KEY_FILE")
       JQ_FILTER="$JQ_FILTER | .provider.\"ko-ag\".options.apiKey = (\$koagKey | sub(\"\\n$\"; \"\"))"
     fi
-    if [ -s "$ZAI_KEY_FILE" ]; then
+    if [ -e "$ZAI_KEY_FILE" ]; then
       JQ_ARGS+=(--rawfile zaiKey "$ZAI_KEY_FILE")
       JQ_FILTER="$JQ_FILTER | .provider.\"zai-coding-plan\".options.apiKey = (\$zaiKey | sub(\"\\n$\"; \"\")) | .provider.zai.options.apiKey = (\$zaiKey | sub(\"\\n$\"; \"\"))"
     fi

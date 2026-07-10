@@ -1,0 +1,35 @@
+Print a user-visible message when kubelogin blocks on the token-cache flock.
+
+Since v1.30 (int128/kubelogin#1126) the credential plugin takes an exclusive
+lock on ~/.kube/cache/oidc-login/<hash>.lock before refresh/device-code auth.
+Another kubectl (or a leftover kubelogin from a timed-out session) can hold that
+lock for minutes while the user completes Dex login. Without feedback, kubectl
+looks hung — the only hint is a V(1) log line ("acquiring the lock of token
+cache") that never appears at default verbosity.
+
+Upstream has known the class of problem since 2023 (int128/kubelogin#851, still
+open) but only for the older auth-flow port lock, not this token-cache lock.
+
+TryLock first; if another process holds the lock, emit one line on stderr, then
+block as before.
+
+--- a/pkg/tokencache/repository/repository.go	2026-06-28 19:56:03.085542933 -0700
++++ b/pkg/tokencache/repository/repository.go	2026-06-28 19:56:03.098449803 -0700
+@@ -168,9 +168,16 @@
+ 	// https://github.com/int128/kubelogin/issues/1144
+ 	lockFilepath := filepath.Join(config.Directory, checksum+".lock")
+ 	lockFile := flock.New(lockFilepath)
+-	if err := lockFile.Lock(); err != nil {
++	locked, err := lockFile.TryLock()
++	if err != nil {
+ 		return nil, fmt.Errorf("could not lock the cache file %s: %w", lockFilepath, err)
+ 	}
++	if !locked {
++		fmt.Fprintf(os.Stderr, "kubelogin: waiting for another login in progress (lock: %s)\n", lockFilepath)
++		if err := lockFile.Lock(); err != nil {
++			return nil, fmt.Errorf("could not lock the cache file %s: %w", lockFilepath, err)
++		}
++	}
+ 	return lockFile, nil
+ }
+ 

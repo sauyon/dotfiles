@@ -988,8 +988,8 @@ in
     #   xdg.configFile."systemd/user/default.target.wants/claude-remote-control@<esc>.service".
   };
 
-  # `ca-rc` starts a Cursor Agent worker for a project dir so cloud/mobile sessions
-  # can drive local agents in that workspace. Template unit keyed on project path:
+  # `ca-rc` starts a Cursor Agent pool worker for a project dir so cloud/mobile
+  # sessions can claim it one agent at a time. Template unit keyed on project path:
   #   systemctl --user start cursor-agent-worker@$(systemd-escape -p /path/to/proj)
   systemd.user.services."cursor-agent-worker@" = lib.optionalAttrs (!isDarwin) {
     Unit = {
@@ -1002,7 +1002,7 @@ in
       WorkingDirectory = "/%I";
       Environment = "PATH=${config.home.profileDirectory}/bin:/usr/bin:/bin";
       StandardInput = "null";
-      ExecStart = "${pkgs.cursor-agent-cli}/bin/agent worker start";
+      ExecStart = "${pkgs.cursor-agent-cli}/bin/agent worker --pool start";
       Restart = "on-failure";
       RestartSec = 10;
     };
@@ -1028,6 +1028,7 @@ in
     rustup
     nixfmt
     kubectl
+    kubelogin-oidc
     kube-capacity
     kubectx
     tmux
@@ -1115,6 +1116,17 @@ in
       warp-terminal = prev.warp-terminal.overrideAttrs (old: {
         runtimeDependencies = (old.runtimeDependencies or []) ++ [
           final.wayland
+        ];
+      });
+    })
+    (final: prev: {
+      # kubelogin blocks silently on ~/.kube/cache/oidc-login/*.lock while another
+      # kubectl completes Dex login (token-cache flock since v1.30). Upstream
+      # knows the UX gap for the older port lock (#851, still open) but not this
+      # path. Patch prints one stderr line before waiting.
+      kubelogin-oidc = prev.kubelogin-oidc.overrideAttrs (old: {
+        patches = (old.patches or []) ++ [
+          ./patches/kubelogin-waiting-on-token-cache-lock.patch
         ];
       });
     })

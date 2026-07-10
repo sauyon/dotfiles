@@ -94,7 +94,7 @@
       systemctl --user stop "claude-remote-control@$(systemd-escape -p "$d").service"
     }
 
-    # Cursor Agent worker for a project dir (default: cwd), via the
+    # Cursor Agent pool worker for a project dir (default: cwd), via the
     # cursor-agent-worker@.service template. Start/stop on the fly.
     ca-rc() {
       local d=''${1:-$PWD}

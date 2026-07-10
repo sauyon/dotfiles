@@ -25,7 +25,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import ENDPOINT, MODEL, TIMEOUT, get_api_key
 from prompt import SYSTEM_PROMPT
 
-MAX_TOKENS = 4096
+# Stage 2 only needs a short tool-call (~330 tokens observed). Cap it low: at
+# the ko.ag Qwen's ~60 tok/s, a runaway 4096-token generation would take >60s.
+MAX_TOKENS = 1024
 STAGE1_MAX_TOKENS = 256
 CLASSIFY_FINAL_LINE = "Use the classify_result tool to report your classification."
 STAGE1_OUTPUT_FORMAT = """## Output Format
@@ -582,12 +584,22 @@ def load_agent_instructions(cwd: str) -> str:
 
 def _post_chat(payload: dict) -> dict:
     """Send a chat/completions request; return parsed body or {'_raw': str} on non-JSON."""
+    # The Qwen3 model on ai.ko.ag is a reasoning model: left to itself it emits a
+    # long <think> trace before the answer, which breaks stage-1's "response must
+    # begin with <block>" parse and blows past the timeout (~60 tok/s, 27s for a
+    # full generation). Disabling thinking makes it answer in <1s. llama.cpp
+    # honors chat_template_kwargs.enable_thinking; other servers ignore it.
+    payload.setdefault("chat_template_kwargs", {"enable_thinking": False})
     req = urllib.request.Request(
         f"{ENDPOINT}/chat/completions",
         data=json.dumps(payload).encode(),
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {get_api_key()}",
+            # ai.ko.ag sits behind Cloudflare, which rejects urllib's default
+            # signature with "error code: 1010". A browser UA gets through.
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/126.0 Safari/537.36",
         },
         method="POST",
     )

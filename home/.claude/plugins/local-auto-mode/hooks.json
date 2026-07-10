@@ -8,7 +8,7 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PLUGIN_ROOT}/classifier.py",
-            "timeout": 15
+            "timeout": 45
           }
         ]
       }

@@ -678,6 +678,12 @@ in
     mode = "0600";
   };
 
+  # ── Z.AI API (opencode zai / zai-coding-plan providers) ───────────────────
+  sops.secrets.zaiApiKey = {
+    path = "${config.home.homeDirectory}/.config/opencode/zai-key";
+    mode = "0600";
+  };
+
   # ── Modular private endpoint base URL (opencode mcloud provider) ────────────
   # Kept in sops so the internal hostname never lands in the committed config.
   sops.secrets.modularApiUrl = {

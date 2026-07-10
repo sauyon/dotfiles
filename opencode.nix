@@ -27,6 +27,21 @@ let
           "gemma-4-26B-A4B-it" = { name = "Gemma 4 26B A4B"; };
         };
       };
+      # Built-in models.dev providers; apiKey injected at activation from sops.
+      "zai-coding-plan" = {
+        npm = "@ai-sdk/openai-compatible";
+        name = "Z.AI Coding Plan";
+        options = {
+          baseURL = "https://api.z.ai/api/coding/paas/v4";
+        };
+      };
+      zai = {
+        npm = "@ai-sdk/openai-compatible";
+        name = "Z.AI";
+        options = {
+          baseURL = "https://api.z.ai/api/paas/v4";
+        };
+      };
     };
   };
   configTemplate = pkgs.writeText "opencode.json.tmpl" (builtins.toJSON opencodeConfig);
@@ -75,6 +90,7 @@ in
     MCLOUD_KEY_FILE="$HOME/.config/local-auto-mode/api-key"
     MCLOUD_URL_FILE="$HOME/.config/opencode/mcloud-base-url"
     KOAG_KEY_FILE="$HOME/.config/opencode/ko-ag-key"
+    ZAI_KEY_FILE="$HOME/.config/opencode/zai-key"
     $DRY_RUN_CMD mkdir -p "$HOME/.config/opencode"
     JQ_ARGS=()
     JQ_FILTER='.'
@@ -89,6 +105,10 @@ in
     if [ -r "$KOAG_KEY_FILE" ]; then
       JQ_ARGS+=(--rawfile koagKey "$KOAG_KEY_FILE")
       JQ_FILTER="$JQ_FILTER | .provider.\"ko-ag\".options.apiKey = (\$koagKey | sub(\"\\n$\"; \"\"))"
+    fi
+    if [ -r "$ZAI_KEY_FILE" ]; then
+      JQ_ARGS+=(--rawfile zaiKey "$ZAI_KEY_FILE")
+      JQ_FILTER="$JQ_FILTER | .provider.\"zai-coding-plan\".options.apiKey = (\$zaiKey | sub(\"\\n$\"; \"\")) | .provider.zai.options.apiKey = (\$zaiKey | sub(\"\\n$\"; \"\"))"
     fi
     if [ ''${#JQ_ARGS[@]} -gt 0 ]; then
       $DRY_RUN_CMD ${pkgs.jq}/bin/jq "''${JQ_ARGS[@]}" "$JQ_FILTER" "$TMPL" > "$DEST.new"

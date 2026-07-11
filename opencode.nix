@@ -4,7 +4,7 @@ let
   opencodeConfig = {
     "$schema" = "https://opencode.ai/config.json";
     plugin = [ "opencode-model-stats" ];
-  disabled_providers = [ "opencode" ];
+    disabled_providers = [ "opencode" "zai" ];
     provider = {
       mcloud = {
         npm = "@ai-sdk/openai-compatible";
@@ -34,13 +34,6 @@ let
         name = "Z.AI Coding Plan";
         options = {
           baseURL = "https://api.z.ai/api/coding/paas/v4";
-        };
-      };
-      zai = {
-        npm = "@ai-sdk/openai-compatible";
-        name = "Z.AI";
-        options = {
-          baseURL = "https://api.z.ai/api/paas/v4";
         };
       };
     };
@@ -109,7 +102,7 @@ in
     fi
     if [ -e "$ZAI_KEY_FILE" ]; then
       JQ_ARGS+=(--rawfile zaiKey "$ZAI_KEY_FILE")
-      JQ_FILTER="$JQ_FILTER | .provider.\"zai-coding-plan\".options.apiKey = (\$zaiKey | sub(\"\\n$\"; \"\")) | .provider.zai.options.apiKey = (\$zaiKey | sub(\"\\n$\"; \"\"))"
+      JQ_FILTER="$JQ_FILTER | .provider.\"zai-coding-plan\".options.apiKey = (\$zaiKey | sub(\"\\n$\"; \"\"))"
     fi
     if [ ''${#JQ_ARGS[@]} -gt 0 ]; then
       $DRY_RUN_CMD ${pkgs.jq}/bin/jq "''${JQ_ARGS[@]}" "$JQ_FILTER" "$TMPL" > "$DEST.new"

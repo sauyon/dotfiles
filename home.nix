@@ -453,11 +453,29 @@ let
       # Per-session kcs KUBECONFIG isolation: mint a session id and point
       # KUBECONFIG at its kcs socket dir (mirrors zsh.nix `kcs init`). Written
       # to $CLAUDE_ENV_FILE so it applies for the whole Claude session.
+      # The base kubeconfig is a prod-stripped copy of ~/.kube/config: every
+      # context matching "prod" is removed and current-context is unset, so
+      # Claude can never reach a prod cluster (bare kubectl fails instead of
+      # inheriting whatever context the user last selected).
       SessionStart = [
         {
           hooks = [ {
             type = "command";
-            command = ''SESSION_ID="claude-$(openssl rand -hex 4)"; KCS_DIR="''${XDG_RUNTIME_DIR:-$HOME/.local/run}/kcs/sessions"; echo "export KCS_SESSION=$SESSION_ID" >> "$CLAUDE_ENV_FILE"; echo "export KUBECONFIG=$KCS_DIR/$SESSION_ID:$HOME/.kube/config" >> "$CLAUDE_ENV_FILE"'';
+            command = ''
+              SESSION_ID="claude-$(openssl rand -hex 4)"
+              KCS_DIR="''${XDG_RUNTIME_DIR:-$HOME/.local/run}/kcs/sessions"
+              mkdir -p "$KCS_DIR"
+              BASE="$KCS_DIR/$SESSION_ID-base"
+              if cp "$HOME/.kube/config" "$BASE" 2>/dev/null; then
+                chmod 600 "$BASE"
+                ${pkgs.kubectl}/bin/kubectl --kubeconfig "$BASE" config get-contexts -o name | grep -i prod | while IFS= read -r c; do
+                  ${pkgs.kubectl}/bin/kubectl --kubeconfig "$BASE" config delete-context "$c" >/dev/null
+                done
+                ${pkgs.kubectl}/bin/kubectl --kubeconfig "$BASE" config unset current-context >/dev/null
+              fi
+              echo "export KCS_SESSION=$SESSION_ID" >> "$CLAUDE_ENV_FILE"
+              echo "export KUBECONFIG=$KCS_DIR/$SESSION_ID:$BASE" >> "$CLAUDE_ENV_FILE"
+            '';
           } ];
         }
       ];

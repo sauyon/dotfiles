@@ -3,7 +3,7 @@
 let
   opencodeConfig = {
     "$schema" = "https://opencode.ai/config.json";
-    plugin = [ "opencode-model-stats" ];
+    plugin = [ "opencode-model-stats@0.2.3" ];
     disabled_providers = [ "opencode" "zai" ];
     provider = {
       mcloud = {
@@ -112,5 +112,11 @@ in
       $DRY_RUN_CMD cp "$TMPL" "$DEST"
       $DRY_RUN_CMD chmod 0644 "$DEST"
     fi
+  '';
+
+  # Belt-and-suspenders: 0.2.4 reintroduced legacy session_id/message_id headers
+  # that Modular's Envoy rejects with 400. Patch any cached copy after activation.
+  home.activation.patchOpencodeModelStats = lib.hm.dag.entryAfter [ "opencodeConfig" ] ''
+    $DRY_RUN_CMD ${patchModelStats}
   '';
 }

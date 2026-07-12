@@ -362,7 +362,7 @@ let
         # key is sent as x-api-key (Anthropic SDK uses that header for the
         # upstream); the gateway forwards it untouched while stripping
         # Authorization → cf-aig-authorization for its own auth check. Default
-        # model mappings point at GLM-4.7 / glm-4.5-air so clp hits Z.AI under
+        # model mappings point at glm-5.2[1m] / glm-4.5-air so clp hits Z.AI under
         # the Claude Code model names. Other profiles (work) keep the default
         # Anthropic upstream.
         if [ "$name" = "personal" ] && [ -r ~/.config/opencode/ko-ag-key ] && [ -r ~/.config/opencode/zai-key ]; then
@@ -371,9 +371,10 @@ let
             ANTHROPIC_BASE_URL="https://ai.ko.ag/custom-zai" \
             ANTHROPIC_AUTH_TOKEN="$(tr -d '\n' < ~/.config/opencode/ko-ag-key)" \
             ANTHROPIC_API_KEY="$(tr -d '\n' < ~/.config/opencode/zai-key)" \
-            ANTHROPIC_DEFAULT_OPUS_MODEL="GLM-4.7" \
-            ANTHROPIC_DEFAULT_SONNET_MODEL="GLM-4.7" \
+            ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.2[1m]" \
+            ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.2[1m]" \
             ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air" \
+            CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000" \
             claude "$@"
         else
           exec env CLAUDE_CONFIG_DIR="$dir" claude "$@"

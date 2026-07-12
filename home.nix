@@ -358,15 +358,19 @@ let
 
         # Route clp (personal) through CF AI Gateway → Z.AI's Anthropic-compatible
         # endpoint. The ko-ag sops secret is the gateway's cf-aig-authorization
-        # token (minted in the CF dashboard and shared across clients). Default
+        # token (minted in the CF dashboard and shared across clients). The Z.AI
+        # key is sent as x-api-key (Anthropic SDK uses that header for the
+        # upstream); the gateway forwards it untouched while stripping
+        # Authorization → cf-aig-authorization for its own auth check. Default
         # model mappings point at GLM-4.7 / glm-4.5-air so clp hits Z.AI under
         # the Claude Code model names. Other profiles (work) keep the default
         # Anthropic upstream.
-        if [ "$name" = "personal" ] && [ -r ~/.config/opencode/ko-ag-key ]; then
+        if [ "$name" = "personal" ] && [ -r ~/.config/opencode/ko-ag-key ] && [ -r ~/.config/opencode/zai-key ]; then
           exec env \
             CLAUDE_CONFIG_DIR="$dir" \
             ANTHROPIC_BASE_URL="https://ai.ko.ag/custom-zai" \
             ANTHROPIC_AUTH_TOKEN="$(tr -d '\n' < ~/.config/opencode/ko-ag-key)" \
+            ANTHROPIC_API_KEY="$(tr -d '\n' < ~/.config/opencode/zai-key)" \
             ANTHROPIC_DEFAULT_OPUS_MODEL="GLM-4.7" \
             ANTHROPIC_DEFAULT_SONNET_MODEL="GLM-4.7" \
             ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air" \

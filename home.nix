@@ -1063,6 +1063,7 @@ in
     lnav
     mosh
     opencode
+    herdr
     forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg
     bat
     rustup

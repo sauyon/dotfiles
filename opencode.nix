@@ -114,6 +114,19 @@ in
     fi
   '';
 
+  # C-g is the Emacs universal cancel key; map it to session_interrupt and
+  # unbind it from messages_first (which used "ctrl+g,home"). C-f/C-b mirror
+  # forward-char/backward-char in confirmation dialogs (select next/prev).
+  xdg.configFile."opencode/tui.json".text = builtins.toJSON {
+    "$schema" = "https://opencode.ai/tui.json";
+    keybinds = {
+      session_interrupt = "escape,ctrl+g";
+      messages_first = "home";
+      "dialog.select.next" = "down,ctrl+n,ctrl+f";
+      "dialog.select.prev" = "up,ctrl+p,ctrl+b";
+    };
+  };
+
   # Belt-and-suspenders: 0.2.4 reintroduced legacy session_id/message_id headers
   # that Modular's Envoy rejects with 400. Patch any cached copy after activation.
   home.activation.patchOpencodeModelStats = lib.hm.dag.entryAfter [ "opencodeConfig" ] ''

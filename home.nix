@@ -928,6 +928,9 @@ in
     source = ./home/warp/tab_configs/startup_config.toml;
   };
 
+  # ── Herdr ───────────────────────────────────────────────────────────────────
+  xdg.configFile."herdr/config.toml".source = ./home/herdr/config.toml;
+
   home.file.".local/bin/hyprland-graceful-exit" = lib.mkIf (!isDarwin && isDesktop) {
     executable = true;
     text = ''

@@ -370,6 +370,8 @@
     clw = "claude-prof run work --worktree";
     clp = "claude-prof run personal";
     clpw = "claude-prof run personal --worktree";
+    clz = "claude-prof run zai";
+    clzw = "claude-prof run zai --worktree";
     gm = "gemini";
 
     z = "zellij";

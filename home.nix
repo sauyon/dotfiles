@@ -341,34 +341,12 @@ let
         dir="$(profile_dir "$name")"
         mkdir -p "$dir"
 
-        # Share memory/instructions across profiles via symlinks. Only
-        # credentials are per-profile; log in once per profile via /login.
-        for f in settings.local.json CLAUDE.md; do
-          real="$HOME/.claude/$f"
-          link="$dir/$f"
-          [ -e "$real" ] || continue
-          [ -e "$link" ] || ln -sf "$real" "$link"
-        done
-        for d in projects commands; do
-          real="$HOME/.claude/$d"
-          link="$dir/$d"
-          [ -e "$real" ] || continue
-          [ -e "$link" ] || ln -sf "$real" "$link"
-        done
-
-        # settings.json is nix-managed (read-only) at ~/.claude. Copy it into
-        # the profile as a *writable* file so Claude's runtime writes (model,
-        # theme, …) land here and never clobber the nix-managed source — that
-        # keeps `home-manager switch` from colliding on ~/.claude/settings.json.
-        # Seed only if the profile lacks a real file (preserves per-profile
-        # runtime prefs); older profiles that symlinked settings.json migrate
-        # to a copy on next run.
-        src="$HOME/.claude/settings.json"
-        if [ -e "$src" ] && { [ ! -e "$dir/settings.json" ] || [ -L "$dir/settings.json" ]; }; then
-          rm -f "$dir/settings.json"
-          cp "$src" "$dir/settings.json"
-          chmod u+w "$dir/settings.json"
-        fi
+        # settings.json and settings.local.json are nix-rendered store
+        # symlinks (see home.file entries above) — do NOT touch them here.
+        # CLAUDE.md / commands/ / projects/ symlinks are set up by
+        # home.activation.claudeProfiles. This script only ensures the
+        # profile dir exists (for a brand-new profile before the first
+        # home-manager switch) and applies per-profile env vars.
 
         # Route clz (zai) directly to Z.AI's Anthropic-compatible endpoint.
         # Z.AI uses Bearer auth (Authorization header), not x-api-key — the
@@ -406,9 +384,11 @@ let
 
   args = { inherit config lib pkgs; };
 
-  # Claude Code settings kept as a nix value so they can be merged into the
-  # mutable ~/.claude/settings.json on each activation (see home.activation below).
-  claudeSettings = {
+  # Base Claude Code settings shared by every profile. Only `model` differs
+  # per profile (see `claudeProfiles` below). Everything else is rendered
+  # identically into each profile's settings.json by the home.file entries
+  # below, so per-profile state is fully declarative.
+  claudeBaseSettings = {
     hooks = {
       PreToolUse = [
         {
@@ -599,7 +579,8 @@ let
         };
       };
     };
-    model = "claude-opus";
+    # NOTE: `model` intentionally omitted — declared per-profile in
+    # `claudeProfiles` below.
     theme = "dark";
     editorMode = "normal";
     autoDreamEnabled = true;
@@ -613,6 +594,57 @@ let
       padding = 0;
     };
   };
+
+  # Per-profile overrides. Add a new profile by adding an entry here — the
+  # home.file entries and home.activation.claudeProfiles below pick it up
+  # automatically. `zai` picks its model via the ANTHROPIC_MODEL env var at
+  # exec time (see claude-prof run), so the settings.json model field is
+  # just the default /model and /config show.
+  claudeProfiles = {
+    personal = {
+      model = "claude-fable-5[1m]";
+    };
+    work = {
+      model = "claude-opus";
+    };
+    zai = {
+      model = "opus";
+    };
+  };
+
+  # Per-profile full settings = base + per-profile overrides.
+  claudeProfileSettings = lib.mapAttrs
+    (_: overrides: claudeBaseSettings // overrides)
+    claudeProfiles;
+
+  # User-scope overlay applied on top of every profile's settings.json via
+  # ~/.claude/settings.local.json (which each profile symlinks to). Holds
+  # cross-profile autoMode rules. Previously this lived as a hand-edited
+  # regular file at ~/.claude/settings.local.json — moving it into nix keeps
+  # it version-controlled alongside the rest of the autoMode config.
+  claudeSettingsLocal = {
+    autoMode = {
+      allow = [
+        "$defaults"
+        "Git Push to Default Branch is allowed when the current working directory is under ${config.home.homeDirectory}/devel/kube. That repo is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow; no PR review applies."
+      ];
+    };
+  };
+
+  # Rendered JSON files in the Nix store. Each per-profile settings.json also
+  # gets `$schema` injected (the home-manager claude-code module adds it
+  # automatically for ~/.claude/settings.json, but per-profile files bypass
+  # that module).
+  claudeProfileSettingsJson = lib.mapAttrs
+    (name: settings:
+      pkgs.writeText "claude-${name}-settings.json"
+        (builtins.toJSON (settings // {
+          "$schema" = "https://json.schemastore.org/claude-code-settings.json";
+        })))
+    claudeProfileSettings;
+
+  claudeSettingsLocalJson = pkgs.writeText "claude-settings-local.json"
+    (builtins.toJSON claudeSettingsLocal);
   newtabLinks = [
     { group = "Work"; links = [
       { name = "Gmail";       url = "https://mail.google.com"; }
@@ -783,6 +815,69 @@ in
     ./home/.claude/plugins/local-auto-mode/prompt.py;
   home.file.".claude/plugins/local-auto-mode/config.py".source =
     ./home/.claude/plugins/local-auto-mode/config.py;
+
+  # ── Per-profile Claude settings.json (store symlinks, fully declarative) ───
+  # force = true replaces any pre-existing regular files (the old
+  # runtime-copied settings.json per profile). home.activation.claudeProfiles
+  # also rm -f's them before linkGeneration runs so the byte-identical cmp -s
+  # skip doesn't leave the old regular file in place.
+  home.file = {
+    ".config/claude-personal/settings.json".source = claudeProfileSettingsJson.personal;
+    ".config/claude-work/settings.json".source     = claudeProfileSettingsJson.work;
+    ".config/claude-zai/settings.json".source      = claudeProfileSettingsJson.zai;
+    ".config/claude-personal/settings.json".force  = true;
+    ".config/claude-work/settings.json".force      = true;
+    ".config/claude-zai/settings.json".force       = true;
+  };
+
+  # ── ~/.claude/settings.local.json (shared user-scope overlay) ──────────────
+  # All four targets point at the same rendered store path: the global file
+  # plus a per-profile symlink in each profile dir. Previously the global
+  # file was hand-edited and per-profile entries chained through it; making
+  # them all store symlinks keeps the kube-direct-push autoMode rule
+  # version-controlled alongside the rest of the autoMode config and removes
+  # the indirection.
+  # force = true on every entry: the global file is a hand-edited regular
+  # file and the per-profile entries are symlinks to it (not to a HM store
+  # path), so the pre-collision check rejects them by default.
+  home.file = {
+    ".claude/settings.local.json"                  .source = claudeSettingsLocalJson;
+    ".config/claude-personal/settings.local.json"  .source = claudeSettingsLocalJson;
+    ".config/claude-work/settings.local.json"      .source = claudeSettingsLocalJson;
+    ".config/claude-zai/settings.local.json"       .source = claudeSettingsLocalJson;
+    ".claude/settings.local.json"                  .force  = true;
+    ".config/claude-personal/settings.local.json"  .force  = true;
+    ".config/claude-work/settings.local.json"      .force  = true;
+    ".config/claude-zai/settings.local.json"       .force  = true;
+  };
+
+  # Per-profile setup. Runs after writeBoundary but before linkGeneration so
+  # the rm step actually forces linkGeneration to create the store symlinks
+  # (linkGeneration skips identical regular files via cmp -s, which would
+  # leave the runtime-copied file in place). Also creates the runtime
+  # symlinks for shared user-scope resources (CLAUDE.md, commands/, projects/)
+  # — settings.json and settings.local.json are nix-owned via home.file above
+  # so we don't touch those here.
+  home.activation.claudeProfiles = lib.hm.dag.entryBefore [ "linkGeneration" ] ''
+    for name in ${lib.concatStringsSep " " (lib.attrNames claudeProfiles)}; do
+      # Remove pre-existing runtime-copied settings.json so linkGeneration
+      # always creates the store symlink (otherwise an identical regular file
+      # survives cmp -s). Force = true on the home.file entries handles the
+      # pre-collision check; this handles the cmp -s skip.
+      rm -f "$HOME/.config/claude-$name/settings.json"
+
+      # Per-profile shared-resource symlinks (idempotent). settings.local.json
+      # is a store symlink from home.file above; CLAUDE.md, commands/, and
+      # projects/ aren't in the store (CLAUDE.md is a single nix-managed
+      # file, the others are runtime dirs Claude writes to) so they get
+      # lazy-created here.
+      dir="$HOME/.config/claude-$name"
+      mkdir -p "$dir"
+      [ -e "$HOME/.claude/CLAUDE.md" ] && [ ! -e "$dir/CLAUDE.md" ] && ln -sf "$HOME/.claude/CLAUDE.md" "$dir/CLAUDE.md"
+      [ -d "$HOME/.claude/commands" ] && [ ! -e "$dir/commands" ] && ln -sf "$HOME/.claude/commands" "$dir/commands"
+      [ -d "$HOME/.claude/projects" ] && [ ! -e "$dir/projects" ] && ln -sf "$HOME/.claude/projects" "$dir/projects"
+    done
+  '';
 
   # Auto-install Claude Code plugins via the `claude plugin` CLI. Idempotent:
   # marketplace is added if missing, each plugin is installed if not already
@@ -1821,10 +1916,12 @@ in
     claude-code = {
       enable = true;
       # enableMcpIntegration = true;
-      # settings.json is fully nix-managed and read-only (no runtime writes).
-      # Everything Claude used to persist at runtime (model, theme, plugins,
-      # editorMode, …) is declared in claudeSettings above.
-      settings = claudeSettings;
+      # ~/.claude/settings.json is the unprofiled fallback (used by `command
+      # claude` and any non-claude-prof invoker). It uses the work profile's
+      # settings so behavior matches `claude-prof run work`. Per-profile
+      # settings.json lives under ~/.config/claude-<name>/ and is rendered by
+      # the home.file entries below.
+      settings = claudeProfileSettings.work;
       #
       # Pin a newer CLI than nixpkgs ships (nixpkgs lags the upstream native-binary
       # releases). Override version + prebuilt src; the checksum is the sha256 hex

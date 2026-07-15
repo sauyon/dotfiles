@@ -379,6 +379,7 @@ let
             CLAUDE_CONFIG_DIR="$dir" \
             ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic" \
             ANTHROPIC_AUTH_TOKEN="$(tr -d '\n' < ~/.config/opencode/zai-key)" \
+            ANTHROPIC_MODEL="glm-5.2[1m]" \
             ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.2[1m]" \
             ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.2[1m]" \
             ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.7" \
@@ -598,7 +599,7 @@ let
         };
       };
     };
-    model = "claude-fable-5[1m]";
+    model = "claude-opus";
     theme = "dark";
     editorMode = "normal";
     autoDreamEnabled = true;

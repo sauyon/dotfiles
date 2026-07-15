@@ -194,6 +194,12 @@ in
 
         (exec "${mainMod} + O" "makoctl dismiss --all")
 
+        # Force the physical outputs back on. After a VT switch away and back
+        # (e.g. dropping to a text console on tty1 and returning with Ctrl+Alt+F3)
+        # the panels can stay DPMS-off even though Hyprland is foreground again;
+        # this relights them. Only works while Hyprland is the active VT.
+        (exec "${mainMod} + SHIFT + D" "${hyprDpmsPhysical} on")
+
         (dsp "${mainMod} + B" ''hl.dsp.focus({ direction = "left" })'')
         (dsp "${mainMod} + F" ''hl.dsp.focus({ direction = "right" })'')
         (dsp "${mainMod} + P" ''hl.dsp.focus({ direction = "up" })'')

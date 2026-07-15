@@ -341,9 +341,9 @@ let
         dir="$(profile_dir "$name")"
         mkdir -p "$dir"
 
-        # Share settings/memory/instructions across profiles; only credentials
-        # are per-profile. Log in once per profile via /login on first run.
-        for f in settings.json settings.local.json CLAUDE.md; do
+        # Share memory/instructions across profiles via symlinks. Only
+        # credentials are per-profile; log in once per profile via /login.
+        for f in settings.local.json CLAUDE.md; do
           real="$HOME/.claude/$f"
           link="$dir/$f"
           [ -e "$real" ] || continue
@@ -356,24 +356,32 @@ let
           [ -e "$link" ] || ln -sf "$real" "$link"
         done
 
-        # Route clz (zai) through CF AI Gateway → Z.AI's Anthropic-compatible
-        # endpoint. The ko-ag sops secret is the gateway's cf-aig-authorization
-        # token (minted in the CF dashboard and shared across clients). The Z.AI
-        # key is sent as x-api-key (Anthropic SDK uses that header for the
-        # upstream); the gateway forwards it untouched while stripping
-        # Authorization → cf-aig-authorization for its own auth check. Default
-        # model mappings point at glm-5.2[1m] / glm-4.5-air so clz hits Z.AI
-        # under the Claude Code model names. Other profiles (personal, work) use
-        # the default Claude subscription upstream.
-        if [ "$name" = "zai" ] && [ -r ~/.config/opencode/ko-ag-key ] && [ -r ~/.config/opencode/zai-key ]; then
+        # settings.json is nix-managed (read-only) at ~/.claude. Copy it into
+        # the profile as a *writable* file so Claude's runtime writes (model,
+        # theme, …) land here and never clobber the nix-managed source — that
+        # keeps `home-manager switch` from colliding on ~/.claude/settings.json.
+        # Seed only if the profile lacks a real file (preserves per-profile
+        # runtime prefs); older profiles that symlinked settings.json migrate
+        # to a copy on next run.
+        src="$HOME/.claude/settings.json"
+        if [ -e "$src" ] && { [ ! -e "$dir/settings.json" ] || [ -L "$dir/settings.json" ]; }; then
+          rm -f "$dir/settings.json"
+          cp "$src" "$dir/settings.json"
+          chmod u+w "$dir/settings.json"
+        fi
+
+        # Route clz (zai) directly to Z.AI's Anthropic-compatible endpoint.
+        # Z.AI uses Bearer auth (Authorization header), not x-api-key — the
+        # gateway's split-token dance was unnecessary. See
+        # https://docs.z.ai/devpack/tool/claude for the upstream config.
+        if [ "$name" = "zai" ] && [ -r ~/.config/opencode/zai-key ]; then
           exec env \
             CLAUDE_CONFIG_DIR="$dir" \
-            ANTHROPIC_BASE_URL="https://ai.ko.ag/custom-zai" \
-            ANTHROPIC_AUTH_TOKEN="$(tr -d '\n' < ~/.config/opencode/ko-ag-key)" \
-            ANTHROPIC_API_KEY="$(tr -d '\n' < ~/.config/opencode/zai-key)" \
+            ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic" \
+            ANTHROPIC_AUTH_TOKEN="$(tr -d '\n' < ~/.config/opencode/zai-key)" \
             ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.2[1m]" \
-            ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5" \
-            ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.5-air" \
+            ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.2[1m]" \
+            ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.7" \
             CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000" \
             claude "$@"
         else

@@ -366,9 +366,14 @@
     mrk = "mise run kubeconfig";
 
     ca = "cursor-agent";
-    # Route bare `claude` through the personal profile so its runtime writes
-    # (model/theme/etc.) land in a profile dir, not ~/.claude/settings.json
-    # (which is nix-managed). Use `command claude` for the raw binary.
+    # Route bare `claude` through the personal profile so its runtime state
+    # (.claude.json, .credentials.json, history, sessions, oauthAccount,
+    # tipsHistory, …) lands in ~/.config/claude-personal/, not the unscoped
+    # ~/.claude/ — which is fully nix-managed (store symlinks for
+    # settings.json / settings.local.json, plus activation-managed dirs),
+    # so unprofiled invocations would fail on writes and/or pollute shared
+    # state with whatever subscription you happen to be logged into.
+    # Use `command claude` for the raw binary.
     claude = "claude-prof run personal";
     cl = "claude-prof run work";
     clw = "claude-prof run work --worktree";

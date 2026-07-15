@@ -605,7 +605,7 @@ let
       model = "claude-fable-5[1m]";
     };
     work = {
-      model = "claude-opus";
+      model = "claude-opus-4-8";
     };
     zai = {
       model = "opus";

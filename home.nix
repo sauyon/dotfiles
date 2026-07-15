@@ -7,6 +7,7 @@
   nixgl,
   agent-orchestrator,
   ao-mcp,
+  hunk,
   machine,
 
   system,
@@ -50,6 +51,8 @@ let
       '';
   agent-orchestrator-pkg = if isDarwin then null else agent-orchestrator.packages.${system}.default;
   ao-mcp-pkg = if isDarwin then null else ao-mcp.packages.${system}.default;
+  # hunk builds on all four systems, so no darwin guard needed.
+  hunk-pkg = hunk.packages.${system}.default;
 
   # denoland's security firewall for agents. Not in nixpkgs and its `make`
   # build pulls Go/Node/Swift, so fetch the prebuilt linux-amd64 release binary
@@ -794,6 +797,11 @@ in
     ./home/.claude/skills/linear-flow/DESIGN.md;
   home.file.".claude/skills/gemini-review/SKILL.md".source =
     ./home/.claude/skills/gemini-review/SKILL.md;
+  # Bundled with the `hunk` package (hunkdiff) — symlinks the store skill into
+  # ~/.claude/skills/ so Claude can drive live Hunk review sessions via the
+  # `hunk session *` CLI.
+  home.file.".claude/skills/hunk-review/SKILL.md".source =
+    "${hunk-pkg}/skills/hunk-review/SKILL.md";
 
   # ── Shared agent slash commands (claude / cursor / opencode) ──────────────
   # explain-diff prompt by Geoffrey Litt, from
@@ -1186,6 +1194,7 @@ in
       tree-sitter-tsx
       tree-sitter-typescript
     ]))
+    hunk-pkg
   ]) ++ lib.optionals (!isDarwin) [
     pkgs.grip
     agent-orchestrator-pkg

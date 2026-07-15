@@ -366,6 +366,10 @@
     mrk = "mise run kubeconfig";
 
     ca = "cursor-agent";
+    # Route bare `claude` through the personal profile so its runtime writes
+    # (model/theme/etc.) land in a profile dir, not ~/.claude/settings.json
+    # (which is nix-managed). Use `command claude` for the raw binary.
+    claude = "claude-prof run personal";
     cl = "claude-prof run work";
     clw = "claude-prof run work --worktree";
     clp = "claude-prof run personal";

@@ -75,6 +75,37 @@ let
     meta.mainProgram = "clawpatrol";
   };
 
+  # Cumora (cumora.ai) — desktop chat app where AI agents are first-class team
+  # members. Closed source, invite-only preview, not in nixpkgs; upstream's
+  # electron-updater feed at https://updates.cumora.ai/latest-linux.yml is the
+  # source of truth for version + sha512 when bumping. Wrap the AppImage
+  # (rather than autoPatchelf'ing the deb) so the Electron stack runs inside
+  # appimageTools' FHS env, which works on non-NixOS hosts.
+  cumora =
+    let
+      pname = "cumora";
+      version = "0.1.61";
+      src = pkgs.fetchurl {
+        url = "https://updates.cumora.ai/Cumora-${version}.AppImage";
+        hash = "sha512-+VSifBxRjeu9Y4kFVowhid1uF/htuHo2Mv5UVNiGXLgVLOFapvVd3xeKk8Cv5fgZo0yjPrAzq7EQ5PEsOQjgvA==";
+      };
+      appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
+    in
+    pkgs.appimageTools.wrapType2 {
+      inherit pname version src;
+      # Electron safeStorage/keytar wants libsecret at runtime.
+      extraPkgs = pkgs: [ pkgs.libsecret ];
+      extraInstallCommands = ''
+        install -Dm444 ${appimageContents}/cumora.desktop \
+          $out/share/applications/cumora.desktop
+        install -Dm444 ${appimageContents}/usr/share/icons/hicolor/1024x1024/apps/cumora.png \
+          $out/share/icons/hicolor/1024x1024/apps/cumora.png
+        substituteInPlace $out/share/applications/cumora.desktop \
+          --replace-fail 'Exec=AppRun' 'Exec=cumora'
+      '';
+      meta.mainProgram = "cumora";
+    };
+
   # nix's glibc ships no libnss_systemd.so.2 and only searches the nix store,
   # so getpwnam on a systemd-homed user (anyone not in /etc/passwd) fails from
   # nix-built binaries on Arch. Symlink the host's plugin into a private dir
@@ -1207,6 +1238,9 @@ in
     pkgs.ghostty.terminfo
   ] ++ lib.optionals (!isDarwin && isDesktop) [
     caffeine
+    # nixGL wrap: without it the FHS env still resolves GBM/DRI via the
+    # NixOS-only /run/opengl-driver path and falls back to software rendering.
+    (config.lib.nixGL.wrap cumora)
     hypr-fullscreen-inhibit
     hypr-unstuck-lock
     nixGL

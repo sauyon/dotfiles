@@ -2118,6 +2118,7 @@ in
         "**/.claude/worktrees"
         "**/.claude/scheduled_tasks.lock"
         "**/.claude/plans"
+        "**/.superpowers"
       ];
 
       signing = {

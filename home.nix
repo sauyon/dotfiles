@@ -391,9 +391,9 @@ let
             CLAUDE_CONFIG_DIR="$dir" \
             ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic" \
             ANTHROPIC_AUTH_TOKEN="$(tr -d '\n' < ~/.config/opencode/zai-key)" \
-            ANTHROPIC_MODEL="glm-5.2[1m]" \
-            ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.2[1m]" \
-            ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.2[1m]" \
+            ANTHROPIC_MODEL="glm-5.2" \
+            ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.2" \
+            ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.2" \
             ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.7" \
             CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000" \
             claude "$@"
@@ -636,7 +636,7 @@ let
   # just the default /model and /config show.
   claudeProfiles = {
     personal = {
-      model = "claude-fable-5[1m]";
+      model = "claude-opus-4-8";
     };
     work = {
       model = "claude-opus-4-8";

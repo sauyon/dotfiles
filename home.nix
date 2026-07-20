@@ -828,6 +828,10 @@ in
     ./home/.claude/skills/linear-flow/DESIGN.md;
   home.file.".claude/skills/gemini-review/SKILL.md".source =
     ./home/.claude/skills/gemini-review/SKILL.md;
+  # Transform helper the skill invokes ($SKILL_DIR/findings-to-agent-context.py):
+  # maps agy's JSON findings into a Hunk --agent-context sidecar.
+  home.file.".claude/skills/gemini-review/findings-to-agent-context.py".source =
+    ./home/.claude/skills/gemini-review/findings-to-agent-context.py;
   # Bundled with the `hunk` package (hunkdiff) — symlinks the store skill into
   # ~/.claude/skills/ so Claude can drive live Hunk review sessions via the
   # `hunk session *` CLI.
@@ -2119,6 +2123,7 @@ in
         "**/.claude/scheduled_tasks.lock"
         "**/.claude/plans"
         "**/.superpowers"
+        ".gemini-review.agent.json" # gemini-review skill's Hunk sidecar artifact
       ];
 
       signing = {

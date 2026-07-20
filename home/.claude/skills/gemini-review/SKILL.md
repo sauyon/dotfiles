@@ -1,22 +1,23 @@
 ---
 name: gemini-review
-description: Use when the user asks for a "gemini review", a second-opinion / adversarial review of the current changes from Gemini, or to run the local `gemini` CLI over a diff. Pipes the working-tree diff into the locally-installed `gemini` CLI for an independent code review. NOT for in-harness review (use /code-review for that) — this deliberately sends the diff to the user's own Gemini account.
+description: Use when the user asks for a "gemini review", a second-opinion / adversarial review of the current changes from Gemini, or to run the local Antigravity (`agy`) CLI over a diff. Pipes the working-tree diff into the locally-installed `agy` CLI for an independent code review from Gemini. NOT for in-harness review (use /code-review for that) — this deliberately sends the diff to the user's own Google/Gemini account.
 ---
 
 # gemini-review
 
-Run the user's local `gemini` CLI as an independent reviewer over the current change. Gemini reads the piped diff AND can explore the working tree with its own tools, so it catches things the in-harness review and unit tests miss.
+Run the user's local Antigravity CLI (binary `agy`, which replaced the EOL'd `gemini-cli`) as an independent Gemini-backed reviewer over the current change. `agy` reads the piped diff AND can explore the working tree with its own tools, so it catches things the in-harness review and unit tests miss.
 
 ## The command
 
 Run exactly this from the repo root (both flags are required — see Gotchas):
 
 ```bash
-git diff --no-ext-diff | gemini --skip-trust -p "<review prompt>"
+git diff --no-ext-diff | agy --dangerously-skip-permissions -p "<review prompt>"
 ```
 
 - `--no-ext-diff` goes **after** `diff` (it's a `git diff` option, not a top-level git flag). Without it, a configured external differ (difftastic/delta) produces colorized non-patch output — or dies on the broken pipe.
-- `gemini --skip-trust` is required in non-interactive/headless use; otherwise Gemini refuses with "not running in a trusted directory." (`GEMINI_CLI_TRUST_WORKSPACE=true` env works too.)
+- `agy -p` (alias `--print`/`--prompt`) runs a single prompt non-interactively and prints the response; it reads the piped diff on stdin.
+- `--dangerously-skip-permissions` auto-approves `agy`'s tool permission requests, which is required for headless use — otherwise it blocks waiting for approval when it tries to explore the working tree.
 - To review only staged changes use `git diff --cached --no-ext-diff`; for a branch vs main use `git diff --no-ext-diff main...HEAD`.
 
 ## Review prompt template
@@ -37,9 +38,9 @@ findings, and end with a short ship / fix-first verdict.
 
 - Relay Gemini's findings faithfully — including when they contradict your own "looks good" assessment. Passing tests do not refute a behavior/correctness concern Gemini raises.
 - Triage each finding (agree / disagree-with-reason) before acting; don't blindly implement.
-- Gemini occasionally hits transient `429 RESOURCE_EXHAUSTED` (model capacity) and retries with backoff — if it ultimately fails, just rerun.
+- `agy` occasionally hits transient `429 RESOURCE_EXHAUSTED` (model capacity) and retries with backoff — if it ultimately fails, just rerun.
 
 ## Notes
 
-- This sends repo source to the user's Gemini account (external model API). That's the intended purpose and is allowed; do not use it for repos where that egress is not acceptable.
+- This sends repo source to the user's Google/Gemini account (external model API) via `agy`. That's the intended purpose and is allowed; do not use it for repos where that egress is not acceptable.
 - For a review that stays entirely in-harness, use `/code-review` instead.

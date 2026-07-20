@@ -30,9 +30,10 @@
         };
         showCitations = true;
       };
-      model = {
-        name = "auto";
-      };
+      # No explicit `model.name`: "auto" is not a valid value (agy rejects it as
+      # invalid settings). Automatic model selection is handled by
+      # experimental.modelSteering below. Pin a value from `agy models` here
+      # (e.g. "Claude Opus 4.6 (Thinking)") to force a default instead.
       experimental = {
         worktrees = true;
         memoryManager = true;

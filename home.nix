@@ -509,6 +509,19 @@ let
             '';
           } ];
         }
+        {
+          # herdr integration: report the Claude session identity to the local
+          # herdr socket on session start so a herdr pane can restore it. The
+          # script is a no-op unless HERDR_ENV=1 (i.e. running inside a herdr
+          # pane), so this is inert outside herdr. Vendored verbatim from
+          # `herdr integration install claude` (v7); regenerate the script and
+          # bump this entry if `herdr integration status` reports it outdated.
+          hooks = [ {
+            type = "command";
+            command = "bash '${config.home.homeDirectory}/.claude/hooks/herdr-agent-state.sh' session";
+            timeout = 10;
+          } ];
+        }
       ];
     };
     permissions = {
@@ -874,6 +887,15 @@ in
   home.file.".claude/commands/agy-review.md".source =
     ./home/agent-commands/agy-review.md;
 
+  # ── herdr integration (Claude) ─────────────────────────────────────────────
+  # SessionStart hook script referenced by claudeBaseSettings.hooks.SessionStart
+  # above. Vendored verbatim from `herdr integration install claude`; no-op
+  # unless run inside a herdr pane. All profiles reference this one path.
+  home.file.".claude/hooks/herdr-agent-state.sh" = {
+    source = ./home/.claude/hooks/herdr-agent-state.sh;
+    executable = true;
+  };
+
   # ── Claude plugins ─────────────────────────────────────────────────────────
   home.file.".claude/plugins/local-auto-mode/hooks.json".source =
     ./home/.claude/plugins/local-auto-mode/hooks.json;
@@ -944,6 +966,12 @@ in
       [ -e "$HOME/.claude/CLAUDE.md" ] && [ ! -e "$dir/CLAUDE.md" ] && ln -sf "$HOME/.claude/CLAUDE.md" "$dir/CLAUDE.md"
       [ -d "$HOME/.claude/commands" ] && [ ! -e "$dir/commands" ] && ln -sf "$HOME/.claude/commands" "$dir/commands"
       [ -d "$HOME/.claude/projects" ] && [ ! -e "$dir/projects" ] && ln -sf "$HOME/.claude/projects" "$dir/projects"
+      # hooks/ holds the herdr integration script (see home.file above). The
+      # SessionStart command uses an absolute ~/.claude path so the hook fires
+      # regardless, but `herdr integration status` probes CLAUDE_CONFIG_DIR
+      # (a profile dir under claude-prof) for <dir>/hooks/herdr-agent-state.sh
+      # — symlink it in so status reads "current" per profile too.
+      [ -d "$HOME/.claude/hooks" ] && [ ! -e "$dir/hooks" ] && ln -sf "$HOME/.claude/hooks" "$dir/hooks"
     done
   '';
 

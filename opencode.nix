@@ -127,6 +127,15 @@ in
     };
   };
 
+  # herdr integration: file-based opencode plugin that reports lifecycle state
+  # and session identity to the local herdr socket while opencode runs inside a
+  # herdr pane. Auto-loaded from ~/.config/opencode/plugins/ (no entry needed in
+  # opencode.json's `plugin` array, which is for npm plugins). No-op unless
+  # HERDR_ENV=1. Vendored verbatim from `herdr integration install opencode`
+  # (v8); regenerate if `herdr integration status` reports it outdated.
+  xdg.configFile."opencode/plugins/herdr-agent-state.js".source =
+    ./home/opencode/plugins/herdr-agent-state.js;
+
   # Belt-and-suspenders: 0.2.4 reintroduced legacy session_id/message_id headers
   # that Modular's Envoy rejects with 400. Patch any cached copy after activation.
   home.activation.patchOpencodeModelStats = lib.hm.dag.entryAfter [ "opencodeConfig" ] ''

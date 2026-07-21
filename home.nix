@@ -859,6 +859,21 @@ in
   xdg.configFile."opencode/command/explain-diff.md".source =
     ./home/agent-commands/explain-diff.md;
 
+  # review-diff: companion to explain-diff — an annotated reviewer's diff
+  # (logical grouping, inline annotations, codebase context, severity findings).
+  home.file.".claude/commands/review-diff.md".source =
+    ./home/agent-commands/review-diff.md;
+  home.file.".cursor/commands/review-diff.md".source =
+    ./home/agent-commands/review-diff.md;
+  xdg.configFile."opencode/command/review-diff.md".source =
+    ./home/agent-commands/review-diff.md;
+
+  # /agy-review slash command → drives the gemini-review skill (agy CLI). Claude-only:
+  # personal ~/.claude/skills/* aren't exposed as slash commands, so this wrapper is what
+  # makes `/agy-review` available; it points Claude at the skill's SKILL.md pipeline.
+  home.file.".claude/commands/agy-review.md".source =
+    ./home/agent-commands/agy-review.md;
+
   # ── Claude plugins ─────────────────────────────────────────────────────────
   home.file.".claude/plugins/local-auto-mode/hooks.json".source =
     ./home/.claude/plugins/local-auto-mode/hooks.json;

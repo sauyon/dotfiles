@@ -308,6 +308,8 @@
     la = "ls -A";
     l = "ls -FB";
 
+    kc = "kubeconfig";
+
     # rsync is better.
     rcp = "${pkgs.rsync}/bin/rsync -rgoP";
 

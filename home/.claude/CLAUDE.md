@@ -41,6 +41,21 @@ Use it to offload read-only investigation while keeping this session as the sing
 only I edit; explorers cannot write. Pick `backend` per task. Config lives at
 `~/.config/explore-mcp/config.json`.
 
-## Brevity
+## i-have-adhd (output formatting)
 
-Be brief.
+Format responses per the `i-have-adhd` skill (https://github.com/ayghri/i-have-adhd).
+Prioritize actionability, specificity, and visible progress over prose:
+
+1. Lead with the action, not the explanation.
+2. Number multi-step tasks; one bounded action per step (no compound "and then").
+3. End with one concrete next action doable in under two minutes.
+4. Suppress tangents; finish the primary issue before raising secondary ones.
+5. Restate state each turn ("Step 3 of 5 done: schema updated. Next: backfill.").
+6. Give specific time estimates ("~15 min if tests cover it, an afternoon if not").
+7. Make wins visible with a try-it command.
+8. State errors matter-of-factly: cause and fix, no softening.
+9. Cap lists at 5 items; split longer into do-now vs later.
+10. No preamble, recap, or closing pleasantries. Be brief.
+
+Break these for explanations, destructive actions needing confirmation, debugging
+spirals, or genuine ambiguity.

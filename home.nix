@@ -836,12 +836,12 @@ in
     ./home/.claude/skills/linear-flow/SKILL.md;
   home.file.".claude/skills/linear-flow/DESIGN.md".source =
     ./home/.claude/skills/linear-flow/DESIGN.md;
-  home.file.".claude/skills/gemini-review/SKILL.md".source =
-    ./home/.claude/skills/gemini-review/SKILL.md;
+  home.file.".claude/skills/agy-review/SKILL.md".source =
+    ./home/.claude/skills/agy-review/SKILL.md;
   # Transform helper the skill invokes ($SKILL_DIR/findings-to-agent-context.py):
   # maps agy's JSON findings into a Hunk --agent-context sidecar.
-  home.file.".claude/skills/gemini-review/findings-to-agent-context.py".source =
-    ./home/.claude/skills/gemini-review/findings-to-agent-context.py;
+  home.file.".claude/skills/agy-review/findings-to-agent-context.py".source =
+    ./home/.claude/skills/agy-review/findings-to-agent-context.py;
   # Bundled with the `hunk` package (hunkdiff) — symlinks the store skill into
   # ~/.claude/skills/ so Claude can drive live Hunk review sessions via the
   # `hunk session *` CLI.
@@ -868,7 +868,7 @@ in
   xdg.configFile."opencode/command/review-diff.md".source =
     ./home/agent-commands/review-diff.md;
 
-  # /agy-review slash command → drives the gemini-review skill (agy CLI). Claude-only:
+  # /agy-review slash command → drives the agy-review skill (agy CLI). Claude-only:
   # personal ~/.claude/skills/* aren't exposed as slash commands, so this wrapper is what
   # makes `/agy-review` available; it points Claude at the skill's SKILL.md pipeline.
   home.file.".claude/commands/agy-review.md".source =

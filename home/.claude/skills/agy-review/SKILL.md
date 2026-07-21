@@ -1,15 +1,15 @@
 ---
-name: gemini-review
-description: Use when the user asks for a "gemini review", a second-opinion / adversarial review of the current changes from Gemini, or to run the local Antigravity (`agy`) CLI over a diff. Runs `agy` over the working-tree diff for an independent Gemini review, then renders the findings as inline notes on the diff in the Hunk viewer (via an `--agent-context` sidecar). NOT for in-harness review (use /code-review for that) — this deliberately sends the diff to the user's own Google/Gemini account.
+name: agy-review
+description: Use when the user asks for an "agy review", a "gemini review", a second-opinion / adversarial review of the current changes from Gemini, or to run the local Antigravity (`agy`) CLI over a diff. Runs `agy` over the working-tree diff for an independent Gemini review, then renders the findings as inline notes on the diff in the Hunk viewer (via an `--agent-context` sidecar). NOT for in-harness review (use /code-review for that) — this deliberately sends the diff to the user's own Google/Gemini account.
 ---
 
-# gemini-review
+# agy-review
 
 Run the user's local Antigravity CLI (binary `agy`, which replaced the EOL'd `gemini-cli`) as an independent Gemini-backed reviewer over the current change, then surface the findings as **inline notes in Hunk** so the user reviews them hunk-by-hunk. `agy` reads the piped diff AND can explore the working tree with its own tools, so it catches things the in-harness review and unit tests miss.
 
 ## Pipeline
 
-Three stages, run from the repo root. `$SKILL_DIR` is this skill's directory (`$HOME/.claude/skills/gemini-review`).
+Three stages, run from the repo root. `$SKILL_DIR` is this skill's directory (`$HOME/.claude/skills/agy-review`).
 
 ### 1. Review — get findings as JSON
 

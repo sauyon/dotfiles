@@ -896,6 +896,23 @@ in
     executable = true;
   };
 
+  # ── herdr integration (Cursor) ─────────────────────────────────────────────
+  # sessionStart hook script + hooks.json wiring for the cursor-agent CLI.
+  # Vendored verbatim from `herdr integration install cursor` (v1); no-op unless
+  # HERDR_ENV=1. hooks.json is generated here (rather than vendored) so the
+  # absolute script path tracks homeDirectory. Regenerate the script and bump if
+  # `herdr integration status` reports it outdated.
+  home.file.".cursor/herdr-agent-state.sh" = {
+    source = ./home/.cursor/herdr-agent-state.sh;
+    executable = true;
+  };
+  home.file.".cursor/hooks.json".text = builtins.toJSON {
+    hooks.sessionStart = [
+      { command = "bash '${config.home.homeDirectory}/.cursor/herdr-agent-state.sh' session"; }
+    ];
+    version = 1;
+  };
+
   # ── Claude plugins ─────────────────────────────────────────────────────────
   home.file.".claude/plugins/local-auto-mode/hooks.json".source =
     ./home/.claude/plugins/local-auto-mode/hooks.json;

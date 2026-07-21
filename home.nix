@@ -887,6 +887,13 @@ in
   home.file.".claude/commands/agy-review.md".source =
     ./home/agent-commands/agy-review.md;
 
+  # /hunk-review slash command → drives the hunk-review skill (bundled with the
+  # hunk package). Claude-only: personal ~/.claude/skills/* aren't exposed as
+  # slash commands, so this wrapper points Claude at the skill's `hunk session *`
+  # workflow for controlling a live Hunk review session.
+  home.file.".claude/commands/hunk-review.md".source =
+    ./home/agent-commands/hunk-review.md;
+
   # ── herdr integration (Claude) ─────────────────────────────────────────────
   # SessionStart hook script referenced by claudeBaseSettings.hooks.SessionStart
   # above. Vendored verbatim from `herdr integration install claude`; no-op

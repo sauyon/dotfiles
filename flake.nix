@@ -17,6 +17,8 @@
     nixgl.url = "github:guibou/nixGL";
     agent-orchestrator.url = "github:sauyon/agent-orchestrator";
     ao-mcp.url = "github:sauyon/ao-mcp";
+    explore-mcp.url = "github:sauyon/explore-mcp";
+    explore-mcp.inputs.nixpkgs.follows = "nixpkgs";
     # Terminal diff viewer for agent-authored changesets; ships a bundled
     # `hunk-review` Claude skill under `${hunk}/skills/`.
     hunk.url = "github:modem-dev/hunk";
@@ -24,12 +26,12 @@
     ssh-oidc.url = "git+https://codeberg.org/sauyon/ssh-oidc";
   };
 
-  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, hunk, ssh-oidc, ... }:
+  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, explore-mcp, hunk, ssh-oidc, ... }:
   let
     mkHome = system: machine: home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.${system};
       extraSpecialArgs = {
-        inherit sops-nix walker nixgl agent-orchestrator ao-mcp hunk machine;
+        inherit sops-nix walker nixgl agent-orchestrator ao-mcp explore-mcp hunk machine;
         inherit system;
       };
       modules = [ ./home.nix ];

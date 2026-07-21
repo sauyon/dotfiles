@@ -30,6 +30,17 @@ Secrets in argv (e.g. `curl -H "Authorization: Bearer $TOKEN"`) or inline env ar
 
 NEVER kill by name, user, or pattern (`pkill`, `killall`, `kill` of a `pgrep` set). Only kill exact PIDs you launched; if you can't prove a PID is yours, ask. Never `kill -9`.
 
+## explore-mcp (read-only explorer sub-agents)
+
+`explore-mcp` is a locally-built MCP server (source: github.com/sauyon/explore-mcp,
+wired in via home-manager) exposing an `explore(backend, task)` tool. It dispatches a
+READ-ONLY explorer agent (`cursor`/`codex`/`gemini`/`opencode`) to investigate a codebase
+and returns a compressed, cited briefing — not the explorer's raw transcript.
+
+Use it to offload read-only investigation while keeping this session as the single writer:
+only I edit; explorers cannot write. Pick `backend` per task. Config lives at
+`~/.config/explore-mcp/config.json`.
+
 ## Brevity
 
 Be brief.

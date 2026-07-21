@@ -7,6 +7,7 @@
   nixgl,
   agent-orchestrator,
   ao-mcp,
+  explore-mcp,
   hunk,
   machine,
 
@@ -53,6 +54,8 @@ let
   ao-mcp-pkg = if isDarwin then null else ao-mcp.packages.${system}.default;
   # hunk builds on all four systems, so no darwin guard needed.
   hunk-pkg = hunk.packages.${system}.default;
+  # explore-mcp builds on all four systems (pure JS), so no darwin guard.
+  explore-mcp-pkg = explore-mcp.packages.${system}.default;
 
   # denoland's security firewall for agents. Not in nixpkgs and its `make`
   # build pulls Go/Node/Swift, so fetch the prebuilt linux-amd64 release binary
@@ -610,6 +613,13 @@ let
           UNIFI_API_TYPE = "local";
           UNIFI_LOCAL_HOST = "10.0.0.1";
           UNIFI_LOCAL_VERIFY_SSL = "false";
+        };
+      };
+      explore-mcp = {
+        type = "stdio";
+        command = "${explore-mcp-pkg}/bin/explore-mcp";
+        env = {
+          EXPLORE_MCP_CONFIG = "${config.home.homeDirectory}/.config/explore-mcp/config.json";
         };
       };
     };
@@ -1230,6 +1240,7 @@ in
       tree-sitter-typescript
     ]))
     hunk-pkg
+    explore-mcp-pkg
   ]) ++ lib.optionals (!isDarwin) [
     pkgs.grip
     agent-orchestrator-pkg
@@ -2381,6 +2392,10 @@ in
       source = "${withHostNss pkgs.xdg-desktop-portal-hyprland}/share/systemd/user/xdg-desktop-portal-hyprland.service";
     };
 
+    configFile."explore-mcp/config.json".text = builtins.toJSON {
+      explorers = { cursor = { }; codex = { }; gemini = { }; opencode = { }; };
+      summarizer = { backend = "claude"; maxChars = 4000; };
+    };
     configFile."agent-orchestrator/config.yaml".text = let
       # Indent a multiline string for embedding inside a YAML block scalar.
       # orchestratorRules is used under keys indented 8 spaces, so each line

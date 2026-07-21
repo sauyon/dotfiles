@@ -86,6 +86,26 @@
         "type": "github"
       }
     },
+    "explore-mcp": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1784610351,
+        "narHash": "sha256-ZPMzgiCNRCVdQmo9Ze675j1XM04+oQR3h1KDJPoFktc=",
+        "owner": "sauyon",
+        "repo": "explore-mcp",
+        "rev": "672284de70ef933f6fc527b01ec2a3f116baa3e3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "sauyon",
+        "repo": "explore-mcp",
+        "type": "github"
+      }
+    },
     "flake-parts": {
       "inputs": {
         "nixpkgs-lib": "nixpkgs-lib"
@@ -345,6 +365,7 @@
       "inputs": {
         "agent-orchestrator": "agent-orchestrator",
         "ao-mcp": "ao-mcp",
+        "explore-mcp": "explore-mcp",
         "home-manager": "home-manager",
         "hunk": "hunk",
         "nix-darwin": "nix-darwin",

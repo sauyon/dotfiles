@@ -1519,6 +1519,7 @@ in
   ];
 
   home.pointerCursor = lib.mkIf (!isDarwin && isDesktop) {
+    enable = true;
     package = pkgs.yaru-theme;
     name = "Yaru";
     size = hidpi.cursorSize;

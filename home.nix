@@ -526,6 +526,38 @@ let
           } ];
         }
       ];
+      # herdr integration: name this pane in the Agents panel after Claude's
+      # OSC terminal title. Refreshed at turn start (UserPromptSubmit), during
+      # work (PostToolUse — the title is reliably populated then), and at turn
+      # end (Stop). No-op unless HERDR_ENV=1. See home.file entry below.
+      UserPromptSubmit = [
+        {
+          hooks = [ {
+            type = "command";
+            command = "bash '${config.home.homeDirectory}/.claude/hooks/herdr-agent-name.sh'";
+            timeout = 5;
+          } ];
+        }
+      ];
+      PostToolUse = [
+        {
+          matcher = ".*";
+          hooks = [ {
+            type = "command";
+            command = "bash '${config.home.homeDirectory}/.claude/hooks/herdr-agent-name.sh'";
+            timeout = 5;
+          } ];
+        }
+      ];
+      Stop = [
+        {
+          hooks = [ {
+            type = "command";
+            command = "bash '${config.home.homeDirectory}/.claude/hooks/herdr-agent-name.sh'";
+            timeout = 5;
+          } ];
+        }
+      ];
     };
     permissions = {
       allow = [
@@ -904,6 +936,14 @@ in
   # unless run inside a herdr pane. All profiles reference this one path.
   home.file.".claude/hooks/herdr-agent-state.sh" = {
     source = ./home/.claude/hooks/herdr-agent-state.sh;
+    executable = true;
+  };
+
+  # Names each pane in herdr's Agents panel after Claude's OSC terminal title
+  # (its conversation summary). Referenced by claudeBaseSettings.hooks
+  # (UserPromptSubmit/PostToolUse/Stop) above; no-op unless HERDR_ENV=1.
+  home.file.".claude/hooks/herdr-agent-name.sh" = {
+    source = ./home/.claude/hooks/herdr-agent-name.sh;
     executable = true;
   };
 

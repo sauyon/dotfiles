@@ -75,15 +75,20 @@ python3 "$SKILL_DIR/findings-to-agent-context.py" --emit-candidates "$W/candidat
 # b. verify pass: agy scores each candidate 0-100 (reads candidates.json + change.diff)
 ( cd "$W" && agy --new-project --dangerously-skip-permissions -p "<VERIFY prompt>" ) > "$W/scores.out"
 
-# c. finalize: keep findings scored >= 50, fold scores into confidence/tags, write sidecar
+# c. finalize: fold verify scores in (demote low scores, don't delete), write sidecar
 python3 "$SKILL_DIR/findings-to-agent-context.py" .gemini-review.agent.json \
     --candidates "$W/candidates.json" --scores "$W/scores.out" --min 50
 ```
 
 - The helper tags each finding with its reviewer(s) (`source: "gemini:security"`,
-  or `"gemini:security+errorhandling"` when reviewers agree), collapses cross-reviewer
-  duplicates, and (with `--scores`) drops findings scored below `--min` and records
-  the score as a `score:NN` tag + confidence. Unscored findings are kept (fail-open).
+  or `"gemini:security+errorhandling"` when reviewers agree) and collapses
+  cross-reviewer duplicates.
+- **Verify policy (`--scores`): demote, don't delete.** `--min` is a *dispute*
+  threshold, not a delete threshold. Findings scored below `--min` are **kept** but
+  flagged (`disputed` + `score:NN` tags, confidence lowered, a note appended) and
+  sorted last, so a plausible high-severity finding always reaches the human. Only
+  genuine noise is dropped: verifier score 0 **and** weak (low/none) reviewer
+  confidence. Unscored findings are kept as-is.
 - Writes `.gemini-review.agent.json` at the **real repo root** (run from there).
 - **Fallback**: if the merge exits non-zero (nothing parsed), agy returned prose —
   relay `$W/review_*.out` in-harness; do not fabricate a sidecar. To skip the verify

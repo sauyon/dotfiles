@@ -13,12 +13,17 @@ Modes:
    reviewer (source `gemini:<label>`), merged, and cross-reviewer duplicates
    collapsed. Writes the sidecar directly.
 
-3. Panel merge + verify pass (two-phase, for false-positive filtering):
+3. Panel merge + verify pass (two-phase, false-positive DEMOTION):
    a. Emit merged candidates (stable ids) for a verifier to score:
         findings-to-agent-context.py --emit-candidates cand.json c=rc.out s=rs.out ...
    b. (run a verify agy pass that scores each id 0-100 -> scores.out)
-   c. Finalize: keep findings scored >= --min, fold scores in, write sidecar:
+   c. Finalize: fold scores in, write sidecar:
         findings-to-agent-context.py OUT --candidates cand.json --scores scores.out --min 50
+
+   Verify policy: findings scored below --min are KEPT but flagged `disputed`
+   (score:N tag, confidence lowered, note appended) and sorted last — NEVER silently
+   deleted. Only genuine noise is dropped: verifier score 0 AND weak (low/none)
+   reviewer confidence. A plausible high-severity finding always reaches the human.
 
 Exits non-zero if no usable findings can be parsed, so the caller can fall back to
 relaying prose.
@@ -90,6 +95,7 @@ def normalize_findings(doc, label):
             "sources": [label] if label else [],
             "id": f.get("id") if isinstance(f.get("id"), str) else None,
             "score": None,
+            "disputed": False,
         }
 
 
@@ -137,7 +143,7 @@ def load_sources(pairs):
         any_parsed = True
         records.extend(normalize_findings(doc, label))
         if isinstance(doc.get("verdict"), str):
-            verdicts.append((label, doc["verdict"]))
+            verdicts.append([label, doc["verdict"]])
     return records, verdicts, any_parsed
 
 
@@ -148,7 +154,7 @@ def assign_ids(records):
     return records
 
 
-def candidates_json(records):
+def candidates_json(records, verdicts):
     out = []
     for r in records:
         item = {"id": r["id"], "file": r["path"], "side": r["side"],
@@ -159,14 +165,15 @@ def candidates_json(records):
         if r["tags"]:
             item["category"] = r["tags"][0]
         out.append(item)
-    return json.dumps({"findings": out}, indent=2)
+    return json.dumps({"verdicts": verdicts, "findings": out}, indent=2)
 
 
 def records_from_candidates(doc):
     recs = list(normalize_findings(doc, None))
     for r, f in zip(recs, doc.get("findings", [])):
         r["sources"] = [s for s in f.get("reviewers", []) if isinstance(s, str)]
-    return recs
+    verdicts = [v for v in doc.get("verdicts", []) if isinstance(v, list) and len(v) == 2]
+    return recs, verdicts
 
 
 def parse_scores(text):
@@ -184,29 +191,44 @@ def parse_scores(text):
 
 
 def apply_scores(records, scores, min_score):
+    """Fold verify scores in. Demote (flag disputed) below min; keep everything
+    except genuine noise (score 0 AND weak reviewer confidence)."""
     kept = []
     for r in records:
         sc = scores.get(r["id"])
-        if sc is None or sc >= min_score:  # keep unscored to avoid silent loss
-            r["score"] = sc
-            kept.append(r)
+        r["score"] = sc
+        r["disputed"] = sc is not None and sc < min_score
+        if sc == 0 and r["confidence"] in (None, "low"):
+            continue  # only clear noise is dropped
+        kept.append(r)
     return kept
+
+
+def _sort_key(r):
+    sc = r["score"] if r["score"] is not None else 100
+    return (1 if r["disputed"] else 0, -sc, -_CONF_RANK.get(r["confidence"], 0))
 
 
 def to_sidecar(records, verdicts):
     files = {}
-    for r in records:
+    for r in sorted(records, key=_sort_key):
+        rationale, conf = r["rationale"], r["confidence"]
+        tags = list(dict.fromkeys(r["sources"] + r["tags"]))
+        if r["score"] is not None:
+            tags.append(f"score:{r['score']}")
+        if r["disputed"]:
+            tags.append("disputed")
+            conf = "low"
+            note = f"[verify: DISPUTED — score {r['score']}/100; a reviewer flagged this but the verifier doubts it]"
+            rationale = (rationale + " " + note).strip() if rationale else note
+        elif r["score"] is not None:
+            conf = "high" if r["score"] >= 75 else "medium" if r["score"] >= 50 else conf
         ann = {"summary": r["summary"], "author": "gemini"}
         ann["source"] = "gemini:" + "+".join(r["sources"]) if r["sources"] else "gemini"
-        if r["rationale"]:
-            ann["rationale"] = r["rationale"]
-        if r.get("score") is not None:
-            ann["confidence"] = "high" if r["score"] >= 75 else "medium" if r["score"] >= 50 else "low"
-        elif r["confidence"]:
-            ann["confidence"] = r["confidence"]
-        tags = list(dict.fromkeys(r["sources"] + r["tags"]))
-        if r.get("score") is not None:
-            tags.append(f"score:{r['score']}")
+        if rationale:
+            ann["rationale"] = rationale
+        if conf:
+            ann["confidence"] = conf
         if tags:
             ann["tags"] = tags
         if r["range"]:
@@ -246,12 +268,11 @@ def main():
         else:
             print(f"findings-to-agent-context: bad arg {a!r}", file=sys.stderr); return 2
 
-    # Gather records + verdicts.
     if candidates_file:
         doc = extract_json(open(candidates_file).read())
         if not isinstance(doc, dict):
             return 1
-        records, verdicts = records_from_candidates(doc), []
+        records, verdicts = records_from_candidates(doc)
     else:
         if not pairs:
             pairs = [("", sys.stdin.read())]
@@ -266,7 +287,7 @@ def main():
 
     if emit_candidates:
         with open(emit_candidates, "w") as fh:
-            fh.write(candidates_json(records) + "\n")
+            fh.write(candidates_json(records, verdicts) + "\n")
         return 0
 
     sidecar = to_sidecar(records, verdicts)

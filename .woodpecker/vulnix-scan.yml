@@ -36,17 +36,16 @@ steps:
           limits:
             cpu: "4"
             memory: 8Gi
-    environment:
-      ATTIC_PUBLIC_KEY: # cache public key (woodpecker secret, shared w/ nix-home)
-        from_secret: ATTIC_PUBLIC_KEY
     commands:
       # 1. Realise the utsuho activation package. Substitute unchanged paths from
-      #    attic + cache.nixos.org so this is a download, not a rebuild.
+      #    attic + cache.nixos.org so this is a download, not a rebuild. The
+      #    `kube` cache public key is public (see flake.nix), so inline it — no
+      #    secret needed (this pipeline only reads, never pushes).
       - |
         export DRV=$(nix build --no-link --print-out-paths \
           --extra-experimental-features 'nix-command flakes' \
           --extra-substituters https://attic.ko.ag/kube \
-          --extra-trusted-public-keys "$ATTIC_PUBLIC_KEY" \
+          --extra-trusted-public-keys "kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=" \
           .#homeConfigurations.utsuho.activationPackage)
       # 2. Scan the closure. vulnix + jq are pulled pinned from the same nixpkgs
       #    rev the build pipeline pins for attic-client. $DRV is exported so the

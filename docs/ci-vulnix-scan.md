@@ -21,9 +21,8 @@ already enabled (done for `nix-home.yml`).
    - Name: `weekly` (the pipeline filters on `cron: weekly` — must match).
    - Schedule: e.g. `0 0 6 * * 1` (Mondays 06:00 UTC; Woodpecker uses 6-field
      cron with a leading seconds field).
-2. **Secrets.** Only `ATTIC_PUBLIC_KEY` is needed (read-only cache key); it's
-   already an org/repo secret from `nix-home.yml`. No push token — this pipeline
-   never writes to the cache.
+2. **Secrets.** None. The `kube` cache public key is public and inlined in the
+   pipeline; no push token — this pipeline only reads from the cache.
 3. **Trigger a first run.** Hit **Run** in the UI (the pipeline also declares
    `event: manual`) to confirm it works before waiting for the cron.
 

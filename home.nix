@@ -681,9 +681,6 @@ let
     skipWorkflowUsageWarning = true;
     skipDangerousModePermissionPrompt = true;
     skipAutoPermissionPrompt = true;
-    # Pin the renderer so Claude Code stops prompting "Try the new fullscreen
-    # renderer?" on launch. The upsell is gated on `tui` being unset (settings
-    # enum: "default" | "fullscreen"); setting it silences it either way.
     tui = "fullscreen";
     statusLine = {
       type = "command";

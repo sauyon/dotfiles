@@ -1,0 +1,67 @@
+# Weekly CVE scan of the utsuho home closure with vulnix.
+#
+# Mirrors nix-home.yml's pod setup: a self-contained nixos/nix pod on fujiwara
+# builds (or substitutes from attic) the activation package, then runs vulnix
+# against that closure and prints the affected-package count. The pipeline log
+# IS the report — there's no desktop in a pod, so the mako-notify idea from the
+# local variant becomes a prominent count line here. Woodpecker's own build
+# notifications (if enabled) carry pass/fail.
+#
+# Trigger: a Woodpecker cron named `weekly` (create it once in the UI, see
+# docs/ci-vulnix-scan.md), or a manual run. The scan never fails on findings —
+# vulnix exits non-zero whenever it matches ANY CVE, and this closure always
+# has some (mostly false positives / unpatched-upstream), so a red pipeline
+# would be pure noise. Green = "scan ran"; read the log for the count.
+when:
+  - event: cron
+    cron: weekly
+  - event: manual
+
+steps:
+  - name: scan
+    # Same pinned image the build pipeline uses. Single-user nix as root in-pod.
+    image: nixos/nix@sha256:a09d508c2e46d3a4c7205ff3fa0d506d626a5a966c31e879df7efe737e22f003
+    backend_options:
+      kubernetes:
+        nodeSelector:
+          buildkit: "true"
+        securityContext:
+          # nix build sandbox needs mount/user namespaces (closure may build if
+          # attic is cold, though it's normally a pure substitution).
+          privileged: true
+        resources:
+          requests:
+            cpu: "1"
+            memory: 2Gi
+          limits:
+            cpu: "4"
+            memory: 8Gi
+    environment:
+      ATTIC_PUBLIC_KEY: # cache public key (woodpecker secret, shared w/ nix-home)
+        from_secret: ATTIC_PUBLIC_KEY
+    commands:
+      # 1. Realise the utsuho activation package. Substitute unchanged paths from
+      #    attic + cache.nixos.org so this is a download, not a rebuild.
+      - |
+        export DRV=$(nix build --no-link --print-out-paths \
+          --extra-experimental-features 'nix-command flakes' \
+          --extra-substituters https://attic.ko.ag/kube \
+          --extra-trusted-public-keys "$ATTIC_PUBLIC_KEY" \
+          .#homeConfigurations.utsuho.activationPackage)
+      # 2. Scan the closure. vulnix + jq are pulled pinned from the same nixpkgs
+      #    rev the build pipeline pins for attic-client. $DRV is exported so the
+      #    inner shell inherits it. `|| true` keeps the step green on findings.
+      - |
+        nix shell --extra-experimental-features 'nix-command flakes' \
+          github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#vulnix \
+          github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#jq \
+          -c sh -c '
+            vulnix --json "$DRV" > vulnix.json || true
+            count=$(jq "length" vulnix.json)
+            echo "======================================================"
+            echo "  vulnix: $count affected packages in utsuho closure"
+            echo "======================================================"
+            echo "affected-CVEs  package  (top 60 by CVE count)"
+            jq -r ".[] | \"\(.affected_by | length)\t\(.name)\"" vulnix.json \
+              | sort -rn | head -60
+          '

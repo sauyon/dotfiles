@@ -26,13 +26,13 @@ Requires the cluster's Woodpecker (`woodpecker.ko.ag`, GitHub OAuth, admin
 
 1. **Enable the repo.** In the Woodpecker UI, add `sauyon/dotfiles` (this installs
    the GitHub webhook so pushes trigger builds).
-2. **Provide the secrets** the pipeline reads via `from_secret`:
+2. **Provide the secret** the pipeline reads via `from_secret`:
    - `ATTIC_TOKEN` — attic **push** token (write-scoped).
-   - `ATTIC_PUBLIC_KEY` — the `kube` cache public key
-     (`kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=`).
-   If these already exist as Woodpecker **org/global** secrets (the kube repo uses
-   the same names), the dotfiles repo inherits them; otherwise add them as
-   repo secrets. The push token is write-capable — keep it out of the repo.
+   If it already exists as a Woodpecker **org/global** secret (the kube repo uses
+   the same name), the dotfiles repo inherits it; otherwise add it as a repo
+   secret. The push token is write-capable — keep it out of the repo. The cache
+   **public** key is public (`kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=`)
+   and is inlined in the pipeline — no secret needed for it.
 3. **Trigger it.** Push a nix/home change, or hit **Run** in the UI (the pipeline
    declares `event: manual`).
 

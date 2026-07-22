@@ -45,17 +45,17 @@ steps:
     environment:
       ATTIC_TOKEN: # push token (woodpecker secret, shared with the kube repo)
         from_secret: ATTIC_TOKEN
-      ATTIC_PUBLIC_KEY: # cache public key (woodpecker secret)
-        from_secret: ATTIC_PUBLIC_KEY
     commands:
       # 1. Build every Linux host's activation package. Substitute unchanged
       #    paths from attic (don't rebuild what's cached) while keeping
-      #    cache.nixos.org. Capture the out-paths for the push step.
+      #    cache.nixos.org. Capture the out-paths for the push step. The `kube`
+      #    cache public key is public (see flake.nix), so inline it — only the
+      #    push token needs to be a secret.
       - |
         out_paths=$(nix build --no-link --print-out-paths \
           --extra-experimental-features 'nix-command flakes' \
           --extra-substituters https://attic.ko.ag/kube \
-          --extra-trusted-public-keys "$ATTIC_PUBLIC_KEY" \
+          --extra-trusted-public-keys "kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=" \
           .#homeConfigurations.utsuho.activationPackage \
           .#homeConfigurations.setsuna.activationPackage \
           .#homeConfigurations.fujiwara.activationPackage)

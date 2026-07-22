@@ -8,6 +8,7 @@
   agent-orchestrator,
   ao-mcp,
   explore-mcp,
+  drovr,
   hunk,
   machine,
 
@@ -56,6 +57,8 @@ let
   hunk-pkg = hunk.packages.${system}.default;
   # explore-mcp builds on all four systems (pure JS), so no darwin guard.
   explore-mcp-pkg = explore-mcp.packages.${system}.default;
+  # drovr — Rust CLI, buildRustPackage on all unix systems; pairs with herdr.
+  drovr-pkg = drovr.packages.${system}.default;
 
   # denoland's security firewall for agents. Not in nixpkgs and its `make`
   # build pulls Go/Node/Swift, so fetch the prebuilt linux-amd64 release binary
@@ -613,6 +616,7 @@ let
       "pyright-lsp@claude-plugins-official" = true;
       "code-simplifier@claude-plugins-official" = true;
       "ralph-loop@claude-plugins-official" = true;
+      "drovr@drovr" = true;
     };
     mcpServers = {
       unifi = {
@@ -1026,13 +1030,22 @@ in
       if ! claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE"; then
         $DRY_RUN_CMD claude plugin marketplace add "$MARKETPLACE_SOURCE"
       fi
+      # drovr ships as its own single-plugin marketplace (repo root).
+      if ! claude plugin marketplace list 2>/dev/null | grep -q "drovr"; then
+        $DRY_RUN_CMD claude plugin marketplace add "sauyon/drovr"
+      fi
 
-      # Install each plugin if not already tracked.
+      # Install each plugin if not already tracked. Non-fatal: `claude plugin
+      # install` rewrites settings.json to enable, which fails when settings is
+      # a read-only home-manager symlink — but enabled plugins install on next
+      # launch anyway, so never abort activation (which would half-apply the
+      # generation before linkGeneration runs).
       for p in "''${PLUGINS[@]}"; do
         if [ -f "$INSTALLED" ] && grep -q "\"$p\"" "$INSTALLED"; then
           continue
         fi
-        $DRY_RUN_CMD claude plugin install "$p" --scope user
+        $DRY_RUN_CMD claude plugin install "$p" --scope user \
+          || echo "claudePlugins: could not install $p now; it will install on next Claude launch"
       done
     fi
   '';
@@ -1308,6 +1321,7 @@ in
     ]))
     hunk-pkg
     explore-mcp-pkg
+    drovr-pkg
   ]) ++ lib.optionals (!isDarwin) [
     pkgs.grip
     agent-orchestrator-pkg

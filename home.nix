@@ -1218,27 +1218,26 @@ in
     source = ./home/warp/tab_configs/startup_config.toml;
   };
 
-  # Override the packaged Zoom.desktop so the app launcher and zoommtg: scheme
-  # handlers go through the `zoom` wrapper (strips leaked nix Qt env). Mirrors
-  # /usr/share/applications/Zoom.desktop otherwise. XDG_DATA_HOME wins over
-  # /usr/share, so this shadows the pacman-installed entry.
-  xdg.desktopEntries.Zoom = lib.mkIf (!isDarwin && isDesktop) {
-    name = "Zoom Workplace";
-    genericName = "Zoom Workplace";
-    exec = "${zoom}/bin/zoom %U";
-    icon = "Zoom";
-    startupNotify = true;
-    settings.StartupWMClass = "zoom";
-    mimeType = [
-      "x-scheme-handler/zoommtg"
-      "x-scheme-handler/zoomus"
-      "x-scheme-handler/tel"
-      "x-scheme-handler/callto"
-      "x-scheme-handler/zoomphonecall"
-      "x-scheme-handler/zoomphonesms"
-      "x-scheme-handler/zoomcontactcentercall"
-      "application/x-zoom"
-    ];
+  # Override the packaged Zoom.desktop so the app launcher (elephant/walker) and
+  # zoommtg: scheme handlers go through the wayland `zoom` wrapper instead of
+  # /usr/bin/zoom (which force-sets QT_QPA_PLATFORM=xcb and crashes — see the
+  # wrapper comment above). This MUST live in XDG_DATA_HOME (~/.local/share):
+  # elephant orders ~/.nix-profile/share (where hm's xdg.desktopEntries lands)
+  # *below* /usr/share, so an entry there loses to the pacman one — but
+  # ~/.local/share wins over everything. Mirrors /usr/share/applications/Zoom.desktop.
+  xdg.dataFile."applications/Zoom.desktop" = lib.mkIf (!isDarwin && isDesktop) {
+    text = ''
+      [Desktop Entry]
+      Name=Zoom Workplace
+      GenericName=Zoom Workplace
+      Exec=${zoom}/bin/zoom %U
+      Icon=Zoom
+      Terminal=false
+      Type=Application
+      StartupNotify=true
+      StartupWMClass=zoom
+      MimeType=x-scheme-handler/zoommtg;x-scheme-handler/zoomus;x-scheme-handler/tel;x-scheme-handler/callto;x-scheme-handler/zoomphonecall;x-scheme-handler/zoomphonesms;x-scheme-handler/zoomcontactcentercall;application/x-zoom;
+    '';
   };
 
   # ── Herdr ───────────────────────────────────────────────────────────────────
@@ -1423,7 +1422,7 @@ in
     pkgs.psi-notify
     pkgs.pwvucontrol
     pkgs.slack
-    zoom # wrapper that strips leaked nix Qt env; see definition above
+    zoom # wayland wrapper bypassing Zoom's xcb-forcing launcher; see definition above
     # Temporarily dropped: vesktop's build pulls pnpm-10.29.2, marked insecure
     # in nixpkgs (CVE-2026-48995, CVE-2026-50014). Re-add once nixpkgs ships a
     # patched pnpm.

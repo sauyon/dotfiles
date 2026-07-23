@@ -247,6 +247,20 @@ let
     esac
   '';
 
+  # Force Zoom onto the native Wayland Qt platform. Zoom's own ZoomLauncher
+  # (/usr/bin/zoom -> /opt/zoom/ZoomLauncher) hard-sets QT_QPA_PLATFORM=xcb,
+  # overriding this wayland session. But the Hyprland session has no usable
+  # Xauth (XAUTHORITY is empty), so the bundled xcb plugin can't connect to
+  # Xwayland — Qt qFatal()s in createPlatformIntegration and the process
+  # SIGABRTs ~1s into launch. Bypass the launcher and exec the main binary
+  # directly with the platform forced to wayland (verified stable) and the same
+  # LD_LIBRARY_PATH the launcher would have set for the bundled Qt/CEF libs.
+  zoom = pkgs.writeShellScriptBin "zoom" ''
+    export QT_QPA_PLATFORM=wayland
+    export LD_LIBRARY_PATH=/opt/zoom/Qt/lib:/opt/zoom/cef:/opt/zoom
+    exec /opt/zoom/zoom "$@"
+  '';
+
   hypr-fullscreen-inhibit = pkgs.writeShellScriptBin "hypr-fullscreen-inhibit" ''
     set -u
     PIDFILE="''${XDG_RUNTIME_DIR:-/tmp}/hypr-fullscreen-inhibit.pid"
@@ -644,7 +658,6 @@ let
       "rust-analyzer-lsp@claude-plugins-official" = true;
       "clangd-lsp@claude-plugins-official" = true;
       "slack@claude-plugins-official" = true;
-      "superpowers@claude-plugins-official" = true;
       "pyright-lsp@claude-plugins-official" = true;
       "code-simplifier@claude-plugins-official" = true;
       "ralph-loop@claude-plugins-official" = true;
@@ -1051,7 +1064,6 @@ in
   # else it's exposed.
   home.activation.claudePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     PLUGINS=(
-      "superpowers@claude-plugins-official"
     )
     MARKETPLACE="claude-plugins-official"
     MARKETPLACE_SOURCE="anthropics/claude-plugins-official"
@@ -1204,6 +1216,29 @@ in
   };
   home.file.".local/share/warp-terminal/tab_configs/startup_config.toml" = lib.mkIf (!isDarwin && isDesktop) {
     source = ./home/warp/tab_configs/startup_config.toml;
+  };
+
+  # Override the packaged Zoom.desktop so the app launcher and zoommtg: scheme
+  # handlers go through the `zoom` wrapper (strips leaked nix Qt env). Mirrors
+  # /usr/share/applications/Zoom.desktop otherwise. XDG_DATA_HOME wins over
+  # /usr/share, so this shadows the pacman-installed entry.
+  xdg.desktopEntries.Zoom = lib.mkIf (!isDarwin && isDesktop) {
+    name = "Zoom Workplace";
+    genericName = "Zoom Workplace";
+    exec = "${zoom}/bin/zoom %U";
+    icon = "Zoom";
+    startupNotify = true;
+    settings.StartupWMClass = "zoom";
+    mimeType = [
+      "x-scheme-handler/zoommtg"
+      "x-scheme-handler/zoomus"
+      "x-scheme-handler/tel"
+      "x-scheme-handler/callto"
+      "x-scheme-handler/zoomphonecall"
+      "x-scheme-handler/zoomphonesms"
+      "x-scheme-handler/zoomcontactcentercall"
+      "application/x-zoom"
+    ];
   };
 
   # ── Herdr ───────────────────────────────────────────────────────────────────
@@ -1388,6 +1423,7 @@ in
     pkgs.psi-notify
     pkgs.pwvucontrol
     pkgs.slack
+    zoom # wrapper that strips leaked nix Qt env; see definition above
     # Temporarily dropped: vesktop's build pulls pnpm-10.29.2, marked insecure
     # in nixpkgs (CVE-2026-48995, CVE-2026-50014). Re-add once nixpkgs ships a
     # patched pnpm.

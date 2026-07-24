@@ -911,6 +911,11 @@ in
   home.file.".claude/skills/hunk-review/SKILL.md".source =
     "${hunk-pkg}/skills/hunk-review/SKILL.md";
 
+  # Cursor discovers SKILL.md files recursively and follows directory symlinks.
+  # Expose the same pinned drovr skills that Claude loads through its plugin.
+  home.file.".cursor/skills/drovr".source =
+    "${drovr-pkg}/share/drovr/skills";
+
   # ── Shared agent slash commands (claude / cursor / opencode) ──────────────
   # explain-diff prompt by Geoffrey Litt, from
   # https://gist.github.com/geoffreylitt/a29df1b5f9865506e8952488eac3d524

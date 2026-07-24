@@ -60,6 +60,34 @@ let
   # drovr — Rust CLI, buildRustPackage on all unix systems; pairs with herdr.
   drovr-pkg = drovr.packages.${system}.default;
 
+  # herdr — temporarily pinned to my fork's PR branch (fix/focus-steal-on-close,
+  # refs upstream #1621) instead of nixpkgs' released v0.7.4. The branch is 87
+  # commits ahead of v0.7.4, so Cargo.lock, the zig deps, and Cargo.toml's
+  # version (now 0.7.5) all changed — hence the fresh cargoDeps/zigDeps hashes
+  # and the version bump (so versionCheckHook passes). Drop this override and go
+  # back to `pkgs.herdr` once the fix lands in a nixpkgs release.
+  herdr-pkg = pkgs.herdr.overrideAttrs (old: rec {
+    version = "0.7.5";
+    src = pkgs.fetchFromGitHub {
+      owner = "sauyon";
+      repo = "herdr";
+      rev = "d1330131b71169da9c26673a9ccee5494ecd31ad";
+      hash = "sha256-oWgjXVu1eiS7ZNMKvrJGwhZel2i/j9f5CuVyXfF9P+I=";
+    };
+    cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
+      inherit src;
+      name = "herdr-${version}-vendor";
+      hash = "sha256-lWnc0Ka0hp7bbm+dkKKj22Dbk+Cwrld86romXs3lzBs=";
+    };
+    zigDeps = pkgs.zig_0_15.fetchDeps {
+      pname = "herdr";
+      inherit version;
+      src = "${src}/vendor/libghostty-vt";
+      fetchAll = true;
+      hash = "sha256-PnM+hZIlLyQwK8vJgd/Bhjt1lNIz06T8FahwliRmMrY=";
+    };
+  });
+
   # denoland's security firewall for agents. Not in nixpkgs and its `make`
   # build pulls Go/Node/Swift, so fetch the prebuilt linux-amd64 release binary
   # (sha from the release's SHA256SUMS). Only referenced under the fujiwara
@@ -1370,6 +1398,7 @@ in
 
   home.packages = [
     claude-prof
+    herdr-pkg
   ] ++ (with pkgs; [
     bfs
     btopPkg
@@ -1383,7 +1412,6 @@ in
     lnav
     mosh
     opencode
-    herdr
     forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg
     bat
     rustup

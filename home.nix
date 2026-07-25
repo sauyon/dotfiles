@@ -60,19 +60,20 @@ let
   # drovr — Rust CLI, buildRustPackage on all unix systems; pairs with herdr.
   drovr-pkg = drovr.packages.${system}.default;
 
-  # herdr — temporarily pinned to my fork's PR branch (fix/focus-steal-on-close,
-  # refs upstream #1621) instead of nixpkgs' released v0.7.4. The branch is 87
-  # commits ahead of v0.7.4, so Cargo.lock, the zig deps, and Cargo.toml's
-  # version (now 0.7.5) all changed — hence the fresh cargoDeps/zigDeps hashes
-  # and the version bump (so versionCheckHook passes). Drop this override and go
-  # back to `pkgs.herdr` once the fix lands in a nixpkgs release.
+  # herdr — temporarily pinned to my fork's `main` branch (both focus-steal
+  # fixes: pane/workspace close d133013 + API-close 32e4326, refs upstream
+  # #1621) instead of nixpkgs' released v0.7.4. The branch is ahead of v0.7.4,
+  # so Cargo.lock, the zig deps, and Cargo.toml's version (now 0.7.5) all
+  # changed — hence the fresh cargoDeps/zigDeps hashes and the version bump (so
+  # versionCheckHook passes). Drop this override and go back to `pkgs.herdr`
+  # once the fixes land in a nixpkgs release.
   herdr-pkg = pkgs.herdr.overrideAttrs (old: rec {
     version = "0.7.5";
     src = pkgs.fetchFromGitHub {
       owner = "sauyon";
       repo = "herdr";
-      rev = "d1330131b71169da9c26673a9ccee5494ecd31ad";
-      hash = "sha256-oWgjXVu1eiS7ZNMKvrJGwhZel2i/j9f5CuVyXfF9P+I=";
+      rev = "32e43266a5708a9ed85ab2039eb06e07d4e3c97d";
+      hash = "sha256-u3HL5nBHnZn/Y1WJ1/HYh5Do2dAt9nhZCx8abm5Od1U=";
     };
     cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
       inherit src;
@@ -737,10 +738,10 @@ let
   # just the default /model and /config show.
   claudeProfiles = {
     personal = {
-      model = "claude-opus-4-8";
+      model = "claude-opus-5";
     };
     work = {
-      model = "claude-opus-4-8";
+      model = "claude-opus-5";
     };
     zai = {
       model = "opus";

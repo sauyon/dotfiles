@@ -69,11 +69,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1784965073,
-        "narHash": "sha256-aLuv+I/3/5OXnqFqhQ8A0LYF0JX5DKf8HORa1HCjIFY=",
+        "lastModified": 1784967665,
+        "narHash": "sha256-rCUJ4bn6EQCWxbx65O8KVX/mGhnTFZIuReB1DAK1N1A=",
         "owner": "sauyon",
         "repo": "drovr",
-        "rev": "358e44426def664c4d64b94e7081f324953b5e19",
+        "rev": "57b460d0eee8cd0c81625810a700276c227c8267",
         "type": "github"
       },
       "original": {
@@ -160,6 +160,7 @@
       "original": {
         "owner": "numtide",
         "repo": "flake-utils",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
         "type": "github"
       }
     },

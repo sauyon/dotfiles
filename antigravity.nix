@@ -1,4 +1,4 @@
-{ ... }:
+{ config, lib, ... }:
 
 # gemini-cli was EOL'd and replaced by Google's Antigravity CLI (binary `agy`).
 # We now use the stock nixpkgs `antigravity-cli` package (the
@@ -46,15 +46,31 @@
   };
 
   # agy treats its settings.json as mutable state: picking a model or trusting
-  # a workspace makes it write the file, which atomically replaces the
-  # home-manager store symlink with a regular file. The next switch then aborts
-  # in checkLinkTargets ("would be clobbered") and takes every other activation
-  # step down with it. Let nix win instead — same posture as the per-profile
-  # Claude settings.json files in home.nix.
+  # a workspace rewrites the file, atomically replacing a home-manager store
+  # symlink with a regular file. Managing it as a symlink therefore either
+  # aborts the next switch in checkLinkTargets ("would be clobbered") or, with
+  # `force = true`, silently throws away whatever agy recorded. Upstream has the
+  # same bug open for gemini-cli with no fix (nix-community/home-manager#8654).
   #
-  # Consequence: agy's runtime writes to this file are transient and revert on
-  # each switch, so it re-prompts to trust a workspace after `hms`. Reverting
-  # `model` is if anything desirable — see the modelSteering note above.
-  # Anything worth keeping belongs in `settings` above, declared.
-  home.file.".gemini/antigravity-cli/settings.json".force = true;
+  # So: seed the file, don't manage it. The module still renders and type-checks
+  # `settings` above, but we suppress its symlink and install a writable copy
+  # only when nothing is there. Once the file exists, activation leaves it
+  # alone forever and agy owns it.
+  #
+  # Trade-off, deliberately chosen: edits to `settings` above do NOT reach an
+  # existing install. To re-seed after changing them, delete the file and
+  # switch:
+  #   rm ~/.gemini/antigravity-cli/settings.json && hms
+  home.file.".gemini/antigravity-cli/settings.json".enable = false;
+
+  # entryAfter linkGeneration, not writeBoundary: linkGeneration is what removes
+  # the previous generation's symlink at this path. Seeding before that would
+  # write a file only to have it cleaned up as an orphan link moments later.
+  home.activation.antigravitySettingsSeed = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    target="$HOME/.gemini/antigravity-cli/settings.json"
+    if [ ! -e "$target" ] && [ ! -L "$target" ]; then
+      $DRY_RUN_CMD install -Dm600 \
+        ${config.home.file.".gemini/antigravity-cli/settings.json".source} "$target"
+    fi
+  '';
 }

@@ -2198,7 +2198,13 @@ in
 
     difftastic = {
       enable = !isDarwin;
-      git.enable = true;
+      # Deliberately NOT wiring git integration: `git.enable = true` sets
+      # `diff.external`, which makes `git diff` emit difftastic's structural
+      # view *instead of* a unified diff. That silently breaks the pager
+      # (diff-so-fancy can't parse it), `git diff > x.patch`, and every tool
+      # or skill that parses diff output. `git dft` (alias below) opts in
+      # per-invocation instead.
+      git.enable = false;
       options = {
         # display = "inline";
       };
@@ -2358,6 +2364,24 @@ in
           whitespace = "trailing-space,space-before-tab";
         };
         diff.algorithm = "histogram";
+        # Opt into difftastic per-invocation rather than globally via
+        # diff.external — see programs.difftastic above.
+        #
+        # Shell alias rather than plain `-c` because git always pipes an
+        # external differ into core.pager, so difft sees a pipe, not a tty:
+        # it drops color (--color=auto) and falls back to 80 columns. Hence
+        # DFT_COLOR/DFT_WIDTH, plus a pager override since diff-so-fancy
+        # can't parse difft's structural output anyway.
+        alias = lib.mkIf (!isDarwin) {
+          dft =
+            let
+              difft = "${lib.getExe config.programs.difftastic.package}";
+              tput = "${pkgs.ncurses}/bin/tput";
+              less = "${pkgs.less}/bin/less";
+            in
+            "!DFT_COLOR=always DFT_WIDTH=\${DFT_WIDTH:-$(${tput} cols 2>/dev/null || echo 120)} "
+            + "git -c diff.external=${difft} -c core.pager='${less} -RFX' diff";
+        };
         pull.rebase = true;
         merge.tool = "meld";
         # credential."https://github.com".helper = "!/usr/bin/env gh auth git-credential";

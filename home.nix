@@ -1755,12 +1755,26 @@ in
       enable = true;
     };
 
-    gnome-keyring = lib.optionalAttrs (!isDarwin && isDesktop) {
+    # fujiwara is driven headlessly over tty/SSH, where the graphical login
+    # keyring is never unlocked and gnome-keyring has no prompter to CREATE the
+    # `login` collection — so its Secret Service is unusable there (libsecret
+    # clients like woodpecker-cli block on the missing collection). fujiwara uses
+    # pass-secret-service (below) instead. Other desktops keep gnome-keyring.
+    gnome-keyring = lib.optionalAttrs (!isDarwin && isDesktop && hostname != "fujiwara") {
       enable = true;
       components = [
         "pkcs11"
         "secrets"
       ];
+    };
+
+    # Headless-friendly Secret Service for fujiwara: backs libsecret onto a
+    # GPG-encrypted `pass` store (~/.password-store, key in ~/.gnupg), so it
+    # works in any tty/SSH session with no graphical unlock. Mutually exclusive
+    # with gnome-keyring (enforced by the module's assertion). The GPG key is
+    # passphraseless, so the store is protected by file perms + FDE only.
+    pass-secret-service = lib.optionalAttrs (!isDarwin && hostname == "fujiwara") {
+      enable = true;
     };
 
     hypridle = lib.optionalAttrs (!isDarwin && isDesktop) {

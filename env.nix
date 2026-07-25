@@ -43,6 +43,11 @@ rec {
 
   TG_PROVIDER_CACHE = "1";
 
+  # cursor-agent otherwise dumps verbose debug logs to
+  # $TMPDIR/cursor-agent-logs-<uid>, and $TMPDIR is /tmp (a tmpfs, i.e. RAM).
+  # These grow unbounded (observed 11G) and get paged to swap. Disable them.
+  CURSOR_AGENT_DISABLE_DEBUG_LOG = "1";
+
   # `coder config-ssh` (run by IDE integrations / `coder` tooling) rewrites its
   # target SSH config in place, which dereferences and clobbers the read-only
   # store symlink home-manager puts at ~/.ssh/config. Redirect those writes to

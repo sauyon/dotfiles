@@ -683,6 +683,29 @@ let
         "Creating a pull request (`gh pr create`, a `gh api` POST to a repo's pulls endpoint, or mcp__github__create_pull_request) is ALLOWED when the working directory is under ${config.home.homeDirectory}/devel/quite-app. PR creation stays blocked in every other directory."
       ];
     };
+    # Declare marketplaces here instead of shelling out to `claude plugin
+    # marketplace add` at activation time: Claude Code registers every entry
+    # into <config dir>/plugins/known_marketplaces.json on startup, and a stale
+    # entry under the same name is overwritten from this source. That makes the
+    # drovr pin self-correcting on the first launch after a flake.lock bump,
+    # and it applies to every profile (the base settings are rendered into all
+    # of them) rather than only whichever CLAUDE_CONFIG_DIR was ambient during
+    # the switch. See https://code.claude.com/docs/en/plugin-marketplaces.
+    #
+    # drovr is pinned to the flake.lock'd source tree (its own repo root, with
+    # skills/ hooks/ .claude-plugin/) rather than cloned from the GitHub default
+    # branch: an anonymous clone can race a fresh push and land on a stale
+    # commit that predates hooks/, silently dropping the SessionStart reflex.
+    extraKnownMarketplaces = {
+      claude-plugins-official.source = {
+        source = "github";
+        repo = "anthropics/claude-plugins-official";
+      };
+      drovr.source = {
+        source = "directory";
+        path = drovr.outPath;
+      };
+    };
     enabledPlugins = {
       "rust-analyzer-lsp@claude-plugins-official" = true;
       "clangd-lsp@claude-plugins-official" = true;
@@ -945,13 +968,12 @@ in
   home.file.".cursor/skills/drovr".source =
     "${drovr-pkg}/share/drovr/skills";
 
-  # Pin the Claude drovr marketplace to the flake.lock'd drovr source tree.
-  # This is the plugin's own repo root (skills/, hooks/, .claude-plugin/) at the
-  # exact locked rev, materialized as a stable, GC-rooted path. The activation
-  # script points `claude plugin marketplace add` here instead of cloning
-  # `sauyon/drovr` from GitHub — an anonymous clone of the moving default branch
-  # can race a fresh push and check out a stale commit that predates hooks/,
-  # silently dropping the SessionStart reflex. Bumping the pin = bump flake.lock.
+  # The drovr marketplace's source tree, at the exact locked rev, materialized
+  # as a stable GC-rooted path: the plugin's own repo root (skills/, hooks/,
+  # .claude-plugin/). Claude gets pointed here by `extraKnownMarketplaces`
+  # above; this symlink is the human-legible handle on the same path (and a
+  # convenient `claude plugin marketplace add` target for a non-nix profile).
+  # Bumping the pin = bump flake.lock.
   home.file.".local/share/drovr-marketplace".source = drovr.outPath;
 
   # ── Shared agent slash commands (claude / cursor / opencode) ──────────────
@@ -1098,86 +1120,6 @@ in
       # — symlink it in so status reads "current" per profile too.
       [ -d "$HOME/.claude/hooks" ] && [ ! -e "$dir/hooks" ] && ln -sf "$HOME/.claude/hooks" "$dir/hooks"
     done
-  '';
-
-  # Auto-install Claude Code plugins via the `claude plugin` CLI. Idempotent:
-  # marketplace is added if missing, each plugin is installed if not already
-  # tracked in installed_plugins.json. Runs after writeBoundary so the wrapper
-  # script `claude` is already on PATH from programs.claude-code or wherever
-  # else it's exposed.
-  home.activation.claudePlugins = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    PLUGINS=(
-    )
-    MARKETPLACE="claude-plugins-official"
-    MARKETPLACE_SOURCE="anthropics/claude-plugins-official"
-    INSTALLED="$HOME/.claude/plugins/installed_plugins.json"
-
-    # The activation environment has a stripped PATH that doesn't include
-    # ~/.nix-profile/bin where home-manager places claude. Expose it.
-    export PATH="${config.home.profileDirectory}/bin:$PATH"
-
-    # If claude still isn't available (fresh machine pre-bootstrap), skip
-    # rather than fail the activation. Avoid `exit` here — it terminates the
-    # entire home-manager activation script, not just this step.
-    if ! command -v claude >/dev/null 2>&1; then
-      echo "claudePlugins: claude CLI not on PATH yet — skipping plugin install"
-    else
-      # `claude plugin marketplace add` registers the marketplace (in writable
-      # state under <config dir>/plugins/) and *then* rewrites settings.json to
-      # enable it — which always fails here, because every profile's
-      # settings.json is a read-only store symlink (see home.file above) and the
-      # atomic write drops its .tmp alongside the target, i.e. inside
-      # /nix/store. So `add` prints "✘ Failed to add marketplace: … EACCES" and
-      # exits 1 even though the registration itself landed. Enablement is
-      # already declared in the nix-rendered `enabledPlugins`, so nothing is
-      # lost — trust `marketplace list`, not the exit code.
-      marketplace_has() {
-        claude plugin marketplace list 2>/dev/null | grep -qF "$1"
-      }
-      # Swallow the bogus failure without hiding the command under --dry-run.
-      marketplace_add() {
-        if [ -n "$DRY_RUN_CMD" ]; then
-          echo "claude plugin marketplace add $1"
-        else
-          claude plugin marketplace add "$1" >/dev/null 2>&1 || true
-        fi
-      }
-
-      # Register marketplace if not already known.
-      if ! marketplace_has "$MARKETPLACE"; then
-        marketplace_add "$MARKETPLACE_SOURCE"
-        if [ -z "$DRY_RUN_CMD" ] && ! marketplace_has "$MARKETPLACE"; then
-          echo "claudePlugins: could not add $MARKETPLACE now; will retry next switch"
-        fi
-      fi
-
-      # drovr ships as its own single-plugin marketplace. Pin it to the
-      # flake.lock'd source tree (see home.file ".local/share/drovr-marketplace"
-      # above) rather than cloning the GitHub default branch: an anonymous clone
-      # can race a fresh push and land on a stale commit that predates hooks/,
-      # silently dropping the SessionStart reflex. The pin only moves on a
-      # flake.lock bump, so re-point only when `list` reports a different path.
-      if ! marketplace_has "(${drovr.outPath})"; then
-        $DRY_RUN_CMD claude plugin marketplace remove drovr >/dev/null 2>&1 || true
-        marketplace_add "${drovr.outPath}"
-        if [ -z "$DRY_RUN_CMD" ] && ! marketplace_has "(${drovr.outPath})"; then
-          echo "claudePlugins: could not add drovr marketplace now; will retry next switch"
-        fi
-      fi
-
-      # Install each plugin if not already tracked. Non-fatal: `claude plugin
-      # install` rewrites settings.json to enable, which fails when settings is
-      # a read-only home-manager symlink — but enabled plugins install on next
-      # launch anyway, so never abort activation (which would half-apply the
-      # generation before linkGeneration runs).
-      for p in "''${PLUGINS[@]}"; do
-        if [ -f "$INSTALLED" ] && grep -q "\"$p\"" "$INSTALLED"; then
-          continue
-        fi
-        $DRY_RUN_CMD claude plugin install "$p" --scope user \
-          || echo "claudePlugins: could not install $p now; it will install on next Claude launch"
-      done
-    fi
   '';
 
   # Firefox 67+ keys profile-per-install via [Install<HASH>] sections inside

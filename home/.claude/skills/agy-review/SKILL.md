@@ -14,8 +14,9 @@ Run the user's local Antigravity CLI (binary `agy`, which replaced the EOL'd `ge
 so agy goes hunting for the real repo — it will clone it, tar-copy it (tens of GB),
 run `mise trust` / `dev:setup` / the test suite, and report "tests pass" instead of
 reviewing. `--sandbox` does not contain it. The **only** reliable way to get a clean
-review is the recipe below: give agy the diff **as a file** and constrain it with an
-**`AGENTS.md` rule**. Do not deviate from this. (See `[[agy_headless_diff_review]]`.)
+review is the recipe below: give agy the diff **as a file**, run it in **`--mode plan`**
+(agy's native read-only mode), and constrain it with an **`AGENTS.md` rule**. Do not
+deviate from this. (See `[[agy_headless_diff_review]]`.)
 
 Because each reviewer sees only `change.diff` in an isolated workspace, angles that
 need repo context (git history, prior PRs, CLAUDE.md, existing test suite) are out of
@@ -56,13 +57,19 @@ For each angle, run (reusing `$W`); each is `<shared header>` + `<angle>` + `<ou
 
 ```bash
 for angle in correctness security errorhandling typedesign; do
-  ( cd "$W" && agy --new-project --dangerously-skip-permissions -p "<prompt for $angle>" ) > "$W/review_$angle.out"
+  ( cd "$W" && agy --new-project --mode plan --print-timeout 4m0s -p "<prompt for $angle>" ) > "$W/review_$angle.out"
 done
 ```
 
-- `--new-project` isolates from persisted project context; `--dangerously-skip-permissions`
-  avoids the headless hang (the `AGENTS.md` rule keeps it read-only, not this flag).
-- Each ~2–3 min.
+- `--new-project` isolates from persisted project context. `--mode plan` is agy's native
+  read-only/planning mode: it runs headlessly **without** the permission-approval hang
+  *and* enforces read-only at the mode level (stronger than the `AGENTS.md` prose rule,
+  which stays as a belt-and-suspenders guard against agy wandering off to clone/build/test).
+- Do **NOT** use `--dangerously-skip-permissions` here: it also auto-approves *writes*, and
+  a harness safety classifier blocks it as an unsafe permission-bypass. `--mode plan` needs
+  no such flag — verified that `agy --mode plan -p` reads `change.diff` and returns without
+  hanging.
+- `--print-timeout` (default 5m) bounds the headless wait; 4m is plenty per angle. Each ~2–3 min.
 
 ### 3. Merge → verify → sidecar
 
@@ -73,7 +80,7 @@ python3 "$SKILL_DIR/findings-to-agent-context.py" --emit-candidates "$W/candidat
     errorhandling="$W/review_errorhandling.out" typedesign="$W/review_typedesign.out"
 
 # b. verify pass: agy scores each candidate 0-100 (reads candidates.json + change.diff)
-( cd "$W" && agy --new-project --dangerously-skip-permissions -p "<VERIFY prompt>" ) > "$W/scores.out"
+( cd "$W" && agy --new-project --mode plan -p "<VERIFY prompt>" ) > "$W/scores.out"
 
 # c. finalize: fold verify scores in (demote low scores, don't delete), write sidecar
 python3 "$SKILL_DIR/findings-to-agent-context.py" .gemini-review.agent.json \

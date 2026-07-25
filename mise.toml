@@ -90,9 +90,8 @@ description = "Apply home-manager configuration from this flake"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-case "$(uname -s)" in
-  Darwin) config="sauyon@darwin" ;;
-  *)      config="sauyon" ;;
-esac
+# home-manager configs are keyed by hostname (see flake.nix homeConfigurations.*:
+# utsuho / setsuna / fujiwara / mari), not a fixed user name.
+config="$(uname -n)"; config="${config%%.*}"
 exec home-manager switch --flake "$HOME/devel/dotfiles#$config" "$@"
 '''

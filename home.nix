@@ -944,6 +944,15 @@ in
   home.file.".cursor/skills/drovr".source =
     "${drovr-pkg}/share/drovr/skills";
 
+  # Pin the Claude drovr marketplace to the flake.lock'd drovr source tree.
+  # This is the plugin's own repo root (skills/, hooks/, .claude-plugin/) at the
+  # exact locked rev, materialized as a stable, GC-rooted path. The activation
+  # script points `claude plugin marketplace add` here instead of cloning
+  # `sauyon/drovr` from GitHub — an anonymous clone of the moving default branch
+  # can race a fresh push and check out a stale commit that predates hooks/,
+  # silently dropping the SessionStart reflex. Bumping the pin = bump flake.lock.
+  home.file.".local/share/drovr-marketplace".source = drovr.outPath;
+
   # ── Shared agent slash commands (claude / cursor / opencode) ──────────────
   # explain-diff prompt by Geoffrey Litt, from
   # https://gist.github.com/geoffreylitt/a29df1b5f9865506e8952488eac3d524
@@ -1116,10 +1125,16 @@ in
       if ! claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE"; then
         $DRY_RUN_CMD claude plugin marketplace add "$MARKETPLACE_SOURCE"
       fi
-      # drovr ships as its own single-plugin marketplace (repo root).
-      if ! claude plugin marketplace list 2>/dev/null | grep -q "drovr"; then
-        $DRY_RUN_CMD claude plugin marketplace add "sauyon/drovr"
-      fi
+      # drovr ships as its own single-plugin marketplace. Pin it to the
+      # flake.lock'd source tree (see home.file ".local/share/drovr-marketplace"
+      # above) rather than cloning the GitHub default branch: an anonymous clone
+      # can race a fresh push and land on a stale commit that predates hooks/,
+      # silently dropping the SessionStart reflex. The pinned path only changes
+      # on a flake.lock bump, so re-point every activation — cheap and fully
+      # local (no network, no CDN lag).
+      $DRY_RUN_CMD claude plugin marketplace remove drovr >/dev/null 2>&1 || true
+      $DRY_RUN_CMD claude plugin marketplace add "${drovr.outPath}" \
+        || echo "claudePlugins: could not add drovr marketplace now; will retry next switch"
 
       # Install each plugin if not already tracked. Non-fatal: `claude plugin
       # install` rewrites settings.json to enable, which fails when settings is

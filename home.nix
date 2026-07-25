@@ -1122,20 +1122,48 @@ in
     if ! command -v claude >/dev/null 2>&1; then
       echo "claudePlugins: claude CLI not on PATH yet — skipping plugin install"
     else
+      # `claude plugin marketplace add` registers the marketplace (in writable
+      # state under <config dir>/plugins/) and *then* rewrites settings.json to
+      # enable it — which always fails here, because every profile's
+      # settings.json is a read-only store symlink (see home.file above) and the
+      # atomic write drops its .tmp alongside the target, i.e. inside
+      # /nix/store. So `add` prints "✘ Failed to add marketplace: … EACCES" and
+      # exits 1 even though the registration itself landed. Enablement is
+      # already declared in the nix-rendered `enabledPlugins`, so nothing is
+      # lost — trust `marketplace list`, not the exit code.
+      marketplace_has() {
+        claude plugin marketplace list 2>/dev/null | grep -qF "$1"
+      }
+      # Swallow the bogus failure without hiding the command under --dry-run.
+      marketplace_add() {
+        if [ -n "$DRY_RUN_CMD" ]; then
+          echo "claude plugin marketplace add $1"
+        else
+          claude plugin marketplace add "$1" >/dev/null 2>&1 || true
+        fi
+      }
+
       # Register marketplace if not already known.
-      if ! claude plugin marketplace list 2>/dev/null | grep -q "$MARKETPLACE"; then
-        $DRY_RUN_CMD claude plugin marketplace add "$MARKETPLACE_SOURCE"
+      if ! marketplace_has "$MARKETPLACE"; then
+        marketplace_add "$MARKETPLACE_SOURCE"
+        if [ -z "$DRY_RUN_CMD" ] && ! marketplace_has "$MARKETPLACE"; then
+          echo "claudePlugins: could not add $MARKETPLACE now; will retry next switch"
+        fi
       fi
+
       # drovr ships as its own single-plugin marketplace. Pin it to the
       # flake.lock'd source tree (see home.file ".local/share/drovr-marketplace"
       # above) rather than cloning the GitHub default branch: an anonymous clone
       # can race a fresh push and land on a stale commit that predates hooks/,
-      # silently dropping the SessionStart reflex. The pinned path only changes
-      # on a flake.lock bump, so re-point every activation — cheap and fully
-      # local (no network, no CDN lag).
-      $DRY_RUN_CMD claude plugin marketplace remove drovr >/dev/null 2>&1 || true
-      $DRY_RUN_CMD claude plugin marketplace add "${drovr.outPath}" \
-        || echo "claudePlugins: could not add drovr marketplace now; will retry next switch"
+      # silently dropping the SessionStart reflex. The pin only moves on a
+      # flake.lock bump, so re-point only when `list` reports a different path.
+      if ! marketplace_has "(${drovr.outPath})"; then
+        $DRY_RUN_CMD claude plugin marketplace remove drovr >/dev/null 2>&1 || true
+        marketplace_add "${drovr.outPath}"
+        if [ -z "$DRY_RUN_CMD" ] && ! marketplace_has "(${drovr.outPath})"; then
+          echo "claudePlugins: could not add drovr marketplace now; will retry next switch"
+        fi
+      fi
 
       # Install each plugin if not already tracked. Non-fatal: `claude plugin
       # install` rewrites settings.json to enable, which fails when settings is

@@ -44,4 +44,17 @@
       };
     };
   };
+
+  # agy treats its settings.json as mutable state: picking a model or trusting
+  # a workspace makes it write the file, which atomically replaces the
+  # home-manager store symlink with a regular file. The next switch then aborts
+  # in checkLinkTargets ("would be clobbered") and takes every other activation
+  # step down with it. Let nix win instead — same posture as the per-profile
+  # Claude settings.json files in home.nix.
+  #
+  # Consequence: agy's runtime writes to this file are transient and revert on
+  # each switch, so it re-prompts to trust a workspace after `hms`. Reverting
+  # `model` is if anything desirable — see the modelSteering note above.
+  # Anything worth keeping belongs in `settings` above, declared.
+  home.file.".gemini/antigravity-cli/settings.json".force = true;
 }

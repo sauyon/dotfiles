@@ -2178,11 +2178,11 @@ in
       # (same source nixpkgs' own manifest.json uses). Bump both when updating.
       package =
         let
-          claudeVersion = "2.1.212";
+          claudeVersion = "2.1.220";
           platformKey = "${pkgs.stdenv.hostPlatform.node.platform}-${pkgs.stdenv.hostPlatform.node.arch}";
           checksums = {
-            linux-x64 = "044a88cf3a5180776617fd3da1238dcbf9141ddec449a39cf7d2af1ac78e684e";
-            darwin-arm64 = "09ecba2ab2df9b6ee5b0695e26f65dea60fb3b6af3d3542ee09f466838d1e574";
+            linux-x64 = "674f61f20ff306f3100cf9200e4c36c4b70278b5bef2884549819b942a89c863";
+            darwin-arm64 = "8addc857f3fe64d5a0368af9ee50321b50afb4a6918ba3ef018ab84f5dbbe081";
           };
         in
         pkgs.claude-code.overrideAttrs (_: {

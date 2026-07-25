@@ -1,2 +1,6 @@
 [keys]
 prefix = "ctrl+z"
+
+[ui]
+# Agent panel ordering: "spaces" (grouped by space) or "priority" (attention queue).
+agent_panel_sort = "priority"

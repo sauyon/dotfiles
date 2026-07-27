@@ -61,24 +61,25 @@ let
   drovr-pkg = drovr.packages.${system}.default;
 
   # herdr — temporarily pinned to my fork's `main` branch (both focus-steal
-  # fixes: pane/workspace close d133013 + API-close 32e4326, refs upstream
-  # #1621) instead of nixpkgs' released v0.7.4. The branch is ahead of v0.7.4,
-  # so Cargo.lock, the zig deps, and Cargo.toml's version (now 0.7.5) all
-  # changed — hence the fresh cargoDeps/zigDeps hashes and the version bump (so
-  # versionCheckHook passes). Drop this override and go back to `pkgs.herdr`
-  # once the fixes land in a nixpkgs release.
+  # fixes: pane/workspace close 1df7636a + API-close f044ae8e, refs upstream
+  # #1621) instead of nixpkgs' released v0.7.4. Rebased onto upstream master
+  # dc2506ea on 2026-07-26. The branch is ahead of v0.7.4, so Cargo.lock, the
+  # zig deps, and Cargo.toml's version (now 0.7.5) all changed — hence the
+  # fresh cargoDeps/zigDeps hashes and the version bump (so versionCheckHook
+  # passes). Drop this override and go back to `pkgs.herdr` once the fixes land
+  # in a nixpkgs release.
   herdr-pkg = pkgs.herdr.overrideAttrs (old: rec {
     version = "0.7.5";
     src = pkgs.fetchFromGitHub {
       owner = "sauyon";
       repo = "herdr";
-      rev = "32e43266a5708a9ed85ab2039eb06e07d4e3c97d";
-      hash = "sha256-u3HL5nBHnZn/Y1WJ1/HYh5Do2dAt9nhZCx8abm5Od1U=";
+      rev = "f044ae8ecde271b099b3444b6bb0a2dfb23e088b";
+      hash = "sha256-iYVk3xWKCgVcSS1qr5Ewuu2YBHCQO9T60G6BaeUHGfs=";
     };
     cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
       inherit src;
       name = "herdr-${version}-vendor";
-      hash = "sha256-lWnc0Ka0hp7bbm+dkKKj22Dbk+Cwrld86romXs3lzBs=";
+      hash = "sha256-Ja7fKsLWwCi6oy6zANltlFncbDVK+kgOhpr+bJtZyzg=";
     };
     zigDeps = pkgs.zig_0_15.fetchDeps {
       pname = "herdr";

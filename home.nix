@@ -425,8 +425,9 @@ let
         dir="$(profile_dir "$name")"
         mkdir -p "$dir"
 
-        # settings.json and settings.local.json are nix-rendered store
-        # symlinks (see home.file entries above) — do NOT touch them here.
+        # settings.json is a nix-rendered store symlink (see home.file
+        # entries above) — do NOT touch it here. settings.local.json is left
+        # unmanaged so Claude Code can write to it.
         # CLAUDE.md / commands/ / projects/ symlinks are set up by
         # home.activation.claudeProfiles. This script only ensures the
         # profile dir exists (for a brand-new profile before the first
@@ -675,13 +676,19 @@ let
       deny = [];
       defaultMode = "auto";
     };
-    # Tell the auto-mode classifier PR creation is fine inside quite-app, so it
-    # doesn't block the hook-allowed path there. (cwd is in the classifier's
-    # prompt; outside quite-app the hooks above still deny deterministically.)
+    # Rules for the auto-mode classifier. It reads ~/.claude/settings.json
+    # (rendered from these base settings via programs.claude-code below) and
+    # unions every autoMode.allow it finds, so one list here covers all
+    # profiles — the classifier's SETTINGS_PATHS never looks in the
+    # ~/.config/claude-<name>/ profile dirs.
     autoMode = {
       allow = [
         "$defaults"
+        # PR creation is fine inside quite-app, so don't block the
+        # hook-allowed path there. (cwd is in the classifier's prompt; outside
+        # quite-app the hooks above still deny deterministically.)
         "Creating a pull request (`gh pr create`, a `gh api` POST to a repo's pulls endpoint, or mcp__github__create_pull_request) is ALLOWED when the working directory is under ${config.home.homeDirectory}/devel/quite-app. PR creation stays blocked in every other directory."
+        "Git Push to Default Branch is allowed when the current working directory is under ${config.home.homeDirectory}/devel/kube. That repo is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow; no PR review applies."
       ];
     };
     # Declare marketplaces here instead of shelling out to `claude plugin
@@ -777,20 +784,6 @@ let
     (_: overrides: claudeBaseSettings // overrides)
     claudeProfiles;
 
-  # User-scope overlay applied on top of every profile's settings.json via
-  # ~/.claude/settings.local.json (which each profile symlinks to). Holds
-  # cross-profile autoMode rules. Previously this lived as a hand-edited
-  # regular file at ~/.claude/settings.local.json — moving it into nix keeps
-  # it version-controlled alongside the rest of the autoMode config.
-  claudeSettingsLocal = {
-    autoMode = {
-      allow = [
-        "$defaults"
-        "Git Push to Default Branch is allowed when the current working directory is under ${config.home.homeDirectory}/devel/kube. That repo is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow; no PR review applies."
-      ];
-    };
-  };
-
   # Rendered JSON files in the Nix store. Each per-profile settings.json also
   # gets `$schema` injected (the home-manager claude-code module adds it
   # automatically for ~/.claude/settings.json, but per-profile files bypass
@@ -803,8 +796,6 @@ let
         })))
     claudeProfileSettings;
 
-  claudeSettingsLocalJson = pkgs.writeText "claude-settings-local.json"
-    (builtins.toJSON claudeSettingsLocal);
   newtabLinks = [
     { group = "Work"; links = [
       { name = "Gmail";       url = "https://mail.google.com"; }
@@ -1068,34 +1059,22 @@ in
     ".config/claude-zai/settings.json".force       = true;
   };
 
-  # ── ~/.claude/settings.local.json (shared user-scope overlay) ──────────────
-  # All four targets point at the same rendered store path: the global file
-  # plus a per-profile symlink in each profile dir. Previously the global
-  # file was hand-edited and per-profile entries chained through it; making
-  # them all store symlinks keeps the kube-direct-push autoMode rule
-  # version-controlled alongside the rest of the autoMode config and removes
-  # the indirection.
-  # force = true on every entry: the global file is a hand-edited regular
-  # file and the per-profile entries are symlinks to it (not to a HM store
-  # path), so the pre-collision check rejects them by default.
-  home.file = {
-    ".claude/settings.local.json"                  .source = claudeSettingsLocalJson;
-    ".config/claude-personal/settings.local.json"  .source = claudeSettingsLocalJson;
-    ".config/claude-work/settings.local.json"      .source = claudeSettingsLocalJson;
-    ".config/claude-zai/settings.local.json"       .source = claudeSettingsLocalJson;
-    ".claude/settings.local.json"                  .force  = true;
-    ".config/claude-personal/settings.local.json"  .force  = true;
-    ".config/claude-work/settings.local.json"      .force  = true;
-    ".config/claude-zai/settings.local.json"       .force  = true;
-  };
+  # settings.local.json is deliberately NOT nix-managed. It used to hold the
+  # kube-direct-push autoMode rule as a store symlink in all four config dirs,
+  # but the classifier unions autoMode.allow across the files it reads, so the
+  # rule works identically from claudeBaseSettings above — and the per-profile
+  # copies were dead weight (classifier.py's SETTINGS_PATHS only ever reads
+  # ~/.claude/). Leaving these paths unmanaged keeps them writable for Claude
+  # Code's own user-scope "don't ask again" saves, which a read-only store
+  # symlink silently broke.
 
   # Per-profile setup. Runs after writeBoundary but before linkGeneration so
   # the rm step actually forces linkGeneration to create the store symlinks
   # (linkGeneration skips identical regular files via cmp -s, which would
   # leave the runtime-copied file in place). Also creates the runtime
   # symlinks for shared user-scope resources (CLAUDE.md, commands/, projects/)
-  # — settings.json and settings.local.json are nix-owned via home.file above
-  # so we don't touch those here.
+  # — settings.json is nix-owned via home.file above so we don't touch it
+  # here, and settings.local.json is left unmanaged entirely.
   home.activation.claudeProfiles = lib.hm.dag.entryBefore [ "linkGeneration" ] ''
     for name in ${lib.concatStringsSep " " (lib.attrNames claudeProfiles)}; do
       # Remove pre-existing runtime-copied settings.json so linkGeneration
@@ -1104,11 +1083,10 @@ in
       # pre-collision check; this handles the cmp -s skip.
       rm -f "$HOME/.config/claude-$name/settings.json"
 
-      # Per-profile shared-resource symlinks (idempotent). settings.local.json
-      # is a store symlink from home.file above; CLAUDE.md, commands/, and
-      # projects/ aren't in the store (CLAUDE.md is a single nix-managed
-      # file, the others are runtime dirs Claude writes to) so they get
-      # lazy-created here.
+      # Per-profile shared-resource symlinks (idempotent). CLAUDE.md,
+      # commands/, and projects/ aren't in the store (CLAUDE.md is a single
+      # nix-managed file, the others are runtime dirs Claude writes to) so
+      # they get lazy-created here.
       dir="$HOME/.config/claude-$name"
       mkdir -p "$dir"
       [ -e "$HOME/.claude/CLAUDE.md" ] && [ ! -e "$dir/CLAUDE.md" ] && ln -sf "$HOME/.claude/CLAUDE.md" "$dir/CLAUDE.md"

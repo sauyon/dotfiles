@@ -1,0 +1,13 @@
+no. I told you not to use this FUCKING HACK.
+
+---
+
+THIS WILL START SERVICES POINTING TO A FUCKING UNMOUNTED DIRECTORY AND CAUSE ALL SORTS OF BULLSHIT
+
+---
+
+WHAT THE FUCK ARE YOU DOING
+
+---
+
+I fucking told you. to fix. tailscale ssh.

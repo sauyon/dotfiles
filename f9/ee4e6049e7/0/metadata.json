@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "f9ee4e6049e7",
+  "session_id": "0128a5ea-fdfb-4809-a8c9-e357b740dc41",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-02T08:10:17.533422128Z",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "patches/tailscale-ssh-skip-logind-session-for-locked-homed-user.patch"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "f144d8472bdf",
+  "checkpoint_transcript_start": 517,
+  "transcript_lines_at_start": 517,
+  "compact_transcript_start": 103,
+  "token_usage": {
+    "input_tokens": 502,
+    "cache_creation_tokens": 38890,
+    "cache_read_tokens": 6437399,
+    "output_tokens": 25998,
+    "api_call_count": 30
+  },
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-02T08:10:17.464248579Z",
+    "agent_lines": 101,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 101,
+    "total_lines_changed": 101,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 91,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/CLAUDE.md~": 55,
+        ".claude/settings.local.json": 25,
+        "~/.config/mise/config.toml": 11
+      }
+    }
+  ]
+}

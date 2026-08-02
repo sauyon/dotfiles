@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "7d3d5e34b2fb",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "system/etc/systemd/system/user@60006.service.d/10-home.conf"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7d/3d5e34b2fb/0/metadata.json",
+      "transcript": "/7d/3d5e34b2fb/0/full.jsonl",
+      "compact_transcript": "/7d/3d5e34b2fb/0/transcript.jsonl",
+      "content_hash": "/7d/3d5e34b2fb/0/content_hash.txt",
+      "prompt": "/7d/3d5e34b2fb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 113,
+    "cache_creation_tokens": 207468,
+    "cache_read_tokens": 5754888,
+    "output_tokens": 51114,
+    "api_call_count": 61
+  }
+}

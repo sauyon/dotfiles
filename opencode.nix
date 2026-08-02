@@ -31,7 +31,6 @@ let
         };
         models = {
           "Huihui-Qwen3.6-35B-A3B-abliterated-Q4_K" = { name = "Qwen3.6 35B A3B (abliterated)"; };
-          "gemma-4-26B-A4B-it" = { name = "Gemma 4 26B A4B"; };
         };
       };
       # Built-in models.dev providers; apiKey injected at activation from sops.
@@ -75,7 +74,7 @@ in
           rm -f $out/bin/opencode
           makeWrapper ${prev.opencode}/bin/opencode $out/bin/opencode \
             --run ${patchModelStats} \
-            --set-default OPENCODE_MEMORY_RECALL_MODEL ko-ag/gemma-4-26B-A4B-it
+            --set-default OPENCODE_MEMORY_RECALL_MODEL ko-ag/Huihui-Qwen3.6-35B-A3B-abliterated-Q4_K
         '';
       };
     })

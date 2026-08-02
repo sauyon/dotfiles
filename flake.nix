@@ -19,14 +19,14 @@
     ao-mcp.url = "github:sauyon/ao-mcp";
     explore-mcp.url = "github:sauyon/explore-mcp";
     explore-mcp.inputs.nixpkgs.follows = "nixpkgs";
-    # drovr — CLI for driving single-writer / compressed-handoff agent phases;
-    # ships the `drovr` binary plus the drovr:* Claude skills under share/drovr/.
+    # drovr — CLI for single-writer/compressed-handoff agent phases; ships the
+    # `drovr` binary plus drovr:* Claude skills under share/drovr/.
     drovr.url = "github:sauyon/drovr";
     drovr.inputs.nixpkgs.follows = "nixpkgs";
-    # Terminal diff viewer for agent-authored changesets; ships a bundled
-    # `hunk-review` Claude skill under `${hunk}/skills/`.
+    # Terminal diff viewer for agent changesets; ships a `hunk-review` Claude
+    # skill under `${hunk}/skills/`.
     hunk.url = "github:modem-dev/hunk";
-    # The seamless OIDC SSH gate (gate binary + nixos/darwin modules).
+    # Seamless OIDC SSH gate (gate binary + nixos/darwin modules).
     ssh-oidc.url = "git+https://codeberg.org/sauyon/ssh-oidc";
   };
 
@@ -71,9 +71,9 @@
           nix.enable = true;
           nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
-          # Self-hosted attic binary cache (kube cluster). The signing key is public.
-          # Assumes nix-darwin manages nix (nix.enable = true). If mari is ever moved
-          # to Determinate Nix, relocate this to /etc/determinate like the Linux boxes.
+          # Self-hosted attic binary cache (kube cluster); signing key is public.
+          # Assumes nix-darwin manages nix (nix.enable = true). If mari moves to
+          # Determinate Nix, relocate this to /etc/determinate like the Linux boxes.
           nix.settings.extra-substituters = [ "https://attic.ko.ag/kube" ];
           nix.settings.extra-trusted-public-keys = [ "kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=" ];
           # Private cache → read token via netrc, rendered as root by sops-nix.
@@ -81,12 +81,11 @@
           sops.templates."attic-netrc".content = "machine attic.ko.ag password ${config.sops.placeholder.atticPullToken}";
           nix.settings.netrc-file = config.sops.templates."attic-netrc".path;
 
-          # Remote builder: the Linux boxes delegate aarch64-darwin builds here over
-          # Tailscale. With the OIDC gate's ForceCommand in place, the non-interactive
-          # `nix-store --serve` path would be HIJACKED if it shared the human `sauyon`
-          # login — so the builder now connects as the dedicated `nixremote` user, which
-          # the ssh-oidc-gate Match-block carves out below. Both users must be nix
-          # trusted-users to be allowed to run builds.
+          # Remote builder: Linux boxes delegate aarch64-darwin builds here over
+          # Tailscale. The gate's ForceCommand would hijack the non-interactive
+          # `nix-store --serve` path if it shared the human `sauyon` login, so the
+          # builder connects as the dedicated `nixremote` user, carved out by the
+          # ssh-oidc-gate Match block below. Both users must be nix trusted-users.
           # DEPLOY: update the Linux boxes' nix.custom.conf `builders` line from
           #   ssh-ng://sauyon@100.106.204.103 ...   to   ssh-ng://nixremote@100.106.204.103 ...
           # and ensure the builder pubkey is in /run/secrets/ssh-oidc-builder-key.pub here.
@@ -100,16 +99,16 @@
           sops.age.sshKeyPaths = [ ];
           sops.gnupg.sshKeyPaths = [ ];
           sops.environment.GOOGLE_APPLICATION_CREDENTIALS = "/Users/sauyon/.config/sops/gcp-key.json";
-          # Human key(s). With the OIDC gate active the gate's always-accept
-          # AuthorizedKeysCommand (not this file) decides the publickey stage for the
-          # `sauyon` login, so this file is now only authoritative for the builder
-          # carve-out is handled separately (sshOidcBuilderKey, below).
+          # Human key(s). With the OIDC gate active, its always-accept
+          # AuthorizedKeysCommand (not this file) decides the publickey stage for
+          # the `sauyon` login; the builder carve-out is handled separately
+          # (sshOidcBuilderKey, below).
           sops.secrets."ssh-authorized-keys-sauyon" = {
             mode = "0644";
           };
 
-          # ssh-oidc gate. Shared bearer token presented to the enrollment service;
-          # rendered by sops-nix and read by the gate at runtime (never in the store).
+          # ssh-oidc gate. Shared bearer token for the enrollment service;
+          # rendered by sops-nix, read by the gate at runtime (never in the store).
           # NOTE: add an `sshOidcToken` key to secrets.yaml (the gate's service token).
           sops.secrets.sshOidcToken = {
             # Readable by the login (sauyon) user — the gate runs as that user.
@@ -122,9 +121,9 @@
           sops.secrets.sshOidcBuilderKey = {
             mode = "0444";
           };
-          # CF Access service-token client SECRET (client id is non-secret, set inline
-          # below). ssh-oidc.ko.ag is fronted by CF Access; the gate sends the
-          # CF-Access-Client-Id/Secret headers so its non-interactive request is admitted.
+          # CF Access service-token client SECRET (client id is non-secret, set
+          # inline below). ssh-oidc.ko.ag sits behind CF Access; the gate sends the
+          # CF-Access-Client-Id/Secret headers to admit its non-interactive request.
           # NOTE: add `sshOidcCfAccessClientSecret` to secrets.yaml (tf output
           # ssh_oidc_cf_access_client_secret).
           sops.secrets.sshOidcCfAccessClientSecret = {
@@ -144,9 +143,10 @@
             builderAuthorizedKeysFile = config.sops.secrets.sshOidcBuilderKey.path;
           };
 
-          # Dedicated, no-login builder account the nix daemon SSHes in as. nix-darwin
-          # creates it (knownUsers drives dscl). It must be a trusted-user (above) to
-          # run builds; the gate carve-out lets its key skip the OIDC ForceCommand.
+          # Dedicated, no-login builder account the nix daemon SSHes in as;
+          # nix-darwin creates it (knownUsers drives dscl). Must be a trusted-user
+          # (above) to run builds; the gate carve-out lets its key skip the OIDC
+          # ForceCommand.
           users.knownUsers = [ "nixremote" ];
           users.users.nixremote = {
             uid = 541;

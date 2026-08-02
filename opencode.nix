@@ -3,7 +3,7 @@
 let
   opencodeConfig = {
     "$schema" = "https://opencode.ai/config.json";
-    # opencode-claude-memory reads and writes Claude Code's own memory store
+    # opencode-claude-memory reads/writes Claude Code's own memory store
     # (~/.claude/projects/<sanitized canonical git root>/memory/), so both CLIs
     # share one set of memories. Pinned because it injects a system prompt and
     # runs a per-turn recall subagent.
@@ -22,9 +22,9 @@ let
       mcloud = {
         npm = "@ai-sdk/openai-compatible";
         name = "Modular (internal)";
-        # baseURL is injected at activation from the sops secret
-        # ~/.config/opencode/mcloud-base-url so the private internal hostname
-        # never appears in the committed config.
+        # baseURL injected at activation from the sops secret
+        # ~/.config/opencode/mcloud-base-url so the private hostname never
+        # appears in the committed config.
         options = { };
         models = {
           "MiniMaxAI/MiniMax-M3" = { name = "MiniMax M3"; };
@@ -37,10 +37,10 @@ let
           baseURL = "https://ai.ko.ag/v1";
         };
         # Registered id is all-lowercase on purpose: CF AI Gateway lowercases
-        # the model field before forwarding, and Lemonade matches ids
-        # case-sensitively, so a mixed-case name 404s (surfacing as a 502)
-        # for everything arriving via ai.ko.ag. The `user.` prefix Lemonade
-        # requires is stripped from what callers send. See the kube repo's
+        # the model field before forwarding and Lemonade matches ids
+        # case-sensitively, so a mixed-case name 404s (surfacing as 502) for
+        # anything via ai.ko.ag. Lemonade's required `user.` prefix is stripped
+        # from what callers send. See the kube repo's
         # docs/lemonade-cf-aig-model-casing.md.
         models = {
           "qwen3.6-35b-abliterated" = { name = "Qwen3.6 35B A3B (abliterated)"; };
@@ -58,11 +58,11 @@ let
   };
   configTemplate = pkgs.writeText "opencode.json.tmpl" (builtins.toJSON opencodeConfig);
 
-  # opencode-model-stats adds `session_id` and `message_id` headers alongside
-  # the canonical `x-opencode-*` forms. Modular's edge proxy (Envoy) rejects
-  # any request carrying an underscore-named header with a 400 before it
-  # reaches the model server. Strip those two lines from the cached plugin
-  # source — the x- prefixed headers carry the same data.
+  # opencode-model-stats adds `session_id`/`message_id` headers alongside the
+  # canonical `x-opencode-*` forms. Modular's edge proxy (Envoy) 400s any
+  # request with an underscore-named header before it reaches the model server.
+  # Strip those two lines from the cached plugin source — the x- prefixed
+  # headers carry the same data.
   patchModelStats = pkgs.writeShellScript "opencode-patch-model-stats" ''
     set -eu
     shopt -s nullglob
@@ -93,9 +93,8 @@ in
   ];
 
   # opencode.json is rendered at activation by injecting the sops-decrypted
-  # Modular API key into provider.mcloud.options.apiKey. The file is not
-  # symlinked into the nix store so the secret never leaks to world-readable
-  # /nix/store paths.
+  # Modular API key into provider.mcloud.options.apiKey. Not symlinked into the
+  # nix store so the secret never leaks to world-readable /nix/store paths.
   home.activation.opencodeConfig = lib.hm.dag.entryAfter [ "writeBoundary" "sops-nix" ] ''
     DEST="$HOME/.config/opencode/opencode.json"
     TMPL="${configTemplate}"
@@ -132,8 +131,8 @@ in
     fi
   '';
 
-  # C-g is the Emacs universal cancel key; map it to session_interrupt and
-  # unbind it from messages_first (which used "ctrl+g,home"). C-f/C-b mirror
+  # C-g is Emacs's universal cancel; map it to session_interrupt and unbind it
+  # from messages_first (which used "ctrl+g,home"). C-f/C-b mirror
   # forward-char/backward-char in confirmation dialogs (select next/prev).
   xdg.configFile."opencode/tui.json".text = builtins.toJSON {
     "$schema" = "https://opencode.ai/tui.json";
@@ -145,9 +144,9 @@ in
     };
   };
 
-  # herdr integration: file-based opencode plugin that reports lifecycle state
-  # and session identity to the local herdr socket while opencode runs inside a
-  # herdr pane. Auto-loaded from ~/.config/opencode/plugins/ (no entry needed in
+  # herdr integration: file-based opencode plugin reporting lifecycle state and
+  # session identity to the local herdr socket while opencode runs in a herdr
+  # pane. Auto-loaded from ~/.config/opencode/plugins/ (no entry in
   # opencode.json's `plugin` array, which is for npm plugins). No-op unless
   # HERDR_ENV=1. Vendored verbatim from `herdr integration install opencode`
   # (v8); regenerate if `herdr integration status` reports it outdated.

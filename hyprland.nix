@@ -15,14 +15,12 @@ let
   terminal = "warp-terminal";
   menu = "walker";
 
-  # Bind helpers. In the Lua config every `bind` entry is `hl.bind(keys,
-  # dispatcher, opts?)`, where keys join mods/keys with " + ".
-  #
-  # Two ways to render the dispatcher as a Lua expression via mkLuaInline:
-  #   exec  - run a shell command. `hl.dsp.exec_cmd` is Hyprlang `exec`.
-  #           (NB: `hl.dsp.exec_raw` is Hyprlang `execr` - run a *program*
-  #           without a shell. Neither runs a dispatcher; dispatchers go
-  #           through the structured `hl.dsp.*` API below.)
+  # Bind helpers. In the Lua config every `bind` is `hl.bind(keys, dispatcher,
+  # opts?)`, keys joined with " + ". Two ways to render the dispatcher via
+  # mkLuaInline:
+  #   exec  - run a shell command; `hl.dsp.exec_cmd` is Hyprlang `exec`.
+  #           (`hl.dsp.exec_raw`/Hyprlang `execr` runs a *program* without a
+  #           shell. Neither is a dispatcher; those go through `hl.dsp.*` below.)
   #   dsp   - a structured dispatcher, e.g. hl.dsp.focus({ direction = "left" }),
   #           hl.dsp.window.close(), hl.dsp.window.move({ workspace = 1 }).
   # [=[ ... ]=] long brackets let shell commands keep their quotes and `]]`.
@@ -104,7 +102,7 @@ in
         disable_splash_rendering = true;
         focus_on_activate = true;
         # Let a fresh hyprlock take over the lock if the original client dies
-        # (e.g. when hms restarts hypridle.service and SIGTERMs the cgroup).
+        # (e.g. hms restarting hypridle.service SIGTERMs the cgroup).
         allow_session_lock_restore = true;
       };
     };
@@ -159,7 +157,7 @@ in
     ];
 
     # exec-once equivalents. The module already emits a hyprland.start hook for
-    # the systemd/D-Bus activation environment, so we only add our own programs.
+    # the systemd/D-Bus activation env, so we only add our own programs.
     on = {
       _args = [
         "hyprland.start"
@@ -179,15 +177,15 @@ in
         (exec "${mainMod} + SHIFT + E" "hyprland-graceful-exit")
         (dsp "${mainMod} + SHIFT + semicolon" ''hl.dsp.window.float({ action = "toggle" })'')
         # Jump focus to the other layer (floating <-> tiled). Needs a runtime
-        # check, so it shells out; under the Lua config backend the IPC dispatch
-        # must be a Lua expression (`focuswindow X` -> hl.dsp.focus({ window = X })).
+        # check, so it shells out; under the Lua backend the IPC dispatch must be
+        # a Lua expr (`focuswindow X` -> hl.dsp.focus({ window = X })).
         (exec "${mainMod} + semicolon" ''if [[ $(hyprctl activewindow -j | jq .floating) == true ]]; then t=tiled; else t=floating; fi; hyprctl dispatch "hl.dsp.focus({ window = \"$t\" })"'')
         (exec "${mainMod} + space" menu)
         (exec "ALT + space" menu)
         # Guard with `pidof hyprlock ||` (same as hypridle's lock_cmd): a second
-        # hyprlock instance fights the first over the Goodix fingerprint device
-        # ("Device already claimed"), which breaks fingerprint AND password auth
-        # on the lock you're typing into. Never stack a duplicate.
+        # hyprlock fights the first over the Goodix fingerprint device ("Device
+        # already claimed"), breaking fingerprint AND password auth on the lock
+        # you're typing into. Never stack a duplicate.
         (exec "${mainMod} + SHIFT + Q" "pidof hyprlock || ${config.programs.hyprlock.package}/bin/hyprlock")
         (exec "${mainMod} + SHIFT + S" "${pkgs.hyprshot}/bin/hyprshot -m region")
         (exec "${mainMod} + E" "emacsclient -c")
@@ -195,9 +193,9 @@ in
         (exec "${mainMod} + O" "makoctl dismiss --all")
 
         # Force the physical outputs back on. After a VT switch away and back
-        # (e.g. dropping to a text console on tty1 and returning with Ctrl+Alt+F3)
-        # the panels can stay DPMS-off even though Hyprland is foreground again;
-        # this relights them. Only works while Hyprland is the active VT.
+        # (e.g. to a text console on tty1 and back via Ctrl+Alt+F3) panels can
+        # stay DPMS-off even though Hyprland is foreground; this relights them.
+        # Only works while Hyprland is the active VT.
         (exec "${mainMod} + SHIFT + D" "${hyprDpmsPhysical} on")
 
         (dsp "${mainMod} + B" ''hl.dsp.focus({ direction = "left" })'')
@@ -262,8 +260,8 @@ in
         (execOpts "switch:on:Lid Switch"
           # Lua IPC dispatch: `dispatch exec X` -> hl.dsp.exec_cmd("X").
           # `pidof hyprlock ||` so a lid-close on top of an existing lock (or one
-          # already firing from suspend) can't stack a second instance that then
-          # fights over the fingerprint device. DPMS-off always runs regardless.
+          # firing from suspend) can't stack a second instance that fights over
+          # the fingerprint device. DPMS-off always runs regardless.
           "${hyprDpmsPhysical} off && ( pidof hyprlock || hyprctl dispatch 'hl.dsp.exec_cmd(\"${config.programs.hyprlock.package}/bin/hyprlock\")' )"
           { locked = true; }
         )

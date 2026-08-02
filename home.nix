@@ -60,14 +60,11 @@ let
   # drovr — Rust CLI, buildRustPackage on all unix systems; pairs with herdr.
   drovr-pkg = drovr.packages.${system}.default;
 
-  # herdr — temporarily pinned to my fork's `main` branch (both focus-steal
-  # fixes: pane/workspace close 1df7636a + API-close f044ae8e, refs upstream
-  # #1621) instead of nixpkgs' released v0.7.4. Rebased onto upstream master
-  # dc2506ea on 2026-07-26. The branch is ahead of v0.7.4, so Cargo.lock, the
-  # zig deps, and Cargo.toml's version (now 0.7.5) all changed — hence the
-  # fresh cargoDeps/zigDeps hashes and the version bump (so versionCheckHook
-  # passes). Drop this override and go back to `pkgs.herdr` once the fixes land
-  # in a nixpkgs release.
+  # herdr — pinned to my fork's rev with both focus-steal fixes (pane/workspace
+  # close 1df7636a + API-close f044ae8e, refs upstream #1621), rebased onto
+  # upstream master dc2506ea 2026-07-26. Being ahead of v0.7.4 bumped
+  # Cargo.lock/zig deps/version to 0.7.5, hence the fresh hashes and version bump
+  # (for versionCheckHook). Drop for `pkgs.herdr` once the fixes ship in nixpkgs.
   herdr-pkg = pkgs.herdr.overrideAttrs (old: rec {
     version = "0.7.5";
     src = pkgs.fetchFromGitHub {
@@ -90,10 +87,10 @@ let
     };
   });
 
-  # denoland's security firewall for agents. Not in nixpkgs and its `make`
-  # build pulls Go/Node/Swift, so fetch the prebuilt linux-amd64 release binary
-  # (sha from the release's SHA256SUMS). Only referenced under the fujiwara
-  # gate in home.packages, so this is never forced on other hosts.
+  # denoland's security firewall for agents. Not in nixpkgs and its `make` build
+  # pulls Go/Node/Swift, so fetch the prebuilt linux-amd64 binary (sha from the
+  # release SHA256SUMS). Only referenced under the fujiwara gate, never forced
+  # on other hosts.
   clawpatrol = pkgs.stdenv.mkDerivation rec {
     pname = "clawpatrol";
     version = "0.2.11";
@@ -111,12 +108,11 @@ let
     meta.mainProgram = "clawpatrol";
   };
 
-  # Cumora (cumora.ai) — desktop chat app where AI agents are first-class team
-  # members. Closed source, invite-only preview, not in nixpkgs; upstream's
-  # electron-updater feed at https://updates.cumora.ai/latest-linux.yml is the
-  # source of truth for version + sha512 when bumping. Wrap the AppImage
-  # (rather than autoPatchelf'ing the deb) so the Electron stack runs inside
-  # appimageTools' FHS env, which works on non-NixOS hosts.
+  # Cumora (cumora.ai) — closed-source, invite-only desktop chat app, not in
+  # nixpkgs. The electron-updater feed at https://updates.cumora.ai/latest-linux.yml
+  # is the source of truth for version + sha512 when bumping. Wrap the AppImage
+  # (not autoPatchelf the deb) so the Electron stack runs in appimageTools' FHS
+  # env, which works on non-NixOS hosts.
   cumora =
     let
       pname = "cumora";
@@ -142,13 +138,12 @@ let
       meta.mainProgram = "cumora";
     };
 
-  # nix's glibc ships no libnss_systemd.so.2 and only searches the nix store,
-  # so getpwnam on a systemd-homed user (anyone not in /etc/passwd) fails from
-  # nix-built binaries on Arch. Symlink the host's plugin into a private dir
-  # and `withHostNss` wraps a package's binaries with a narrowly-scoped
-  # LD_LIBRARY_PATH pointing at it. Apply to any nix package that needs to
-  # resolve the current user. Inert on systems without the host file (the
-  # dangling symlink just fails to dlopen and NSS skips it).
+  # nix's glibc ships no libnss_systemd.so.2 and only searches the nix store, so
+  # getpwnam on a systemd-homed user (not in /etc/passwd) fails from nix-built
+  # binaries on Arch. Symlink the host's plugin into a private dir; `withHostNss`
+  # wraps a package's binaries with a narrowly-scoped LD_LIBRARY_PATH pointing at
+  # it. Apply to any nix package that must resolve the current user. Inert
+  # without the host file (the dangling symlink fails to dlopen and NSS skips it).
   hostNssDir = pkgs.runCommand "host-libnss-systemd" { } ''
     mkdir -p $out/lib
     ln -s /usr/lib/libnss_systemd.so.2 $out/lib/libnss_systemd.so.2
@@ -158,17 +153,17 @@ let
     name = "${drv.name or "pkg"}-host-nss";
     paths = [ drv ];
     # Propagate meta (notably meta.mainProgram) so lib.getExe on the wrapped
-    # package — e.g. services.gpg-agent doing getExe programs.gpg.package —
-    # doesn't fall back to the deprecated name-guessing path. Override
-    # outputsToInstall: the symlinkJoin has a single `out`, so inheriting the
-    # source's multi-output list (e.g. ["out" "man"]) breaks home-manager-path.
+    # package (e.g. services.gpg-agent's getExe programs.gpg.package) doesn't
+    # fall back to the deprecated name-guessing path. Override outputsToInstall:
+    # the symlinkJoin has a single `out`, so inheriting the source's multi-output
+    # list (e.g. ["out" "man"]) breaks home-manager-path.
     meta = (drv.meta or { }) // {
       outputsToInstall = [ "out" ];
     };
     nativeBuildInputs = [ pkgs.makeBinaryWrapper ];
     postBuild = ''
-      # Wrap top-level executables in bin/ and libexec/ so they preload the
-      # host libnss_systemd.so.2.
+      # Wrap top-level bin/ and libexec/ executables to preload the host
+      # libnss_systemd.so.2.
       for d in bin libexec; do
         [ -d "$out/$d" ] || continue
         for f in "$out/$d"/*; do
@@ -181,8 +176,7 @@ let
         done
       done
       # Service files (systemd + dbus) embed the unwrapped store path in
-      # ExecStart=/Exec=; rewrite them so dbus/systemd activation hits the
-      # wrappers above instead of the unwrapped binary.
+      # ExecStart=/Exec=; rewrite them so activation hits the wrappers above.
       for dir in share/systemd/user share/dbus-1/services share/dbus-1/system-services; do
         [ -d "$out/$dir" ] || continue
         for f in "$out/$dir"/*; do
@@ -209,8 +203,8 @@ let
 
   # Recover Hyprland after hyprlock dies with the session still locked
   # (ext_session_lock_v1 keeps the screen locked when the client disappears).
-  # Run this from another TTY or SSH; it relies on misc:allow_session_lock_restore
-  # so a fresh hyprlock can take over the orphaned lock.
+  # Run from another TTY or SSH; relies on misc:allow_session_lock_restore so a
+  # fresh hyprlock can take over the orphaned lock.
   hypr-unstuck-lock = pkgs.writeShellScriptBin "hypr-unstuck-lock" ''
     set -eu
 
@@ -232,7 +226,7 @@ let
     fi
 
     # nixpkgs pam_unix.so hardcodes /run/wrappers/bin/unix_chkpwd; recreate the
-    # symlink that doesn't survive reboot, otherwise the new hyprlock won't auth.
+    # symlink (doesn't survive reboot) or the new hyprlock can't auth.
     if [ ! -e /run/wrappers/bin/unix_chkpwd ] && [ -x /usr/sbin/unix_chkpwd ]; then
       echo "restoring /run/wrappers/bin/unix_chkpwd (sudo)..."
       sudo mkdir -p /run/wrappers/bin
@@ -277,14 +271,12 @@ let
     esac
   '';
 
-  # Force Zoom onto the native Wayland Qt platform. Zoom's own ZoomLauncher
-  # (/usr/bin/zoom -> /opt/zoom/ZoomLauncher) hard-sets QT_QPA_PLATFORM=xcb,
-  # overriding this wayland session. But the Hyprland session has no usable
-  # Xauth (XAUTHORITY is empty), so the bundled xcb plugin can't connect to
-  # Xwayland — Qt qFatal()s in createPlatformIntegration and the process
-  # SIGABRTs ~1s into launch. Bypass the launcher and exec the main binary
-  # directly with the platform forced to wayland (verified stable) and the same
-  # LD_LIBRARY_PATH the launcher would have set for the bundled Qt/CEF libs.
+  # Force Zoom onto native Wayland Qt. Zoom's ZoomLauncher (/usr/bin/zoom ->
+  # /opt/zoom/ZoomLauncher) hard-sets QT_QPA_PLATFORM=xcb, but the Hyprland
+  # session has no usable Xauth (XAUTHORITY empty) so the bundled xcb plugin
+  # can't reach Xwayland — Qt qFatal()s in createPlatformIntegration and SIGABRTs
+  # ~1s into launch. Bypass the launcher and exec the main binary with platform
+  # forced to wayland and the same LD_LIBRARY_PATH it would set for the Qt/CEF libs.
   zoom = pkgs.writeShellScriptBin "zoom" ''
     export QT_QPA_PLATFORM=wayland
     export LD_LIBRARY_PATH=/opt/zoom/Qt/lib:/opt/zoom/cef:/opt/zoom
@@ -391,18 +383,16 @@ let
 
   # git built with the libsecret credential helper (git-credential-libsecret),
   # used for HTTPS auth to hosts that have no CLI-managed token store.
-  # gitFull already sets withLibsecret on Linux and is built/cached by Hydra,
-  # so it ships git-credential-libsecret without a from-source rebuild — unlike
-  # `pkgs.git.override { withLibsecret = true; }`, which is a guaranteed cache
-  # miss that recompiles git on every nixpkgs bump.
+  # gitFull ships git-credential-libsecret and is cached by Hydra; the
+  # withLibsecret override wasn't, so it recompiled git on every nixpkgs bump.
   gitWithLibsecret = pkgs.gitFull;
 
-  # Git credential helper backed by fj's own login store, so `fj auth login`
-  # is the single place a Forgejo token lives (forge.ko.ag is only reachable
-  # over HTTPS via a Cloudflare tunnel). fj has no `git-credential` subcommand
-  # of its own; it keeps its tokens in keys.json (an OAuth access/refresh pair
-  # from `fj auth login`, or a bare application token from `fj auth add-token`),
-  # so this shim refreshes via fj and then reads the token back out.
+  # Git credential helper backed by fj's own login store, so `fj auth login` is
+  # the single place a Forgejo token lives (forge.ko.ag is HTTPS-only via a
+  # Cloudflare tunnel). fj has no `git-credential` subcommand; it keeps tokens in
+  # keys.json (an OAuth access/refresh pair from `fj auth login`, or a bare app
+  # token from `fj auth add-token`), so this shim refreshes via fj then reads the
+  # token back out.
   git-credential-fj = pkgs.writeShellScriptBin "git-credential-fj" ''
     set -euo pipefail
 
@@ -512,8 +502,8 @@ let
 
   args = { inherit config lib pkgs; };
 
-  # The local auto-mode classifier's PreToolUse entry. Bound separately so a
-  # profile can drop it from its PreToolUse list (see `claudeProfiles.work`).
+  # The local auto-mode classifier's PreToolUse entry. Separate so a profile can
+  # drop it from its PreToolUse list (see `claudeProfiles.work`).
   localAutoModeHook = {
     matcher = ".*";
     hooks = [ {
@@ -523,10 +513,10 @@ let
     } ];
   };
 
-  # Base Claude Code settings shared by every profile. Only `model` differs
-  # per profile (see `claudeProfiles` below). Everything else is rendered
-  # identically into each profile's settings.json by the home.file entries
-  # below, so per-profile state is fully declarative.
+  # Base Claude Code settings shared by every profile. Only `model` differs per
+  # profile (see `claudeProfiles`); everything else is rendered identically into
+  # each profile's settings.json by the home.file entries below, so per-profile
+  # state is fully declarative.
   claudeBaseSettings = {
     hooks = {
       PreToolUse = [
@@ -535,9 +525,9 @@ let
           matcher = "Bash";
           hooks = [ {
             type = "command";
-            # Block `gh pr create` outside the quite-app worktree. The hook
-            # JSON arrives on stdin; we must inspect tool_input.command
-            # ourselves because `matcher` only filters on tool name.
+            # Block `gh pr create` outside the quite-app worktree. Inspect
+            # tool_input.command from the stdin hook JSON ourselves, since
+            # `matcher` only filters on tool name.
             command = ''
               case "$PWD" in ${config.home.homeDirectory}/devel/quite-app*) exit 0 ;; esac
               input=$(cat)
@@ -552,8 +542,7 @@ let
             type = "command";
             # Block `coder ssh` anywhere in a command: the ssh config already
             # proxies coder workspaces through plain ssh (coder.* / *.coder
-            # blocks below), which keeps known-hosts handling and config in
-            # one place.
+            # blocks below), keeping known-hosts and config in one place.
             command = ''
               input=$(cat)
               case "$input" in *'coder ssh'*) ;; *) exit 0 ;; esac
@@ -567,7 +556,7 @@ let
             type = "command";
             # Mirror the `gh pr create` hook for the GitHub MCP tool: block PR
             # creation outside the quite-app worktree. A flat permissions.deny
-            # can't be scoped to a directory, so gate on $PWD here instead.
+            # can't be scoped to a directory, so gate on $PWD here.
             command = ''
               case "$PWD" in ${config.home.homeDirectory}/devel/quite-app*) exit 0 ;; esac
               printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Do not create pull requests here. Print a PR creation link instead (e.g. https://github.com/<owner>/<repo>/pull/new/<branch>) and let the user create the PR themselves."}}'
@@ -577,12 +566,11 @@ let
       ];
       PostToolUseFailure = [];
       # Per-session kcs KUBECONFIG isolation: mint a session id and point
-      # KUBECONFIG at its kcs socket dir (mirrors zsh.nix `kcs init`). Written
-      # to $CLAUDE_ENV_FILE so it applies for the whole Claude session.
-      # The base kubeconfig is a prod-stripped copy of ~/.kube/config: every
-      # context matching "prod" is removed and current-context is unset, so
-      # Claude can never reach a prod cluster (bare kubectl fails instead of
-      # inheriting whatever context the user last selected).
+      # KUBECONFIG at its kcs socket dir (mirrors zsh.nix `kcs init`), written to
+      # $CLAUDE_ENV_FILE so it applies for the whole session. The base kubeconfig
+      # is a prod-stripped copy of ~/.kube/config: every "prod" context is removed
+      # and current-context unset, so Claude can never reach a prod cluster (bare
+      # kubectl fails instead of inheriting the last-selected context).
       SessionStart = [
         {
           hooks = [ {
@@ -606,11 +594,10 @@ let
         }
         {
           # herdr integration: report the Claude session identity to the local
-          # herdr socket on session start so a herdr pane can restore it. The
-          # script is a no-op unless HERDR_ENV=1 (i.e. running inside a herdr
-          # pane), so this is inert outside herdr. Vendored verbatim from
-          # `herdr integration install claude` (v7); regenerate the script and
-          # bump this entry if `herdr integration status` reports it outdated.
+          # herdr socket on session start so a herdr pane can restore it. No-op
+          # unless HERDR_ENV=1 (inside a herdr pane), so inert outside herdr.
+          # Vendored verbatim from `herdr integration install claude` (v7);
+          # regenerate and bump if `herdr integration status` reports it outdated.
           hooks = [ {
             type = "command";
             command = "bash '${config.home.homeDirectory}/.claude/hooks/herdr-agent-state.sh' session";
@@ -618,10 +605,10 @@ let
           } ];
         }
       ];
-      # herdr integration: name this pane in the Agents panel after Claude's
-      # OSC terminal title. Refreshed at turn start (UserPromptSubmit), during
-      # work (PostToolUse — the title is reliably populated then), and at turn
-      # end (Stop). No-op unless HERDR_ENV=1. See home.file entry below.
+      # herdr integration: name this pane in the Agents panel after Claude's OSC
+      # terminal title. Refreshed at turn start (UserPromptSubmit), during work
+      # (PostToolUse — title reliably populated then), and turn end (Stop). No-op
+      # unless HERDR_ENV=1. See home.file entry below.
       UserPromptSubmit = [
         {
           hooks = [ {
@@ -717,40 +704,39 @@ let
         "Skill(evaluate)"
       ];
       # PR creation is gated per-repo by the PreToolUse hooks above (denied
-      # everywhere except the quite-app worktree), not by a blanket deny. A
-      # flat deny here can't be scoped to a directory, and the auto-mode
-      # classifier reads it as a global block — over-blocking quite-app.
+      # except in the quite-app worktree), not a blanket deny. A flat deny here
+      # can't be scoped to a directory, and the auto-mode classifier reads it as
+      # a global block — over-blocking quite-app.
       deny = [];
       defaultMode = "auto";
     };
     # Rules for the auto-mode classifier. It reads ~/.claude/settings.json
     # (rendered from these base settings via programs.claude-code below) and
-    # unions every autoMode.allow it finds, so one list here covers all
-    # profiles — the classifier's SETTINGS_PATHS never looks in the
-    # ~/.config/claude-<name>/ profile dirs.
+    # unions every autoMode.allow it finds, so one list here covers all profiles
+    # — its SETTINGS_PATHS never looks in the ~/.config/claude-<name>/ dirs.
     autoMode = {
       allow = [
         "$defaults"
-        # PR creation is fine inside quite-app, so don't block the
-        # hook-allowed path there. (cwd is in the classifier's prompt; outside
-        # quite-app the hooks above still deny deterministically.)
+        # PR creation is fine inside quite-app, so don't block the hook-allowed
+        # path there. (cwd is in the classifier's prompt; outside quite-app the
+        # hooks above still deny deterministically.)
         "Creating a pull request (`gh pr create`, a `gh api` POST to a repo's pulls endpoint, or mcp__github__create_pull_request) is ALLOWED when the working directory is under ${config.home.homeDirectory}/devel/quite-app. PR creation stays blocked in every other directory."
         "Git Push to Default Branch is allowed when the current working directory is under ${config.home.homeDirectory}/devel/kube. That repo is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow; no PR review applies."
       ];
     };
     # Declare marketplaces here instead of shelling out to `claude plugin
-    # marketplace add` at activation time: Claude Code registers every entry
-    # into <config dir>/plugins/known_marketplaces.json on startup, and a stale
-    # entry under the same name is overwritten from this source. That makes the
-    # drovr pin self-correcting on the first launch after a flake.lock bump,
-    # and it applies to every profile (the base settings are rendered into all
-    # of them) rather than only whichever CLAUDE_CONFIG_DIR was ambient during
-    # the switch. See https://code.claude.com/docs/en/plugin-marketplaces.
+    # marketplace add` at activation: Claude Code registers every entry into
+    # <config dir>/plugins/known_marketplaces.json on startup, overwriting a
+    # stale same-name entry from this source. This makes the drovr pin
+    # self-correcting on the first launch after a flake.lock bump, and applies to
+    # every profile (base settings render into all) rather than only the ambient
+    # CLAUDE_CONFIG_DIR during the switch. See
+    # https://code.claude.com/docs/en/plugin-marketplaces.
     #
-    # drovr is pinned to the flake.lock'd source tree (its own repo root, with
+    # drovr is pinned to the flake.lock'd source tree (its repo root, with
     # skills/ hooks/ .claude-plugin/) rather than cloned from the GitHub default
-    # branch: an anonymous clone can race a fresh push and land on a stale
-    # commit that predates hooks/, silently dropping the SessionStart reflex.
+    # branch: an anonymous clone can race a fresh push and land on a stale commit
+    # predating hooks/, silently dropping the SessionStart reflex.
     extraKnownMarketplaces = {
       claude-plugins-official.source = {
         source = "github";
@@ -792,8 +778,7 @@ let
         };
       };
     };
-    # NOTE: `model` intentionally omitted — declared per-profile in
-    # `claudeProfiles` below.
+    # `model` intentionally omitted — declared per-profile in `claudeProfiles`.
     theme = "dark";
     editorMode = "normal";
     autoDreamEnabled = true;
@@ -809,19 +794,18 @@ let
     };
   };
 
-  # Per-profile overrides. Add a new profile by adding an entry here — the
-  # home.file entries and home.activation.claudeProfiles below pick it up
-  # automatically. `zai` picks its model via the ANTHROPIC_MODEL env var at
-  # exec time (see claude-prof run), so the settings.json model field is
-  # just the default /model and /config show.
+  # Per-profile overrides. Add a profile here — the home.file entries and
+  # home.activation.claudeProfiles below pick it up automatically. `zai` picks
+  # its model via the ANTHROPIC_MODEL env var at exec time (see claude-prof run),
+  # so its settings.json model field is just the default /model and /config show.
   claudeProfiles = {
     personal = {
       model = "claude-opus-5";
     };
     work = {
       model = "claude-opus-5";
-      # Local auto-mode classifier disabled for work. Note this also drops it
-      # from ~/.claude/settings.json, which mirrors this profile (see
+      # Local auto-mode classifier disabled for work. This also drops it from
+      # ~/.claude/settings.json, which mirrors this profile (see
       # programs.claude-code.settings below).
       hooks = claudeBaseSettings.hooks // {
         PreToolUse = lib.filter (h: h != localAutoModeHook)
@@ -839,9 +823,8 @@ let
     claudeProfiles;
 
   # Rendered JSON files in the Nix store. Each per-profile settings.json also
-  # gets `$schema` injected (the home-manager claude-code module adds it
-  # automatically for ~/.claude/settings.json, but per-profile files bypass
-  # that module).
+  # gets `$schema` injected (the home-manager claude-code module adds it for
+  # ~/.claude/settings.json, but per-profile files bypass that module).
   claudeProfileSettingsJson = lib.mapAttrs
     (name: settings:
       pkgs.writeText "claude-${name}-settings.json"
@@ -943,9 +926,9 @@ in
   # ── sops-nix ────────────────────────────────────────────────────────────────
   sops.defaultSopsFile = ./secrets.yaml;
   # Decryption is GCP KMS (see .sops.yaml + GOOGLE_APPLICATION_CREDENTIALS below).
-  # sops-nix asserts that *some* age/gpg key source be configured even when KMS
-  # does all the work, and sops-install-secrets opens the configured keyFile at
-  # runtime — so we declare an empty managed file just to satisfy both.
+  # sops-nix still asserts *some* age/gpg key source, and sops-install-secrets
+  # opens the configured keyFile at runtime — so declare an empty managed file
+  # to satisfy both.
   home.file.".config/sops/age-unused.txt".text = "";
   sops.age.keyFile = "${config.home.homeDirectory}/.config/sops/age-unused.txt";
   sops.age.sshKeyPaths = [];
@@ -1000,10 +983,10 @@ in
   home.file.".claude/skills/agy-review/SKILL.md".source =
     ./home/.claude/skills/agy-review/SKILL.md;
   # Transform helper the skill invokes ($SKILL_DIR/findings-to-agent-context.py):
-  # maps agy's JSON findings into a Hunk --agent-context sidecar.
+  # maps agy's JSON findings to a Hunk --agent-context sidecar.
   home.file.".claude/skills/agy-review/findings-to-agent-context.py".source =
     ./home/.claude/skills/agy-review/findings-to-agent-context.py;
-  # Bundled with the `hunk` package (hunkdiff) — symlinks the store skill into
+  # Symlinks the skill bundled with the `hunk` package (hunkdiff) into
   # ~/.claude/skills/ so Claude can drive live Hunk review sessions via the
   # `hunk session *` CLI.
   home.file.".claude/skills/hunk-review/SKILL.md".source =
@@ -1014,12 +997,11 @@ in
   home.file.".cursor/skills/drovr".source =
     "${drovr-pkg}/share/drovr/skills";
 
-  # The drovr marketplace's source tree, at the exact locked rev, materialized
-  # as a stable GC-rooted path: the plugin's own repo root (skills/, hooks/,
-  # .claude-plugin/). Claude gets pointed here by `extraKnownMarketplaces`
-  # above; this symlink is the human-legible handle on the same path (and a
-  # convenient `claude plugin marketplace add` target for a non-nix profile).
-  # Bumping the pin = bump flake.lock.
+  # The drovr marketplace source tree at the locked rev, as a stable GC-rooted
+  # path: the plugin's repo root (skills/, hooks/, .claude-plugin/). Claude is
+  # pointed here by `extraKnownMarketplaces` above; this symlink is the
+  # human-legible handle on the same path (and a `claude plugin marketplace add`
+  # target for a non-nix profile). Bump the pin = bump flake.lock.
   home.file.".local/share/drovr-marketplace".source = drovr.outPath;
 
   # ── Shared agent slash commands (claude / cursor / opencode) ──────────────
@@ -1043,22 +1025,22 @@ in
     ./home/agent-commands/review-diff.md;
 
   # /agy-review slash command → drives the agy-review skill (agy CLI). Claude-only:
-  # personal ~/.claude/skills/* aren't exposed as slash commands, so this wrapper is what
-  # makes `/agy-review` available; it points Claude at the skill's SKILL.md pipeline.
+  # personal ~/.claude/skills/* aren't exposed as slash commands, so this wrapper
+  # is what makes `/agy-review` available, pointing at the skill's SKILL.md pipeline.
   home.file.".claude/commands/agy-review.md".source =
     ./home/agent-commands/agy-review.md;
 
   # /hunk-review slash command → drives the hunk-review skill (bundled with the
   # hunk package). Claude-only: personal ~/.claude/skills/* aren't exposed as
-  # slash commands, so this wrapper points Claude at the skill's `hunk session *`
-  # workflow for controlling a live Hunk review session.
+  # slash commands, so this wrapper points at the skill's `hunk session *`
+  # workflow for a live Hunk review session.
   home.file.".claude/commands/hunk-review.md".source =
     ./home/agent-commands/hunk-review.md;
 
   # ── herdr integration (Claude) ─────────────────────────────────────────────
   # SessionStart hook script referenced by claudeBaseSettings.hooks.SessionStart
   # above. Vendored verbatim from `herdr integration install claude`; no-op
-  # unless run inside a herdr pane. All profiles reference this one path.
+  # outside a herdr pane. All profiles reference this one path.
   home.file.".claude/hooks/herdr-agent-state.sh" = {
     source = ./home/.claude/hooks/herdr-agent-state.sh;
     executable = true;
@@ -1066,7 +1048,7 @@ in
 
   # Names each pane in herdr's Agents panel after Claude's OSC terminal title
   # (its conversation summary). Referenced by claudeBaseSettings.hooks
-  # (UserPromptSubmit/PostToolUse/Stop) above; no-op unless HERDR_ENV=1.
+  # (UserPromptSubmit/PostToolUse/Stop); no-op unless HERDR_ENV=1.
   home.file.".claude/hooks/herdr-agent-name.sh" = {
     source = ./home/.claude/hooks/herdr-agent-name.sh;
     executable = true;
@@ -1075,9 +1057,9 @@ in
   # ── herdr integration (Cursor) ─────────────────────────────────────────────
   # sessionStart hook script + hooks.json wiring for the cursor-agent CLI.
   # Vendored verbatim from `herdr integration install cursor` (v1); no-op unless
-  # HERDR_ENV=1. hooks.json is generated here (rather than vendored) so the
-  # absolute script path tracks homeDirectory. Regenerate the script and bump if
-  # `herdr integration status` reports it outdated.
+  # HERDR_ENV=1. hooks.json is generated here (not vendored) so the absolute
+  # script path tracks homeDirectory. Regenerate and bump if `herdr integration
+  # status` reports it outdated.
   home.file.".cursor/herdr-agent-state.sh" = {
     source = ./home/.cursor/herdr-agent-state.sh;
     executable = true;
@@ -1100,10 +1082,10 @@ in
     ./home/.claude/plugins/local-auto-mode/config.py;
 
   # ── Per-profile Claude settings.json (store symlinks, fully declarative) ───
-  # force = true replaces any pre-existing regular files (the old
-  # runtime-copied settings.json per profile). home.activation.claudeProfiles
-  # also rm -f's them before linkGeneration runs so the byte-identical cmp -s
-  # skip doesn't leave the old regular file in place.
+  # force = true replaces any pre-existing regular files (the old runtime-copied
+  # per-profile settings.json). home.activation.claudeProfiles also rm -f's them
+  # before linkGeneration so the byte-identical cmp -s skip doesn't leave the old
+  # file in place.
   home.file = {
     ".config/claude-personal/settings.json".source = claudeProfileSettingsJson.personal;
     ".config/claude-work/settings.json".source     = claudeProfileSettingsJson.work;
@@ -1117,18 +1099,16 @@ in
   # kube-direct-push autoMode rule as a store symlink in all four config dirs,
   # but the classifier unions autoMode.allow across the files it reads, so the
   # rule works identically from claudeBaseSettings above — and the per-profile
-  # copies were dead weight (classifier.py's SETTINGS_PATHS only ever reads
-  # ~/.claude/). Leaving these paths unmanaged keeps them writable for Claude
-  # Code's own user-scope "don't ask again" saves, which a read-only store
-  # symlink silently broke.
+  # copies were dead weight (classifier.py's SETTINGS_PATHS only reads ~/.claude/).
+  # Leaving these unmanaged keeps them writable for Claude Code's own user-scope
+  # "don't ask again" saves, which a read-only store symlink silently broke.
 
-  # Per-profile setup. Runs after writeBoundary but before linkGeneration so
-  # the rm step actually forces linkGeneration to create the store symlinks
-  # (linkGeneration skips identical regular files via cmp -s, which would
-  # leave the runtime-copied file in place). Also creates the runtime
-  # symlinks for shared user-scope resources (CLAUDE.md, commands/, projects/)
-  # — settings.json is nix-owned via home.file above so we don't touch it
-  # here, and settings.local.json is left unmanaged entirely.
+  # Per-profile setup. Runs after writeBoundary but before linkGeneration so the
+  # rm step forces linkGeneration to create the store symlinks (it skips
+  # identical regular files via cmp -s, leaving the runtime-copied file). Also
+  # creates runtime symlinks for shared user-scope resources (CLAUDE.md,
+  # commands/, projects/) — settings.json is nix-owned via home.file above so
+  # untouched here, and settings.local.json is left unmanaged entirely.
   home.activation.claudeProfiles = lib.hm.dag.entryBefore [ "linkGeneration" ] ''
     for name in ${lib.concatStringsSep " " (lib.attrNames claudeProfiles)}; do
       # Remove pre-existing runtime-copied settings.json so linkGeneration
@@ -1155,13 +1135,12 @@ in
     done
   '';
 
-  # Firefox 67+ keys profile-per-install via [Install<HASH>] sections inside
-  # profiles.ini (gated by `Version=2`), which override `Default=1`. Every nix
-  # firefox bump produces a new install hash, so Firefox creates a fresh
-  # *.default-release profile and pins it, ignoring the home-manager-managed
-  # one. Drop Version= to make Firefox honor Default=1 (same posture as
-  # Darwin), and rm the legacy installs.ini backup so it can't re-seed the
-  # Install section on next launch.
+  # Firefox 67+ keys profile-per-install via [Install<HASH>] sections in
+  # profiles.ini (gated by `Version=2`), overriding `Default=1`. Every nix
+  # firefox bump makes a new install hash, so Firefox creates a fresh
+  # *.default-release profile and pins it, ignoring the home-manager one.
+  # Dropping Version= makes Firefox honor Default=1 (like Darwin); rm the legacy
+  # installs.ini backup so it can't re-seed the Install section on next launch.
   home.activation.firefoxInstallsIni = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     $DRY_RUN_CMD rm -f "$HOME/${config.programs.firefox.configPath}/installs.ini"
   '';
@@ -1182,14 +1161,14 @@ in
     // (lib.optionalAttrs hidpi.enabled {
       QT_FONT_DPI = toString hidpi.qtFontDpi;
     })
-    # setsuna scales GTK via dconf (text-scaling-factor); other HiDPI hosts
-    # don't have a dconf D-Bus service, so use GDK_DPI_SCALE instead.
+    # setsuna scales GTK via dconf (text-scaling-factor); other HiDPI hosts have
+    # no dconf D-Bus service, so use GDK_DPI_SCALE instead.
     // (lib.optionalAttrs (hidpi.enabled && hostname != "setsuna") {
       GDK_DPI_SCALE = toString hidpi.scale;
     });
 
   # TERMINFO_DIRS is already set under systemd by home-manager's generic-linux
-  # module; exclude it from this propagation to avoid a conflicting definition.
+  # module; exclude it here to avoid a conflicting definition.
   systemd.user.sessionVariables =
     lib.mkIf (!isDarwin) (removeAttrs config.home.sessionVariables [ "TERMINFO_DIRS" ]);
 
@@ -1198,8 +1177,8 @@ in
   home.file.".emacs.d/lisp/mode-init.el".source = ./home/emacs/lisp/mode-init.el;
   home.file.".emacs.d/lisp/pref-init.el".source = ./home/emacs/lisp/pref-init.el;
   home.file.".emacs.d/lisp/root-find.el".source = ./home/emacs/lisp/root-find.el;
-  # grip-mode shells out to the `grip` binary; pin it to the nix store path
-  # rather than relying on it being on PATH (the .el files aren't templated).
+  # grip-mode shells out to `grip`; pin the nix store path rather than rely on
+  # PATH (the .el files aren't templated).
   home.file.".emacs.d/lisp/grip-path.el" = lib.mkIf (!isDarwin) {
     text = ''
       (setq grip-binary-path "${pkgs.grip}/bin/grip")
@@ -1213,7 +1192,7 @@ in
   };
 
   # ── Scripts ────────────────────────────────────────────────────────────────
-  # On darwin, .local/bin is a symlink to the dotfiles repo; skip HM management.
+  # On darwin, .local/bin symlinks to the dotfiles repo; skip HM management.
   home.file.".local/bin/bootstrap.sh" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/bootstrap.sh; };
   home.file.".local/bin/mprisinfo" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/mprisinfo; };
   home.file.".local/bin/reyubikey" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/reyubikey; };
@@ -1225,7 +1204,7 @@ in
 
   # ── WirePlumber ────────────────────────────────────────────────────────────
   # Disable the AB13X USB headset adapter on fujiwara — unused, but keeps
-  # auto-grabbing default-sink when plugged in.
+  # grabbing default-sink when plugged in.
   xdg.configFile."wireplumber/wireplumber.conf.d/51-disable-ab13x.conf" = lib.mkIf (hostname == "fujiwara") {
     text = ''
       monitor.alsa.rules = [
@@ -1271,12 +1250,12 @@ in
   };
 
   # Override the packaged Zoom.desktop so the app launcher (elephant/walker) and
-  # zoommtg: scheme handlers go through the wayland `zoom` wrapper instead of
+  # zoommtg: scheme handlers use the wayland `zoom` wrapper instead of
   # /usr/bin/zoom (which force-sets QT_QPA_PLATFORM=xcb and crashes — see the
-  # wrapper comment above). This MUST live in XDG_DATA_HOME (~/.local/share):
-  # elephant orders ~/.nix-profile/share (where hm's xdg.desktopEntries lands)
-  # *below* /usr/share, so an entry there loses to the pacman one — but
-  # ~/.local/share wins over everything. Mirrors /usr/share/applications/Zoom.desktop.
+  # wrapper comment above). MUST live in XDG_DATA_HOME (~/.local/share): elephant
+  # orders ~/.nix-profile/share (where hm's xdg.desktopEntries lands) *below*
+  # /usr/share so an entry there loses to the pacman one, but ~/.local/share wins
+  # over everything. Mirrors /usr/share/applications/Zoom.desktop.
   xdg.dataFile."applications/Zoom.desktop" = lib.mkIf (!isDarwin && isDesktop) {
     text = ''
       [Desktop Entry]
@@ -1342,13 +1321,13 @@ in
       Description = "Gracefully close all Hyprland windows on session end";
       PartOf = [ "graphical-session.target" ];
       After = [ "graphical-session.target" ];
-      # The ExecStop below closes every Hyprland window, and it fires whenever
-      # this unit stops for *any* reason. When a home-manager switch changes a
-      # store path in this unit file, sd-switch would otherwise restart the
-      # unit and run ExecStop mid-switch, closing all windows (see the 2026-07
-      # firefox incident). keep-old tells sd-switch to leave the running unit
-      # untouched during a switch. Real logout still stops graphical-session.target,
-      # which stops this unit via PartOf and runs ExecStop as intended.
+      # The ExecStop below closes every Hyprland window and fires whenever this
+      # unit stops for *any* reason. When a home-manager switch changes a store
+      # path in this unit, sd-switch would otherwise restart it and run ExecStop
+      # mid-switch, closing all windows (see the 2026-07 firefox incident).
+      # keep-old tells sd-switch to leave the running unit untouched during a
+      # switch. Real logout still stops graphical-session.target, which stops
+      # this unit via PartOf and runs ExecStop as intended.
       X-SwitchMethod = "keep-old";
     };
     Service = {
@@ -1361,13 +1340,13 @@ in
   };
 
   # `clp rc` == `claude-prof run personal remote-control`: a persistent server
-  # that lets claude.ai/code and the Claude mobile app drive local sessions in a
-  # given project. Template unit keyed on the project path so any number can run
-  # concurrently and be started on the fly (see clp-rc/clp-rc-stop in zsh.nix):
+  # letting claude.ai/code and the Claude mobile app drive local sessions in a
+  # project. Template unit keyed on the project path so any number can run
+  # concurrently and start on the fly (see clp-rc/clp-rc-stop in zsh.nix):
   #   systemctl --user start claude-remote-control@$(systemd-escape -p /path/to/proj)
-  # %I unescapes the instance back to the absolute project path for WorkingDirectory.
-  # Verified headless: claude bundles its own node, connects with stdin=null and no
-  # TTY, and shuts down gracefully on SIGTERM. RC refuses to start in an untrusted
+  # %I unescapes back to the absolute project path for WorkingDirectory. Verified
+  # headless: claude bundles its own node, connects with stdin=null and no TTY,
+  # and shuts down gracefully on SIGTERM. RC refuses to start in an untrusted
   # workspace, so clp-rc pre-accepts the trust dialog in the personal profile.
   systemd.user.services."claude-remote-control@" = lib.optionalAttrs (!isDarwin) {
     Unit = {
@@ -1378,7 +1357,7 @@ in
     Service = {
       Type = "simple";
       # `systemd-escape -p /abs/path` drops the leading slash, so %I unescapes to
-      # a relative path (home/sauyon/…); prefix `/` to restore the absolute path.
+      # a relative path (home/sauyon/…); prefix `/` to restore the absolute one.
       WorkingDirectory = "/%I";
       Environment = "PATH=${config.home.profileDirectory}/bin:/usr/bin:/bin";
       StandardInput = "null";
@@ -1389,14 +1368,13 @@ in
       RestartSec = 10;
     };
     # No [Install]/WantedBy: a template can't be started bare (HM would try and
-    # fail). Instances are started on the fly with `clp-rc [dir]`. To autostart a
-    # specific project at boot, enable that instance:
-    #   systemctl --user link is implicit; add a wants symlink instead, e.g.
+    # fail). Instances start on the fly with `clp-rc [dir]`. To autostart a
+    # project at boot, add a wants symlink for that instance, e.g.
     #   xdg.configFile."systemd/user/default.target.wants/claude-remote-control@<esc>.service".
   };
 
   # `ca-rc` starts a Cursor Agent pool worker for a project dir so cloud/mobile
-  # sessions can claim it one agent at a time. Template unit keyed on project path:
+  # sessions can claim it one agent at a time. Template keyed on project path:
   #   systemctl --user start cursor-agent-worker@$(systemd-escape -p /path/to/proj)
   systemd.user.services."cursor-agent-worker@" = lib.optionalAttrs (!isDarwin) {
     Unit = {
@@ -1426,7 +1404,7 @@ in
     coder
     comma
     cosign
-    entire  # git-hook layer that checkpoints AI agent sessions alongside commits
+    entire  # git-hook layer checkpointing AI agent sessions alongside commits
     jq
     jujutsu
     lnav
@@ -1462,8 +1440,8 @@ in
     pkgs.ghostty.terminfo
   ] ++ lib.optionals (!isDarwin && isDesktop) [
     caffeine
-    # nixGL wrap: without it the FHS env still resolves GBM/DRI via the
-    # NixOS-only /run/opengl-driver path and falls back to software rendering.
+    # nixGL wrap: without it the FHS env resolves GBM/DRI via the NixOS-only
+    # /run/opengl-driver path and falls back to software rendering.
     (config.lib.nixGL.wrap cumora)
     hypr-fullscreen-inhibit
     hypr-unstuck-lock
@@ -1471,18 +1449,17 @@ in
 
     pkgs.bitwarden-cli
     # Desktop app is the biometric backend the Firefox extension talks to over
-    # native messaging -- the extension can't do "unlock with biometrics" on its
-    # own. Pairs with the polkit action + pam_fprintd wiring in system/.
+    # native messaging (the extension can't unlock with biometrics on its own).
+    # Pairs with the polkit action + pam_fprintd wiring in system/.
     pkgs.bitwarden-desktop
     pkgs.emacs30-pgtk
     pkgs.hyprpicker
     pkgs.psi-notify
     pkgs.pwvucontrol
     pkgs.slack
-    zoom # wayland wrapper bypassing Zoom's xcb-forcing launcher; see definition above
-    # Temporarily dropped: vesktop's build pulls pnpm-10.29.2, marked insecure
-    # in nixpkgs (CVE-2026-48995, CVE-2026-50014). Re-add once nixpkgs ships a
-    # patched pnpm.
+    zoom # wayland wrapper bypassing Zoom's xcb-forcing launcher; see above
+    # Dropped: vesktop's build pulls pnpm-10.29.2, marked insecure in nixpkgs
+    # (CVE-2026-48995, CVE-2026-50014). Re-add once nixpkgs ships a patched pnpm.
     # pkgs.vesktop
     (config.lib.nixGL.wrap (withHostNss pkgs.warp-terminal))
     pkgs.xauth
@@ -1495,9 +1472,9 @@ in
     allowUnfree = true;
     sandbox = true;
     # bitwarden-desktop 2026.6.1 pins electron 39.8.10, flagged insecure only
-    # because that Electron branch is EOL (no active CVE, unlike the vesktop/pnpm
-    # drop above). Scoped to the exact version so a future bitwarden-desktop bump
-    # onto a newer Electron re-raises the flag for review.
+    # because that Electron branch is EOL (no active CVE, unlike vesktop/pnpm
+    # above). Scoped to the exact version so a future bitwarden-desktop bump onto
+    # a newer Electron re-raises the flag for review.
     permittedInsecurePackages = [ "electron-39.8.10" ];
   };
 
@@ -1512,14 +1489,13 @@ in
       };
     })
     (final: prev: {
-      # hyprlock links Nix's libpam, whose pam_unix.so has the unix_chkpwd
-      # helper path hardcoded to /run/wrappers/bin/unix_chkpwd (a NixOS-ism --
-      # see linux-pam/package.nix). On this Arch host nothing ever creates that
-      # path and /run is tmpfs, so after every reboot password auth silently
-      # fails (fingerprint still works, masking it) until the symlink is
-      # recreated by hand. Build hyprlock against a pam that points pam_unix at
-      # Arch's own setuid helper instead, so password auth survives reboots
-      # with no /run/wrappers shim.
+      # hyprlock links Nix's libpam, whose pam_unix.so hardcodes the unix_chkpwd
+      # helper path to /run/wrappers/bin/unix_chkpwd (a NixOS-ism — see
+      # linux-pam/package.nix). On this Arch host nothing creates that path and
+      # /run is tmpfs, so after every reboot password auth silently fails
+      # (fingerprint still works, masking it) until the symlink is recreated by
+      # hand. Build hyprlock against a pam pointing pam_unix at Arch's own setuid
+      # helper instead, so password auth survives reboots with no /run/wrappers shim.
       hyprlock = (prev.hyprlock.override {
         pam = prev.pam.overrideAttrs (old: {
           postPatch = (old.postPatch or "") + ''
@@ -1534,10 +1510,10 @@ in
       });
     })
     (final: prev: {
-      # Warp's binary dlopens libwayland-client.so.0 via winit, but the nixpkgs
-      # build doesn't include wayland in RUNPATH — autoPatchelfHook only sees
-      # linked deps, not dlopen'd ones. Without this, warp silently falls back
-      # to X11 even when WARP_ENABLE_WAYLAND=1.
+      # Warp dlopens libwayland-client.so.0 via winit, but the nixpkgs build
+      # omits wayland from RUNPATH — autoPatchelfHook only sees linked deps, not
+      # dlopen'd ones. Without this, warp falls back to X11 even with
+      # WARP_ENABLE_WAYLAND=1.
       warp-terminal = prev.warp-terminal.overrideAttrs (old: {
         runtimeDependencies = (old.runtimeDependencies or []) ++ [
           final.wayland
@@ -1546,9 +1522,9 @@ in
     })
     (final: prev: {
       # kubelogin blocks silently on ~/.kube/cache/oidc-login/*.lock while another
-      # kubectl completes Dex login (token-cache flock since v1.30). Upstream
-      # knows the UX gap for the older port lock (#851, still open) but not this
-      # path. Patch prints one stderr line before waiting.
+      # kubectl completes Dex login (token-cache flock since v1.30). Upstream knows
+      # the UX gap for the older port lock (#851, open) but not this path. Patch
+      # prints one stderr line before waiting.
       kubelogin-oidc = prev.kubelogin-oidc.overrideAttrs (old: {
         patches = (old.patches or []) ++ [
           ./patches/kubelogin-waiting-on-token-cache-lock.patch
@@ -1564,8 +1540,8 @@ in
           rev = "91b48f1061072e910cdb8ecd672988628cfa05ed";
           sha256 = "00f1v6xm53gr0hfsnmdhgqbdnfkdbd0sv6sdkhqrln3acrcsrwzh";
         };
-        # nixpkgs cherry-picks an upstream macOS compile fix that's
-        # already in our base — drop it to avoid "patch already applied".
+        # nixpkgs cherry-picks an upstream macOS compile fix already in our base
+        # — drop it to avoid "patch already applied".
         patches = builtins.filter
           (p: !(prev.lib.hasInfix "eee1a8cf" (toString p)))
           old.patches;
@@ -1574,15 +1550,13 @@ in
     (final: prev: {
       # Pin coder to match the RDE server (rde.modular.com runs v2.31.10);
       # nixpkgs ships the older stable 2.28.6 and the CLI warns on every
-      # invocation about the client/server version mismatch. The nixpkgs
-      # derivation just fetches a prebuilt release tarball, so bumping is a
-      # version + per-system hash swap (no Go/frontend rebuild).
+      # invocation about the client/server mismatch. The nixpkgs derivation just
+      # fetches a prebuilt release tarball, so bumping is a version + per-system
+      # hash swap (no Go/frontend rebuild).
       coder = prev.coder.overrideAttrs (old: rec {
         version = "2.31.10";
-        # Drop the terraform PATH wrapper: nixpkgs wraps coder with terraform
-        # (unfree → never cached → compiled from source on every nixpkgs bump)
-        # for running provisioners locally. We only use the client, which never
-        # invokes a local provisioner, so this strips terraform from the closure.
+        # Drop the terraform PATH wrapper: terraform is unfree (never cached) and
+        # only wraps coder to run provisioners locally, which the client never does.
         postInstall = "";
         src = prev.fetchurl {
           url =
@@ -1761,8 +1735,8 @@ in
 
     gpg-agent = lib.optionalAttrs (!isDarwin) {
       enable = true;
-      # SSH support handled by ssh-tpm-agent (below), which falls back here
-      # for non-TPM keys via the fallback socket arg.
+      # SSH support handled by ssh-tpm-agent (below), which falls back here for
+      # non-TPM keys via the fallback socket arg.
       enableSshSupport = false;
       defaultCacheTtl = 600;
       maxCacheTtl = 1200;
@@ -1775,9 +1749,9 @@ in
 
     # fujiwara is driven headlessly over tty/SSH, where the graphical login
     # keyring is never unlocked and gnome-keyring has no prompter to CREATE the
-    # `login` collection — so its Secret Service is unusable there (libsecret
-    # clients like woodpecker-cli block on the missing collection). fujiwara uses
-    # pass-secret-service (below) instead. Other desktops keep gnome-keyring.
+    # `login` collection — so its Secret Service is unusable (libsecret clients
+    # like woodpecker-cli block on the missing collection). fujiwara uses
+    # pass-secret-service (below) instead; other desktops keep gnome-keyring.
     gnome-keyring = lib.optionalAttrs (!isDarwin && isDesktop && hostname != "fujiwara") {
       enable = true;
       components = [
@@ -1789,8 +1763,8 @@ in
     # Headless-friendly Secret Service for fujiwara: backs libsecret onto a
     # GPG-encrypted `pass` store (~/.password-store, key in ~/.gnupg), so it
     # works in any tty/SSH session with no graphical unlock. Mutually exclusive
-    # with gnome-keyring (enforced by the module's assertion). The GPG key is
-    # passphraseless, so the store is protected by file perms + FDE only.
+    # with gnome-keyring (module assertion). The GPG key is passphraseless, so the
+    # store is protected by file perms + FDE only.
     pass-secret-service = lib.optionalAttrs (!isDarwin && hostname == "fujiwara") {
       enable = true;
     };
@@ -1842,8 +1816,8 @@ in
     };
   };
 
-  # services.gpg-agent generates its systemd unit from programs.gpg.package;
-  # wrap so gpg-agent's getpwnam/getpwuid hits the host's libnss_systemd.
+  # services.gpg-agent generates its systemd unit from programs.gpg.package; wrap
+  # so gpg-agent's getpwnam/getpwuid hits the host's libnss_systemd.
   programs.gpg.package = lib.mkIf (!isDarwin) (withHostNss pkgs.gnupg);
 
   targets.genericLinux.enable = !isDarwin;
@@ -1866,12 +1840,12 @@ in
   programs = {
     hyprlock = lib.optionalAttrs (!isDarwin && isDesktop) {
       enable = true;
-      # withHostNss: hyprlock runs under nix glibc, whose NSS can't load the
-      # host libnss_systemd.so.2, so getpwuid(uid) fails for a systemd-userdb
-      # user (sauyon, uid 60006, not in /etc/passwd). hyprlock then has no
-      # username to hand PAM and silently rejects EVERY password (fingerprint
-      # uses a separate path, masking it). Wrap NSS *outside* nixGL so the
-      # LD_LIBRARY_PATH prefix propagates through to the real binary.
+      # withHostNss: hyprlock runs under nix glibc, whose NSS can't load the host
+      # libnss_systemd.so.2, so getpwuid fails for a systemd-userdb user (sauyon,
+      # uid 60006, not in /etc/passwd). hyprlock then has no username to hand PAM
+      # and silently rejects EVERY password (fingerprint uses a separate path,
+      # masking it). Wrap NSS *outside* nixGL so the LD_LIBRARY_PATH prefix
+      # propagates through to the real binary.
       package = withHostNss (config.lib.nixGL.wrap pkgs.hyprlock);
       settings = {
         general = {
@@ -2039,14 +2013,14 @@ in
     in {
       enable = !isDarwin && isDesktop;
       systemd.enable = !isDarwin && isDesktop;
-      # Released waybar (0.15.0, 2026-02) predates the fix for Hyprland's Lua
-      # IPC dispatch protocol, so workspace clicks silently no-op under
-      # `configType = "lua"`. Pin to the master commit carrying Alexays/waybar
-      # PR #5013, which probes the socket and emits `hl.dsp.focus({ workspace })`.
-      # Drop this override once a release > 0.15.0 ships the fix.
+      # Released waybar (0.15.0, 2026-02) predates the fix for Hyprland's Lua IPC
+      # dispatch protocol, so workspace clicks silently no-op under
+      # `configType = "lua"`. Pin to the master commit with Alexays/waybar PR
+      # #5013, which probes the socket and emits `hl.dsp.focus({ workspace })`.
+      # Drop once a release > 0.15.0 ships the fix.
       # cavaSupport=false: master vendors a newer libcava than nixpkgs 0.15.0
-      # pins, so the cava subproject can't resolve offline. We don't use the
-      # cava module, so disable it rather than vendor the matching libcava.
+      # pins, so the cava subproject can't resolve offline. We don't use cava, so
+      # disable it rather than vendor the matching libcava.
       package = (pkgs.waybar.override { cavaSupport = false; }).overrideAttrs (old: {
         version = "0.15.0-unstable-2026-05-04";
         src = pkgs.fetchFromGitHub {
@@ -2056,7 +2030,7 @@ in
           hash = "sha256-51R3mIt8cLNvh/X5qe9vOqeJCj0U9KRyemVE5y+OhiU=";
         };
         # master's binary still self-reports v0.15.0, so the nixpkgs
-        # versionCheckHook (asserting --version matches `version`) fails.
+        # versionCheckHook (asserts --version matches `version`) fails.
         doInstallCheck = false;
       });
       settings = [
@@ -2216,14 +2190,14 @@ in
       # ~/.claude/settings.json is the unprofiled fallback (used by `command
       # claude` and any non-claude-prof invoker). It uses the work profile's
       # settings so behavior matches `claude-prof run work`. Per-profile
-      # settings.json lives under ~/.config/claude-<name>/ and is rendered by
-      # the home.file entries below.
+      # settings.json lives under ~/.config/claude-<name>/ (rendered by home.file
+      # below).
       settings = claudeProfileSettings.work;
       #
-      # Pin a newer CLI than nixpkgs ships (nixpkgs lags the upstream native-binary
+      # Pin a newer CLI than nixpkgs ships (it lags the upstream native-binary
       # releases). Override version + prebuilt src; the checksum is the sha256 hex
       # from https://downloads.claude.ai/claude-code-releases/<version>/manifest.json
-      # (same source nixpkgs' own manifest.json uses). Bump both when updating.
+      # (same source nixpkgs uses). Bump both when updating.
       package =
         let
           claudeVersion = "2.1.220";
@@ -2247,11 +2221,10 @@ in
     difftastic = {
       enable = !isDarwin;
       # Deliberately NOT wiring git integration: `git.enable = true` sets
-      # `diff.external`, which makes `git diff` emit difftastic's structural
-      # view *instead of* a unified diff. That silently breaks the pager
-      # (diff-so-fancy can't parse it), `git diff > x.patch`, and every tool
-      # or skill that parses diff output. `git dft` (alias below) opts in
-      # per-invocation instead.
+      # `diff.external`, making `git diff` emit difftastic's structural view
+      # instead of a unified diff. That breaks the pager (diff-so-fancy can't
+      # parse it), `git diff > x.patch`, and every tool/skill that parses diff
+      # output. `git dft` (alias below) opts in per-invocation instead.
       git.enable = false;
       options = {
         # display = "inline";
@@ -2259,13 +2232,13 @@ in
     };
     firefox = {
       enable = isDesktop;
-      # On Linux, env.nix sets MOZ_LEGACY_PROFILES=1 (and system Arch firefox
-      # uses legacy unconditionally), so use .mozilla/firefox.
-      # On macOS, Firefox reads from ~/Library/Application Support/Firefox.
+      # Linux: env.nix sets MOZ_LEGACY_PROFILES=1 (and system Arch firefox uses
+      # legacy unconditionally), so use .mozilla/firefox. macOS reads from
+      # ~/Library/Application Support/Firefox.
       configPath = if isDarwin then "Library/Application Support/Firefox" else ".mozilla/firefox";
       # Drop Version= so Firefox uses non-dedicated profile mode and honors
-      # Default=1 — without this, Firefox 67+ pins profile-per-install via
-      # [Install<HASH>] sections in profiles.ini and ignores Default=.
+      # Default=1 — else Firefox 67+ pins profile-per-install via [Install<HASH>]
+      # sections in profiles.ini and ignores Default=.
       profileVersion = null;
       policies = {
         Homepage = {
@@ -2289,12 +2262,11 @@ in
           "browser.newtab.extensionControlled" = false;
           "browser.ml.chat.enabled" = false;
           # WebTransport workaround: this profile reports hasThirdPartyRoots=1
-          # for every QUIC connection (including public sites that chain to
-          # built-in roots), so Firefox's third-party-roots policy kills H3.
-          # HTTPS silently falls back to H2; WebTransport has no fallback and
-          # fails with "WebTransport connection rejected". See
-          # netwerk/protocol/http/Http3Session.cpp Authenticated() and
-          # bugzilla 1929093.
+          # for every QUIC connection (even public sites chaining to built-in
+          # roots), so Firefox's third-party-roots policy kills H3. HTTPS falls
+          # back to H2; WebTransport has no fallback and fails with "WebTransport
+          # connection rejected". See netwerk/protocol/http/Http3Session.cpp
+          # Authenticated() and bugzilla 1929093.
           "network.http.http3.disable_when_third_party_roots_found" = false;
         };
       };
@@ -2416,11 +2388,10 @@ in
         # Opt into difftastic per-invocation rather than globally via
         # diff.external — see programs.difftastic above.
         #
-        # Shell alias rather than plain `-c` because git always pipes an
-        # external differ into core.pager, so difft sees a pipe, not a tty:
-        # it drops color (--color=auto) and falls back to 80 columns. Hence
-        # DFT_COLOR/DFT_WIDTH, plus a pager override since diff-so-fancy
-        # can't parse difft's structural output anyway.
+        # Shell alias rather than plain `-c` because git always pipes an external
+        # differ into core.pager, so difft sees a pipe not a tty: it drops color
+        # (--color=auto) and falls back to 80 columns. Hence DFT_COLOR/DFT_WIDTH,
+        # plus a pager override since diff-so-fancy can't parse difft's output.
         alias = lib.mkIf (!isDarwin) {
           dft =
             let
@@ -2435,13 +2406,13 @@ in
         merge.tool = "meld";
         # credential."https://github.com".helper = "!/usr/bin/env gh auth git-credential";
         # credential."https://gist.github.com".helper = "!/usr/bin/env gh auth git-credential";
-        # forge.ko.ag (Forgejo over HTTPS via Cloudflare tunnel): reuse the
-        # token `fj auth login` already stored instead of keeping a second copy
-        # in the secret service. See git-credential-fj above.
+        # forge.ko.ag (Forgejo over HTTPS via Cloudflare tunnel): reuse the token
+        # `fj auth login` stored instead of a second copy in the secret service.
+        # See git-credential-fj above.
         credential."https://forge.ko.ag".helper = "${git-credential-fj}/bin/git-credential-fj";
         # huggingface.co: persist the HF token in the secret service so
-        # `hf auth login --add-to-git-credential` and direct git HTTPS clones
-        # of Hub repos / LFS pulls authenticate without re-prompting.
+        # `hf auth login --add-to-git-credential` and direct git HTTPS clones /
+        # LFS pulls of Hub repos authenticate without re-prompting.
         credential."https://huggingface.co".helper = "${gitWithLibsecret}/bin/git-credential-libsecret";
       };
     };
@@ -2458,9 +2429,8 @@ in
 
       enableDefaultConfig = false;
 
-      # Migrated from the deprecated `matchBlocks`/`extraOptions` API to the
-      # freeform `settings` API: attribute names are Host patterns and values
-      # use upstream OpenSSH directive names directly.
+      # Freeform `settings` API (not the deprecated matchBlocks/extraOptions):
+      # attribute names are Host patterns, values use OpenSSH directive names.
       settings = {
         "aur" = {
           HostName = "aur.archlinux.org";
@@ -2521,8 +2491,8 @@ in
           LogLevel = "ERROR";
           ProxyCommand = "${pkgs.coder}/bin/.coder-wrapped --global-config /home/sauyon/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
         };
-        # `header` is the escape hatch for a block header that carries Nix
-        # string context (the store path), which can't live in an attr name.
+        # `header` is the escape hatch for a block header carrying Nix string
+        # context (the store path), which can't live in an attr name.
         "*.coder-proxy" = {
           header = "Match host *.coder !exec \"${pkgs.coder}/bin/.coder-wrapped connect exists %h\"";
           ProxyCommand = "${pkgs.coder}/bin/.coder-wrapped --global-config /home/sauyon/.config/coderv2 ssh --stdio --hostname-suffix coder %h";
@@ -2635,8 +2605,7 @@ in
     # Standalone home-manager doesn't put ~/.nix-profile/share/systemd/user in
     # systemd's search path, so the dbus-activated portal services fail with
     # "unknown unit" and ghostty's OpenURI portal call falls back to spawning
-    # xdg-open (and the browser) as a child. Symlink the units in so dbus
-    # activation finds them.
+    # xdg-open (and the browser) as a child. Symlink the units in so dbus finds them.
     configFile."systemd/user/xdg-desktop-portal.service" = lib.mkIf (!isDarwin && isDesktop) {
       source = "${withHostNss pkgs.xdg-desktop-portal}/share/systemd/user/xdg-desktop-portal.service";
     };
@@ -2661,9 +2630,9 @@ in
       summarizer = { backend = "claude"; maxChars = 4000; };
     };
     configFile."agent-orchestrator/config.yaml".text = let
-      # Indent a multiline string for embedding inside a YAML block scalar.
-      # orchestratorRules is used under keys indented 8 spaces, so each line
-      # needs 8 extra spaces to stay inside the YAML | block.
+      # Indent a multiline string for embedding inside a YAML block scalar
+      # (keys are indented, so each line needs n extra spaces to stay in the |
+      # block).
       indentYaml = n: s:
         let pad = lib.concatStrings (builtins.genList (_: " ") n);
         in lib.concatMapStringsSep "\n" (line: if line == "" then "" else pad + line) (lib.splitString "\n" s);

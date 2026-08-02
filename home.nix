@@ -391,7 +391,11 @@ let
 
   # git built with the libsecret credential helper (git-credential-libsecret),
   # used for HTTPS auth to hosts that have no CLI-managed token store.
-  gitWithLibsecret = pkgs.git.override { withLibsecret = true; };
+  # gitFull already sets withLibsecret on Linux and is built/cached by Hydra,
+  # so it ships git-credential-libsecret without a from-source rebuild — unlike
+  # `pkgs.git.override { withLibsecret = true; }`, which is a guaranteed cache
+  # miss that recompiles git on every nixpkgs bump.
+  gitWithLibsecret = pkgs.gitFull;
 
   # Git credential helper backed by fj's own login store, so `fj auth login`
   # is the single place a Forgejo token lives (forge.ko.ag is only reachable

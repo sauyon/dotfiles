@@ -3,7 +3,13 @@
 let
   opencodeConfig = {
     "$schema" = "https://opencode.ai/config.json";
-    plugin = [ "opencode-model-stats@0.2.3" ];
+    # opencode-claude-memory reads and writes Claude Code's own memory store
+    # (~/.claude/projects/<sanitized canonical git root>/memory/), so both CLIs
+    # share one set of memories. Pinned because it injects a system prompt and
+    # runs a per-turn recall subagent; the recall model is pinned to ko-ag via
+    # OPENCODE_MEMORY_RECALL_MODEL in the wrapper below so memory lookups don't
+    # bill the session model. Set OPENCODE_MEMORY_IGNORE=1 to disable injection.
+    plugin = [ "opencode-model-stats@0.2.3" "opencode-claude-memory@1.7.3" ];
     disabled_providers = [ "opencode" "zai" ];
     provider = {
       mcloud = {
@@ -68,7 +74,8 @@ in
         postBuild = ''
           rm -f $out/bin/opencode
           makeWrapper ${prev.opencode}/bin/opencode $out/bin/opencode \
-            --run ${patchModelStats}
+            --run ${patchModelStats} \
+            --set-default OPENCODE_MEMORY_RECALL_MODEL ko-ag/gemma-4-26B-A4B-it
         '';
       };
     })

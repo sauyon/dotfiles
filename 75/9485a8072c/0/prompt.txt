@@ -1,0 +1,5 @@
+that looks wrong? isn't this explicitly configured this way by homed?
+
+---
+
+no. I want tailscale SSH. find a fucking fix for tailscale SSH.

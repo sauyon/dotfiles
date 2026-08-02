@@ -1,0 +1,31 @@
+<task-notification>
+<task-id>a46d8cc93f9b99779</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/cc0d8d43-a8ed-413f-9363-fa207b2bb75f/tasks/a46d8cc93f9b99779.output</output-file>
+<status>completed</status>
+<summary>Agent "Review git-credential-fj change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Syntax parses clean, and the file already matches `nixfmt` formatting (no diff). Verified against the actual `forgejo-cli` v0.6.0 source (found a local checkout, plus the `fj` binary installed on this box) that `fj whoami` really does refresh-and-persist expired OAuth tokens via `keys.rs::get_api`/`LoginInfo::refresh`, and that `-H &lt;host&gt; whoami` is valid CLI syntax — the comment's refresh claim is accurate, not a shaky assumption. I also fuzz-tested the credential-line parser against several git-credential-protocol edge cases (capability lines, missing trailing blank line, EOF-without-newline) in `/tmp/.../scratchpad/git-credential-fj-test.sh` — parsing is robust in all realistic cases.
+
+## Findings
+
+**Important — `git.nix` fj helper (home.nix:401-427): malformed `keys.json` is a hard failure, not a graceful fallback**
+Every other failure path in the script (`fj` unreachable, no `host` parsed, missing `keys.json`, empty token) does `exit 0` with no output, which git treats as "no credential, please prompt" — the intended graceful degradation per the design. But a syntactically-broken `keys.json` (e.g. fj crashes mid-write, disk full, concurrent writers) is *not* guarded: `token=$(jq ... "$keys")` runs under `set -e`/`set -o pipefail` with nothing catching a jq parse failure, so the script exits with jq's nonzero status. I reproduced this directly:
+```
+$ printf 'protocol=https\nhost=forge.ko.ag\n\n' | ./script get bad-keys.json
+jq: parse error: Invalid numeric literal at line 1, column 4
+script exit=5
+```
+Git treats a nonzero exit from a credential helper as fatal and aborts the operation outright (rather than falling through to a prompt), so a corrupted keys.json turns "log in again" into a hard failure on every `git fetch`/`push`/`clone` against forge.ko.ag, with jq's raw parse error bleeding onto the user's terminal. Fix: wrap the jq call so a parse failure degrades the same way as the other cases, e.g. `token=$(... 2&gt;/dev/null) || exit 0`.
+
+**Minor — comment overstates the token shape (home.nix:397-400)**
+"it keeps an OAuth access/refresh token pair in keys.json" is only true for `fj auth login`. `LoginInfo` in fj's source (`keys.rs`) also has a plain `Application { token }` variant (from `fj auth add-token`) with no refresh_token/expires_at. The script itself is agnostic to this (it only ever reads `.token`), so there's no functional bug — just a comment that's narrower than reality.
+
+**Minor — `store`/`erase` no-op means a revoked (not merely expired) token has no recovery path via git**
+Since `erase` is intentionally a no-op (fj owns the store), if the Forgejo-side token is revoked/invalidated for a reason other than time-based expiry, `whoami`'s refresh check won't fire (`expires_at` hasn't passed), the same bad token gets handed to git every time, and git has no way to signal "this credential is bad, try another" back to fj. Recovery requires a manual `fj auth login` outside of git. This is arguably inherent to the chosen architecture (git delegates all state to fj) rather than a bug, but it's a real gap in the "failure modes" the task asked to check.
+
+**No findings at Critical.** Nix `''${...}` vs `${...}` escaping is correct throughout (verified by inspection — every real Nix interpolation uses bare `${pkgs...}`, every literal shell `${...}` is escaped `''${...}`). Secret handling is clean: the token only ever exists in the `token=$(...)` variable and `printf`, never passed via argv to `fj` or `jq` (both invocations use `-H "$host"`/`--arg h "$host"`, host only), and `set -x` is not enabled. The `get`/`store`/`erase` verb dispatch and the key=value/blank-line parsing loop conform to the git-credential protocol, including graceful handling of `capability[]=...` lines (silently ignored, not misparsed). The `credential."https://forge.ko.ag".helper` value is an absolute Nix-store path, matching the calling convention the script expects (git appends the verb as `$1`), consistent with the pre-existing `gitWithLibsecret` pattern it replaces.
+
+**Spec compliance:** matches the ask exactly — `forgejo-cli` was already installed in an earlier commit (comment-only touch-up here), the `git.ko.ag` libsecret credential entry is removed while `gitWithLibsecret` itself is correctly left in place (still used for `programs.git.package` at home.nix:2336 and the huggingface.co credential at home.nix:2423). One process note, not a code bug: the working tree also carries two unrelated bundled changes — a `localAutoModeHook`/work-profile refactor and an `opencode.nix` memory-plugin addition — neither mentioned in the fj/git.ko.ag ask. Worth splitting into separate commits if you want an atomic history, but out of scope for this review's correctness verdict.</result>
+<usage><subagent_tokens>63332</subagent_tokens><tool_uses>19</tool_uses><duration_ms>313240</duration_ms></usage>
+</task-notification>

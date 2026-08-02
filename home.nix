@@ -1372,6 +1372,7 @@ in
     coder
     comma
     cosign
+    entire  # git-hook layer that checkpoints AI agent sessions alongside commits
     jq
     jujutsu
     lnav

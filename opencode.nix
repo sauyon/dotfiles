@@ -29,8 +29,14 @@ let
         options = {
           baseURL = "https://ai.ko.ag/v1";
         };
+        # Registered id is all-lowercase on purpose: CF AI Gateway lowercases
+        # the model field before forwarding, and Lemonade matches ids
+        # case-sensitively, so a mixed-case name 404s (surfacing as a 502)
+        # for everything arriving via ai.ko.ag. The `user.` prefix Lemonade
+        # requires is stripped from what callers send. See the kube repo's
+        # docs/lemonade-cf-aig-model-casing.md.
         models = {
-          "Huihui-Qwen3.6-35B-A3B-abliterated-Q4_K" = { name = "Qwen3.6 35B A3B (abliterated)"; };
+          "qwen3.6-35b-abliterated" = { name = "Qwen3.6 35B A3B (abliterated)"; };
         };
       };
       # Built-in models.dev providers; apiKey injected at activation from sops.
@@ -74,7 +80,7 @@ in
           rm -f $out/bin/opencode
           makeWrapper ${prev.opencode}/bin/opencode $out/bin/opencode \
             --run ${patchModelStats} \
-            --set-default OPENCODE_MEMORY_RECALL_MODEL ko-ag/Huihui-Qwen3.6-35B-A3B-abliterated-Q4_K
+            --set-default OPENCODE_MEMORY_RECALL_MODEL ko-ag/qwen3.6-35b-abliterated
         '';
       };
     })

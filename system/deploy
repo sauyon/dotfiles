@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+# Run as your normal user (e.g. `mise run deploy`), NOT under sudo: the sops
+# steps below decrypt with your GCP key under $HOME and each privileged install
+# sudo's itself. Running the whole script as root points $HOME at /root, so sops
+# can't find the key (and root has no KMS creds) -- fail fast instead.
+if [ "$(id -u)" -eq 0 ]; then
+  echo "system/deploy: run as your user (try 'mise run system:deploy'), not root." >&2
+  exit 1
+fi
+
 cd "$(dirname "$0")"
 find etc/ -type d | while read -r d; do sudo mkdir -p "/${d}"; done
 find etc/ -type f | while read -r f; do sudo cp -v "${f}" "/${f}"; done

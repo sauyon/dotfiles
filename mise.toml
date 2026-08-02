@@ -85,6 +85,10 @@ systemctl --user status sops-nix --no-pager || true
 description = "Restart sops-nix, fixing Docker path conflicts first"
 depends = ["sops-fix"]
 
+[tasks."system:deploy"]
+description = "Install system-level files (/etc, polkit) and provision nix cache/builder secrets"
+run = 'exec system/deploy "$@"'
+
 [tasks.hms]
 description = "Apply home-manager configuration from this flake"
 run = '''

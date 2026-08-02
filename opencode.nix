@@ -6,15 +6,9 @@ let
     # opencode-claude-memory reads/writes Claude Code's own memory store
     # (~/.claude/projects/<sanitized canonical git root>/memory/), so both CLIs
     # share one set of memories. Pinned because it injects a system prompt and
-    # runs a per-turn recall subagent.
-    #
-    # That subagent has no model pin, so it runs on the session model. ko-ag is
-    # where it belongs — local inference, no per-token cost — but every custom
-    # provider on the CF AI Gateway account has answered 502 (AiGatewayError
-    # 2006) since 2026-07-10, including ones whose origins are public and have
-    # no Access in front of them, while built-in providers pass upstream
-    # statuses through normally. Pinning recall at ko-ag until Cloudflare's
-    # custom-provider forwarding works again just fails every turn.
+    # runs a per-turn recall subagent. That subagent is pinned to ko-ag via
+    # OPENCODE_MEMORY_RECALL_MODEL in the wrapper below — local inference, so
+    # per-turn recall doesn't bill the session model.
     # Set OPENCODE_MEMORY_IGNORE=1 to disable injection.
     plugin = [ "opencode-model-stats@0.2.3" "opencode-claude-memory@1.7.3" ];
     disabled_providers = [ "opencode" "zai" ];
@@ -86,7 +80,8 @@ in
         postBuild = ''
           rm -f $out/bin/opencode
           makeWrapper ${prev.opencode}/bin/opencode $out/bin/opencode \
-            --run ${patchModelStats}
+            --run ${patchModelStats} \
+            --set-default OPENCODE_MEMORY_RECALL_MODEL ko-ag/qwen3.6-35b-abliterated
         '';
       };
     })

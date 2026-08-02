@@ -1,0 +1,101 @@
+Don't create a logind session for a systemd-homed user whose home is locked.
+
+Tailscale SSH authenticates against the tailnet and never holds the user's
+disk-encryption password, so it can never unlock a systemd-homed LUKS home.
+systemd covers that case deliberately: homed sets useFallback=true on the user
+record and publishes fallbackHomeDirectory ("/") and fallbackShell
+(systemd-home-fallback-shell -> homectl), so the login still succeeds and the
+user can unlock interactively. See systemd docs/USER_RECORD.md.
+
+The problem is that maybeStartLoginSessionLinux calls logind CreateSession
+*before* any of that happens. logind responds by starting user@<uid>.service,
+which has User=%i and therefore picks up the *fallback* home -- so the user
+manager comes up with HOME=/. systemd computes the user unit search path exactly
+once at manager startup, so it becomes /.config/systemd/user and stays wrong for
+the entire boot, even after the user unlocks and useFallback flips back to false.
+Every unit under ~/.config/systemd/user is then invisible for that boot:
+
+    $ systemctl --user status waybar
+    Unit waybar.service could not be found.
+
+On a desktop that means no bar, no display-layout daemon, no notification daemon,
+no portals, and `home-manager switch` aborting partway through. A single
+Tailscale SSH connection landing before the user's first physical login is enough
+to do it, and nothing recovers short of a full logout of every session.
+
+Fix: ask systemd-homed for the user's state before creating the session, and skip
+session creation when the home area is not active. GetHomeByName returns the
+state directly (signature usussso), so this costs one D-Bus round trip and only
+on hosts running homed; if homed isn't running, the call fails and we proceed
+exactly as before.
+
+Skipping is already a supported, exercised path -- the existing error branch
+below does the same thing when CreateSession fails ("For now best effort is
+fine."). The login still works, the user still lands in homed's fallbackShell and
+can unlock; we simply decline to register a session that systemd would bind to a
+home directory that isn't mounted. Once the home is unlocked, a subsequent real
+login creates a correct session and a correct user manager.
+
+This deliberately does not try to prompt for the password and unlock the home
+from the incubator. That would be a much larger change (the incubator runs as
+root, pre-privilege-drop) and is the proper long-term fix; upstream discussion of
+Tailscale SSH's PAM/session gap is in tailscale/tailscale#13198.
+
+diff --git a/ssh/tailssh/incubator_linux.go b/ssh/tailssh/incubator_linux.go
+index cff4616..d2532c2 100644
+--- a/ssh/tailssh/incubator_linux.go
++++ b/ssh/tailssh/incubator_linux.go
+@@ -145,11 +145,53 @@ func releaseSession(sessionID string) error {
+ 	return err
+ }
+ 
++// homeAreaInactive reports whether username is managed by systemd-homed and
++// their home area is not currently active (locked, absent, or still being set
++// up).
++//
++// It returns false when homed isn't running or doesn't know the user, so
++// non-homed hosts are unaffected.
++func homeAreaInactive(username string) bool {
++	conn, err := dbus.SystemBus()
++	if err != nil {
++		return false
++	}
++
++	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
++	defer cancel()
++
++	obj := conn.Object("org.freedesktop.home1", dbus.ObjectPath("/org/freedesktop/home1"))
++	call := obj.CallWithContext(ctx, "org.freedesktop.home1.Manager.GetHomeByName", 0, username)
++	if call.Err != nil {
++		// Not a homed user, or homed isn't running.
++		return false
++	}
++
++	// GetHomeByName returns (uid, state, gid, realName, homeDirectory, shell,
++	// objectPath); we only need the state.
++	var uid, gid uint32
++	var state, realName, homeDirectory, shell string
++	var path dbus.ObjectPath
++	if err := call.Store(&uid, &state, &gid, &realName, &homeDirectory, &shell, &path); err != nil {
++		return false
++	}
++	return state != "active"
++}
++
+ // maybeStartLoginSessionLinux is the linux implementation of maybeStartLoginSession.
+ func maybeStartLoginSessionLinux(dlogf logger.Logf, ia incubatorArgs) func() error {
+ 	if os.Geteuid() != 0 {
+ 		return nil
+ 	}
++	// If the user's systemd-homed area isn't unlocked, creating a session now
++	// makes logind start user@<uid>.service against homed's fallback home
++	// ("/"), which permanently breaks that user manager's unit search path for
++	// the rest of the boot. Let the login proceed without a registered session;
++	// the user lands in homed's fallbackShell and can unlock from there.
++	if homeAreaInactive(ia.localUser) {
++		dlogf("ssh: not creating a login session for %q: systemd-homed area is not active", ia.localUser)
++		return nil
++	}
+ 	dlogf("starting session for user %d", ia.uid)
+ 	// The only way we can actually start a new session is if we are
+ 	// running outside one and are root, which is typically the case

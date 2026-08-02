@@ -396,8 +396,9 @@ let
   # Git credential helper backed by fj's own login store, so `fj auth login`
   # is the single place a Forgejo token lives (forge.ko.ag is only reachable
   # over HTTPS via a Cloudflare tunnel). fj has no `git-credential` subcommand
-  # of its own; it keeps an OAuth access/refresh token pair in keys.json, so
-  # this shim refreshes via fj and then reads the access token back out.
+  # of its own; it keeps its tokens in keys.json (an OAuth access/refresh pair
+  # from `fj auth login`, or a bare application token from `fj auth add-token`),
+  # so this shim refreshes via fj and then reads the token back out.
   git-credential-fj = pkgs.writeShellScriptBin "git-credential-fj" ''
     set -euo pipefail
 
@@ -422,7 +423,9 @@ let
     # terminal prompt.
     ${lib.getExe pkgs.forgejo-cli} -H "$host" whoami >/dev/null 2>&1 || true
 
-    token=$(${lib.getExe pkgs.jq} -r --arg h "$host" '.hosts[$h].token // empty' "$keys")
+    # A nonzero exit aborts git's whole operation rather than falling through
+    # to a prompt, so a half-written keys.json degrades to "no credential".
+    token=$(${lib.getExe pkgs.jq} -r --arg h "$host" '.hosts[$h].token // empty' "$keys" 2>/dev/null) || exit 0
     [ -n "$token" ] || exit 0
 
     # Forgejo ignores the basic-auth username when the password is a token.

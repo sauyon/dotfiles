@@ -390,8 +390,44 @@ let
   '';
 
   # git built with the libsecret credential helper (git-credential-libsecret),
-  # used for HTTPS auth to git.ko.ag (Forgejo behind a Cloudflare tunnel).
+  # used for HTTPS auth to hosts that have no CLI-managed token store.
   gitWithLibsecret = pkgs.git.override { withLibsecret = true; };
+
+  # Git credential helper backed by fj's own login store, so `fj auth login`
+  # is the single place a Forgejo token lives (forge.ko.ag is only reachable
+  # over HTTPS via a Cloudflare tunnel). fj has no `git-credential` subcommand
+  # of its own; it keeps an OAuth access/refresh token pair in keys.json, so
+  # this shim refreshes via fj and then reads the access token back out.
+  git-credential-fj = pkgs.writeShellScriptBin "git-credential-fj" ''
+    set -euo pipefail
+
+    # Only `get` is ours to answer — fj owns store/erase.
+    [ "''${1:-}" = "get" ] || exit 0
+
+    host=""
+    while IFS='=' read -r key value; do
+      [ -n "$key" ] || break
+      case "$key" in
+        host) host="$value" ;;
+      esac
+    done
+    [ -n "$host" ] || exit 0
+
+    keys="''${XDG_DATA_HOME:-$HOME/.local/share}/forgejo-cli/keys.json"
+    [ -r "$keys" ] || exit 0
+
+    # Any authenticated fj call refreshes an expired access token in place;
+    # poke it first so git isn't handed a stale one. Best-effort — if this
+    # fails we still try whatever is stored rather than falling back to a
+    # terminal prompt.
+    ${lib.getExe pkgs.forgejo-cli} -H "$host" whoami >/dev/null 2>&1 || true
+
+    token=$(${lib.getExe pkgs.jq} -r --arg h "$host" '.hosts[$h].token // empty' "$keys")
+    [ -n "$token" ] || exit 0
+
+    # Forgejo ignores the basic-auth username when the password is a token.
+    printf 'username=oauth2\npassword=%s\n' "$token"
+  '';
 
   claude-prof = pkgs.writeShellScriptBin "claude-prof" ''
     set -euo pipefail
@@ -469,6 +505,17 @@ let
 
   args = { inherit config lib pkgs; };
 
+  # The local auto-mode classifier's PreToolUse entry. Bound separately so a
+  # profile can drop it from its PreToolUse list (see `claudeProfiles.work`).
+  localAutoModeHook = {
+    matcher = ".*";
+    hooks = [ {
+      type = "command";
+      command = "python3 ${config.home.homeDirectory}/.claude/plugins/local-auto-mode/classifier.py";
+      timeout = 15;
+    } ];
+  };
+
   # Base Claude Code settings shared by every profile. Only `model` differs
   # per profile (see `claudeProfiles` below). Everything else is rendered
   # identically into each profile's settings.json by the home.file entries
@@ -476,14 +523,7 @@ let
   claudeBaseSettings = {
     hooks = {
       PreToolUse = [
-        {
-          matcher = ".*";
-          hooks = [ {
-            type = "command";
-            command = "python3 ${config.home.homeDirectory}/.claude/plugins/local-auto-mode/classifier.py";
-            timeout = 15;
-          } ];
-        }
+        localAutoModeHook
         {
           matcher = "Bash";
           hooks = [ {
@@ -773,6 +813,13 @@ let
     };
     work = {
       model = "claude-opus-5";
+      # Local auto-mode classifier disabled for work. Note this also drops it
+      # from ~/.claude/settings.json, which mirrors this profile (see
+      # programs.claude-code.settings below).
+      hooks = claudeBaseSettings.hooks // {
+        PreToolUse = lib.filter (h: h != localAutoModeHook)
+          claudeBaseSettings.hooks.PreToolUse;
+      };
     };
     zai = {
       model = "opus";
@@ -1378,7 +1425,7 @@ in
     lnav
     mosh
     opencode
-    forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg
+    forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg and forge.ko.ag
     bat
     rustup
     nixfmt
@@ -2366,10 +2413,10 @@ in
         merge.tool = "meld";
         # credential."https://github.com".helper = "!/usr/bin/env gh auth git-credential";
         # credential."https://gist.github.com".helper = "!/usr/bin/env gh auth git-credential";
-        # git.ko.ag (Forgejo over HTTPS via Cloudflare tunnel): store the
-        # Forgejo token in the secret service. fj has no git credential helper,
-        # and the box isn't reachable over SSH, so HTTPS + libsecret it is.
-        credential."https://git.ko.ag".helper = "${gitWithLibsecret}/bin/git-credential-libsecret";
+        # forge.ko.ag (Forgejo over HTTPS via Cloudflare tunnel): reuse the
+        # token `fj auth login` already stored instead of keeping a second copy
+        # in the secret service. See git-credential-fj above.
+        credential."https://forge.ko.ag".helper = "${git-credential-fj}/bin/git-credential-fj";
         # huggingface.co: persist the HF token in the secret service so
         # `hf auth login --add-to-git-credential` and direct git HTTPS clones
         # of Hub repos / LFS pulls authenticate without re-prompting.

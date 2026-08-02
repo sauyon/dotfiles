@@ -1,0 +1,5 @@
+there's no hooks or anything for tailsclae ssh
+
+---
+
+nix package. and you can uninstall the system ts

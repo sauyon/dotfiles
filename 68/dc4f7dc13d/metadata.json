@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "68dc4f7dc13d",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "flake.nix",
+    "system/deploy",
+    "system/etc/systemd/system/tailscaled.service"
+  ],
+  "sessions": [
+    {
+      "metadata": "/68/dc4f7dc13d/0/metadata.json",
+      "transcript": "/68/dc4f7dc13d/0/full.jsonl",
+      "compact_transcript": "/68/dc4f7dc13d/0/transcript.jsonl",
+      "content_hash": "/68/dc4f7dc13d/0/content_hash.txt",
+      "prompt": "/68/dc4f7dc13d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 65,
+    "cache_creation_tokens": 38739,
+    "cache_read_tokens": 9007956,
+    "output_tokens": 30547,
+    "api_call_count": 35
+  }
+}

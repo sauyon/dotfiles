@@ -1466,6 +1466,10 @@ in
     nixGL
 
     pkgs.bitwarden-cli
+    # Desktop app is the biometric backend the Firefox extension talks to over
+    # native messaging -- the extension can't do "unlock with biometrics" on its
+    # own. Pairs with the polkit action + pam_fprintd wiring in system/.
+    pkgs.bitwarden-desktop
     pkgs.emacs30-pgtk
     pkgs.hyprpicker
     pkgs.psi-notify
@@ -1566,6 +1570,11 @@ in
       # version + per-system hash swap (no Go/frontend rebuild).
       coder = prev.coder.overrideAttrs (old: rec {
         version = "2.31.10";
+        # Drop the terraform PATH wrapper: nixpkgs wraps coder with terraform
+        # (unfree → never cached → compiled from source on every nixpkgs bump)
+        # for running provisioners locally. We only use the client, which never
+        # invokes a local provisioner, so this strips terraform from the closure.
+        postInstall = "";
         src = prev.fetchurl {
           url =
             let
@@ -2260,6 +2269,7 @@ in
       ];
       profiles.default = {
         extensions.packages = lib.optionals (!isDarwin) (with pkgs.nur.repos.rycee.firefox-addons; [
+          bitwarden
           tridactyl
         ]);
         settings = {

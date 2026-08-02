@@ -3,6 +3,13 @@ set -euo pipefail
 cd "$(dirname "$0")"
 find etc/ -type d | while read -r d; do sudo mkdir -p "/${d}"; done
 find etc/ -type f | while read -r f; do sudo cp -v "${f}" "/${f}"; done
+
+# polkit only scans /usr/share/polkit-1/actions for action definitions, which
+# etc/ can't reach; install Bitwarden's unlock action there so its "system
+# authentication" biometric prompt is authorized on this non-NixOS host.
+sudo install -Dvm644 polkit-1/actions/com.bitwarden.Bitwarden.policy \
+  /usr/share/polkit-1/actions/com.bitwarden.Bitwarden.policy
+
 sudo systemctl daemon-reload
 sudo systemctl enable --now systemd-oomd
 

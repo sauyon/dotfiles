@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+
+<!--
+  bitwarden-desktop from nixpkgs installs this action to its own
+  $out/share/polkit-1/actions, which a non-NixOS host's polkit never scans
+  (it only reads /usr/share/polkit-1/actions). Without the action registered,
+  the "Unlock with system authentication" CheckAuthorization call is denied
+  outright (nixpkgs#344073). system/deploy installs this copy into the path
+  Arch's polkit actually reads. Content mirrors the app's built-in policy
+  (bitwarden/clients os-biometrics-linux.service.ts); update if the app's
+  action id or defaults ever change.
+-->
+<policyconfig>
+    <action id="com.bitwarden.Bitwarden.unlock">
+      <description>Unlock Bitwarden</description>
+      <message>Authenticate to unlock Bitwarden</message>
+      <defaults>
+        <allow_any>no</allow_any>
+        <allow_inactive>no</allow_inactive>
+        <allow_active>auth_self</allow_active>
+      </defaults>
+    </action>
+</policyconfig>

@@ -1,0 +1,13 @@
+#%PAM-1.0
+# Arch has no /etc/pam.d/polkit-1 by default, so polkit falls back to the
+# built-in "other" stack (password only) and never offers the fingerprint
+# reader. Bitwarden's "Unlock with system authentication" authorizes the
+# com.bitwarden.Bitwarden.unlock action as auth_self, which routes through
+# this stack -- adding pam_fprintd as sufficient makes the pkexec/polkit
+# prompt accept the enrolled fingerprint (falling through to system-auth's
+# password on failure). Same trick 1Password's Linux biometrics uses.
+auth       sufficient   pam_fprintd.so
+auth       include      system-auth
+account    include      system-auth
+password   include      system-auth
+session    include      system-auth

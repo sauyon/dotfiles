@@ -1490,6 +1490,11 @@ in
   nixpkgs.config = {
     allowUnfree = true;
     sandbox = true;
+    # bitwarden-desktop 2026.6.1 pins electron 39.8.10, flagged insecure only
+    # because that Electron branch is EOL (no active CVE, unlike the vesktop/pnpm
+    # drop above). Scoped to the exact version so a future bitwarden-desktop bump
+    # onto a newer Electron re-raises the flag for review.
+    permittedInsecurePackages = [ "electron-39.8.10" ];
   };
 
   nixpkgs.overlays = [

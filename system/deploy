@@ -61,3 +61,27 @@ sops -d --extract '["mariBuilderKey"]' ../secrets.yaml \
 
 # Pick up the new substituter, trusted key, netrc, and builder.
 sudo systemctl restart nix-daemon
+
+# ── tailscaled: patched build from this flake (Linux only) ───────────────────
+# Tailscale SSH calls logind CreateSession before the user's shell runs, so for a
+# systemd-homed user whose LUKS home is still locked it starts user@<uid>.service
+# against homed's fallback home ("/") and permanently breaks that user manager's
+# unit search path for the rest of the boot. The patch makes tailscaled ask homed
+# for the user's state first and skip session creation when the home isn't active.
+# See ../patches/tailscale-ssh-skip-logind-session-for-locked-homed-user.patch
+#
+# Build as the invoking user (root's nix may lack flakes and our substituters),
+# then have root pin the result. A symlink placed directly in /nix/var/nix/gcroots
+# is a permanent GC root, and we reuse it as the stable path tailscaled.service
+# references -- it must resolve at boot, i.e. outside the encrypted home.
+if [[ "$(uname -s)" == Linux ]]; then
+  ts_out="$(nix build --no-link --print-out-paths "$(cd .. && pwd)#tailscale-patched")"
+  sudo ln -sfn "${ts_out}" /nix/var/nix/gcroots/tailscale-patched
+  # The CLI too: /usr/bin/tailscale belongs to the distro package, which this
+  # replaces. The wrapper dispatches on argv[0], so a symlink named `tailscale`
+  # gets CLI behaviour rather than the daemon.
+  sudo install -d /usr/local/bin
+  sudo ln -sfn /nix/var/nix/gcroots/tailscale-patched/bin/tailscale /usr/local/bin/tailscale
+  sudo systemctl daemon-reload
+  sudo systemctl restart tailscaled
+fi

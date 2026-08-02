@@ -1,0 +1,47 @@
+# Tailscale node agent, running the patched build from this flake.
+#
+# Replaces the distro unit (/usr/lib/systemd/system/tailscaled.service); a unit of
+# the same name in /etc/systemd/system wins, so this can be installed and switched
+# to BEFORE the distro package is removed.
+#
+# Why patched: Tailscale SSH calls logind CreateSession before the user's shell
+# ever runs. For a systemd-homed user whose LUKS home is still locked, logind then
+# starts user@<uid>.service against homed's fallback home ("/"), and systemd
+# computes the user unit search path once at manager startup -- so it becomes
+# /.config/systemd/user and stays wrong for the entire boot, even after the home is
+# unlocked. Every unit under ~/.config/systemd/user is invisible: no waybar, no
+# kanshi, no portals, and `home-manager switch` aborts partway through.
+# See ../../../patches/tailscale-ssh-skip-logind-session-for-locked-homed-user.patch
+#
+# ExecStart points at /nix/var/nix/gcroots/tailscale-patched, which system/deploy
+# creates. That path is deliberately both the nix GC root and the stable reference:
+# it survives nix-collect-garbage, and it lives outside /home so it resolves at
+# boot, long before the encrypted home is unlocked.
+#
+# PORT/FLAGS came from /etc/default/tailscaled, which the distro package owned and
+# which disappears with it -- hence the `-` (optional) on EnvironmentFile and the
+# inline default. The file, if present, still wins.
+[Unit]
+Description=Tailscale node agent (nix, patched)
+Documentation=https://tailscale.com/docs/
+Wants=network-pre.target
+After=network-pre.target NetworkManager.service systemd-resolved.service
+
+[Service]
+Environment=PORT=41641
+EnvironmentFile=-/etc/default/tailscaled
+ExecStart=/nix/var/nix/gcroots/tailscale-patched/bin/tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/run/tailscale/tailscaled.sock --port=${PORT} $FLAGS
+ExecStopPost=/nix/var/nix/gcroots/tailscale-patched/bin/tailscaled --cleanup
+
+Restart=on-failure
+
+RuntimeDirectory=tailscale
+RuntimeDirectoryMode=0755
+StateDirectory=tailscale
+StateDirectoryMode=0700
+CacheDirectory=tailscale
+CacheDirectoryMode=0750
+Type=notify
+
+[Install]
+WantedBy=multi-user.target

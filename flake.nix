@@ -176,5 +176,31 @@
         })
       ];
     };
+
+    # Patched tailscaled for the Linux boxes. Tailscale SSH creates a logind
+    # session before the user's shell runs, which for a systemd-homed user whose
+    # LUKS home is still locked makes logind start user@<uid>.service against
+    # homed's fallback home ("/") -- permanently breaking that user manager's
+    # unit search path for the rest of the boot. See the patch header.
+    #
+    # Only `patches` is overridden, deliberately: buildGoModule builds its
+    # goModules derivation from src + go.mod/go.sum, and this patch touches a
+    # single .go file, so vendoring is unaffected and no vendorHash change is
+    # needed. Overriding `src` to a different tailscale release would NOT be
+    # safe this way -- goModules would still be built from the original source.
+    #
+    # Deployed by system/deploy, which builds this, pins it with a root-owned GC
+    # root outside the encrypted home (so it survives `nix-collect-garbage` and
+    # is readable at boot before /home/sauyon is unlocked), and points
+    # /etc/systemd/system/tailscaled.service at it.
+    packages.x86_64-linux.tailscale-patched =
+      let
+        pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      in
+      pkgs.tailscale.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [
+          ./patches/tailscale-ssh-skip-logind-session-for-locked-homed-user.patch
+        ];
+      });
   };
 }

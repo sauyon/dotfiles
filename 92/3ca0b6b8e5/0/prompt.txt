@@ -1,0 +1,13 @@
+add fj git helper for forge.ko.ag and install fg
+
+---
+
+add fj git helper for forge.ko.ag and install fj
+
+---
+
+also cleanup the git.ko.ag helpes
+
+---
+
+also cleanup the git.ko.ag helper

@@ -14,7 +14,7 @@ If a major roadblock or an unexpected decision needs to be made outside of the d
 
 ## MCloud / Modular Cloud Access
 
-The `mcloud` CLI is the standing way to hit the Modular Cloud (Yatai/mcloud) admin API.
+The `mcloud` CLI is the standing way to hit the Modular Cloud (mcloud) admin API.
 
 ## Linear
 

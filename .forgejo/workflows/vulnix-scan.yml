@@ -36,6 +36,10 @@ jobs:
         netrc-file = /root/.config/nix/netrc
         extra-substituters = https://attic.ko.ag/kube
         extra-trusted-public-keys = kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=
+        # See nix-home.yml: bound parallelism so a cold cache cannot start 32
+        # concurrent builds inside the runner's 16Gi dind cgroup.
+        max-jobs = 6
+        cores = 4
     steps:
       # This scan only ever READS from the cache, but it still needs the token:
       # attic.ko.ag is not anonymously readable (401), and without the credential

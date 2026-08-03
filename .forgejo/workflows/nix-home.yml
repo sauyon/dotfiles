@@ -26,6 +26,13 @@ on:
   # without pushing an empty commit.
   workflow_dispatch:
 
+# A closure build runs for tens of minutes on a runner shared with every other
+# repo. Without this, pushing twice in quick succession leaves two of them
+# compiling concurrently inside the same 16Gi dind cgroup.
+concurrency:
+  group: nix-home-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -64,6 +71,12 @@ jobs:
         netrc-file = /root/.config/nix/netrc
         extra-substituters = https://attic.ko.ag/kube
         extra-trusted-public-keys = kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=
+        # fujiwara has 32 cores, so `max-jobs = auto` would start up to 32
+        # concurrent builds — inside a cgroup limited to 16Gi, and sharing it
+        # with whatever else the runner is executing. Bound it. The wall-clock
+        # cost is small because most of a run is substitution, not compilation.
+        max-jobs = 6
+        cores = 4
     steps:
       # attic.ko.ag is NOT anonymously readable — an unauthenticated request to
       # /kube/nix-cache-info returns 401. nix treats a substituter it cannot
@@ -110,8 +123,8 @@ jobs:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
         run: |
           set -eu
-          attic() {
-            nix run github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#attic-client -- "$@"
-          }
-          attic login ko https://attic.ko.ag "$ATTIC_TOKEN"
-          xargs -a /tmp/out-paths attic push ko:kube
+          ATTIC=github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#attic-client
+          nix run "$ATTIC" -- login ko https://attic.ko.ag "$ATTIC_TOKEN"
+          # Unquoted on purpose: one argument per out-path. Store paths cannot
+          # contain whitespace, so word-splitting is the intended behaviour.
+          nix run "$ATTIC" -- push ko:kube $(cat /tmp/out-paths)

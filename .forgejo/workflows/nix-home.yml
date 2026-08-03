@@ -39,15 +39,22 @@ jobs:
     # way and the privilege buys nothing; the old Woodpecker pod's
     # `privileged: true` was cargo-culted from the generic nixos/nix advice.
     #
-    # 2.35.1, NOT the 2.24.10 the Woodpecker pipelines pinned. This repo now has
-    # a nix version FLOOR: home.nix sets `programs.gpg.package` at one line and
-    # opens `programs = { … gpg = { … } … }` at another. Nix >= ~2.26 merges those
-    # two bindings; 2.24 rejects the second as
-    #   error: attribute 'gpg' already defined
-    # which reads like a config typo rather than a toolchain mismatch. Bumping
-    # the image is the fix — the machines all run newer nix than 2.24 anyway.
+    # 2.34.8. The version is pinned between a floor and a ceiling, so do not
+    # bump it casually in either direction:
+    #
+    #   FLOOR (>= ~2.26): home.nix sets `programs.gpg.package` at one line and
+    #   opens `programs = { … gpg = { … } … }` at another. Newer nix merges those
+    #   two bindings; the 2.24.10 the Woodpecker pipelines pinned rejects the
+    #   second with `error: attribute 'gpg' already defined`, which reads like a
+    #   config typo rather than a toolchain mismatch.
+    #
+    #   CEILING (< 2.35.1): 2.35.1 aborts partway through building this closure
+    #   with an internal scheduler assertion —
+    #     Assertion '!awake.empty()' failed in nix::Worker::run at worker.cc:360
+    #   an upstream bug, not anything this repo can fix. 2.34.8 is the closest
+    #   published tag to the 2.34.6 the workstation builds this flake with daily.
     container:
-      image: nixos/nix@sha256:377d4887aca98f0dfa12971c1ea6d6a625a435d8b610d4c95a436843da6fbfd1
+      image: nixos/nix@sha256:1a711b619c8a713eff32c3f8d8781b3b4d0130cb91c0a57f67e87abfeeb90b01
     env:
       # One place for nix's config instead of repeating --extra-* on every
       # invocation. The `kube` cache PUBLIC key is public (it is also in

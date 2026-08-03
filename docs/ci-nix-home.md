@@ -1,43 +1,62 @@
-# CI: build home closures in-cluster (`.woodpecker/nix-home.yml`)
+# CI: build home closures in-cluster (`.forgejo/workflows/nix-home.yml`)
 
-Push to `master` (touching any nix/home source) builds the **Linux** home-manager
-closures — `homeConfigurations.{utsuho,setsuna,fujiwara}.activationPackage` — in a
-Woodpecker pod on **fujiwara**, and pushes them to the `kube` attic cache
-(`attic.ko.ag/kube`). Then `home-manager switch --flake .#<host>` just downloads
-the prebuilt closure instead of compiling locally.
+Push to `master` (touching any nix/home source) builds the **Linux**
+home-manager closures — `homeConfigurations.{utsuho,setsuna,fujiwara}.activationPackage`
+— on the in-cluster `forgejo-runner` at `forge.ko.ag`, and pushes them to the
+`kube` attic cache (`attic.ko.ag/kube`). Then `home-manager switch --flake .#<host>`
+just downloads the prebuilt closure instead of compiling locally.
 
-This mirrors the kube repo's `.woodpecker/nix-nodes.yml`; see that repo's
-`docs/nix-binary-cache.md` for the build-pod isolation rationale (each build runs
-in its own ephemeral `/nix`, never the host store). mari (aarch64-darwin) is
-omitted — an x86_64-linux pod can't build darwin; darwin still builds on mari
-itself.
+mari (aarch64-darwin) is omitted — an x86_64-linux job can't build darwin; darwin
+still builds on mari itself.
 
-## Consuming side (already wired)
+Migrated from Woodpecker on 2026-08-03. The cluster-side story — runner sizing,
+why the job container is unprivileged, how to read a failed job's log — is in the
+kube repo's `docs/forgejo-dotfiles-ci.md`. Read that before changing the runner
+or debugging an infrastructure failure.
+
+## Editing this workflow
+
+Two constraints that are not obvious from the file:
+
+- **No `uses:` steps.** The job runs in the `nixos/nix` image, which has `git`
+  and `bash` but no `node`, so no JS action can execute — `actions/checkout`
+  included. The checkout is a hand-rolled `git clone`. Adding a `uses:` step
+  fails at "Set up job".
+- **The attic netrc must be written before the first nix command.** `attic.ko.ag`
+  is not anonymously readable, and nix silently ignores a substituter it cannot
+  authenticate to. Reorder that step after the build and the job stops
+  substituting and rebuilds everything from source, with no error to say so.
+
+There is also a **nix version floor**: `home.nix` merges `programs.gpg.package`
+with a later `programs = { gpg = { … } }` block, which nix 2.24 rejects as a
+duplicate attribute. The image is pinned to 2.35.1. When bumping it, confirm the
+new image still has git, still lacks node, and still ships `sandbox = false`.
+
+## Consuming side (unchanged)
 
 The boxes pull from `attic.ko.ag/kube` via `system/etc/nix/nix.custom.conf`
 (deployed by `system/deploy`). On plain upstream nix (e.g. utsuho) the deploy
 adds the `!include` + renders the pull token to `/etc/nix/netrc`; on Determinate
 it's automatic. Nothing else to do to *consume* the cache.
 
-## One-time bootstrap (producing side)
+## Bootstrap (producing side)
 
-Requires the cluster's Woodpecker (`woodpecker.ko.ag`, GitHub OAuth, admin
-`sauyon`):
-
-1. **Enable the repo.** In the Woodpecker UI, add `sauyon/dotfiles` (this installs
-   the GitHub webhook so pushes trigger builds).
-2. **Provide the secret** the pipeline reads via `from_secret`:
-   - `ATTIC_TOKEN` — attic **push** token (write-scoped).
-   If it already exists as a Woodpecker **org/global** secret (the kube repo uses
-   the same name), the dotfiles repo inherits it; otherwise add it as a repo
-   secret. The push token is write-capable — keep it out of the repo. The cache
-   **public** key is public (`kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=`)
-   and is inlined in the pipeline — no secret needed for it.
-3. **Trigger it.** Push a nix/home change, or hit **Run** in the UI (the pipeline
-   declares `event: manual`).
+1. **Repo.** `sauyon/dotfiles` on forge.ko.ag. Pushing to it triggers the
+   workflow — no webhook to install, unlike the Woodpecker/GitHub setup.
+2. **Secret.** Repo secret `ATTIC_TOKEN`, an attic push token minted with
+   `atticadm make-token --push kube --pull kube` (exact command in the kube doc).
+   Expires **2027-08-03**. The cache **public** key is public
+   (`kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=`) and is inlined in the
+   workflow — no secret needed for it.
+3. **Trigger.** Push a nix/home change, or dispatch the workflow from the Actions
+   tab (Forgejo has no re-run API, so `workflow_dispatch` is the retry path).
 
 ## Verify
 
-- Woodpecker: the `build-and-push` step goes green.
+- The `build-and-push` job goes green at
+  <https://forge.ko.ag/sauyon/dotfiles/actions>.
+- The build log should show paths being *fetched* from `https://attic.ko.ag/kube`,
+  not built. If it compiles from scratch, the netrc step is broken — that is the
+  substituter silently failing open, not a cache miss.
 - From a box: after the build, `home-manager switch --flake .#utsuho` should show
-  the closure being *fetched* from `https://attic.ko.ag/kube` rather than built.
+  the closure being *fetched* rather than built.

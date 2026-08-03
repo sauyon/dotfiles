@@ -1,0 +1,89 @@
+# Weekly CVE scan of the utsuho home closure with vulnix.
+#
+# Migrated from `.woodpecker/vulnix-scan.yml` (2026-08-03). The point of the move
+# is this file's `schedule:` block: under Woodpecker the schedule lived only in
+# the server's database, invisible to and unversioned by the repo. Here it is
+# the source of truth.
+#
+# The job log IS the report — there is no desktop in a job container, so the
+# mako-notify idea from the local variant becomes a prominent count line.
+#
+# The scan never FAILS on findings: vulnix exits non-zero whenever it matches any
+# CVE by name/version, and this closure always matches some — mostly false
+# positives (Haskell libs like `vault`/`warp` colliding with unrelated CVE IDs,
+# build-only go/cargo/gcc bootstraps) or genuine-but-unpatched-upstream issues a
+# flake bump can't fix. A permanently red pipeline is pure noise. Green means the
+# scan ran; read the log for the count.
+name: vulnix-scan
+
+on:
+  schedule:
+    # Mondays 06:00 UTC. Standard 5-field cron here — note this is NOT
+    # Woodpecker's 6-field (leading-seconds) format the old cron used.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    # Same image and constraints as nix-home.yml — no node, so no JS actions and
+    # the checkout is by hand. Unprivileged: the image ships `sandbox = false`.
+    container:
+      image: nixos/nix@sha256:a09d508c2e46d3a4c7205ff3fa0d506d626a5a966c31e879df7efe737e22f003
+    env:
+      NIX_CONFIG: |
+        experimental-features = nix-command flakes
+        netrc-file = /root/.config/nix/netrc
+        extra-substituters = https://attic.ko.ag/kube
+        extra-trusted-public-keys = kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=
+    steps:
+      # This scan only ever READS from the cache, but it still needs the token:
+      # attic.ko.ag is not anonymously readable (401), and without the credential
+      # nix silently drops the substituter and rebuilds the whole closure instead
+      # of downloading it. That is the difference between a 2-minute job and an
+      # hour-long one.
+      - name: authorise nix against attic
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+        run: |
+          set -eu
+          mkdir -p /root/.config/nix
+          umask 077
+          printf 'machine attic.ko.ag password %s\n' "$ATTIC_TOKEN" \
+            > /root/.config/nix/netrc
+
+      - name: checkout
+        run: |
+          set -eu
+          git clone https://forge.ko.ag/${{ github.repository }}.git .
+          git checkout --detach ${{ github.sha }}
+          git --no-pager log -1 --oneline
+
+      # Realise the utsuho activation package — normally a pure substitution from
+      # attic rather than a rebuild.
+      - name: realise utsuho closure
+        run: |
+          set -eu
+          nix build --no-link --print-out-paths \
+            .#homeConfigurations.utsuho.activationPackage > /tmp/drv
+          cat /tmp/drv
+
+      # vulnix + jq come pinned from the same nixpkgs rev nix-home.yml pins for
+      # attic-client. `|| true` keeps the step green on findings (see header).
+      - name: scan
+        run: |
+          set -eu
+          export DRV=$(cat /tmp/drv)
+          nix shell \
+            github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#vulnix \
+            github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#jq \
+            -c sh -c '
+              vulnix --json "$DRV" > vulnix.json || true
+              count=$(jq "length" vulnix.json)
+              echo "======================================================"
+              echo "  vulnix: $count affected packages in utsuho closure"
+              echo "======================================================"
+              echo "affected-CVEs  package  (top 60 by CVE count)"
+              jq -r ".[] | \"\(.affected_by | length)\t\(.name)\"" vulnix.json \
+                | sort -rn | head -60
+            '

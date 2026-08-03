@@ -1,0 +1,102 @@
+# Build the Linux home-manager closures in CI and push them to attic, so
+# `home-manager switch` on the boxes just downloads instead of compiling.
+#
+# Migrated from `.woodpecker/nix-home.yml` (2026-08-03). The old pipeline ran a
+# dedicated Woodpecker pod; this runs inside the shared in-cluster
+# `forgejo-runner`, whose jobs execute as containers under its privileged DinD
+# sidecar. See the kube repo's docs/forgejo-dotfiles-ci.md for the migration
+# notes and the runner sizing that makes this viable.
+#
+# mari (aarch64-darwin) is intentionally omitted — an x86_64-linux job can't
+# build darwin; darwin still builds on mari itself.
+name: nix-home
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "flake.nix"
+      - "flake.lock"
+      - "*.nix"
+      - "home/**"
+      - "patches/**"
+      - ".forgejo/workflows/nix-home.yml"
+  # Forgejo has no re-run API (docs/forgejo-registry.md in the kube repo), so a
+  # dispatch trigger is the only way to replay this after an infra failure
+  # without pushing an empty commit.
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    # Run the job directly in the nix image rather than installing nix into the
+    # default catthehacker image. NOTE: this image has git and bash but NO node,
+    # so no JS action (actions/checkout included) can run here — every step below
+    # must be a plain `run:`, and the checkout is done by hand.
+    #
+    # It deliberately does NOT ask for `--privileged`. The image ships
+    # `sandbox = false` in /etc/nix/nix.conf, so the build sandbox is off either
+    # way and the privilege buys nothing; the old Woodpecker pod's
+    # `privileged: true` was cargo-culted from the generic nixos/nix advice.
+    container:
+      image: nixos/nix@sha256:a09d508c2e46d3a4c7205ff3fa0d506d626a5a966c31e879df7efe737e22f003
+    env:
+      # One place for nix's config instead of repeating --extra-* on every
+      # invocation. The `kube` cache PUBLIC key is public (it is also in
+      # flake.nix) — only the token below is a secret.
+      NIX_CONFIG: |
+        experimental-features = nix-command flakes
+        netrc-file = /root/.config/nix/netrc
+        extra-substituters = https://attic.ko.ag/kube
+        extra-trusted-public-keys = kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=
+    steps:
+      # attic.ko.ag is NOT anonymously readable — an unauthenticated request to
+      # /kube/nix-cache-info returns 401. nix treats a substituter it cannot
+      # reach as simply absent and says nothing, so the Woodpecker version of
+      # this pipeline (which only logged in AFTER building) silently substituted
+      # nothing and rebuilt from scratch every run. Write the credential FIRST.
+      # nix reads netrc as HTTP basic; attic accepts the JWT as the password.
+      - name: authorise nix against attic
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+        run: |
+          set -eu
+          mkdir -p /root/.config/nix
+          umask 077
+          printf 'machine attic.ko.ag password %s\n' "$ATTIC_TOKEN" \
+            > /root/.config/nix/netrc
+
+      # Hand-rolled checkout: see the `container:` note above. Full clone, not
+      # --depth 1 — the repo is ~14MB and a shallow clone cannot check out an
+      # arbitrary SHA.
+      - name: checkout
+        run: |
+          set -eu
+          git clone https://forge.ko.ag/${{ github.repository }}.git .
+          git checkout --detach ${{ github.sha }}
+          git --no-pager log -1 --oneline
+
+      # Build every Linux host's activation package. Unchanged paths are
+      # substituted from attic (now that the netrc exists) and cache.nixos.org.
+      - name: build home closures
+        run: |
+          set -eu
+          nix build --no-link --print-out-paths \
+            .#homeConfigurations.utsuho.activationPackage \
+            .#homeConfigurations.setsuna.activationPackage \
+            .#homeConfigurations.fujiwara.activationPackage \
+            | tee /tmp/out-paths
+
+      # The image has no attic-client; run it pinned from a fixed nixpkgs rev
+      # (the same rev the kube repo's nix pipeline pins). Do NOT echo
+      # $ATTIC_TOKEN or enable `set -x` in this step.
+      - name: push closures to attic
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+        run: |
+          set -eu
+          attic() {
+            nix run github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#attic-client -- "$@"
+          }
+          attic login ko https://attic.ko.ag "$ATTIC_TOKEN"
+          xargs -a /tmp/out-paths attic push ko:kube

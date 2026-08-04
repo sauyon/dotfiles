@@ -41,10 +41,10 @@ jobs:
     # so no JS action (actions/checkout included) can run here — every step below
     # must be a plain `run:`, and the checkout is done by hand.
     #
-    # It deliberately does NOT ask for `--privileged`. The image ships
-    # `sandbox = false` in /etc/nix/nix.conf, so the build sandbox is off either
-    # way and the privilege buys nothing; the old Woodpecker pod's
-    # `privileged: true` was cargo-culted from the generic nixos/nix advice.
+    # It deliberately does NOT ask for `--privileged`; see `build-users-group`
+    # below for what pays for that. The image ships `sandbox = false` in
+    # /etc/nix/nix.conf, and turning the sandbox back on is what would require
+    # the privilege (it needs CLONE_NEWUSER and mounts).
     #
     # 2.34.8. The version is pinned between a floor and a ceiling, so do not
     # bump it casually in either direction:
@@ -77,6 +77,24 @@ jobs:
         # cost is small because most of a run is substitution, not compilation.
         max-jobs = 6
         cores = 4
+        # Run builds as root (single-user nix) instead of as the image's
+        # unprivileged `nixbld` users. Required, not a shortcut:
+        #
+        # fujiwara has fs.protected_hardlinks=1, and nix store paths are
+        # root-owned mode 444. A non-root builder therefore cannot hardlink a
+        # store file — that needs CAP_FOWNER. Derivations that hardlink out of a
+        # store path die with
+        #   EPERM: Operation not permitted: failed to link package: …
+        # (hunkdiff's bun install is the one that hits it here). It looks like a
+        # broken package and is not.
+        #
+        # This does not reproduce locally because Determinate runs with the
+        # sandbox ON, and nix's sandbox maps the builder into a user namespace
+        # where it IS root, so CAP_FOWNER applies. With `sandbox = false` there
+        # is no such mapping. The two ways out are a privileged container with
+        # the sandbox re-enabled, or this. Builds already run as root in an
+        # ephemeral container, so root here concedes nothing extra.
+        build-users-group =
     steps:
       # attic.ko.ag is NOT anonymously readable — an unauthenticated request to
       # /kube/nix-cache-info returns 401. nix treats a substituter it cannot

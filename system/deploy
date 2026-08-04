@@ -20,22 +20,7 @@ find etc/ -type f | while read -r f; do sudo cp -v "${f}" "/${f}"; done
 sudo install -Dvm644 polkit-1/actions/com.bitwarden.Bitwarden.policy \
   /usr/share/polkit-1/actions/com.bitwarden.Bitwarden.policy
 
-# ── gnome-keyring: let the home-manager unit own the daemon ───────────────────
-# The keyring's login collection can only be unlocked at daemon startup, so
-# home-manager runs its own gnome-keyring.service whose ExecStart unseals the
-# passphrase from the TPM (see gnome-keyring-tpm in home.nix). Arch's packaged
-# gnome-keyring-daemon.socket is socket-activated off sockets.target -- far
-# earlier than graphical-session-pre.target -- so if it stays enabled it wins the
-# race for the org.freedesktop.secrets bus name with a *locked* collection and
-# every libsecret client gets an unlock popup again. Mask both units so only the
-# home-manager one can start. (Symptom if this regresses: two
-# gnome-keyring-daemon processes, and `busctl --user status
-# org.freedesktop.secrets` naming the one from gnome-keyring-daemon.service.)
-sudo rm -f /etc/systemd/user/sockets.target.wants/gnome-keyring-daemon.socket
-sudo ln -sfn /dev/null /etc/systemd/user/gnome-keyring-daemon.socket
-sudo ln -sfn /dev/null /etc/systemd/user/gnome-keyring-daemon.service
-
-# Unsealing the keyring passphrase reads /dev/tpmrm0, which is root:tss 0660.
+# Unsealing the gnome-keyring passphrase reads /dev/tpmrm0, which is root:tss 0660.
 # Takes effect at next login, not in the current session.
 if ! id -nG "$USER" | tr ' ' '\n' | grep -qx tss; then
   sudo gpasswd -a "$USER" tss

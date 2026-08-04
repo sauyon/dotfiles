@@ -1425,11 +1425,19 @@ in
   # ordering against graphical-session-pre.target is unchanged; the only
   # difference is that ExecStart unseals the login passphrase from the TPM.
   #
-  # Arch's own socket-activated gnome-keyring-daemon.socket MUST stay masked
-  # (system/deploy does it): it starts at sockets.target, well before
-  # graphical-session-pre.target, so it would win the race for the
-  # org.freedesktop.secrets bus name with a *locked* collection and the popups
-  # would come straight back.
+  # What keeps a *locked* daemon from serving instead: this one claims the
+  # org.freedesktop.secrets bus name at graphical-session-pre.target, before any
+  # app asks for it. Arch's packaged units are left alone deliberately -- its
+  # gnome-keyring-daemon.socket only listens on %t/keyring/control (the control
+  # socket, not the bus name), and the on-demand path that *would* start a locked
+  # daemon is D-Bus activation via /usr/share/dbus-1/services/org.freedesktop
+  # .secrets.service, which no amount of systemd masking prevents. Both are
+  # harmless as long as we own the name first; a second daemon that loses the
+  # name just idles.
+  #
+  # If unlock prompts ever come back, check `busctl --user status
+  # org.freedesktop.secrets` -- if it names anything other than this unit,
+  # something claimed the name earlier and that is the thing to chase.
   systemd.user.services.gnome-keyring = lib.optionalAttrs (!isDarwin && isDesktop && hostname != "fujiwara") {
     Unit = {
       Description = "GNOME Keyring (login collection unlocked from the TPM)";

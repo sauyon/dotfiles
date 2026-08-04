@@ -212,10 +212,29 @@ jobs:
           ATTIC=github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#attic-client
           nix run "$ATTIC" -- login ko \
             http://attic.attic.svc.cluster.local "$ATTIC_TOKEN"
+          # Retried, because a single failed request must not throw away a
+          # 25-minute build. A run that pushed 229 of 246 paths died on a
+          # transient 502 from the LAST leg of the write path: attic's own
+          # storage endpoint is https://s3.ko.ag, i.e. MinIO on kanon reached
+          # THROUGH the Cloudflare tunnel, and that leg gets flaky under a
+          # sustained multi-hundred-path push. Nothing the client can route
+          # around — but `attic push` is idempotent (already-stored chunks come
+          # back "deduplicated"), so a retry costs seconds and resumes.
+          #
           # --jobs 2: attic buffers and chunks NARs in memory, and the server is
-          # a single 3Gi pod. Default concurrency OOMKilled it (exit 137), which
+          # a single pod. Default concurrency OOMKilled it (exit 137), which
           # surfaces client-side as every path failing with HTTP 503.
           #
           # Unquoted $(cat …) on purpose: one argument per out-path. Store paths
           # cannot contain whitespace, so word-splitting is intended here.
-          nix run "$ATTIC" -- push --jobs 2 ko:kube $(cat /tmp/out-paths)
+          ok=
+          for attempt in 1 2 3; do
+            if nix run "$ATTIC" -- push --jobs 2 ko:kube $(cat /tmp/out-paths); then
+              echo "push succeeded on attempt $attempt"
+              ok=1
+              break
+            fi
+            echo "push attempt $attempt failed; retrying (already-stored paths dedupe)"
+            sleep 20
+          done
+          [ -n "$ok" ] || { echo "push failed after 3 attempts"; exit 1; }

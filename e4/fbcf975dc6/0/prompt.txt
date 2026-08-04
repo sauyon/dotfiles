@@ -1,0 +1,5 @@
+is fj configured for my forge in dotfiles or externally?
+
+---
+
+the client id needs to be in hm. the keys probably shouldn't?

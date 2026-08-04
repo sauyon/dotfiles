@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "e4fbcf975dc6",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "home.nix",
+    "home/forgejo-cli/client_ids"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e4/fbcf975dc6/0/metadata.json",
+      "transcript": "/e4/fbcf975dc6/0/full.jsonl",
+      "compact_transcript": "/e4/fbcf975dc6/0/transcript.jsonl",
+      "content_hash": "/e4/fbcf975dc6/0/content_hash.txt",
+      "prompt": "/e4/fbcf975dc6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 50,
+    "cache_creation_tokens": 29172,
+    "cache_read_tokens": 1098888,
+    "output_tokens": 8145,
+    "api_call_count": 26
+  }
+}

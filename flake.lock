@@ -69,11 +69,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1785833145,
-        "narHash": "sha256-RHDoVsslyq46Hqcw1oj/4R7k5M9B3yVs70oNbCDntgI=",
+        "lastModified": 1785879180,
+        "narHash": "sha256-GAvY4A/fgbC9tUzt/RjD5CKddm2gk+WV1UQMj1pFR90=",
         "owner": "sauyon",
         "repo": "drovr",
-        "rev": "7dd6dcf70017b279ab36da82b68f4b77e8b969e2",
+        "rev": "77e2f5d103fc1a5968f5e7228b38be0a192ca77a",
         "type": "github"
       },
       "original": {

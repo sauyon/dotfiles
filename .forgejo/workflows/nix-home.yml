@@ -129,7 +129,17 @@ jobs:
       - name: preflight — job container must be privileged
         run: |
           set -eu
-          capeff=$(grep '^CapEff:' /proc/self/status | awk '{print $2}')
+          # Pure bash: the nixos/nix image has no awk, sed, grep or cut on PATH
+          # (it ships nix, bash, git and little else), so anything reaching for
+          # coreutils here dies with `command not found` before it ever gets to
+          # the actual check.
+          capeff=
+          while IFS=: read -r k v; do
+            # /proc/self/status separates key and value with a TAB, not a space —
+            # stripping only spaces leaves it in and the arithmetic below dies
+            # with "arithmetic syntax error".
+            if [ "$k" = "CapEff" ]; then capeff="${v//[[:space:]]/}"; fi
+          done < /proc/self/status
           echo "CapEff=$capeff"
           # CAP_SYS_ADMIN is bit 21; its absence means this is not a privileged
           # container and the closure build WILL fail later in bun.

@@ -41,10 +41,33 @@ jobs:
     # so no JS action (actions/checkout included) can run here — every step below
     # must be a plain `run:`, and the checkout is done by hand.
     #
-    # It deliberately does NOT ask for `--privileged`; see `build-users-group`
-    # below for what pays for that. The image ships `sandbox = false` in
-    # /etc/nix/nix.conf, and turning the sandbox back on is what would require
-    # the privilege (it needs CLONE_NEWUSER and mounts).
+    # PRIVILEGED, with the nix sandbox ON. Both are load-bearing: this closure
+    # cannot be built with the image's default `sandbox = false`, and two
+    # separate failures proved it.
+    #
+    #  1. fujiwara has fs.protected_hardlinks=1 and store paths are root-owned
+    #     mode 444, so the unprivileged nixbld builder cannot hardlink one —
+    #     that needs CAP_FOWNER. hunkdiff's bun install dies with
+    #       EPERM: Operation not permitted: failed to link package: …
+    #     which names the package rather than the cause.
+    #  2. Building as root instead (`build-users-group =`) fixes that and breaks
+    #     something else: a root builder can create /homeless-shelter, after
+    #     which nix refuses every later unsandboxed build with
+    #       error: home directory "/homeless-shelter" exists
+    #     part-way through the run. Pre-cleaning does not help — any derivation
+    #     can recreate it at any point.
+    #
+    # The sandbox solves both at once: it maps the builder into a user namespace
+    # where it IS root (so CAP_FOWNER applies) and gives every build a private
+    # HOME. It also makes CI match the workstation, which builds this flake
+    # daily with the sandbox on. Setting it up needs CLONE_NEWUSER and mounts,
+    # hence --privileged.
+    #
+    # Scope note: the privilege is requested per-job, NOT via the runner's
+    # `container.privileged`, so it applies only to this workflow and not to
+    # every repo sharing the runner. The DinD sidecar is already privileged and
+    # job containers already run as root under it, so this does not open a new
+    # trust boundary — and the sandbox narrows what the build itself can reach.
     #
     # 2.34.8. The version is pinned between a floor and a ceiling, so do not
     # bump it casually in either direction:
@@ -62,6 +85,7 @@ jobs:
     #   published tag to the 2.34.6 the workstation builds this flake with daily.
     container:
       image: nixos/nix@sha256:1a711b619c8a713eff32c3f8d8781b3b4d0130cb91c0a57f67e87abfeeb90b01
+      options: --privileged
     env:
       # One place for nix's config instead of repeating --extra-* on every
       # invocation. The `kube` cache PUBLIC key is public (it is also in
@@ -77,25 +101,37 @@ jobs:
         # cost is small because most of a run is substitution, not compilation.
         max-jobs = 6
         cores = 4
-        # Run builds as root (single-user nix) instead of as the image's
-        # unprivileged `nixbld` users. Required, not a shortcut:
-        #
-        # fujiwara has fs.protected_hardlinks=1, and nix store paths are
-        # root-owned mode 444. A non-root builder therefore cannot hardlink a
-        # store file — that needs CAP_FOWNER. Derivations that hardlink out of a
-        # store path die with
-        #   EPERM: Operation not permitted: failed to link package: …
-        # (hunkdiff's bun install is the one that hits it here). It looks like a
-        # broken package and is not.
-        #
-        # This does not reproduce locally because Determinate runs with the
-        # sandbox ON, and nix's sandbox maps the builder into a user namespace
-        # where it IS root, so CAP_FOWNER applies. With `sandbox = false` there
-        # is no such mapping. The two ways out are a privileged container with
-        # the sandbox re-enabled, or this. Builds already run as root in an
-        # ephemeral container, so root here concedes nothing extra.
-        build-users-group =
+        # Overrides the `sandbox = false` the image ships. See the container
+        # comment above for why this is mandatory rather than a preference.
+        sandbox = true
     steps:
+      # Fail in seconds, not thirty minutes. `container.options` is passed
+      # through to `docker create` by act, but act has historically warned
+      # "Cannot parse container options" and dropped it — in which case the
+      # sandbox cannot initialise and the job would otherwise die deep inside
+      # the closure build with an error about whichever derivation happened to
+      # need a hardlink first. Build one trivial derivation with the sandbox on
+      # and assert it works, so a dropped option is unmistakable here instead.
+      - name: preflight — sandbox must actually work
+        run: |
+          set -eu
+          cat > /tmp/preflight.nix <<'EOF'
+          derivation {
+            name = "preflight";
+            system = "x86_64-linux";
+            builder = "/bin/sh";
+            args = [ "-c" "echo ok > $out" ];
+          }
+          EOF
+          if ! nix-build /tmp/preflight.nix --no-out-link > /dev/null 2>/tmp/preflight.err; then
+            echo "SANDBOXED BUILD FAILED — is --privileged reaching the job container?"
+            echo "If act dropped container.options, set container.privileged: true"
+            echo "in charts/forgejo-runner instead (kube repo)."
+            cat /tmp/preflight.err
+            exit 1
+          fi
+          echo "sandbox OK ($(nix config show sandbox 2>/dev/null || echo '?'))"
+
       # attic.ko.ag is NOT anonymously readable — an unauthenticated request to
       # /kube/nix-cache-info returns 401. nix treats a substituter it cannot
       # reach as simply absent and says nothing, so the Woodpecker version of

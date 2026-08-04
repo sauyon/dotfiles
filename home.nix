@@ -381,6 +381,104 @@ let
       ao start ''${@:-mcloud}
   '';
 
+  # ── gnome-keyring, unlocked from the TPM ────────────────────────────────────
+  # The login collection can only be unlocked *at daemon startup*: running
+  # `gnome-keyring-daemon --unlock` against an already-running daemon exits 0
+  # but leaves the collection locked (measured 2026-08-03; `--unlock` at startup
+  # and PAM's `--login` both work). So this wrapper *is* the daemon -- it unseals
+  # the passphrase and hands it to gnome-keyring-daemon on stdin.
+  #
+  # The passphrase is 32 random bytes sealed to the TPM's owner hierarchy. Only
+  # seal.pub/seal.priv are kept; the parent is re-derived from a fixed template
+  # on every start, so there is no persistent handle to allocate or clean up.
+  # Threat model: any process running as this user can unseal it, exactly like
+  # a passphraseless keyring. What it buys over an empty passphrase is that the
+  # keyring file is useless off this machine -- nothing more. Prompts stop
+  # either way; this is the cheaper-to-lose-a-laptop version.
+  #
+  # A copy is escrowed in secrets.yaml as `gnomeKeyringPassphrase`. That copy is
+  # deliberately NOT wired into sops.secrets: if it were, sops-nix would decrypt
+  # it to /run on every activation and the TPM would be pointless. It is cold
+  # storage for re-sealing only (see gnome-keyring-tpm-seal below).
+  gnome-keyring-tpm = pkgs.writeShellScriptBin "gnome-keyring-tpm" ''
+    set -uo pipefail
+
+    # The nixpkgs tpm2-tools build defaults to tcti-abrmd, a resource-manager
+    # daemon this host does not run; talk to the kernel RM device instead.
+    # Reading it needs the `tss` group (granted in system/deploy).
+    export TPM2TOOLS_TCTI="device:/dev/tpmrm0"
+
+    SEAL="''${XDG_DATA_HOME:-$HOME/.local/share}/gnome-keyring-tpm"
+    RUN="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+    GKD="${pkgs.gnome-keyring}/bin/gnome-keyring-daemon"
+    COMPONENTS="pkcs11,secrets"
+
+    # Degrade to the stock daemon rather than leaving the session with no Secret
+    # Service at all. Both fallbacks log loudly: the symptom is the unlock popup
+    # coming back, and `journalctl --user -u gnome-keyring` says why.
+    fallback() {
+      echo "gnome-keyring-tpm: $1; starting daemon WITHOUT TPM unlock (expect unlock prompts)" >&2
+      exec "$GKD" --start --foreground --components="$COMPONENTS"
+    }
+
+    [ -r "$SEAL/seal.pub" ] && [ -r "$SEAL/seal.priv" ] \
+      || fallback "no sealed passphrase at $SEAL"
+
+    WORK="$(${pkgs.coreutils}/bin/mktemp -d "$RUN/gnome-keyring-tpm.XXXXXX")"
+    trap '${pkgs.coreutils}/bin/rm -rf "$WORK"' EXIT
+
+    unseal() {
+      ${pkgs.tpm2-tools}/bin/tpm2_createprimary -C o -g sha256 -G ecc \
+        -c "$WORK/primary.ctx" >/dev/null 2>&1 || return 1
+      ${pkgs.tpm2-tools}/bin/tpm2_load -C "$WORK/primary.ctx" \
+        -u "$SEAL/seal.pub" -r "$SEAL/seal.priv" -c "$WORK/seal.ctx" >/dev/null 2>&1 || return 1
+      ${pkgs.tpm2-tools}/bin/tpm2_unseal -c "$WORK/seal.ctx" 2>/dev/null || return 1
+    }
+
+    # Shell variable, never exported and never a command argument, so it shows up
+    # in neither /proc/*/environ nor /proc/*/cmdline.
+    PW="$(unseal)" \
+      || fallback "TPM unseal failed (TPM cleared, /dev/tpmrm0 unreadable, or a tpm2-tools template change) -- re-seal with gnome-keyring-tpm-seal"
+
+    ${pkgs.coreutils}/bin/printf '%s' "$PW" \
+      | "$GKD" --unlock --foreground --components="$COMPONENTS"
+  '';
+
+  # One-time enrolment, and recovery after a TPM clear. Reads the passphrase on
+  # stdin so it never lands in argv:
+  #   sops -d --extract '["gnomeKeyringPassphrase"]' secrets.yaml | gnome-keyring-tpm-seal
+  # Then restart the daemon: systemctl --user restart gnome-keyring
+  gnome-keyring-tpm-seal = pkgs.writeShellScriptBin "gnome-keyring-tpm-seal" ''
+    set -euo pipefail
+
+    export TPM2TOOLS_TCTI="device:/dev/tpmrm0"
+    SEAL="''${XDG_DATA_HOME:-$HOME/.local/share}/gnome-keyring-tpm"
+    RUN="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+
+    WORK="$(${pkgs.coreutils}/bin/mktemp -d "$RUN/gnome-keyring-seal.XXXXXX")"
+    trap '${pkgs.coreutils}/bin/rm -rf "$WORK"' EXIT
+    ${pkgs.coreutils}/bin/mkdir -p -m700 "$SEAL"
+
+    ${pkgs.coreutils}/bin/cat > "$WORK/pw"
+    [ -s "$WORK/pw" ] || { echo "gnome-keyring-tpm-seal: empty passphrase on stdin" >&2; exit 1; }
+
+    ${pkgs.tpm2-tools}/bin/tpm2_createprimary -C o -g sha256 -G ecc -c "$WORK/primary.ctx" >/dev/null
+    ${pkgs.tpm2-tools}/bin/tpm2_create -C "$WORK/primary.ctx" -g sha256 -i "$WORK/pw" \
+      -u "$SEAL/seal.pub" -r "$SEAL/seal.priv" >/dev/null
+    ${pkgs.coreutils}/bin/chmod 600 "$SEAL/seal.pub" "$SEAL/seal.priv"
+
+    # Prove the blob round-trips before trusting it, from a freshly re-derived
+    # parent -- that is the path the daemon will actually take at next start.
+    ${pkgs.tpm2-tools}/bin/tpm2_createprimary -C o -g sha256 -G ecc -c "$WORK/verify.ctx" >/dev/null
+    ${pkgs.tpm2-tools}/bin/tpm2_load -C "$WORK/verify.ctx" \
+      -u "$SEAL/seal.pub" -r "$SEAL/seal.priv" -c "$WORK/vseal.ctx" >/dev/null
+    ${pkgs.tpm2-tools}/bin/tpm2_unseal -c "$WORK/vseal.ctx" -o "$WORK/verify"
+    ${pkgs.diffutils}/bin/cmp -s "$WORK/pw" "$WORK/verify" \
+      || { echo "gnome-keyring-tpm-seal: seal/unseal round-trip MISMATCH, not trusting this blob" >&2; exit 1; }
+
+    echo "gnome-keyring-tpm-seal: sealed to $SEAL and verified"
+  '';
+
   # git built with the libsecret credential helper (git-credential-libsecret),
   # used for HTTPS auth to hosts that have no CLI-managed token store.
   # gitFull ships git-credential-libsecret and is cached by Hydra; the
@@ -1316,6 +1414,28 @@ in
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
+  # Replaces home-manager's services.gnome-keyring (see the NOTE where that
+  # module would have been configured). Keeps the same unit name and target so
+  # ordering against graphical-session-pre.target is unchanged; the only
+  # difference is that ExecStart unseals the login passphrase from the TPM.
+  #
+  # Arch's own socket-activated gnome-keyring-daemon.socket MUST stay masked
+  # (system/deploy does it): it starts at sockets.target, well before
+  # graphical-session-pre.target, so it would win the race for the
+  # org.freedesktop.secrets bus name with a *locked* collection and the popups
+  # would come straight back.
+  systemd.user.services.gnome-keyring = lib.optionalAttrs (!isDarwin && isDesktop && hostname != "fujiwara") {
+    Unit = {
+      Description = "GNOME Keyring (login collection unlocked from the TPM)";
+      PartOf = [ "graphical-session-pre.target" ];
+    };
+    Service = {
+      ExecStart = "${gnome-keyring-tpm}/bin/gnome-keyring-tpm";
+      Restart = "on-abort";
+    };
+    Install.WantedBy = [ "graphical-session-pre.target" ];
+  };
+
   systemd.user.services.hyprland-cleanup = lib.optionalAttrs (!isDarwin && isDesktop) {
     Unit = {
       Description = "Gracefully close all Hyprland windows on session end";
@@ -1396,7 +1516,11 @@ in
   home.packages = [
     claude-prof
     herdr-pkg
-  ] ++ (with pkgs; [
+  ]
+  # Enrolment/recovery tool for the TPM-sealed keyring passphrase; the daemon
+  # wrapper itself is referenced straight from its unit, so it stays off PATH.
+  ++ lib.optional (!isDarwin && isDesktop && hostname != "fujiwara") gnome-keyring-tpm-seal
+  ++ (with pkgs; [
     bfs
     btopPkg
     google-fonts
@@ -1752,13 +1876,11 @@ in
     # `login` collection — so its Secret Service is unusable (libsecret clients
     # like woodpecker-cli block on the missing collection). fujiwara uses
     # pass-secret-service (below) instead; other desktops keep gnome-keyring.
-    gnome-keyring = lib.optionalAttrs (!isDarwin && isDesktop && hostname != "fujiwara") {
-      enable = true;
-      components = [
-        "pkcs11"
-        "secrets"
-      ];
-    };
+    # NOTE: services.gnome-keyring is deliberately NOT used. Its unit runs
+    # `gnome-keyring-daemon --start` with no stdin, and the login collection can
+    # only be unlocked at daemon startup -- so there is nowhere for the module to
+    # put the passphrase. The replacement unit is systemd.user.services
+    # .gnome-keyring below, whose ExecStart is the gnome-keyring-tpm wrapper.
 
     # Headless-friendly Secret Service for fujiwara: backs libsecret onto a
     # GPG-encrypted `pass` store (~/.password-store, key in ~/.gnupg), so it

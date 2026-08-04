@@ -172,13 +172,30 @@ jobs:
       # The image has no attic-client; run it pinned from a fixed nixpkgs rev
       # (the same rev the kube repo's nix pipeline pins). Do NOT echo
       # $ATTIC_TOKEN or enable `set -x` in this step.
+      #
+      # Pushes go to the IN-CLUSTER Service, not to https://attic.ko.ag. The
+      # public name is fronted by the Cloudflare tunnel, which caps request
+      # bodies: a tiny store path pushes fine and a real closure dies with
+      #   Error: HTTP 502 Bad Gateway … <center>cloudflare</center>
+      # while attic stays up with zero restarts, so it reads as a server fault
+      # rather than a proxy one. Substitution above still uses the public name —
+      # a pull's payload is the response, which is not capped.
+      #
+      # atticd validates Host against its allowed-hosts, so the Service name is
+      # listed in charts/attic/values.yaml (kube repo); without that entry this
+      # URL answers a bare 400.
       - name: push closures to attic
         env:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
         run: |
           set -eu
           ATTIC=github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#attic-client
-          nix run "$ATTIC" -- login ko https://attic.ko.ag "$ATTIC_TOKEN"
-          # Unquoted on purpose: one argument per out-path. Store paths cannot
-          # contain whitespace, so word-splitting is the intended behaviour.
-          nix run "$ATTIC" -- push ko:kube $(cat /tmp/out-paths)
+          nix run "$ATTIC" -- login ko \
+            http://attic.attic.svc.cluster.local "$ATTIC_TOKEN"
+          # --jobs 2: attic buffers and chunks NARs in memory, and the server is
+          # a single 3Gi pod. Default concurrency OOMKilled it (exit 137), which
+          # surfaces client-side as every path failing with HTTP 503.
+          #
+          # Unquoted $(cat …) on purpose: one argument per out-path. Store paths
+          # cannot contain whitespace, so word-splitting is intended here.
+          nix run "$ATTIC" -- push --jobs 2 ko:kube $(cat /tmp/out-paths)

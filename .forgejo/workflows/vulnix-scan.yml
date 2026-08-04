@@ -25,15 +25,18 @@ on:
 
 jobs:
   scan:
-    runs-on: ubuntu-latest
+    # `privileged`, not `ubuntu-latest` — same reason as nix-home.yml: privilege
+    # is a property of the runner because act ignores per-job container options.
+    # This job normally only substitutes, but it must be able to BUILD on the
+    # runs where attic is cold, and an unprivileged build fails in bun.
+    runs-on: privileged
     # Same image and constraints as nix-home.yml — no node, so no JS actions and
-    # the checkout is by hand, and privileged + sandbox because this closure
-    # cannot be built without one (protected_hardlinks EPERM / homeless-shelter;
-    # the full reasoning is in nix-home.yml). Normally this job only substitutes,
-    # but it must be able to build for the runs where attic is cold.
+    # the checkout is by hand. The sandbox is on and the container is privileged
+    # (via the runner, see runs-on above) because an unprivileged build fails in
+    # bun with an EPERM naming a random npm package — full reasoning in
+    # nix-home.yml.
     container:
       image: nixos/nix@sha256:1a711b619c8a713eff32c3f8d8781b3b4d0130cb91c0a57f67e87abfeeb90b01
-      options: --privileged
     env:
       NIX_CONFIG: |
         experimental-features = nix-command flakes

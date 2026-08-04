@@ -35,7 +35,12 @@ concurrency:
 
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
+    # `privileged`, not `ubuntu-latest`: this job needs a privileged job
+    # container (see the container: block) and act provides no way to ask for one
+    # per-workflow, so privilege is a property of the RUNNER. The dedicated
+    # forgejo-runner-privileged release (kube repo) carries this label; the
+    # shared ubuntu-latest runner stays unprivileged for every other repo.
+    runs-on: privileged
     # Run the job directly in the nix image rather than installing nix into the
     # default catthehacker image. NOTE: this image has git and bash but NO node,
     # so no JS action (actions/checkout included) can run here — every step below
@@ -63,11 +68,15 @@ jobs:
     # daily with the sandbox on. Setting it up needs CLONE_NEWUSER and mounts,
     # hence --privileged.
     #
-    # Scope note: the privilege is requested per-job, NOT via the runner's
-    # `container.privileged`, so it applies only to this workflow and not to
-    # every repo sharing the runner. The DinD sidecar is already privileged and
-    # job containers already run as root under it, so this does not open a new
-    # trust boundary — and the sandbox narrows what the build itself can reach.
+    # Scope note: privilege comes from the RUNNER (`runs-on: privileged`), not
+    # from anything in this file. Do NOT add `options: --privileged` here and
+    # assume it works — act accepts that field, logs nothing, and creates the
+    # container with Privileged=false. That silent no-op is exactly what made
+    # this look like a broken package for several runs.
+    #
+    # The DinD sidecar was already privileged and job containers already run as
+    # root under it, so this opens no new trust boundary on that runner — and the
+    # nix sandbox narrows what the build itself can reach.
     #
     # 2.34.8. The version is pinned between a floor and a ceiling, so do not
     # bump it casually in either direction:
@@ -85,7 +94,6 @@ jobs:
     #   published tag to the 2.34.6 the workstation builds this flake with daily.
     container:
       image: nixos/nix@sha256:1a711b619c8a713eff32c3f8d8781b3b4d0130cb91c0a57f67e87abfeeb90b01
-      options: --privileged
     env:
       # One place for nix's config instead of repeating --extra-* on every
       # invocation. The `kube` cache PUBLIC key is public (it is also in
@@ -105,32 +113,34 @@ jobs:
         # comment above for why this is mandatory rather than a preference.
         sandbox = true
     steps:
-      # Fail in seconds, not thirty minutes. `container.options` is passed
-      # through to `docker create` by act, but act has historically warned
-      # "Cannot parse container options" and dropped it — in which case the
-      # sandbox cannot initialise and the job would otherwise die deep inside
-      # the closure build with an error about whichever derivation happened to
-      # need a hardlink first. Build one trivial derivation with the sandbox on
-      # and assert it works, so a dropped option is unmistakable here instead.
-      - name: preflight — sandbox must actually work
+      # Fail in seconds, not thirty minutes.
+      #
+      # This checks PRIVILEGE, deliberately — not "does the nix sandbox come up".
+      # An earlier version of this step built a trivial sandboxed derivation and
+      # passed on a container with Privileged=false, because modern Docker lets
+      # root create user namespaces without privilege. The sandbox initialised,
+      # the step went green, and the job still died twenty minutes later inside
+      # bun with an EPERM naming a random npm package. Test the thing that
+      # actually varies.
+      #
+      # CapEff is the honest signal: a privileged container has the full
+      # capability set (…ffffffff), an unprivileged one has Docker's trimmed
+      # default (0000…a80425fb on this daemon).
+      - name: preflight — job container must be privileged
         run: |
           set -eu
-          cat > /tmp/preflight.nix <<'EOF'
-          derivation {
-            name = "preflight";
-            system = "x86_64-linux";
-            builder = "/bin/sh";
-            args = [ "-c" "echo ok > $out" ];
-          }
-          EOF
-          if ! nix-build /tmp/preflight.nix --no-out-link > /dev/null 2>/tmp/preflight.err; then
-            echo "SANDBOXED BUILD FAILED — is --privileged reaching the job container?"
-            echo "If act dropped container.options, set container.privileged: true"
-            echo "in charts/forgejo-runner instead (kube repo)."
-            cat /tmp/preflight.err
+          capeff=$(grep '^CapEff:' /proc/self/status | awk '{print $2}')
+          echo "CapEff=$capeff"
+          # CAP_SYS_ADMIN is bit 21; its absence means this is not a privileged
+          # container and the closure build WILL fail later in bun.
+          if [ "$(( 0x$capeff & (1 << 21) ))" -eq 0 ]; then
+            echo "NOT PRIVILEGED — this job landed on an unprivileged runner."
+            echo "runs-on must be 'privileged' (forgejo-runner-privileged, kube repo)."
+            echo "Note: adding 'options: --privileged' here does NOT work; act"
+            echo "silently ignores it and creates the container unprivileged."
             exit 1
           fi
-          echo "sandbox OK ($(nix config show sandbox 2>/dev/null || echo '?'))"
+          echo "privileged OK; sandbox=$(nix config show sandbox 2>/dev/null || echo '?')"
 
       # attic.ko.ag is NOT anonymously readable — an unauthenticated request to
       # /kube/nix-cache-info returns 401. nix treats a substituter it cannot

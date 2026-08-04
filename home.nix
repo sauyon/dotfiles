@@ -1372,6 +1372,12 @@ in
   # ── Herdr ───────────────────────────────────────────────────────────────────
   xdg.configFile."herdr/config.toml".source = ./home/herdr/config.toml;
 
+  # ── forgejo-cli (fj) ────────────────────────────────────────────────────────
+  # Only the client-id table is declarative — it is a public-client PKCE ID, not
+  # a credential. The tokens `fj auth login` mints stay unmanaged in
+  # $XDG_DATA_HOME/forgejo-cli/keys.json; see git-credential-fj above.
+  xdg.configFile."forgejo-cli/client_ids".source = ./home/forgejo-cli/client_ids;
+
   home.file.".local/bin/hyprland-graceful-exit" = lib.mkIf (!isDarwin && isDesktop) {
     executable = true;
     text = ''

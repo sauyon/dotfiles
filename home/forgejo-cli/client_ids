@@ -1,0 +1,14 @@
+# forgejo-cli OAuth client IDs for self-hosted instances.
+#
+# fj ships a hardcoded client-id table (codeberg.org, git.lix.systems, ...) in
+# src/auth.rs; hosts absent from it fall through to this file. Without an entry
+# `fj auth login` prints "doesn't support login" and refuses to try OAuth.
+#
+# Format: one "<host> <client_id>" per line, whitespace-separated, # comments.
+# Host must match fj's host_name() — bare domain, no scheme, no trailing slash.
+#
+# The app is registered at https://forge.ko.ag/user/settings/applications with
+# redirect URI http://127.0.0.1:26218/ and Confidential Client OFF: fj uses
+# OAuthTokenRequest::Public (PKCE, no client secret). A public-client ID is not
+# a credential, so this file holds no secret — the token lands in keys.json.
+forge.ko.ag 23d7b03d-a351-4ac2-8d84-53fb9a8ce945

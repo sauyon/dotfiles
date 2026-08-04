@@ -2640,18 +2640,24 @@ in
           User = "ubuntu";
         };
 
+        # `bin/coder`, not `bin/.coder-wrapped`: the overlay above sets
+        # `postInstall = ""`, which drops nixpkgs' terraform PATH wrapper, so
+        # `bin/coder` IS the real binary and no `.coder-wrapped` is produced.
+        # Reaching past the wrapper — correct before that override — now names a
+        # file that does not exist, and home-manager will not clobber the stale
+        # working ~/.ssh/config to tell you so.
         "coder.*" = {
           UserKnownHostsFile = "/dev/null";
           ConnectTimeout = "0";
           StrictHostKeyChecking = "no";
           LogLevel = "ERROR";
-          ProxyCommand = "${pkgs.coder}/bin/.coder-wrapped --global-config /home/sauyon/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
+          ProxyCommand = "${pkgs.coder}/bin/coder --global-config /home/sauyon/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
         };
         # `header` is the escape hatch for a block header carrying Nix string
         # context (the store path), which can't live in an attr name.
         "*.coder-proxy" = {
-          header = "Match host *.coder !exec \"${pkgs.coder}/bin/.coder-wrapped connect exists %h\"";
-          ProxyCommand = "${pkgs.coder}/bin/.coder-wrapped --global-config /home/sauyon/.config/coderv2 ssh --stdio --hostname-suffix coder %h";
+          header = "Match host *.coder !exec \"${pkgs.coder}/bin/coder connect exists %h\"";
+          ProxyCommand = "${pkgs.coder}/bin/coder --global-config /home/sauyon/.config/coderv2 ssh --stdio --hostname-suffix coder %h";
         };
         "*.coder" = {
           UserKnownHostsFile = "/dev/null";

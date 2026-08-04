@@ -20,6 +20,19 @@ find etc/ -type f | while read -r f; do sudo cp -v "${f}" "/${f}"; done
 sudo install -Dvm644 polkit-1/actions/com.bitwarden.Bitwarden.policy \
   /usr/share/polkit-1/actions/com.bitwarden.Bitwarden.policy
 
+# ── gnome-keyring: let the home-manager unit own the daemon ───────────────────
+# The login collection can only be unlocked at daemon startup, so home-manager
+# runs its own gnome-keyring.service whose ExecStart unseals the passphrase from
+# the TPM (see gnome-keyring-tpm in home.nix). Mask Arch's packaged units so a
+# second, *locked* daemon can't be started behind our back -- its socket unit
+# listens on %t/keyring/control and would socket-activate one on any control-op.
+# This is only half the job: the D-Bus activation files in /usr/share also start
+# a locked daemon, and systemd masking does nothing about those. They are
+# shadowed from ~/.local/share/dbus-1/services by home.nix.
+sudo rm -f /etc/systemd/user/sockets.target.wants/gnome-keyring-daemon.socket
+sudo ln -sfn /dev/null /etc/systemd/user/gnome-keyring-daemon.socket
+sudo ln -sfn /dev/null /etc/systemd/user/gnome-keyring-daemon.service
+
 # Unsealing the gnome-keyring passphrase reads /dev/tpmrm0, which is root:tss 0660.
 # Takes effect at next login, not in the current session.
 if ! id -nG "$USER" | tr ' ' '\n' | grep -qx tss; then

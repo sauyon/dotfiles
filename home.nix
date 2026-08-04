@@ -21,6 +21,9 @@ let
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
   gpu = machine.gpu or null;
+  # Hosts running gnome-keyring as their Secret Service. fujiwara is headless and
+  # uses pass-secret-service instead (see services.pass-secret-service below).
+  gnomeKeyringHost = !isDarwin && isDesktop && hostname != "fujiwara";
 
   btopPkg =
     if gpu == "amd" then pkgs.btop-rocm
@@ -442,6 +445,12 @@ let
 
     ${pkgs.coreutils}/bin/printf '%s' "$PW" \
       | "$GKD" --unlock --foreground --components="$COMPONENTS"
+  '';
+
+  gnomeKeyringDbusService = busName: ''
+    [D-BUS Service]
+    Name=${busName}
+    Exec=${gnome-keyring-tpm}/bin/gnome-keyring-tpm
   '';
 
   # One-time enrolment, and recovery after a TPM clear. Reads the passphrase on
@@ -1425,20 +1434,18 @@ in
   # ordering against graphical-session-pre.target is unchanged; the only
   # difference is that ExecStart unseals the login passphrase from the TPM.
   #
-  # What keeps a *locked* daemon from serving instead: this one claims the
-  # org.freedesktop.secrets bus name at graphical-session-pre.target, before any
-  # app asks for it. Arch's packaged units are left alone deliberately -- its
-  # gnome-keyring-daemon.socket only listens on %t/keyring/control (the control
-  # socket, not the bus name), and the on-demand path that *would* start a locked
-  # daemon is D-Bus activation via /usr/share/dbus-1/services/org.freedesktop
-  # .secrets.service, which no amount of systemd masking prevents. Both are
-  # harmless as long as we own the name first; a second daemon that loses the
-  # name just idles.
+  # This unit claims the org.freedesktop.secrets bus name at
+  # graphical-session-pre.target, before any app asks for it. Two other things on
+  # this host can start a *locked* gnome-keyring-daemon, and both are shut off so
+  # they cannot serve secrets instead:
+  #   - Arch's gnome-keyring-daemon.{socket,service}, masked in system/deploy.
+  #   - D-Bus activation, redirected to the TPM wrapper just below. Masking does
+  #     nothing about this path, which is why it needs handling of its own.
   #
   # If unlock prompts ever come back, check `busctl --user status
   # org.freedesktop.secrets` -- if it names anything other than this unit,
   # something claimed the name earlier and that is the thing to chase.
-  systemd.user.services.gnome-keyring = lib.optionalAttrs (!isDarwin && isDesktop && hostname != "fujiwara") {
+  systemd.user.services.gnome-keyring = lib.optionalAttrs gnomeKeyringHost {
     Unit = {
       Description = "GNOME Keyring (login collection unlocked from the TPM)";
       PartOf = [ "graphical-session-pre.target" ];
@@ -1449,6 +1456,19 @@ in
     };
     Install.WantedBy = [ "graphical-session-pre.target" ];
   };
+
+  # All three of gnome-keyring's D-Bus activation files in /usr/share ship
+  # `Exec=gnome-keyring-daemon --start --components=secrets`, i.e. a daemon with
+  # the login collection still locked. XDG_DATA_HOME is searched ahead of
+  # /usr/share, so shadow each one to launch the TPM wrapper instead. Activation
+  # only fires when the bus name is unowned, so this never races the systemd unit
+  # above -- it is purely the on-demand fallback, and now it unlocks too.
+  home.file.".local/share/dbus-1/services/org.freedesktop.secrets.service" =
+    lib.mkIf gnomeKeyringHost { text = gnomeKeyringDbusService "org.freedesktop.secrets"; };
+  home.file.".local/share/dbus-1/services/org.gnome.keyring.service" =
+    lib.mkIf gnomeKeyringHost { text = gnomeKeyringDbusService "org.gnome.keyring"; };
+  home.file.".local/share/dbus-1/services/org.freedesktop.impl.portal.Secret.service" =
+    lib.mkIf gnomeKeyringHost { text = gnomeKeyringDbusService "org.freedesktop.impl.portal.Secret"; };
 
   systemd.user.services.hyprland-cleanup = lib.optionalAttrs (!isDarwin && isDesktop) {
     Unit = {
@@ -1533,7 +1553,7 @@ in
   ]
   # Enrolment/recovery tool for the TPM-sealed keyring passphrase; the daemon
   # wrapper itself is referenced straight from its unit, so it stays off PATH.
-  ++ lib.optional (!isDarwin && isDesktop && hostname != "fujiwara") gnome-keyring-tpm-seal
+  ++ lib.optional gnomeKeyringHost gnome-keyring-tpm-seal
   ++ (with pkgs; [
     bfs
     btopPkg

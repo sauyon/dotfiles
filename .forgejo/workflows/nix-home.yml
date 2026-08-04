@@ -1,14 +1,9 @@
-# Build the Linux home-manager closures in CI and push them to attic, so
-# `home-manager switch` on the boxes just downloads instead of compiling.
+# Build the Linux home-manager closures and push them to attic, so
+# `home-manager switch` on the boxes downloads instead of compiling.
 #
-# Migrated from `.woodpecker/nix-home.yml` (2026-08-03). The old pipeline ran a
-# dedicated Woodpecker pod; this runs inside the shared in-cluster
-# `forgejo-runner`, whose jobs execute as containers under its privileged DinD
-# sidecar. See the kube repo's docs/forgejo-dotfiles-ci.md for the migration
-# notes and the runner sizing that makes this viable.
-#
-# mari (aarch64-darwin) is intentionally omitted — an x86_64-linux job can't
-# build darwin; darwin still builds on mari itself.
+# mari (aarch64-darwin) is omitted — an x86_64-linux job can't build darwin.
+# Cluster-side details and the traps behind the settings here:
+# docs/forgejo-dotfiles-ci.md in the kube repo.
 name: nix-home
 
 on:
@@ -21,143 +16,59 @@ on:
       - "home/**"
       - "patches/**"
       - ".forgejo/workflows/nix-home.yml"
-  # Forgejo has no re-run API (docs/forgejo-registry.md in the kube repo), so a
-  # dispatch trigger is the only way to replay this after an infra failure
-  # without pushing an empty commit.
+  # Forgejo has no re-run API; dispatch is the only way to retry.
   workflow_dispatch:
 
-# A closure build runs for tens of minutes on a runner shared with every other
-# repo. Without this, pushing twice in quick succession leaves two of them
-# compiling concurrently inside the same 16Gi dind cgroup.
+# A closure build is long, and two at once share one dind cgroup.
 concurrency:
   group: nix-home-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build-and-push:
-    # `privileged`, not `ubuntu-latest`: this job needs a privileged job
-    # container (see the container: block) and act provides no way to ask for one
-    # per-workflow, so privilege is a property of the RUNNER. The dedicated
-    # forgejo-runner-privileged release (kube repo) carries this label; the
-    # shared ubuntu-latest runner stays unprivileged for every other repo.
+    # Needs privileged job containers, which only a runner can grant — act
+    # ignores `container.options: --privileged`. Do not add it below.
     runs-on: privileged
-    # Run the job directly in the nix image rather than installing nix into the
-    # default catthehacker image. NOTE: this image has git and bash but NO node,
-    # so no JS action (actions/checkout included) can run here — every step below
-    # must be a plain `run:`, and the checkout is done by hand.
-    #
-    # PRIVILEGED, with the nix sandbox ON. Both are load-bearing: this closure
-    # cannot be built with the image's default `sandbox = false`, and two
-    # separate failures proved it.
-    #
-    #  1. fujiwara has fs.protected_hardlinks=1 and store paths are root-owned
-    #     mode 444, so the unprivileged nixbld builder cannot hardlink one —
-    #     that needs CAP_FOWNER. hunkdiff's bun install dies with
-    #       EPERM: Operation not permitted: failed to link package: …
-    #     which names the package rather than the cause.
-    #  2. Building as root instead (`build-users-group =`) fixes that and breaks
-    #     something else: a root builder can create /homeless-shelter, after
-    #     which nix refuses every later unsandboxed build with
-    #       error: home directory "/homeless-shelter" exists
-    #     part-way through the run. Pre-cleaning does not help — any derivation
-    #     can recreate it at any point.
-    #
-    # The sandbox solves both at once: it maps the builder into a user namespace
-    # where it IS root (so CAP_FOWNER applies) and gives every build a private
-    # HOME. It also makes CI match the workstation, which builds this flake
-    # daily with the sandbox on. Setting it up needs CLONE_NEWUSER and mounts,
-    # hence --privileged.
-    #
-    # Scope note: privilege comes from the RUNNER (`runs-on: privileged`), not
-    # from anything in this file. Do NOT add `options: --privileged` here and
-    # assume it works — act accepts that field, logs nothing, and creates the
-    # container with Privileged=false. That silent no-op is exactly what made
-    # this look like a broken package for several runs.
-    #
-    # The DinD sidecar was already privileged and job containers already run as
-    # root under it, so this opens no new trust boundary on that runner — and the
-    # nix sandbox narrows what the build itself can reach.
-    #
-    # 2.34.8. The version is pinned between a floor and a ceiling, so do not
-    # bump it casually in either direction:
-    #
-    #   FLOOR (>= ~2.26): home.nix sets `programs.gpg.package` at one line and
-    #   opens `programs = { … gpg = { … } … }` at another. Newer nix merges those
-    #   two bindings; the 2.24.10 the Woodpecker pipelines pinned rejects the
-    #   second with `error: attribute 'gpg' already defined`, which reads like a
-    #   config typo rather than a toolchain mismatch.
-    #
-    #   CEILING (< 2.35.1): 2.35.1 aborts partway through building this closure
-    #   with an internal scheduler assertion —
-    #     Assertion '!awake.empty()' failed in nix::Worker::run at worker.cc:360
-    #   an upstream bug, not anything this repo can fix. 2.34.8 is the closest
-    #   published tag to the 2.34.6 the workstation builds this flake with daily.
+    # Runs in the nix image itself. It has git and bash but no node, so no
+    # `uses:` step can run here, and no awk/sed/grep either.
     container:
       image: nixos/nix@sha256:1a711b619c8a713eff32c3f8d8781b3b4d0130cb91c0a57f67e87abfeeb90b01
     env:
-      # One place for nix's config instead of repeating --extra-* on every
-      # invocation. The `kube` cache PUBLIC key is public (it is also in
-      # flake.nix) — only the token below is a secret.
+      # The `kube` cache public key is public (also in flake.nix); only the
+      # token is secret. Pin bounds: >=2.26 parses home.nix, <2.35.1 does not
+      # crash mid-build.
       NIX_CONFIG: |
         experimental-features = nix-command flakes
         netrc-file = /root/.config/nix/netrc
         extra-substituters = https://attic.ko.ag/kube
         extra-trusted-public-keys = kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=
-        # fujiwara has 32 cores, so `max-jobs = auto` would start up to 32
-        # concurrent builds — inside a cgroup limited to 16Gi, and sharing it
-        # with whatever else the runner is executing. Bound it. The wall-clock
-        # cost is small because most of a run is substitution, not compilation.
+        # 32 cores would otherwise start 32 builds inside a 16Gi cgroup.
         max-jobs = 6
         cores = 4
-        # Overrides the `sandbox = false` the image ships. See the container
-        # comment above for why this is mandatory rather than a preference.
+        # The image ships sandbox = false; unsandboxed builds fail here.
         sandbox = true
     steps:
-      # Fail in seconds, not thirty minutes.
-      #
-      # This checks PRIVILEGE, deliberately — not "does the nix sandbox come up".
-      # An earlier version of this step built a trivial sandboxed derivation and
-      # passed on a container with Privileged=false, because modern Docker lets
-      # root create user namespaces without privilege. The sandbox initialised,
-      # the step went green, and the job still died twenty minutes later inside
-      # bun with an EPERM naming a random npm package. Test the thing that
-      # actually varies.
-      #
-      # CapEff is the honest signal: a privileged container has the full
-      # capability set (…ffffffff), an unprivileged one has Docker's trimmed
-      # default (0000…a80425fb on this daemon).
+      # Fails in seconds if this landed on an unprivileged runner. Checks the
+      # capability, not the sandbox — the sandbox initialises fine without
+      # privilege, so it is a false green.
       - name: preflight — job container must be privileged
         run: |
           set -eu
-          # Pure bash: the nixos/nix image has no awk, sed, grep or cut on PATH
-          # (it ships nix, bash, git and little else), so anything reaching for
-          # coreutils here dies with `command not found` before it ever gets to
-          # the actual check.
           capeff=
           while IFS=: read -r k v; do
-            # /proc/self/status separates key and value with a TAB, not a space —
-            # stripping only spaces leaves it in and the arithmetic below dies
-            # with "arithmetic syntax error".
+            # /proc/self/status uses a TAB separator.
             if [ "$k" = "CapEff" ]; then capeff="${v//[[:space:]]/}"; fi
           done < /proc/self/status
           echo "CapEff=$capeff"
-          # CAP_SYS_ADMIN is bit 21; its absence means this is not a privileged
-          # container and the closure build WILL fail later in bun.
-          if [ "$(( 0x$capeff & (1 << 21) ))" -eq 0 ]; then
-            echo "NOT PRIVILEGED — this job landed on an unprivileged runner."
-            echo "runs-on must be 'privileged' (forgejo-runner-privileged, kube repo)."
-            echo "Note: adding 'options: --privileged' here does NOT work; act"
-            echo "silently ignores it and creates the container unprivileged."
+          if [ "$(( 0x$capeff & (1 << 21) ))" -eq 0 ]; then   # CAP_SYS_ADMIN
+            echo "NOT PRIVILEGED — runs-on must be 'privileged'."
             exit 1
           fi
           echo "privileged OK; sandbox=$(nix config show sandbox 2>/dev/null || echo '?')"
 
-      # attic.ko.ag is NOT anonymously readable — an unauthenticated request to
-      # /kube/nix-cache-info returns 401. nix treats a substituter it cannot
-      # reach as simply absent and says nothing, so the Woodpecker version of
-      # this pipeline (which only logged in AFTER building) silently substituted
-      # nothing and rebuilt from scratch every run. Write the credential FIRST.
-      # nix reads netrc as HTTP basic; attic accepts the JWT as the password.
+      # attic.ko.ag is not anonymously readable, and nix silently ignores a
+      # substituter it cannot authenticate to — so this must precede any nix
+      # command or the job rebuilds everything instead of substituting.
       - name: authorise nix against attic
         env:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
@@ -168,9 +79,8 @@ jobs:
           printf 'machine attic.ko.ag password %s\n' "$ATTIC_TOKEN" \
             > /root/.config/nix/netrc
 
-      # Hand-rolled checkout: see the `container:` note above. Full clone, not
-      # --depth 1 — the repo is ~14MB and a shallow clone cannot check out an
-      # arbitrary SHA.
+      # Hand-rolled because actions/checkout cannot run in this image. Full
+      # clone: a shallow one cannot check out an arbitrary SHA.
       - name: checkout
         run: |
           set -eu
@@ -178,8 +88,6 @@ jobs:
           git checkout --detach ${{ github.sha }}
           git --no-pager log -1 --oneline
 
-      # Build every Linux host's activation package. Unchanged paths are
-      # substituted from attic (now that the netrc exists) and cache.nixos.org.
       - name: build home closures
         run: |
           set -eu
@@ -189,21 +97,8 @@ jobs:
             .#homeConfigurations.fujiwara.activationPackage \
             | tee /tmp/out-paths
 
-      # The image has no attic-client; run it pinned from a fixed nixpkgs rev
-      # (the same rev the kube repo's nix pipeline pins). Do NOT echo
-      # $ATTIC_TOKEN or enable `set -x` in this step.
-      #
-      # Pushes go to the IN-CLUSTER Service, not to https://attic.ko.ag. The
-      # public name is fronted by the Cloudflare tunnel, which caps request
-      # bodies: a tiny store path pushes fine and a real closure dies with
-      #   Error: HTTP 502 Bad Gateway … <center>cloudflare</center>
-      # while attic stays up with zero restarts, so it reads as a server fault
-      # rather than a proxy one. Substitution above still uses the public name —
-      # a pull's payload is the response, which is not capped.
-      #
-      # atticd validates Host against its allowed-hosts, so the Service name is
-      # listed in charts/attic/values.yaml (kube repo); without that entry this
-      # URL answers a bare 400.
+      # The image has no attic-client; run it from a pinned nixpkgs rev.
+      # Do NOT echo $ATTIC_TOKEN or enable `set -x` here.
       - name: push closures to attic
         env:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
@@ -212,21 +107,9 @@ jobs:
           ATTIC=github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#attic-client
           nix run "$ATTIC" -- login ko \
             http://attic.attic.svc.cluster.local "$ATTIC_TOKEN"
-          # Retried, because a single failed request must not throw away a
-          # 25-minute build. A run that pushed 229 of 246 paths died on a
-          # transient 502 from the LAST leg of the write path: attic's own
-          # storage endpoint is https://s3.ko.ag, i.e. MinIO on kanon reached
-          # THROUGH the Cloudflare tunnel, and that leg gets flaky under a
-          # sustained multi-hundred-path push. Nothing the client can route
-          # around — but `attic push` is idempotent (already-stored chunks come
-          # back "deduplicated"), so a retry costs seconds and resumes.
-          #
-          # --jobs 2: attic buffers and chunks NARs in memory, and the server is
-          # a single pod. Default concurrency OOMKilled it (exit 137), which
-          # surfaces client-side as every path failing with HTTP 503.
-          #
-          # Unquoted $(cat …) on purpose: one argument per out-path. Store paths
-          # cannot contain whitespace, so word-splitting is intended here.
+          # --jobs 2: the default concurrency OOMKills the server.
+          # Unquoted $(cat …) is intended — one argument per out-path.
+          # Retried because push is idempotent and a build is expensive.
           ok=
           for attempt in 1 2 3; do
             if nix run "$ATTIC" -- push --jobs 2 ko:kube $(cat /tmp/out-paths); then

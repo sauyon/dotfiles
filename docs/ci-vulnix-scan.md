@@ -12,6 +12,18 @@ build-only `go`/`cargo`/`gcc` bootstraps) or genuine-but-unpatched-upstream
 issues a flake bump can't fix. So a red pipeline would be noise. Green means the
 scan ran; read the log for the count and the top offenders.
 
+## The schedule now exists at all
+
+Worth being blunt about what the migration actually achieved here. At cutover,
+Woodpecker's `crons` table was **empty** and its pipeline history contained
+**zero** cron-triggered runs, for any repo. The "one-time bootstrap" this
+document used to describe — create the cron by hand in the Woodpecker UI — was
+never carried out, so the weekly scan had never run a single time. It was
+documented, assumed to be working, and absent.
+
+That is precisely the failure mode that made crons-in-a-server-database
+disqualifying: nothing in the repo could tell you the schedule was missing.
+
 ## The schedule is in this repo now
 
 That is the whole reason for the migration. Under Woodpecker the cron lived only

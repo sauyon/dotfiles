@@ -341,18 +341,17 @@
     nsp = "nix-shell -p";
     nsr = "nix-shell --run";
 
+    # `-d` deletes all old generations of every profile it finds -- including the
+    # standalone home-manager profile under ~/.local/state -- then collects. That
+    # leaves exactly one generation per profile, which is what we want here.
+    #
     # The old form was `nix-env --delete-generations old; nix-store --gc`, which
     # freed almost nothing: without --profile, nix-env acts on
-    # ~/.local/state/nix/profiles/profile (a single generation), and nix-store --gc
-    # then honours every home-manager generation link as a GC root. 271 generations
-    # had piled up back to 2026-04-15, pinning ~52G the alias could never reach.
-    #
-    # NOTE the missing -d, deliberately: `nix-collect-garbage -d` deletes ALL old
-    # generations of every profile it finds -- including a standalone home-manager
-    # profile under ~/.local/state -- so it silently overrides the retention window
-    # above and leaves exactly one generation with no rollback. Let
-    # expire-generations own the policy and have GC only sweep what is unrooted.
-    nix-clean = "home-manager expire-generations '-14 days'; nix-env --delete-generations old; nix-collect-garbage";
+    # ~/.local/state/nix/profiles/profile (a single generation, nothing to delete),
+    # and nix-store --gc then honours every home-manager generation link as a GC
+    # root. 271 generations had piled up back to 2026-04-15, pinning ~52G it could
+    # never reach.
+    nix-clean = "nix-collect-garbage -d";
 
     nre = "sudo -i nixos-rebuild switch";
     nreu = "sudo -i nixos-rebuild switch --upgrade";

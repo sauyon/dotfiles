@@ -1,0 +1,21 @@
+help me find more stuff
+
+---
+
+help me find things to clean
+
+---
+
+but my home isn't in there
+
+---
+
+there's still nix paths that can be purged?
+
+---
+
+does nix-clean not delete old hm generations
+
+---
+
+do that please

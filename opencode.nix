@@ -12,6 +12,9 @@ let
     # Set OPENCODE_MEMORY_IGNORE=1 to disable injection.
     plugin = [ "opencode-model-stats@0.2.3" "opencode-claude-memory@1.7.3" ];
     disabled_providers = [ "opencode" "zai" ];
+    # Pin the default: unset, opencode picks one, and non-interactive launches
+    # (drovr's review panel) inherit whatever that is.
+    model = "ko-ag/qwen3.6-35b-abliterated";
     provider = {
       mcloud = {
         npm = "@ai-sdk/openai-compatible";

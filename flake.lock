@@ -71,15 +71,15 @@
       "locked": {
         "lastModified": 1786032416,
         "narHash": "sha256-ybTVWanhCta0AfbNDG7e7luT8LAuWMvwxHu7eyAFeEo=",
-        "owner": "sauyon",
-        "repo": "drovr",
+        "ref": "refs/heads/main",
         "rev": "e0940b5ddde995c637c5766b1014b297d3373b44",
-        "type": "github"
+        "revCount": 338,
+        "type": "git",
+        "url": "https://forge.ko.ag/drovr/drovr.git"
       },
       "original": {
-        "owner": "sauyon",
-        "repo": "drovr",
-        "type": "github"
+        "type": "git",
+        "url": "https://forge.ko.ag/drovr/drovr.git"
       }
     },
     "elephant": {

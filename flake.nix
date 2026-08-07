@@ -21,7 +21,7 @@
     explore-mcp.inputs.nixpkgs.follows = "nixpkgs";
     # drovr — CLI for single-writer/compressed-handoff agent phases; ships the
     # `drovr` binary plus drovr:* Claude skills under share/drovr/.
-    drovr.url = "github:sauyon/drovr";
+    drovr.url = "git+https://forge.ko.ag/drovr/drovr.git";
     drovr.inputs.nixpkgs.follows = "nixpkgs";
     # Terminal diff viewer for agent changesets; ships a `hunk-review` Claude
     # skill under `${hunk}/skills/`.

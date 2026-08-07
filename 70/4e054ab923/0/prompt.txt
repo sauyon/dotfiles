@@ -1,0 +1,5 @@
+can you add this to my zsh fpath
+
+---
+
+fpath=(/home/sauyon/.local/share/zsh/site-functions $fpath)

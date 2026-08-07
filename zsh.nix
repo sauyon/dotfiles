@@ -125,6 +125,7 @@
     export "XDG_CONFIG_HOME=$HOME/.config"
 
     # completions
+    fpath=("$HOME/.local/share/zsh/site-functions" $fpath)
     fpath+="$HOME/.config/zsh/.zfunc"
     compinit -u
 

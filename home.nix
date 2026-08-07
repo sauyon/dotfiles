@@ -494,12 +494,19 @@ let
   # withLibsecret override wasn't, so it recompiled git on every nixpkgs bump.
   gitWithLibsecret = pkgs.gitFull;
 
-  # Git credential helper backed by fj's own login store, so `fj auth login` is
-  # the single place a Forgejo token lives (forge.ko.ag is HTTPS-only via a
-  # Cloudflare tunnel). fj has no `git-credential` subcommand; it keeps tokens in
-  # keys.json (an OAuth access/refresh pair from `fj auth login`, or a bare app
-  # token from `fj auth add-token`), so this shim refreshes via fj then reads the
-  # token back out.
+  # Git credential helper backed by fj's own login store, so fj is the single
+  # place a Forgejo token lives (forge.ko.ag is HTTPS-only via a Cloudflare
+  # tunnel). fj has no `git-credential` subcommand, so this shim reads keys.json
+  # directly.
+  #
+  # Both hosts are logged in with `fj auth add-token` (LoginInfo::Application),
+  # not `fj auth login` (OAuth). Application tokens have no expiry, so nothing
+  # here has to trigger a refresh. Keep it that way: fj's OAuth refresh rotates
+  # the token and rewrites keys.json with no flock and a truncate-in-place write
+  # (upstream src/keys.rs save()), and a refresh whose new token never lands on
+  # disk wedges the login permanently with "token was already used". Re-auth
+  # then needs `fj auth login`, which shells out to xdg-open — useless on a
+  # headless box over SSH.
   git-credential-fj = pkgs.writeShellScriptBin "git-credential-fj" ''
     set -euo pipefail
 
@@ -517,12 +524,6 @@ let
 
     keys="''${XDG_DATA_HOME:-$HOME/.local/share}/forgejo-cli/keys.json"
     [ -r "$keys" ] || exit 0
-
-    # Any authenticated fj call refreshes an expired access token in place;
-    # poke it first so git isn't handed a stale one. Best-effort — if this
-    # fails we still try whatever is stored rather than falling back to a
-    # terminal prompt.
-    ${lib.getExe pkgs.forgejo-cli} -H "$host" whoami >/dev/null 2>&1 || true
 
     # A nonzero exit aborts git's whole operation rather than falling through
     # to a prompt, so a half-written keys.json degrades to "no credential".

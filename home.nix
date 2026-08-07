@@ -1389,6 +1389,8 @@ in
     review_agent = "opencode"
   '' + lib.optionalString (hostname == "fujiwara") ''
     serve_host = "100.94.172.21"
+  '' + lib.optionalString (hostname == "utsuho") ''
+    serve_host = "100.71.58.39"
   '';
 
   # ── forgejo-cli (fj) ────────────────────────────────────────────────────────

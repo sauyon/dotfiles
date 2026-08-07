@@ -1381,6 +1381,16 @@ in
   # ── Herdr ───────────────────────────────────────────────────────────────────
   xdg.configFile."herdr/config.toml".source = ./home/herdr/config.toml;
 
+  # ── drovr ───────────────────────────────────────────────────────────────────
+  # Review panel runs on opencode, at the model pinned in opencode.nix.
+  # serve_host: the review server has NO auth, so bind it off localhost only on a
+  # trusted tailnet.
+  xdg.configFile."drovr/config.toml".text = ''
+    review_agent = "opencode"
+  '' + lib.optionalString (hostname == "fujiwara") ''
+    serve_host = "100.94.172.21"
+  '';
+
   # ── forgejo-cli (fj) ────────────────────────────────────────────────────────
   # Only the client-id table is declarative — it is a public-client PKCE ID, not
   # a credential. The tokens `fj auth login` mints stay unmanaged in

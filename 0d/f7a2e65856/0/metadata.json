@@ -1,0 +1,109 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "0df7a2e65856",
+  "session_id": "63d40806-6463-4cef-87e7-738a94c6a439",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-09T03:40:45.334741991Z",
+  "branch": "drovr/purge-cf-access",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "flake.nix"
+  ],
+  "agent": "Claude Code",
+  "model": "glm-5.2",
+  "turn_id": "67caefc04b7d",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 50130,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 738816,
+    "output_tokens": 19176,
+    "api_call_count": 17
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-call_cfa74d8e26a745a9948c73d3",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:tdd"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "67caefc04b7d",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 46,
+        "end": 47,
+        "entry_ids": [
+          "0a8216de-1b5c-41f5-b2b0-80c7dd89692b"
+        ],
+        "tool_use_id": "call_cfa74d8e26a745a9948c73d3"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_cfa74d8e26a745a9948c73d3"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:tdd",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-call_cd889f1415b741f296451ff1",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:verification-before-completion"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "67caefc04b7d",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 102,
+        "end": 103,
+        "entry_ids": [
+          "215c73b0-064e-4161-b32b-30cad6730157"
+        ],
+        "tool_use_id": "call_cd889f1415b741f296451ff1"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_cd889f1415b741f296451ff1"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:verification-before-completion",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-08-09T03:40:45.321050308Z",
+    "agent_lines": 0,
+    "agent_removed": 11,
+    "human_added": 27,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 27,
+    "total_lines_changed": 66,
+    "agent_percentage": 16.666666666666664,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}

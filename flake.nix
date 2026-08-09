@@ -121,22 +121,11 @@
           sops.secrets.sshOidcBuilderKey = {
             mode = "0444";
           };
-          # CF Access service-token client SECRET (client id is non-secret, set
-          # inline below). ssh-oidc.ko.ag sits behind CF Access; the gate sends the
-          # CF-Access-Client-Id/Secret headers to admit its non-interactive request.
-          # NOTE: add `sshOidcCfAccessClientSecret` to secrets.yaml (tf output
-          # ssh_oidc_cf_access_client_secret).
-          sops.secrets.sshOidcCfAccessClientSecret = {
-            mode = "0444";
-          };
 
           services.ssh-oidc-gate = {
             enable = true;
             serviceUrl = "https://ssh-oidc.ko.ag";
             tokenFile = config.sops.secrets.sshOidcToken.path;
-            # CF Access service token (ssh-oidc.ko.ag sits behind a CF Access policy).
-            cfAccessClientId = "a3cccc560551e6cafef2ab9e230744cf.access";
-            cfAccessClientSecretFile = config.sops.secrets.sshOidcCfAccessClientSecret.path;
             # Remote-build carve-out (MANDATORY): the nix daemon connects as `nixremote`
             # and bypasses the ForceCommand gate via this Match block.
             builderMatchUser = "nixremote";

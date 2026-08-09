@@ -83,6 +83,37 @@
         "label": "Skill: drovr:verification-before-completion",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-call_0393829585cc4a828d447cb2",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "67caefc04b7d",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 113,
+        "end": 114,
+        "entry_ids": [
+          "14a0a817-fbcc-45bb-8a2e-3a8fa3fda935"
+        ],
+        "tool_use_id": "call_0393829585cc4a828d447cb2"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "call_0393829585cc4a828d447cb2"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
     }
   ],
   "initial_attribution": {

@@ -26,16 +26,20 @@
     # Terminal diff viewer for agent changesets; ships a `hunk-review` Claude
     # skill under `${hunk}/skills/`.
     hunk.url = "github:modem-dev/hunk";
+    # Matt Pocock's agent skills. Not a flake — a plain tree of SKILL.md
+    # bundles under skills/<category>/<name>/, consumed by path below.
+    mattpocock-skills.url = "github:mattpocock/skills";
+    mattpocock-skills.flake = false;
     # Seamless OIDC SSH gate (gate binary + nixos/darwin modules).
     ssh-oidc.url = "git+https://codeberg.org/sauyon/ssh-oidc";
   };
 
-  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, explore-mcp, drovr, hunk, ssh-oidc, ... }:
+  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, agent-orchestrator, ao-mcp, explore-mcp, drovr, hunk, mattpocock-skills, ssh-oidc, ... }:
   let
     mkHome = system: machine: home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.${system};
       extraSpecialArgs = {
-        inherit sops-nix walker nixgl agent-orchestrator ao-mcp explore-mcp drovr hunk machine;
+        inherit sops-nix walker nixgl agent-orchestrator ao-mcp explore-mcp drovr hunk mattpocock-skills machine;
         inherit system;
       };
       modules = [ ./home.nix ];

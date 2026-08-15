@@ -10,6 +10,7 @@
   explore-mcp,
   drovr,
   hunk,
+  mattpocock-skills,
   machine,
 
   system,
@@ -1099,6 +1100,12 @@ in
   # `hunk session *` CLI.
   home.file.".claude/skills/hunk-review/SKILL.md".source =
     "${hunk-pkg}/skills/hunk-review/SKILL.md";
+  # /teach — stateful tutor that treats the cwd as a learning workspace
+  # (MISSION.md, lessons/, learning-records/). Whole-directory symlink: the
+  # skill reads its own *-FORMAT.md siblings by relative path. Pinned via
+  # flake.lock; `nix flake update mattpocock-skills` to bump.
+  home.file.".claude/skills/teach".source =
+    "${mattpocock-skills}/skills/productivity/teach";
 
   # Cursor discovers SKILL.md files recursively and follows directory symlinks.
   # Expose the same pinned drovr skills that Claude loads through its plugin.
@@ -1240,6 +1247,11 @@ in
       # (a profile dir under claude-prof) for <dir>/hooks/herdr-agent-state.sh
       # — symlink it in so status reads "current" per profile too.
       [ -d "$HOME/.claude/hooks" ] && [ ! -e "$dir/hooks" ] && ln -sf "$HOME/.claude/hooks" "$dir/hooks"
+      # skills/ holds the personal (non-plugin) skills rendered by home.file
+      # above. Claude resolves user skills only under CLAUDE_CONFIG_DIR, so
+      # without this link every profile sees an empty skill set and ~/.claude
+      # is the sole profile that can run them.
+      [ -d "$HOME/.claude/skills" ] && [ ! -e "$dir/skills" ] && ln -sf "$HOME/.claude/skills" "$dir/skills"
     done
   '';
 

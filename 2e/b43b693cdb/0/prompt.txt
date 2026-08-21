@@ -1,0 +1,1 @@
+ok, now emacs -nw works and detects truecolor, but `edit` doesn't

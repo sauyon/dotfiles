@@ -1319,6 +1319,38 @@ in
   home.file.".local/bin/upload" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/upload; };
   home.file.".local/bin/yank" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/yank; };
 
+  # mosh-server wrapper that injects our fork's -T (COLORTERM=truecolor).
+  #
+  # -T exists only in sauyon/mosh, so no third-party client can pass it, and
+  # scripts/mosh.pl only passes it when COLORTERM is already set client-side.
+  # Blink builds its own mosh-server command line and reports `-c 256` even
+  # though it renders semicolon truecolor fine, so those sessions lose 24-bit
+  # colour that mosh delivers anyway.
+  #
+  # It has to be asserted here rather than defaulted in mosh-server, because
+  # mosh does not adapt colour to the client: Renditions::sgr() emits
+  # ";38;2;r;g;b" for any true-colour cell with no capability check, and Display
+  # tracks no colour capability at all. So mosh forwards 24-bit verbatim to
+  # whatever the far end is, and only the operator knows whether that terminal
+  # can render it. Point Blink's Hosts > Mosh > Server at this path to say yes.
+  #
+  # -T is inserted immediately after the `new` verb: mosh-server runs getopt on
+  # argv+1, so flags must follow `new`, and appending at the end would land
+  # after any trailing `-- command`.
+  home.file.".local/bin/mosh-server-tc" = lib.mkIf (!isDarwin) {
+    executable = true;
+    text = ''
+      #!${pkgs.runtimeShell}
+      set -eu
+      real=${pkgs.mosh}/bin/mosh-server
+      if [ "''${1-}" = "new" ]; then
+        shift
+        exec "$real" new -T "$@"
+      fi
+      exec "$real" "$@"
+    '';
+  };
+
   # ── Pulse ──────────────────────────────────────────────────────────────────
   xdg.configFile."pulse/client.conf" = lib.mkIf (!isDarwin) { text = "cookie-file = /.cache/pulse/cookie\n"; };
 

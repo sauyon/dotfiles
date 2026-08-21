@@ -8,10 +8,16 @@
 # https://github.com/seebi/dircolors-solarized
 
 # Term Section
+# dircolors skips every directive below until one of these matches $TERM, so a
+# TERM that isn't listed silently falls back to GNU's built-in LS_COLORS (which
+# has no `no=`, i.e. ordinary files render uncolored). ghostty sets
+# TERM=xterm-ghostty, so it must be listed here.
 TERM alacritty
 TERM alacritty-direct
+TERM ghostty
 TERM xterm-256color
 TERM xterm-direct
+TERM xterm-ghostty
 
 ## Documentation
 #

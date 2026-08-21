@@ -1,0 +1,64 @@
+wtf? fj doesn't have refresh or what
+
+---
+
+what the fuck? how are you meant to use fj?
+
+---
+
+push yourself
+
+---
+
+nope. didn't help.
+
+---
+
+when did I say anything about xterm-ghostty. I'm not in ghostty.
+
+---
+
+bash /tmp/claude-60006/-home-sauyon-devel-dotfiles/30798df4-ab4a-462e-b87d-366e7b3f6009/scratchpad/colortest.sh
+TERM=xterm-direct  COLORTERM=<unset>  NO_COLOR=<unset>
+LS_COLORS length=4759  (want 4759; 1495 = fallback; 0 = unset)
+A hardcoded SGR : RED GREEN BLUE
+B terminfo tput : RED GREEN BLUE
+C 256-color     : blue33 orange166 grey244
+D truecolor     : rgb-red rgb-green
+E ls (should be colored):
+dd-csb-vse-7p6-container-restarts.json
+dd-csb-vse-7p6-response-codes.json
+dd-csb-vse-7p6-restarts-bars.json
+F tput colors=16777216  terminfo file=found
+
+---
+
+all the colors were fine in the paste including truecolor.
+
+---
+
+what? why does direct color break old color? and why is emacs also fucked?
+
+---
+
+emacs is not truecolor in 256color for sure.
+
+---
+
+my emacs is still 256color though....
+
+---
+
+wait, what the fuck. why does it say 'user sauyon has no home directory' did we not fix this shit
+
+---
+
+emacs emitted it.
+
+---
+
+■  Error (initialization): User sauyon has no home directory
+
+---
+
+it happened again when I ran `emacs -nw`?

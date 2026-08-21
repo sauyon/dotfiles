@@ -1,0 +1,99 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "1fd02f550028",
+  "session_id": "30798df4-ab4a-462e-b87d-366e7b3f6009",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-21T10:34:00.48835245Z",
+  "branch": "master",
+  "checkpoints_count": 3,
+  "save_step_count": 1,
+  "files_touched": [
+    "home.nix"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "742beed58f9c",
+  "checkpoint_transcript_start": 1044,
+  "transcript_lines_at_start": 1044,
+  "compact_transcript_start": 197,
+  "token_usage": {
+    "input_tokens": 50,
+    "cache_creation_tokens": 32647,
+    "cache_read_tokens": 7692156,
+    "output_tokens": 22363,
+    "api_call_count": 25
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_017hJz3X6XRXCvxM2cDDDF9n",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "742beed58f9c",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 59,
+        "end": 60,
+        "entry_ids": [
+          "075b3e62-013a-42d0-9bbc-1c21784a3963"
+        ],
+        "tool_use_id": "toolu_017hJz3X6XRXCvxM2cDDDF9n"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_017hJz3X6XRXCvxM2cDDDF9n"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 19
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-21T10:34:00.409823666Z",
+    "agent_lines": 0,
+    "agent_removed": 2,
+    "human_added": 0,
+    "human_modified": 2,
+    "human_removed": 13,
+    "total_committed": 2,
+    "total_lines_changed": 17,
+    "agent_percentage": 11.76470588235294,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 80,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/CLAUDE.md~": 55,
+        ".claude/settings.local.json": 25
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 80,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/CLAUDE.md~": 55,
+        ".claude/settings.local.json": 25
+      }
+    }
+  ]
+}

@@ -1311,6 +1311,19 @@ in
     client.enable = true;
   };
 
+  # `emacsclient -t` frames take their color depth from the DAEMON's process
+  # environment, not the client's. Emacs decides truecolor at terminal init in C
+  # via real getenv(), while server.el's server-with-environment only rebinds the
+  # Lisp process-environment -- which C getenv() never reads. So a client's
+  # COLORTERM is forwarded (it is in server.el's whitelist, and shows up in
+  # (getenv "COLORTERM" frame)) yet arrives too late to raise the terminal's
+  # capability. Verified: a daemon started with COLORTERM=truecolor hands
+  # 16777216-cell frames to clients that have no COLORTERM at all, while the
+  # daemon without it caps every xterm-256color frame at 256 cells.
+  systemd.user.services.emacs.Service.Environment = lib.mkIf (!isDarwin && isDesktop) [
+    "COLORTERM=truecolor"
+  ];
+
   # ── Scripts ────────────────────────────────────────────────────────────────
   # On darwin, .local/bin symlinks to the dotfiles repo; skip HM management.
   home.file.".local/bin/bootstrap.sh" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/bootstrap.sh; };

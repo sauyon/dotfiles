@@ -1,0 +1,5 @@
+why is xterm-direct
+
+---
+
+zsh has no colors at all

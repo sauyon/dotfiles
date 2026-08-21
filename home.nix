@@ -1635,7 +1635,13 @@ in
     # native messaging (the extension can't unlock with biometrics on its own).
     # Pairs with the polkit action + pam_fprintd wiring in system/.
     pkgs.bitwarden-desktop
-    pkgs.emacs30-pgtk
+    # withHostNss, not bare: an unwrapped nix emacs can't dlopen the host's
+    # libnss_systemd.so.2, so getpwuid/getpwnam fail for a homed-only user with
+    # no /etc/passwd entry. Emacs then sets init-file-user to "sauyon" instead
+    # of "", can't resolve ~sauyon, and every startup warns "User sauyon has no
+    # home directory" (startup.el's file-directory-p check). services.emacs
+    # already wraps the daemon; the CLI on PATH needs it too.
+    (withHostNss pkgs.emacs30-pgtk)
     pkgs.hyprpicker
     pkgs.psi-notify
     pkgs.pwvucontrol
@@ -2562,7 +2568,7 @@ in
         };
         core = {
           pager = "${pkgs.diff-so-fancy}/bin/diff-so-fancy | ${pkgs.less}/bin/less -RFx4";
-          editor = if isDarwin then "/usr/bin/emacsclient -t" else "${pkgs.emacs30-pgtk}/bin/emacsclient -t";
+          editor = if isDarwin then "/usr/bin/emacsclient -t" else "${withHostNss pkgs.emacs30-pgtk}/bin/emacsclient -t";
           whitespace = "trailing-space,space-before-tab";
         };
         diff.algorithm = "histogram";

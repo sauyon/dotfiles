@@ -129,31 +129,6 @@
     fpath+="$HOME/.config/zsh/.zfunc"
     compinit -u
 
-    # Truecolor signalling. Must precede p10k's instant prompt: the prompt is
-    # rendered against whatever TERM is live at that point.
-    #
-    # Never use a *-direct TERM. Those terminfo entries redefine setaf's
-    # argument from "palette index" to "packed 24-bit RGB", so zsh emits
-    # %F{33} as ESC[38:2::0:0:33m -- RGB(0,0,33), i.e. black -- and every one
-    # of p10k's 122 numeric colors disappears. They also emit colon-subparam
-    # SGR, which the VT500 state machine everyone implements treats as
-    # "discard the whole sequence". Normalize to the indexed entry instead.
-    if [[ $TERM == *-direct ]] && infocmp -1 "''${TERM%-direct}-256color" &>/dev/null; then
-      export TERM="''${TERM%-direct}-256color"
-    fi
-    #
-    # COLORTERM is the correct lever for 24-bit: Emacs's term.c installs the
-    # *semicolon* truecolor setaf when it sees COLORTERM=truecolor (or terminfo
-    # Tc), so apps get real 24-bit in the form old parsers can read. Nothing
-    # else sets it for us -- ssh does not forward it, and our mosh fork's
-    # server-side signal needs the client wrapper to pass -T, which Blink's
-    # native mosh implementation never does. Deny-list the terminals that
-    # genuinely are not 24-bit rather than allow-listing the ones that are.
-    case $TERM in
-      dumb|linux|vt[0-9]*|*-8color|*-16color|screen|screen.*) ;;
-      *) export COLORTERM="''${COLORTERM:-truecolor}" ;;
-    esac
-
     # Enable Powerlevel10k instant prompt.
     if [[ -r "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh" ]]; then
       source "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh"

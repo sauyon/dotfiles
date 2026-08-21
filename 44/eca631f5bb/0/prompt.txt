@@ -1,0 +1,1 @@
+what? are you setting colorterm in my dotfiles? you know that's wrong right

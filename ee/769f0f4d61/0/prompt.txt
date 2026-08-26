@@ -1,0 +1,5 @@
+please fix my opencode
+
+---
+
+please fix my opencode; read ../kube for the configuration of qwen and make sure the config matches.

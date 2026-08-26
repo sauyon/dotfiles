@@ -7,16 +7,14 @@ let
     # (~/.claude/projects/<sanitized canonical git root>/memory/), so both CLIs
     # share one set of memories. Pinned because it injects a system prompt and
     # runs a per-turn recall subagent. That subagent is pinned to ko-ag via
-    # OPENCODE_MEMORY_RECALL_MODEL in the wrapper below, so per-turn recall
-    # doesn't bill the session model. It lands on local inference whenever
-    # lemonade is up; when it isn't, litellm fails the call over to a paid
-    # backend rather than dropping recall.
+    # OPENCODE_MEMORY_RECALL_MODEL in the wrapper below — local inference, so
+    # per-turn recall doesn't bill the session model.
     # Set OPENCODE_MEMORY_IGNORE=1 to disable injection.
     plugin = [ "opencode-model-stats@0.2.3" "opencode-claude-memory@1.7.3" ];
     disabled_providers = [ "opencode" "zai" ];
     # Pin the default: unset, opencode picks one, and non-interactive launches
     # (drovr's review panel) inherit whatever that is.
-    model = "ko-ag/glm";
+    model = "ko-ag/qwen3.6-35b-abliterated";
     provider = {
       mcloud = {
         npm = "@ai-sdk/openai-compatible";
@@ -35,25 +33,14 @@ let
         options = {
           baseURL = "https://ai.ko.ag/v1";
         };
-        # ai.ko.ag no longer fronts lemonade directly -- it fronts the
-        # in-cluster litellm router (kube a001efc "route every consumer through
-        # litellm"). `glm` is the router's model group: lemonade's local
-        # Qwen3.6-35B-A3B first, failing over to Z.ai then OpenRouter. The
-        # `glm-zai` / `glm-openrouter` groups address those same backends
-        # directly with no failover -- worth reaching for when lemonade is
-        # stalled, since litellm gives its lemonade deployment a 600s timeout
-        # and so takes ten minutes to fail `glm` over.
-        #
-        # The old lemonade id `qwen3.6-35b-abliterated` still resolves as a
-        # router alias, but kube's charts/litellm/values.yaml wants that alias
-        # retired once ai.ko.ag callers ask for `glm`, so ask for `glm`. Ids
-        # stay all-lowercase: CF AI Gateway lowercases the model field before
-        # forwarding, so a mixed-case name arrives mangled. See the kube repo's
+        # Registered id is all-lowercase on purpose: CF AI Gateway lowercases
+        # the model field before forwarding and Lemonade matches ids
+        # case-sensitively, so a mixed-case name 404s (surfacing as 502) for
+        # anything via ai.ko.ag. Lemonade's required `user.` prefix is stripped
+        # from what callers send. See the kube repo's
         # docs/lemonade-cf-aig-model-casing.md.
         models = {
-          "glm" = { name = "GLM (lemonade -> Z.ai -> OpenRouter)"; };
-          "glm-zai" = { name = "GLM 5.2 (Z.ai direct, no failover)"; };
-          "glm-openrouter" = { name = "GLM 5.2 (OpenRouter direct, no failover)"; };
+          "qwen3.6-35b-abliterated" = { name = "Qwen3.6 35B A3B (abliterated)"; };
         };
       };
       # Built-in models.dev providers; apiKey injected at activation from sops.
@@ -97,7 +84,7 @@ in
           rm -f $out/bin/opencode
           makeWrapper ${prev.opencode}/bin/opencode $out/bin/opencode \
             --run ${patchModelStats} \
-            --set-default OPENCODE_MEMORY_RECALL_MODEL ko-ag/glm
+            --set-default OPENCODE_MEMORY_RECALL_MODEL ko-ag/qwen3.6-35b-abliterated
         '';
       };
     })

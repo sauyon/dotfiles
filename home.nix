@@ -1050,7 +1050,12 @@ in
     mode = "0600";
   };
 
-  # ── ko.ag API (opencode provider) ──────────────────────────────────────────
+  # ── ko.ag API (opencode provider + local-auto-mode classifier) ─────────────
+  # This is now litellm's MASTER KEY, not the old CF AI Gateway token: ai.ko.ag
+  # was deleted and both consumers dial the router's LAN address directly. The
+  # same value must exist in the cluster as the `litellm-master-key` Secret in
+  # the litellm / hakobiya / opencode namespaces — rotating here without
+  # rotating there 401s everything. See the kube repo's docs/litellm-access.md.
   sops.secrets.koAgApiKey = {
     path = "${config.home.homeDirectory}/.config/opencode/ko-ag-key";
     mode = "0600";

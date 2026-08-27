@@ -584,7 +584,7 @@ def load_agent_instructions(cwd: str) -> str:
 
 def _post_chat(payload: dict) -> dict:
     """Send a chat/completions request; return parsed body or {'_raw': str} on non-JSON."""
-    # The Qwen3 model on ai.ko.ag is a reasoning model: left to itself it emits a
+    # The Qwen3 model behind `glm` is a reasoning model: left to itself it emits a
     # long <think> trace before the answer, which breaks stage-1's "response must
     # begin with <block>" parse and blows past the timeout (~60 tok/s, 27s for a
     # full generation). Disabling thinking makes it answer in <1s. llama.cpp
@@ -595,11 +595,11 @@ def _post_chat(payload: dict) -> dict:
         data=json.dumps(payload).encode(),
         headers={
             "Content-Type": "application/json",
+            # litellm's master key. A browser User-Agent used to be pinned here
+            # too, to get past Cloudflare rejecting urllib's default signature
+            # with "error code: 1010" -- there is no Cloudflare in this path
+            # any more, so it is gone.
             "Authorization": f"Bearer {get_api_key()}",
-            # ai.ko.ag sits behind Cloudflare, which rejects urllib's default
-            # signature with "error code: 1010". A browser UA gets through.
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/126.0 Safari/537.36",
         },
         method="POST",
     )

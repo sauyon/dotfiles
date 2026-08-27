@@ -14,7 +14,7 @@ let
     disabled_providers = [ "opencode" "zai" ];
     # Pin the default: unset, opencode picks one, and non-interactive launches
     # (drovr's review panel) inherit whatever that is.
-    model = "ko-ag/qwen3.6-35b-abliterated";
+    model = "ko-ag/glm";
     provider = {
       mcloud = {
         npm = "@ai-sdk/openai-compatible";
@@ -31,16 +31,26 @@ let
         npm = "@ai-sdk/openai-compatible";
         name = "ko.ag";
         options = {
-          baseURL = "https://ai.ko.ag/v1";
+          # LAN address of the in-cluster litellm router (Cilium LoadBalancer,
+          # L2-announced). ai.ko.ag is GONE: it fronted this same router through
+          # a Workers façade and CF AI Gateway, and 524'd structurally because
+          # litellm emits no bytes until its upstream produces a first token,
+          # which Cloudflare reads as a dead origin. See the kube repo's
+          # docs/litellm-access.md.
+          #
+          # Plain HTTP, and the API key crosses the LAN in cleartext. Acceptable
+          # here because the only paths to this address are the home LAN and the
+          # 10.9.0.0/24 WireGuard VPN, and the key authorizes inference on a
+          # self-hosted model. Fixing it means a TLS sidecar on the Service, not
+          # a change on this side.
+          baseURL = "http://10.0.7.240:4000/v1";
         };
-        # Registered id is all-lowercase on purpose: CF AI Gateway lowercases
-        # the model field before forwarding and Lemonade matches ids
-        # case-sensitively, so a mixed-case name 404s (surfacing as 502) for
-        # anything via ai.ko.ag. Lemonade's required `user.` prefix is stripped
-        # from what callers send. See the kube repo's
-        # docs/lemonade-cf-aig-model-casing.md.
+        # `glm` is litellm's own model-group name, not a lemonade id: it routes
+        # lemonade -> Z.ai Coding Plan -> OpenRouter, so a dead local model
+        # fails over instead of erroring. The old lowercase lemonade id still
+        # works via model_group_alias, but that alias exists to be retired.
         models = {
-          "qwen3.6-35b-abliterated" = { name = "Qwen3.6 35B A3B (abliterated)"; };
+          "glm" = { name = "GLM (lemonade -> Z.ai -> OpenRouter)"; };
         };
       };
       # Built-in models.dev providers; apiKey injected at activation from sops.
@@ -84,7 +94,7 @@ in
           rm -f $out/bin/opencode
           makeWrapper ${prev.opencode}/bin/opencode $out/bin/opencode \
             --run ${patchModelStats} \
-            --set-default OPENCODE_MEMORY_RECALL_MODEL ko-ag/qwen3.6-35b-abliterated
+            --set-default OPENCODE_MEMORY_RECALL_MODEL ko-ag/glm
         '';
       };
     })

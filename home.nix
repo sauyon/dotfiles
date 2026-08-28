@@ -631,6 +631,42 @@ let
     hooks = {
       PreToolUse = [
         {
+          matcher = "Edit|Write|NotebookEdit";
+          hooks = [ {
+            type = "command";
+            # Refuse edits to a repo's PRIMARY checkout while it sits on the
+            # default branch. Sustained agent work there is invisible until it
+            # goes wrong: the tree moves under the agent while it reads, HEAD
+            # advances past the commit it is reviewing, and a test count gets
+            # reported about a state nobody has any more. drovr's `worktree =
+            # true` fixes that for `drovr new` runs, but inline work -- which is
+            # most of it -- creates no run and so binds to nothing.
+            #
+            # Detection is structural, not by path: a LINKED worktree has .git
+            # as a file pointing at the real gitdir, the primary checkout has a
+            # directory. So .drovr/wt/* and .claude/worktrees/* pass untouched
+            # and need no allowlist to maintain.
+            #
+            # CLAUDE_ALLOW_MAIN_EDIT=1 is the way through for the one-line fix
+            # drovr:worktrees explicitly says not to isolate. It has to be an
+            # env var rather than a prompt so that skipping isolation is a
+            # deliberate act and shows up in the transcript.
+            command = ''
+              [ -n "$CLAUDE_ALLOW_MAIN_EDIT" ] && exit 0
+              f=$(${pkgs.jq}/bin/jq -r '.tool_input.file_path // empty')
+              [ -n "$f" ] || exit 0
+              # Walk up to the nearest EXISTING directory: a Write may create
+              # both the file and the directories above it.
+              d=$f; while [ ! -d "$d" ] && [ "$d" != "/" ]; do d=$(dirname "$d"); done
+              root=$(${pkgs.git}/bin/git -C "$d" rev-parse --show-toplevel 2>/dev/null) || exit 0
+              [ -d "$root/.git" ] || exit 0
+              br=$(${pkgs.git}/bin/git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)
+              case "$br" in main|master) ;; *) exit 0 ;; esac
+              printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"This is the primary checkout on its default branch. Work in a worktree instead: `drovr new <run> --worktree` then EnterWorktree, or EnterWorktree on an existing one. For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set."}}'
+            '';
+          } ];
+        }
+        {
           matcher = "Bash";
           hooks = [ {
             type = "command";

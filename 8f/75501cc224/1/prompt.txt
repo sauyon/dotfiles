@@ -1,0 +1,5 @@
+disable local auto mode
+
+---
+
+disable local auto mode for claude. is there something like it for opencode

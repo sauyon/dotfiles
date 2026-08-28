@@ -1455,8 +1455,14 @@ in
   # Review panel runs on opencode, at the model pinned in opencode.nix.
   # serve_host: the review server has NO auth, so bind it off localhost only on a
   # trusted tailnet.
+  # worktree: every run gets .drovr/wt/<run> on its own branch, so a run in
+  # flight leaves the invoking checkout free. The default was off, and the cost
+  # showed up as an agent editing main while the tree moved under it: reads went
+  # stale, HEAD advanced past the commit under review, and a test count was
+  # reported from a tree that no longer existed. `--no-worktree` per run.
   xdg.configFile."drovr/config.toml".text = ''
     review_agent = "opencode"
+    worktree = true
   '' + lib.optionalString (hostname == "fujiwara") ''
     serve_host = "100.94.172.21"
   '' + lib.optionalString (hostname == "utsuho") ''

@@ -611,8 +611,9 @@ let
 
   args = { inherit config lib pkgs; };
 
-  # The local auto-mode classifier's PreToolUse entry. Separate so a profile can
-  # drop it from its PreToolUse list (see `claudeProfiles.work`).
+  # The local auto-mode classifier's PreToolUse entry. Currently registered by no
+  # profile — add it back to `claudeBaseSettings.hooks.PreToolUse` to re-enable
+  # (the plugin's files are still installed by home.file below).
   localAutoModeHook = {
     matcher = ".*";
     hooks = [ {
@@ -629,7 +630,6 @@ let
   claudeBaseSettings = {
     hooks = {
       PreToolUse = [
-        localAutoModeHook
         {
           matcher = "Bash";
           hooks = [ {
@@ -913,13 +913,6 @@ let
     };
     work = {
       model = "claude-opus-5";
-      # Local auto-mode classifier disabled for work. This also drops it from
-      # ~/.claude/settings.json, which mirrors this profile (see
-      # programs.claude-code.settings below).
-      hooks = claudeBaseSettings.hooks // {
-        PreToolUse = lib.filter (h: h != localAutoModeHook)
-          claudeBaseSettings.hooks.PreToolUse;
-      };
     };
     zai = {
       model = "opus";

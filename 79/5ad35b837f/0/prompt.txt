@@ -1,0 +1,17 @@
+what the fuck do you mean 'runaway generation' are you certain it's not just a long request.
+
+---
+
+opencode doesn't handle contention well at all
+
+---
+
+why the absolute fuck is dotfiles configured to hit a fucking local address? please fucking expose this with cilium lb.
+
+---
+
+no. I asked you to switch to an external ip. what the fuck are you on about right now.
+
+---
+
+ok, nevermind. let's just configure opencode to use glm api instead of local

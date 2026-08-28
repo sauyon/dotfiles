@@ -40,7 +40,14 @@ if ! id -nG "$USER" | tr ' ' '\n' | grep -qx tss; then
 fi
 
 sudo systemctl daemon-reload
-sudo systemctl enable --now systemd-oomd
+# systemd-oomd parses oomd.conf (and its drop-ins) once at startup, so a changed
+# etc/systemd/oomd.conf.d/* must be followed by an actual restart. `enable --now`
+# is NOT enough: --now only *starts* a stopped unit, so on a host where oomd is
+# already running it is a silent no-op and the new limits sit on disk unapplied.
+# `restart` covers both cases (starts it if stopped) and kills nothing on its way
+# through -- oomd holds no state worth preserving across a reload.
+sudo systemctl enable systemd-oomd
+sudo systemctl restart systemd-oomd
 
 # ── attic binary cache: make nix read nix.custom.conf + render the pull token ──
 # nix.custom.conf adds attic.ko.ag/kube as an extra substituter; the cache is

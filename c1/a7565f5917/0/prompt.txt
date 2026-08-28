@@ -31,3 +31,7 @@ deploy
 ---
 
 no. show me the drift first.
+
+---
+
+restarting tailscale is finme.

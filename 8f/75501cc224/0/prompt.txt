@@ -11,3 +11,7 @@ why the absolute fuck is dotfiles configured to hit a fucking local address? ple
 ---
 
 no. I asked you to switch to an external ip. what the fuck are you on about right now.
+
+---
+
+ok, nevermind. let's just configure opencode to use glm api instead of local

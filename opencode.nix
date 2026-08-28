@@ -6,15 +6,24 @@ let
     # opencode-claude-memory reads/writes Claude Code's own memory store
     # (~/.claude/projects/<sanitized canonical git root>/memory/), so both CLIs
     # share one set of memories. Pinned because it injects a system prompt and
-    # runs a per-turn recall subagent. That subagent is pinned to ko-ag via
-    # OPENCODE_MEMORY_RECALL_MODEL in the wrapper below — local inference, so
-    # per-turn recall doesn't bill the session model.
+    # runs a per-turn recall subagent. That subagent is pinned via
+    # OPENCODE_MEMORY_RECALL_MODEL in the wrapper below — to the cheapest Coding
+    # Plan model rather than the session's, since recall fires every turn.
     # Set OPENCODE_MEMORY_IGNORE=1 to disable injection.
     plugin = [ "opencode-model-stats@0.2.3" "opencode-claude-memory@1.7.3" ];
     disabled_providers = [ "opencode" "zai" ];
     # Pin the default: unset, opencode picks one, and non-interactive launches
     # (drovr's review panel) inherit whatever that is.
-    model = "ko-ag/glm";
+    #
+    # Z.ai's hosted GLM rather than the local model. lemonade serves 4 slots off
+    # one GPU, and with hakobiya on the same router a turn queues behind
+    # multi-minute triage requests -- a one-token reply measured 3m14s, and
+    # decode falls to 2-4 t/s under load against 31 t/s idle. ko-ag is still
+    # registered below, so `/models` can still reach the local box on purpose.
+    model = "zai-coding-plan/glm-5.3";
+    # Title generation and other throwaway calls. Unset, these inherit `model`
+    # above and bill the flagship for a six-word title.
+    small_model = "zai-coding-plan/glm-5.3-flash";
     provider = {
       mcloud = {
         npm = "@ai-sdk/openai-compatible";
@@ -94,7 +103,7 @@ in
           rm -f $out/bin/opencode
           makeWrapper ${prev.opencode}/bin/opencode $out/bin/opencode \
             --run ${patchModelStats} \
-            --set-default OPENCODE_MEMORY_RECALL_MODEL ko-ag/glm
+            --set-default OPENCODE_MEMORY_RECALL_MODEL zai-coding-plan/glm-5.3-flash
         '';
       };
     })

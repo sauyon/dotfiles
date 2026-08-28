@@ -57,7 +57,11 @@
     };
     homeConfigurations.fujiwara = linuxHome {
       hostname = "fujiwara";
-      gui = true;
+      # Headless: the box has an HDMI display wired up, but no graphical session
+      # has run on it since Jun 2025. Dropping the desktop stack (hyprland,
+      # waybar, walker, kanshi, portals) rather than leaving units to fail at
+      # every activation. Flip back to true if it becomes a workstation again.
+      gui = false;
       gpu = "amd";
     };
     homeConfigurations.mari = mkHome "aarch64-darwin" {

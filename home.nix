@@ -890,6 +890,9 @@ let
     # `model` intentionally omitted — declared per-profile in `claudeProfiles`.
     theme = "dark";
     editorMode = "normal";
+    # Ghost-text next-prompt suggestions render in the composer's input line, so
+    # a pane reads as though the text were already typed and pending submission.
+    promptSuggestionEnabled = false;
     autoDreamEnabled = true;
     agentPushNotifEnabled = true;
     skipWorkflowUsageWarning = true;
@@ -1373,6 +1376,32 @@ in
   };
 
   # ── psi-notify ─────────────────────────────────────────────────────────────
+  #
+  # There are deliberately NO io thresholds here. On these hosts io PSI does not
+  # measure disk trouble at all:
+  #
+  #   - ghostty's libxev event loop parks one thread per io_uring ring in
+  #     io_cqring_wait(), which sleeps via io_schedule() and therefore sets
+  #     current->in_iowait. The kernel counts that as blocked-on-IO: it lands in
+  #     /proc/stat procs_blocked and is flagged TSK_IOWAIT for PSI -- even though
+  #     the ring holds only idle IORING_OP_POLL_ADD fd watches (SQEs 0, CQEs 0)
+  #     and no disk IO is happening.
+  #   - Every other thread in ghostty's cgroup is idle-sleeping, so PSI's "full"
+  #     definition (all non-idle tasks stalled) reads ~100% for that scope, and
+  #     it sums up the cgroup chain into user.slice and /proc/pressure/io.
+  #
+  # Measured 2026-08-28 on fujiwara: session-100.scope sat at full avg300=99.88
+  # for the whole 88-day uptime while every disk had inflight=0 and an O_DIRECT
+  # probe ran at 895 MB/s. psi-notify flapped "I/O alert: active" all night and
+  # went inactive the moment ghostty died. Same shape on utsuho (kernel 7.1.5):
+  # 4 io_uring rings, 4 threads in io_cqring_wait, procs_blocked exactly 4,
+  # while Slack (9 procs) and Firefox (15 procs) both read 0.00 because they use
+  # epoll rather than io_uring.
+  #
+  # The real fix is upstream: io_uring_enter takes IORING_ENTER_NO_IOWAIT (1<<7),
+  # probed via IORING_FEAT_NO_IOWAIT (1<<17), both present in our kernel headers.
+  # Until libxev passes it, any io threshold here can only ever fire false.
+  # memory PSI is unaffected by this and stays.
   xdg.configFile."psi-notify" = lib.mkIf (!isDarwin && isDesktop) {
     text = ''
       update 5
@@ -1380,8 +1409,6 @@ in
 
       threshold memory some avg10 15.00
       threshold memory full avg10 5.00
-      threshold io some avg10 25.00
-      threshold io full avg10 15.00
     '';
   };
 
@@ -2496,6 +2523,33 @@ in
       # installBatSyntax = true;
 
       settings = {
+        # Default is `auto`, which picks io_uring on Linux. Don't: ghostty's
+        # libxev loop parks one thread per ring in io_cqring_wait(), which
+        # sleeps via io_schedule() and so sets current->in_iowait. The kernel
+        # counts that as blocked-on-IO -- it lands in procs_blocked and is
+        # flagged TSK_IOWAIT for PSI -- even though the ring only holds idle
+        # IORING_OP_POLL_ADD watches on the pty fds and no disk IO happens.
+        #
+        # Because every other thread in the cgroup is idle-sleeping, PSI's
+        # "full" (all non-idle tasks stalled) reads ~100% for ghostty's scope
+        # and sums up the cgroup chain into user.slice and /proc/pressure/io.
+        # Measured 2026-08-28: fujiwara's session scope sat at full avg300=99.88
+        # for its entire 88-day life with every disk at inflight=0; utsuho had
+        # 4 rings, 4 threads in io_cqring_wait and procs_blocked exactly 4,
+        # while Slack and Firefox read 0.00 (they use epoll).
+        #
+        # This is ghostty-org/ghostty#3246 / discussion#3224, whose accepted
+        # answer is exactly this setting. Kernel commit 7b72d661f1f2 (6.5) gated
+        # iowait on having pending requests, which does NOT help here: the armed
+        # pty polls *are* pending requests. The real upstream fix is
+        # IORING_ENTER_NO_IOWAIT (kernel 6.15+, probed via IORING_FEAT_NO_IOWAIT),
+        # which Zig's IoUring does not expose yet -- ziglang/zig#25566.
+        #
+        # mitchellh measured no benchmark difference between the backends, and
+        # in_iowait also blocks deeper CPU idle states, so epoll is not a
+        # trade-off here. Revert to `auto` once libxev passes NO_IOWAIT.
+        async-backend = "epoll";
+
         keybind = [
           "ctrl+enter=text:\\r"
           "performable:super+c=copy_to_clipboard"

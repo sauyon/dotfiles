@@ -1,0 +1,33 @@
+what happened? why did herdr restart and my ssh session die
+
+---
+
+continue
+
+---
+
+is memory healthy now
+
+---
+
+isn't that a kube container?
+
+---
+
+yes, it's excluded because it's a live server serving things...
+
+---
+
+no. the lever is making sure claude doesn't eat all my goddamn ram. what's taking swap? why is oomd firing so early when I have this much ram
+
+---
+
+1. why swap and not ram? 2. sure. do it.
+
+---
+
+deploy
+
+---
+
+no. show me the drift first.

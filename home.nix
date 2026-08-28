@@ -22,9 +22,19 @@ let
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
   gpu = machine.gpu or null;
-  # Hosts running gnome-keyring as their Secret Service. fujiwara is headless and
-  # uses pass-secret-service instead (see services.pass-secret-service below).
-  gnomeKeyringHost = !isDarwin && isDesktop && hostname != "fujiwara";
+  # Secret Service provider, keyed off one axis so the two halves cannot drift:
+  # desktops get gnome-keyring, headless hosts get pass-secret-service (see
+  # services.pass-secret-service below). Gating these on different axes — gui vs
+  # hostname — made "no provider at all" representable, which fails silently in
+  # the libsecret consumers (git credential helper, huggingface).
+  gnomeKeyringHost = !isDarwin && isDesktop;
+
+  # Emacs is NOT part of the desktop stack: it runs headless as a daemon and is
+  # reached over tty/SSH with `emacsclient -t` (zsh.nix's non_gui branch already
+  # assumes exactly that). Only the graphical *frame* needs a GUI, so pick the
+  # build by isDesktop rather than dropping emacs on headless hosts — dropping it
+  # takes $EDITOR, git core.editor and the edit/sedit helpers down with it.
+  emacsPkg = if isDesktop then pkgs.emacs30-pgtk else pkgs.emacs30-nox;
 
   btopPkg =
     if gpu == "amd" then pkgs.btop-rocm
@@ -1342,9 +1352,9 @@ in
     '';
   };
 
-  services.emacs = lib.mkIf (!isDarwin && isDesktop) {
+  services.emacs = lib.mkIf (!isDarwin) {
     enable = true;
-    package = withHostNss pkgs.emacs30-pgtk;
+    package = withHostNss emacsPkg;
     client.enable = true;
   };
 
@@ -1720,6 +1730,18 @@ in
     pkgs.cryptomator-cli
   ] ++ lib.optionals (!isDesktop) [
     pkgs.ghostty.terminfo
+  ] ++ lib.optionals (!isDarwin) [
+    # Headless hosts get the -nox build; see emacsPkg. Deliberately outside the
+    # isDesktop block: $EDITOR, git core.editor and edit/sedit all resolve
+    # emacsclient, so gating this on the desktop stack breaks editing over SSH.
+    #
+    # withHostNss, not bare: an unwrapped nix emacs can't dlopen the host's
+    # libnss_systemd.so.2, so getpwuid/getpwnam fail for a homed-only user with
+    # no /etc/passwd entry. Emacs then sets init-file-user to "sauyon" instead
+    # of "", can't resolve ~sauyon, and every startup warns "User sauyon has no
+    # home directory" (startup.el's file-directory-p check). services.emacs
+    # already wraps the daemon; the CLI on PATH needs it too.
+    (withHostNss emacsPkg)
   ] ++ lib.optionals (!isDarwin && isDesktop) [
     caffeine
     # nixGL wrap: without it the FHS env resolves GBM/DRI via the NixOS-only
@@ -1734,13 +1756,6 @@ in
     # native messaging (the extension can't unlock with biometrics on its own).
     # Pairs with the polkit action + pam_fprintd wiring in system/.
     pkgs.bitwarden-desktop
-    # withHostNss, not bare: an unwrapped nix emacs can't dlopen the host's
-    # libnss_systemd.so.2, so getpwuid/getpwnam fail for a homed-only user with
-    # no /etc/passwd entry. Emacs then sets init-file-user to "sauyon" instead
-    # of "", can't resolve ~sauyon, and every startup warns "User sauyon has no
-    # home directory" (startup.el's file-directory-p check). services.emacs
-    # already wraps the daemon; the CLI on PATH needs it too.
-    (withHostNss pkgs.emacs30-pgtk)
     pkgs.hyprpicker
     pkgs.psi-notify
     pkgs.pwvucontrol
@@ -2051,7 +2066,11 @@ in
     # works in any tty/SSH session with no graphical unlock. Mutually exclusive
     # with gnome-keyring (module assertion). The GPG key is passphraseless, so the
     # store is protected by file perms + FDE only.
-    pass-secret-service = lib.optionalAttrs (!isDarwin && hostname == "fujiwara") {
+    # Gated on !isDesktop, the same axis as gnomeKeyringHost, so the two are
+    # exhaustive: every Linux host gets exactly one Secret Service and neither
+    # "both" nor "neither" is representable. Keying this on hostname instead let
+    # a future gui = false host land with no provider at all.
+    pass-secret-service = lib.optionalAttrs (!isDarwin && !isDesktop) {
       enable = true;
     };
 
@@ -2694,7 +2713,7 @@ in
         };
         core = {
           pager = "${pkgs.diff-so-fancy}/bin/diff-so-fancy | ${pkgs.less}/bin/less -RFx4";
-          editor = if isDarwin then "/usr/bin/emacsclient -t" else "${withHostNss pkgs.emacs30-pgtk}/bin/emacsclient -t";
+          editor = if isDarwin then "/usr/bin/emacsclient -t" else "${withHostNss emacsPkg}/bin/emacsclient -t";
           whitespace = "trailing-space,space-before-tab";
         };
         diff.algorithm = "histogram";

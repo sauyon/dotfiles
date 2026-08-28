@@ -1323,6 +1323,7 @@ in
       // {
         xdg = config.xdg;
         home = config.home.homeDirectory;
+        inherit isDesktop;
       }
     )
     // (lib.optionalAttrs hidpi.enabled {

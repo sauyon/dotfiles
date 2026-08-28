@@ -4,6 +4,9 @@
   home,
   xdg,
   config,
+  # Passed in from home.nix rather than re-derived from `machine`, so the
+  # `machine.gui or true` default is defined in exactly one place.
+  isDesktop,
   ...
 }:
 rec {
@@ -56,7 +59,6 @@ rec {
   CODER_SSH_CONFIG_FILE = "${xdg.configHome}/coderv2/ssh-config";
 }
 // lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
-  BROWSER = "firefox";
   SSH_AGENT_PID = "";
   # ssh-tpm-agent is the primary SSH agent (programs.ssh-tpm-agent.enable in
   # home.nix); gpg-agent has SSH support explicitly disabled there. ssh-tpm-agent
@@ -68,4 +70,11 @@ rec {
   # shells. Set it here so Nix-built tools (less, etc.) find both Nix-installed
   # terminfo (e.g. ghostty) and the distro's.
   TERMINFO_DIRS = "${home}/.nix-profile/share/terminfo:/usr/share/terminfo";
+}
+// lib.optionalAttrs (!pkgs.stdenv.isDarwin && isDesktop) {
+  # Desktop-only: programs.firefox.enable is isDesktop-gated, so on a headless
+  # host this would name a binary that isn't installed. Leave BROWSER unset
+  # there and let each tool fall back to its own default rather than fail with
+  # a bare command-not-found.
+  BROWSER = "firefox";
 }

@@ -39,3 +39,7 @@ restarting tailscale is finme.
 ---
 
 run it; I will manually allow
+
+---
+
+yes

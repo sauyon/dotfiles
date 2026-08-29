@@ -329,6 +329,14 @@ let
   '';
 
   ao-run = pkgs.writeShellScriptBin "ao-run" ''
+    # `docker run -v` creates a missing bind-mount source itself, always as a
+    # directory and (with a rootful daemon) owned by root. For ~/.hermes-orchestrator
+    # that leaves a dir the container's mapped UID can't write to; for the :ro
+    # mounts it is merely a root-owned turd in $HOME that needs sudo to remove.
+    # Pre-create them as ourselves. Must run before the first `docker run` below,
+    # which already mounts ~/devel. No-op when they exist.
+    mkdir -p ~/devel ~/.hermes-orchestrator ~/.aws ~/.config/gh
+
     docker network inspect agent-net >/dev/null 2>&1 || docker network create agent-net
 
     # Build/rebuild the ao image (dereference nix symlinks for Docker build context)
@@ -357,7 +365,20 @@ let
     done
 
     AO_CONFIG="/tmp/ao-config.yaml"
-    cp -f ~/.config/agent-orchestrator/config.yaml "$AO_CONFIG"
+    # If a previous run let docker auto-create this as a directory, `cp -f` would
+    # return 0 and copy *into* it, and the mount would then hand ao a directory
+    # where it expects YAML. cp does not save us here, so check explicitly. Not
+    # removed automatically: docker would have made it root-owned.
+    if [ -d "$AO_CONFIG" ]; then
+      echo "ao-run: $AO_CONFIG is a directory, not a file -- remove it and retry" >&2
+      exit 1
+    fi
+    # Nor may staging fail silently: docker would create the missing path as that
+    # same root-owned directory on the next line's mount.
+    if ! cp -f ~/.config/agent-orchestrator/config.yaml "$AO_CONFIG"; then
+      echo "ao-run: could not stage $AO_CONFIG from ~/.config/agent-orchestrator/config.yaml" >&2
+      exit 1
+    fi
     chmod 644 "$AO_CONFIG"
     TTY_FLAG=()
     [ -t 0 ] && TTY_FLAG=(-t)

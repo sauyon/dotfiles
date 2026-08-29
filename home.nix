@@ -343,7 +343,6 @@ let
 
     # Build the hermes plugin (source is on host, node_modules resolved in container)
     PLUGIN_DIR=~/devel/agent-orchestrator/packages/plugins/agent-hermes
-    CORE_DIR=~/devel/agent-orchestrator/packages/core
     if [ -d "$PLUGIN_DIR/src" ] && [ ! -f "$PLUGIN_DIR/dist/index.js" ]; then
       docker run --rm -v ~/devel:/repos -w /repos/agent-orchestrator \
         node:24-bookworm sh -c 'npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @aoagents/ao-core build && pnpm --filter @aoagents/ao-plugin-agent-hermes build'
@@ -360,30 +359,29 @@ let
     AO_CONFIG="/tmp/ao-config.yaml"
     cp -f ~/.config/agent-orchestrator/config.yaml "$AO_CONFIG"
     chmod 644 "$AO_CONFIG"
-    TTY_FLAG=""
-    [ -t 0 ] && TTY_FLAG="-t"
+    TTY_FLAG=()
+    [ -t 0 ] && TTY_FLAG=(-t)
 
     # Locate hermes binary in the nix store so it's accessible inside the container.
     # The hermes plugin searches /root/.local/bin/hermes and /root/.hermes/hermes-agent/venv/bin/hermes.
     # We mount the nix store read-only and bind the binary to the first search path.
     HERMES_BIN=$(find /nix/store -maxdepth 3 -name 'hermes' -path '*hermes-agent*/bin/hermes' 2>/dev/null | sort | tail -1)
-    HERMES_MOUNT=""
+    HERMES_MOUNT=()
     if [ -n "$HERMES_BIN" ]; then
-      HERMES_MOUNT="-v /nix/store:/nix/store:ro -v ''${HERMES_BIN}:/home/$(id -un)/.local/bin/hermes:ro"
+      HERMES_MOUNT=(-v /nix/store:/nix/store:ro -v "''${HERMES_BIN}:/home/$(id -un)/.local/bin/hermes:ro")
     fi
 
     CONTAINER_HOME="/home/$(id -un)"
-    exec docker run --rm -i $TTY_FLAG \
+    exec docker run --rm -i "''${TTY_FLAG[@]}" \
       --name ao \
       --network agent-net \
       -v "$AO_CONFIG":/work/agent-orchestrator.yaml \
       -e AO_CONFIG_PATH=/work/agent-orchestrator.yaml \
-
       -v ~/devel:/repos \
       -v ~/.config/gh:"$CONTAINER_HOME"/.config/gh:ro \
       -v ~/.aws:"$CONTAINER_HOME"/.aws:ro \
       -v ~/.hermes-orchestrator:"$CONTAINER_HOME"/.hermes \
-      $HERMES_MOUNT \
+      "''${HERMES_MOUNT[@]}" \
       -e HERMES_GATEWAY_TOKEN="$(cat ~/.hermes-gateway-token 2>/dev/null)" \
       -e ANTHROPIC_BASE_URL=http://litellm:4000 \
       -e AO_ANTHROPIC_KEY=sk-ao \
@@ -392,7 +390,7 @@ let
       -e AIDER_MODEL=openai/moonshotai/kimi-k2.5 \
       -p 3000:3000 \
       -p 14801:14801 \
-      ao start ''${@:-mcloud}
+      ao start "''${@:-mcloud}"
   '';
 
   # ── gnome-keyring, unlocked from the TPM ────────────────────────────────────
@@ -1547,7 +1545,7 @@ in
   };
 
 
-  systemd.user.services.psi-notify = lib.optionalAttrs (!isDarwin && isDesktop) {
+  systemd.user.services.psi-notify = lib.mkIf (!isDarwin && isDesktop) {
     Unit = {
       Description = "Desktop notifications when system resources are under pressure";
       PartOf = [ "graphical-session.target" ];
@@ -1580,7 +1578,7 @@ in
   # If unlock prompts ever come back, check `busctl --user status
   # org.freedesktop.secrets` -- if it names anything other than this unit,
   # something claimed the name earlier and that is the thing to chase.
-  systemd.user.services.gnome-keyring = lib.optionalAttrs gnomeKeyringHost {
+  systemd.user.services.gnome-keyring = lib.mkIf gnomeKeyringHost {
     Unit = {
       Description = "GNOME Keyring (login collection unlocked from the TPM)";
       PartOf = [ "graphical-session-pre.target" ];
@@ -1605,7 +1603,7 @@ in
   home.file.".local/share/dbus-1/services/org.freedesktop.impl.portal.Secret.service" =
     lib.mkIf gnomeKeyringHost { text = gnomeKeyringDbusService "org.freedesktop.impl.portal.Secret"; };
 
-  systemd.user.services.hyprland-cleanup = lib.optionalAttrs (!isDarwin && isDesktop) {
+  systemd.user.services.hyprland-cleanup = lib.mkIf (!isDarwin && isDesktop) {
     Unit = {
       Description = "Gracefully close all Hyprland windows on session end";
       PartOf = [ "graphical-session.target" ];

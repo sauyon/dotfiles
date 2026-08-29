@@ -323,3 +323,109 @@ The diff is confined to `home.nix`; nothing else in the tree is touched, and the
 ---
 
 yes
+
+---
+
+<task-notification>
+<task-id>a1a4dabb39108e47b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/02c881a3-1c98-49c8-8dad-cb4c1a299c16/tasks/a1a4dabb39108e47b.output</output-file>
+<status>completed</status>
+<summary>Agent "Review the mkdir guard addition" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## Review: `mkdir -p` guard in `ao-run` (home.nix:374-378)
+
+### 1. Is the premise true? — **Mostly true, but overstated in the comment**
+
+The auto-create behavior is real and documented: with the `-v`/`--volume` short syntax, if the host path does not exist, the daemon creates it, **always as a directory**, owned by the daemon's uid (root, for a rootful daemon). This is `-v`-specific — `--mount type=bind` errors instead. The script uses `-v` throughout (home.nix:384-389), so the premise applies. The parenthetical "`:ro` on the mount does not stop docker creating it" is also correct — creation happens before the ro flag is applied.
+
+**I could not test it.** Docker is not installed on this host: no `docker` in PATH, no `/usr/bin/docker`, no `/run/docker.sock` or `/var/run/docker.sock`, `systemctl is-active docker` → `inactive`. There is also **no Docker configuration anywhere in this repo** (`grep -rn docker --include='*.nix'` returns only the `ao-run` body itself) — no `virtualisation.docker.enable`, no rootless setup. So the daemon's identity (rootful vs. rootless vs. userns-remap) is out-of-band and unverified. Under rootless Docker the dir is created as *you* and the whole change is a no-op; under userns-remap it's created as a subuid and `mkdir -p` genuinely helps. The rest of the script (`--build-arg HOST_UID/HOST_GID` + manual UID mapping) strongly implies rootful, so I'll accept the premise.
+
+**Important (comment overclaims):** the stated harm is *"which the container's mapped UID then can't write to."* Two of the three paths — `~/.config/gh` and `~/.aws` (home.nix:387-388) — are mounted **`:ro`**. The container never writes to them, and a root-owned `0755` empty dir is perfectly readable by the mapped UID. For those two the only real harm is the second clause ("needs sudo to remove"), i.e. cosmetic cleanup. The write-failure rationale applies **only** to `~/.hermes-orchestrator` (home.nix:389), the one rw mount. The comment reads as if all three are broken; only one is.
+
+**Also note:** `~/.hermes-orchestrator` is *still absent on this machine right now*. Combined with docker being uninstalled, this change has not been exercised end-to-end here. Ask where it was verified.
+
+### 2. `mkdir -p` state matrix — tested, all cases benign
+
+No `set -e` and no `set -u` anywhere in `ao-run` (grep over home.nix:331-395 for `set -` returns nothing; the only `exec` is at line 381). Shebang is bash (`#!/nix/store/…-bash-5.3p15/bin/bash`), confirmed on the installed derivation. So `mkdir`'s exit status is **discarded**.
+
+Measured with real fixtures:
+
+| state | rc | behavior |
+|---|---|---|
+| already a directory | 0 | silent no-op |
+| symlink → real dir | 0 | silent no-op, **does not** try to write through |
+| symlink → `/nix/store/…-home-manager-files/.config/gh` | 0 | silent no-op — **no read-only-fs error**, mkdir stats and stops |
+| dangling symlink | 1 | `mkdir: cannot create directory 'x': File exists` on stderr, **non-fatal** |
+| regular file | 1 | same message, non-fatal |
+| parent missing | 0 | creates the whole chain |
+
+I also verified multi-operand semantics: `mkdir -p bad good1 good2` where `bad` is a regular file → prints one error, returns 1, **but still creates `good1` and `good2`**. So one bad operand does not suppress the other two. Good.
+
+Net: the only failure mode is **noisy, never fatal**. In the dangling-symlink / regular-file cases the script proceeds to `docker run` with the same broken source it would have had before the change, plus one extra stderr line. No regression.
+
+**On `~/.config/gh` specifically — the concern does not materialize.** `programs.gh.enable = true` (home.nix:2630) makes home-manager symlink *files inside* the directory, not the directory itself. Verified on disk: `~/.config/gh` is a **real dir** `drwxr-xr-x sauyon sauyon`, containing `config.yml -&gt; /nix/store/…-home-manager-files/.config/gh/config.yml` and a real `hosts.yml`. `mkdir -p` on it is a plain no-op. Even in the hypothetical where HM symlinked the whole dir, I tested that case above: rc=0, silent.
+
+**nit (speculative):** if `programs.gh` were ever swapped for an `xdg.configFile."gh"` whole-directory link, `ao-run` racing ahead and creating a real dir would make HM activation fail with "existing file in the way." Not today's config.
+
+**nit:** `mkdir` is unpinned and resolved from the caller's `PATH`, while this file pins `${pkgs.jq}/bin/jq` etc. elsewhere. `ao-run` already relies on unpinned `docker`, `cp`, `find`, `mktemp`, so this is internally consistent — but it is inconsistent with the file's general style.
+
+### 3. Set of three paths — **wrong on both edges**
+
+Full `-v` inventory of the `exec` (home.nix:384-389) plus the two earlier `docker run` calls:
+
+| source | line | can be missing? | covered? |
+|---|---|---|---|
+| `/tmp/ao-config.yaml` | 384 | **yes** — depends on `cp -f` at 360 succeeding | **no** |
+| `~/devel` | 386 | in principle | **no** |
+| `~/.config/gh` | 387 | **no** — HM always materializes it | yes (noise) |
+| `~/.aws` | 388 | yes | yes |
+| `~/.hermes-orchestrator` | 389 | **yes — absent right now** | yes |
+| `/nix/store` | via `HERMES_MOUNT` | no | n/a |
+| `$HERMES_BIN` | via `HERMES_MOUNT` | no — came from `find`, and `[ -n ]`-guarded (371-373) | n/a |
+| `~/devel` | 347, 354 (earlier `docker run`) | in principle | **no, and unreachable — see §4** |
+
+- **Important — uncovered, and the worst case of the class: `/tmp/ao-config.yaml`.** Line 360 is `cp -f ~/.config/agent-orchestrator/config.yaml "$AO_CONFIG"` with no `set -e`. If that `cp` ever fails, `$AO_CONFIG` doesn't exist, and Docker auto-creates `/tmp/ao-config.yaml` **as a root-owned directory** — then mounts a directory at `/work/agent-orchestrator.yaml`, so `ao` tries to parse a directory as YAML. Worse, that root-owned directory is **sticky**: every subsequent run's `cp -f` fails against it (can't overwrite a dir), so the tool is bricked until someone `sudo rm -rf`s it. That is strictly nastier than any of the three cases the guard covers, and it is exactly the failure class the comment describes.
+- **nit — `~/.config/gh` is pure noise.** `ao-run` is itself installed by home-manager (home.nix:1732), so it cannot exist on a host where `programs.gh` hasn't already created `~/.config/gh`. Harmless, but if `~/.config/gh` is included on "HM-managed, so present" grounds being irrelevant, then `~/.config/agent-orchestrator/config.yaml` (also HM-managed, home.nix:2975) should be too. The inclusion criteria are inconsistent.
+- **`~/devel` is not handled** — see below.
+
+### 4. Placement — **the guard is too late to ever protect `~/devel`**
+
+No `exit`, `return`, or `exec` precedes it; the only `exec` is at line 381. So on any path that reaches `exec`, the `mkdir` runs. That part is fine.
+
+**Important:** but there are **two earlier `docker run -v ~/devel:/repos` invocations at home.nix:347 and home.nix:354**, both before the guard at line 378. So if `~/devel` were ever missing, Docker would have already created it root-owned at line 347 — and adding `~/devel` to the current `mkdir` line would not fix that. If the guard is meant to be a general "pre-create every bind source as ourselves" invariant, it belongs **at the top of the script**, above line 332, not wedged between `HERMES_MOUNT` and `exec`. As written it's a local patch for one observed symptom rather than the invariant the comment claims.
+
+(`~/devel` genuinely missing is unrealistic — this dotfiles checkout lives in it — so this is a coherence complaint, not a live bug.)
+
+**On "does an empty dir cause a worse failure than a root-owned one?" — nothing found, no regression.** Docker was *already* auto-creating these as empty dirs; the change alters only their ownership. `gh`/`aws` inside the container see an empty config either way. There is no scenario where they used to error clearly and now silently see an empty dir. **nit at most:** the root-owned dir was an obnoxiously loud signal (needed sudo), and a user-owned empty dir is quieter. Marginal, and not worth keeping the sudo tax for.
+
+### 5. Tilde expansion — **correct, nothing found**
+
+`~` is not a metacharacter in a Nix `''…''` string; only `''`, `${`, `''$`, and `''\` are. Nix passes it through byte-for-byte. In the emitted bash it sits unquoted at the start of each word, which is exactly where POSIX/bash tilde expansion applies. This is also empirically settled by the surrounding code — `cp -rL ~/.config/agent-orchestrator/*` (336), `-v ~/devel:/repos` (386) — which already works in production. And the `''${HERMES_BIN}` / `''${TTY_FLAG[@]}` escapes on neighboring lines confirm the author knows which sigils need escaping. No mangling.
+
+---
+
+### Findings summary
+
+| # | severity | location |
+|---|---|---|
+| 1 | Important | home.nix:374-376 — comment's "can't write to it" rationale is false for the two `:ro` mounts; only `~/.hermes-orchestrator` has the write problem |
+| 2 | Important | home.nix:384 vs 360 — `/tmp/ao-config.yaml` is an uncovered auto-create source with a self-perpetuating root-owned-directory failure |
+| 3 | Important | home.nix:378 vs 347/354 — placement makes `~/devel` unprotectable by this guard; belongs at the top of the script if the invariant is general |
+| 4 | nit | home.nix:378 — `~/.config/gh` is always present via `programs.gh` (home.nix:2630); pure noise |
+| 5 | nit | home.nix:378 — unpinned `mkdir` |
+| 6 | nit | premise untested on this host (no docker installed, no docker config in repo); `~/.hermes-orchestrator` still absent, so unexercised locally |
+
+Nothing found on: early-exit paths, tilde expansion, home-manager `/nix/store` symlink interaction, multi-operand `mkdir` short-circuiting, and the "empty dir is a worse failure" hypothesis — all checked and clean.
+
+**Verdict: safe to commit** — no regression is possible (worst case is one stderr line on a non-`set -e` script), but the comment overclaims for the `:ro` mounts and the path list has a real gap at `/tmp/ao-config.yaml`.</result>
+<usage><subagent_tokens>34100</subagent_tokens><tool_uses>18</tool_uses><duration_ms>196260</duration_ms></usage>
+</task-notification>
+
+---
+
+please fix it
+
+---
+
+or just get rid of dead code...?

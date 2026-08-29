@@ -1,0 +1,325 @@
+<task-notification>
+<task-id>af4200dfaadf8003f</task-id>
+<tool-use-id>toolu_01HjZjd6yyPvQnMuFvfFfLLJ</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/02c881a3-1c98-49c8-8dad-cb4c1a299c16/tasks/af4200dfaadf8003f.output</output-file>
+<status>completed</status>
+<summary>Agent "Review shell semantics of the fix" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I verified everything by actually rendering the Nix string and running the bash/shellcheck/module-system experiments.
+
+## Angle 1 — Nix `''` escaping: **clean, nothing found**
+
+Rendered the exact derivation text with `nix eval --raw`. All four `''${` sites produce literal shell `${`:
+
+- `home.nix:371` → `HERMES_MOUNT=(-v /nix/store:/nix/store:ro -v "${HERMES_BIN}:/home/$(id -un)/.local/bin/hermes:ro")`
+- `home.nix:375` → `exec docker run --rm -i "${TTY_FLAG[@]}" \`
+- `home.nix:384` → `"${HERMES_MOUNT[@]}" \`
+- `home.nix:393` → `ao start "${@:-mcloud}"`
+
+No `$(...)` or `$VAR` was swallowed by Nix — `$(id -un)`, `$AO_CONFIG`, `$CONTAINER_HOME`, `$HERMES_BIN` all survive verbatim. `bash -n` on the rendered script passes; `shellcheck 0.11.0 -S style` reports **zero** findings, so the "shellcheck-clean" claim holds.
+
+## Angle 2 — array semantics: **correct, nothing found**
+
+Verified on bash 5.3: `A=(); set -- x "${A[@]}" y` → exactly `[x][y]`, zero args, and it stays zero-arg even under `set -u`. The built script's shebang is `#!/nix/store/…bash-5.3p9/bin/bash` (`writeShellScriptBin` → `runtimeShell`), so the pre-4.4 `set -u`/empty-array trap is not reachable. Old `HERMES_MOUNT` was a 4-word string relying on word-splitting; the 4-element array is exactly equivalent and strictly safer.
+
+## Angle 3 — `"${@:-mcloud}"`: **correct in all three cases** (nit only)
+
+I expected this to be the landmine too, but bash special-cases `@` inside `${…:-…}` — it does *not* collapse to one word. Measured:
+
+| invocation | result |
+|---|---|
+| no args | `[mcloud]` |
+| `a b c` | `[a][b][c]` ← separate words, correct |
+| `"a b"` | `[a b]` ← space preserved (old unquoted would have split) |
+| `"*"` | `[*]` ← glob preserved (old unquoted would have expanded) |
+
+So the multi-arg case is fine and the quoting is a strict improvement.
+
+**nit** (`home.nix:393`): `ao-run ""` — a single *empty* argument — yields `mcloud`, not an empty arg, because `:-` tests unset-**or-null**. The old unquoted form did the same, so it's not a regression, just an unfixable-by-quoting wart of the `:-` idiom.
+
+## Angle 4 — the newly-live lines
+
+First, a correction to the framing that lowers merge risk considerably. I rendered the **base** version: its live command was
+
+```
+exec docker run --rm -i $TTY_FLAG --name ao --network agent-net -v … -e AO_CONFIG_PATH=…
+```
+
+with **no image argument**. That is `docker: "docker run" requires at least 1 argument`, exit 125, on every single invocation. `ao-run` was not "partially working with 14 dead lines" — it was 100% non-functional. There is therefore no behaviour to regress.
+
+Sanity check that came out fine: `ao start …` at `home.nix:393` is not a duplicated binary name — `ao` is the image tag (`docker build -t ao`, `:337`) and `ENTRYPOINT ["ao"]` at `home.nix:3396` supplies the binary, so the container runs `ao start mcloud`. Correct.
+
+Tilde expansion at `home.nix:380,381,382,383`: verified fine. The tilde is word-leading and unquoted; the later `"$CONTAINER_HOME"` inside the same word does not inhibit it. `-v ~/.config/gh:"$CH"/.config/gh:ro` expands to `/home/sauyon/.config/gh:/home/u/.config/gh:ro`. **Nothing found here.**
+
+Real hazards, all *pre-existing intent, now live for the first time*:
+
+- **Important — `home.nix:383`, root-owned dir created in `$HOME`.** `~/.hermes-orchestrator` does **not exist** on this host. Docker's short `-v` syntax auto-creates a missing host path as a **root:root** directory. First run silently creates it, and the container (running as `$HOST_UID`, per `USER $HOST_USER` at `:3396`) then cannot write its hermes state. Same class applies to `~/.config/gh` and `~/.aws` (`:381,:382`) on any fresh machine — they happen to exist here.
+- **Important — `home.nix:385,389`, secrets silently empty.** Both `~/.hermes-gateway-token` and `~/.config/hermes/secrets/api-key` are **missing** on this host. `2&gt;/dev/null` swallows it, so the container launches with `HERMES_GATEWAY_TOKEN=""` and `OPENAI_API_KEY=REPLACE_ME`, failing deep inside instead of at launch. This code has never run before, so nobody has hit it.
+- **Important — no `set -euo pipefail`.** If `docker build` (`:337`) fails, the script marches on and `exec`s against a *stale* `ao` image. Pre-existing, but only now consequential because the `exec` actually reaches an image.
+- **Important — `home.nix:366` comment contradicts the code.** The comment says the plugin searches `/root/.local/bin/hermes`, but the container does not run as root and the mount target is `/home/$(id -un)/.local/bin/hermes`. If the plugin genuinely hardcodes `/root/…`, this newly-live mount lands at the wrong path and hermes is not found. I can't test the plugin from here — flag for the author.
+- **nit — `home.nix:376`, `--name ao`.** With `--rm` this is normally fine, but a stale `ao` container (daemon restart, unclean kill) makes every subsequent run die on a name conflict with no hint. `docker rm -f ao 2&gt;/dev/null || true` before the `exec` is cheap insurance.
+- **nit — `home.nix:391,392`, ports.** Nothing listens on 3000/14801 here, so no conflict today. But `-p 3000:3000` binds `0.0.0.0`; an agent orchestrator control port becoming LAN-reachable is worth `127.0.0.1:3000:3000`.
+- **nit — `home.nix:368`, `sort | tail -1`.** Picks the lexicographically-greatest nix store *hash*, which is effectively random, not the newest hermes. Unchanged by this diff, but it now actually matters because the mount is live.
+
+## Angle 5 — missed / made worse
+
+- **Important — the `optionalAttrs` fix is only partial.** `home.nix:1638` (`systemd.user.services."claude-remote-control@"`) and `home.nix:1666` (`systemd.user.services."cursor-agent-worker@"`) still use `lib.optionalAttrs (!isDarwin)` — the identical defect, left in place. I proved the mechanism directly with `evalModules` on a `types.attrsOf` option:
+
+  ```
+  { svc.a = mkIf false {…}; svc.b = optionalAttrs false {…}; svc.c = {…}; }
+  → attrNames = [ "b" "c" ]
+  ```
+
+  `mkIf false` makes the element undefined and `attrsOf`'s merge drops it; `optionalAttrs false` leaves the name present with all submodule defaults. So on `mari` (aarch64-darwin) those two still emit empty units. The commit subject says "the desktop-only units", so it's arguably scoped — but it's the same bug.
+
+- **Verified positive.** `nix eval .#homeConfigurations.fujiwara.config.systemd.user.services` (gui = false) no longer contains `psi-notify`, `gnome-keyring`, or `hyprland-cleanup`; `.#homeConfigurations.utsuho…` still contains all three. The fix works and is behaviour-preserving on desktops.
+
+- **nit — the other ~15 `optionalAttrs` sites are correctly left alone.** `gtk`, `qt`, `programs.walker`, `services.gpg-agent`, `services.mako` etc. are fixed option paths, not `attrsOf` elements, so `{}` really is a no-op there. Good discrimination by the author; worth a comment so a future reader doesn't "fix" them.
+
+- **nit — `CORE_DIR` removal is safe.** Confirmed no other reference anywhere in the repo.
+
+- **nit — `home.nix:359-361`, `/tmp/ao-config.yaml` + `chmod 644`.** Fixed, predictable path in a world-writable dir, made world-readable. Any local user can read it or pre-create/symlink it before you do. Already live pre-change, so not introduced — but this change is what finally causes it to be mounted into a running container.
+
+- **nit — commit mixes two unrelated fixes** (shell continuation + module-system semantics).
+
+- **nit — `home.nix:335-336`.** `AO_BUILD=$(mktemp -d)`; with no `set -e`, a `mktemp` failure makes `cp -rL … "$AO_BUILD/"` copy into `/`. Pre-existing, low probability.
+
+**Verdict: safe to merge** — the script it replaces was unconditionally broken (exit 125 every run), the Nix escaping and array/`"$@"` semantics are all verified correct, and the `mkIf` change is proven correct on both a desktop and a headless host; the newly-live lines carry real first-run rough edges (root-owned `~/.hermes-orchestrator`, silently-empty secrets, no `set -e`) that are worth a follow-up but not a block.</result>
+<usage><subagent_tokens>47513</subagent_tokens><tool_uses>24</tool_uses><duration_ms>372071</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>af4200dfaadf8003f</task-id>
+<task-id>aad2468890bb22b3c</task-id>
+<status>stopped</status>
+<summary>No completion record was found for 2 background agents from the previous session: "Review shell semantics of the fix" (af4200dfaadf8003f), "Review nix module semantics of the fix" (aad2468890bb22b3c). They may have been stopped, or they may have been running when the previous Claude Code process exited — either way their transcripts are saved on disk, so their progress is not lost. Resume any of them by sending a message to its id with SendMessage, or check its worktree/output for partial work before assuming the task landed.</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a26df60eea8137cae</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/02c881a3-1c98-49c8-8dad-cb4c1a299c16/tasks/a26df60eea8137cae.output</output-file>
+<status>completed</status>
+<summary>Agent "Review shell semantics of the fix" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## Verification method
+
+I did not reason about escaping or expansion from source. I realised both:
+
+- Evaluated the `''…''` literal standalone with `nix eval --raw` and read the generated shell text.
+- Built the actual derivation: `/nix/store/REDACTED/bin/ao-run`, shebang `…bash-5.3p15/bin/bash`, no `set -e`/`-u`/`-o pipefail`.
+- Ran the generated tail of that script under that exact bash with `docker` stubbed to print argv, for both the hermes-present and hermes-absent branches, tty and non-tty.
+- Evaluated `homeConfigurations.{utsuho,fujiwara,mari}` at both the base commit and HEAD.
+
+Working tree is clean; the range is one commit (`10e8909`).
+
+---
+
+## Angle 1 — Nix string escaping: **nothing wrong**
+
+All four `''${…}` escapes produce the intended shell text. From the realised script:
+
+- `home.nix:371` → `HERMES_MOUNT=(-v /nix/store:/nix/store:ro -v "${HERMES_BIN}:/home/$(id -un)/.local/bin/hermes:ro")` — note `$(id -un)` survived as shell command substitution, correctly *not* escaped (Nix only special-cases `${`, not `$(`).
+- `home.nix:375` → `exec docker run --rm -i "${TTY_FLAG[@]}" \`
+- `home.nix:384` → `"${HERMES_MOUNT[@]}" \`
+- `home.nix:393` → `ao start "${@:-mcloud}"`
+
+No Nix interpolation leaked, no `$VAR` or `$(…)` swallowed. Clean.
+
+## Angle 2 — array semantics: **correct, verified empirically**
+
+Stubbed-docker run with no tty and no hermes binary produced `ARGC=38` with argv `[run] [--rm] [-i] [--name] [ao] …` — **zero** arguments from either empty array, no empty-string argument. The `"${arr[@]}"` empty-array case is well-defined in bash (unlike `"${arr[*]}"`), and the built script's interpreter is bash 5.3, so the array syntax is safe. There is no `set -u`, so even bash 4.3's empty-array-under-`nounset` wart is irrelevant.
+
+nit (`home.nix:363`): `[ -t 0 ] &amp;&amp; TTY_FLAG=(-t)` returns 1 when stdin is not a tty. Harmless here (no `set -e`, not the last command), but it is a latent tripwire if `set -e` is ever added.
+
+## Angle 3 — `"${@:-mcloud}"`: **strict improvement, one cosmetic edge**
+
+Measured under bash 5.3 (`args → resulting argv`):
+
+| input | new `"${@:-mcloud}"` | old `${@:-mcloud}` |
+|---|---|---|
+| (none) | `[mcloud]` | `[mcloud]` |
+| `one` | `[one]` | `[one]` |
+| `"a b"` | `[a b]` | `[a] [b]` ← **split** |
+| `x y z` | `[x] [y] [z]` | `[x] [y] [z]` |
+| `"*"` | `[*]` | 20 filenames ← **globbed** |
+| `""` | `[mcloud]` | `[mcloud]` |
+| `"" ""` | `[] []` | (dropped) |
+
+The quoted form fixes real word-splitting and glob bugs. The only behaviour worth naming:
+
+- nit (`home.nix:393`): `ao-run ""` (single empty argument) still substitutes `mcloud`, because `${@:-…}` treats a lone empty positional as null. Identical to the old form, and nobody will hit it.
+
+## Angle 4 — the 14 newly-live lines
+
+For the record on what was actually dead: the truncated command was `exec docker run … -e AO_CONFIG_PATH=…` with **no image argument**, so `ao-run` exited immediately with `"docker run" requires at least 1 argument` and `exec` guaranteed nothing after it ran. The script has never worked at all. All of these are pre-existing intent now exposed, not introduced by the diff — but they are exposed *for the first time*, so they will be hit on the first real run:
+
+**Important — `home.nix:383`: `-v ~/.hermes-orchestrator:…/.hermes`.** `~/.hermes-orchestrator` does not exist on this machine (checked). Docker creates a missing bind-mount source as a **root-owned** directory on the host. The user then owns a root-only directory in `$HOME` that `ao` (running as the mapped host UID inside the container) cannot write to, and that cannot be removed without sudo. Same class of failure applies to `~/.aws` (`home.nix:382`) on any host where it is absent — `:ro` does not prevent Docker creating the source. A `mkdir -p` before the `exec` would defuse this.
+
+**Important — `home.nix:381` + `home.nix:384`: gh config is a nix-store symlink, and `/nix/store` is only mounted conditionally.** `~/.config/gh/config.yml` is `-&gt; /nix/store/…-gh-config.yml` (home-manager-managed). `/nix/store` is mounted **only** inside `HERMES_MOUNT`, i.e. only when a hermes binary is found. Running `find /nix/store -maxdepth 3 -name hermes -path '*hermes-agent*/bin/hermes'` on this machine returns **nothing**, so `HERMES_MOUNT=()` and the store is not mounted — `gh` inside the container sees a dangling symlink. Two unrelated features are silently coupled. Note the author already knows this failure mode: `home.nix:335` does `cp -rL` explicitly "to dereference nix symlinks", but that treatment was not applied here.
+
+nit — `home.nix:385`: `~/.hermes-gateway-token` does not exist, so `HERMES_GATEWAY_TOKEN=` is passed as an empty string rather than being omitted. Same at `home.nix:389`, where `~/.config/hermes/secrets/api-key` is also absent and the fallback `REPLACE_ME` is passed as a live API key. Both are intentional-looking fallbacks; they will just produce confusing auth errors instead of a clear "not configured".
+
+nit — `home.nix:386`: `ANTHROPIC_BASE_URL=http://litellm:4000` names a container on `agent-net` that nothing in this repo creates. It must be started out of band.
+
+nit — `home.nix:376` `--name ao`: with `--rm` a leftover `ao` container makes docker fail with "name is already in use". Given `home.nix:351`'s own comment that unclean exits happen ("stale git worktrees left by previous container runs"), a `docker rm -f ao &gt;/dev/null 2&gt;&amp;1 || true` before the `exec` would be cheap. Pre-existing intent.
+
+nit — `home.nix:391` `-p 3000:3000`: nothing else in this repo binds 3000 (only the Dockerfile's `EXPOSE 3000` at `home.nix:3396`), so no in-repo conflict. Any host-side dev server on 3000 will collide, but that is expected.
+
+Tilde expansion I specifically checked, since it was called out: `~/.config/gh:"$CONTAINER_HOME"/.config/gh:ro` expands correctly — the observed argv was `[/fakehome/.config/gh:/home/sauyon/.config/gh:ro]`. Unquoted leading `~` in a word whose *later* portion is quoted still expands. No bug.
+
+## Angle 5 — what the change missed / got right
+
+**The `optionalAttrs` → `mkIf` change is a genuine, verified bugfix, not cosmetics.** `lib.optionalAttrs` at the *value* position leaves the key present with `{}`, which the module system fills in as a default submodule. Measured at the base commit on the headless host:
+
+```
+$ nix eval "…?rev=f29a2e2#homeConfigurations.fujiwara.config.home.file" --apply &lt;filter&gt;
+["…/.config/systemd/user/gnome-keyring.service",
+ "…/.config/systemd/user/hyprland-cleanup.service",
+ "…/.config/systemd/user/psi-notify.service"]
+```
+
+Three **empty unit files** were being written to a host with no graphical session. At HEAD those three are gone from `systemd.user.services` entirely (`attrsOf`'s merge drops definitions whose `mkIf` is false). I also confirmed the desktop host is byte-identical: `homeConfigurations.utsuho.config.systemd.user.services` is **IDENTICAL** between base and HEAD. And Darwin (`mari`) still evaluates, with all assertions true and no warnings.
+
+**Important — the fix is incomplete.** The identical bug remains at:
+- `home.nix:1638`: `systemd.user.services."claude-remote-control@" = lib.optionalAttrs (!isDarwin) {…}`
+- `home.nix:1666`: `systemd.user.services."cursor-agent-worker@" = lib.optionalAttrs (!isDarwin) {…}`
+
+Confirmed live on Darwin at HEAD:
+
+```
+$ nix eval --json '.#homeConfigurations.mari.config.systemd.user.services'
+{"claude-remote-control@":{"Service":{"Environment":[],"ExecStart":[]},…},
+ "cursor-agent-worker@":{…}}
+```
+
+Mitigating: home-manager writes no systemd files on Darwin (`home.file` systemd matches are `[]`), so this leaks into eval but not onto disk. Still, the commit fixed three of five instances of its own pattern and left the two adjacent ones — worth a follow-up so the next reader doesn't conclude `optionalAttrs` here is fine.
+
+nit — `home.nix:344`: removing the unused `CORE_DIR` is correct; grepped the whole tree, zero remaining references.
+
+The "shellcheck-clean" claim holds — verified against the *built* script, not the source: `shellcheck 0.11.0 -s bash` on `/nix/store/…-ao-run/bin/ao-run` exits 0 with no output. That includes the pre-existing unquoted `$REPO` at `home.nix:353`, which shellcheck accepts because it is inside a double-quoted string.
+
+---
+
+**Verdict: safe to merge.** It repairs a script that has literally never run and removes three bogus unit files from the headless host, with the desktop host byte-identical; every issue I found is pre-existing intent now exposed (chiefly the root-owned `~/.hermes-orchestrator` bind-mount and the gh-config-symlink/`/nix/store` coupling) plus two remaining `optionalAttrs` sites worth a follow-up.</result>
+<usage><subagent_tokens>57366</subagent_tokens><tool_uses>32</tool_uses><duration_ms>354761</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a654ed9eaca35f1b3</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/02c881a3-1c98-49c8-8dad-cb4c1a299c16/tasks/a654ed9eaca35f1b3.output</output-file>
+<status>completed</status>
+<summary>Agent "Review nix module semantics of the fix" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>## Verification performed
+
+Ran the range diff (single commit `10e8909`, only `home.nix`, +10/−12; working tree clean, no stash). Then independently evaluated all four configs and inspected the actual on-disk state — I am running **on fujiwara**, which let me check the real systemd state rather than trust the claim.
+
+**Premise confirmed.** At base `f29a2e2`, fujiwara emitted all three units as **zero-byte** files:
+
+```
+/nix/store/6z8gr7g4286ip73z2cx7nw19m3vng3ab-gnome-keyring.service/...    0 bytes
+/nix/store/REDACTED.service/...       0 bytes
+/nix/store/REDACTED.service/... 0 bytes
+```
+
+Mechanism verified in home-manager's module (`.../modules/systemd.nix:43-84`): `buildService` filters `null`/`[]` fields and then empty sections, so a `{}` submodule yields `toSystemdIni {} == ""` and still gets a `xdg.configFile."systemd/user/&lt;name&gt;.service"` entry. Exactly as claimed.
+
+Live state on fujiwara right now (pre-fix generation):
+```
+systemctl --user list-unit-files
+gnome-keyring.service      masked enabled
+psi-notify.service         masked enabled
+hyprland-cleanup.service   masked enabled
+```
+systemd treats a zero-byte regular unit file as **masked**. So the harm is real and slightly worse than "an empty unit sits there" — those three unit names were unusable on this host.
+
+`mkIf false` genuinely removes the key (nixpkgs `types.attrsOf.merge` → `mergeDefinitions` → `dischargeProperties` drops it, then `filterAttrs (n: v: v ? value)` deletes the name). Confirmed empirically:
+
+- fujiwara `systemd.user.services` attrNames: `["claude-remote-control@","cursor-agent-worker@","emacs","gpg-agent","pass-secret-service","set-SSH_AUTH_SOCK","sops-nix","ssh-tpm-agent"]` — all three gone, and `config.xdg.configFile` has **zero** `systemd/*` entries for them, and `home.file` has none either.
+- utsuho/setsuna still emit all three **plus** the `Install.WantedBy` symlinks (`graphical-session-pre.target.wants/gnome-keyring.service`, `graphical-session.target.wants/{psi-notify,hyprland-cleanup}.service`), with **identical store paths** on both hosts — content unchanged.
+- All four `activationPackage.drvPath`s evaluate cleanly (utsuho, setsuna, fujiwara, mari). `config.assertions` on mari are all `true`; `config.warnings` empty on mari and fujiwara.
+- `ao-run` builds and `bash -n` passes; shebang is bash 5.3 (`writeShellScriptBin`), so the array syntax is legal.
+
+---
+
+## Angle 1 — does anything read those attrs / unit names?
+
+**Nothing. No finding.** Repo-wide grep for `psi-notify|gnome-keyring|hyprland-cleanup` outside `.git`/`.drovr`:
+
+- No `Wants=`/`After=`/`Requires=`/`BindsTo=`/`PartOf=` in any *other* unit names them. The only dependency edges are the three units' own `PartOf`/`After` on `graphical-session[-pre].target`, which is a target, not a sibling attr.
+- No `config.systemd.user.services.&lt;name&gt;` reads anywhere.
+- `systemctl --user` call sites (`zsh.nix:88,89,94,113,114,119`) only touch `claude-remote-control@` and `cursor-agent-worker@`. `mise.toml:80` touches `sops-nix`. `home/scripts/bootstrap.sh:126` touches `emacs.service`.
+- `system/deploy:32-34` masks Arch's `gnome-keyring-daemon.{socket,service}` — **different unit names**, unaffected.
+- `home.nix:468` is a comment (`systemctl --user restart gnome-keyring`) — a manual runbook line, still correct on the hosts where the unit exists.
+- `hyprland.nix`, `env.nix`, `opencode.nix`, `home/.claude/` : no hits.
+- `xdg.configFile."psi-notify"` (`home.nix:1450`) is already `lib.mkIf` and independently gated; fujiwara correctly has no `psi-notify` config dir.
+
+## Angle 2 — laziness / recursion
+
+**Nothing. No finding.**
+
+- `home.nix:30` `gnomeKeyringHost = !isDarwin &amp;&amp; isDesktop`; `home.nix:23` `isDesktop = machine.gui or true`; `home.nix:21` `isDarwin = pkgs.stdenv.isDarwin`. `machine` is an `extraSpecialArgs` flake input (`flake.nix:42`), not `config`. All three `mkIf` conditions are pure let-bindings — forcing them during merge cannot recurse.
+- Unit bodies: `psi-notify` references only `pkgs`/`withHostNss`; `gnome-keyring` only the `gnome-keyring-tpm` let-binding; `hyprland-cleanup` (`home.nix:1622`) references `config.home.homeDirectory`, which is a leaf option that does not depend on `systemd.user.services`. No self-reference to `config.systemd.user.services.*` anywhere in the three bodies.
+- Adjacent `home.nix:1338` (`systemd.user.sessionVariables = mkIf (!isDarwin) (removeAttrs config.home.sessionVariables …)`) reads `config` in mkIf *content* (lazy) — untouched and still fine.
+
+## Angle 3 — did the author verify the right thing?
+
+**Numbers: confirmed, but the evidence was cited incompletely — nit.** Actual sizes on utsuho and setsuna (identical store paths, so both hosts):
+
+| unit | bytes |
+|---|---|
+| `psi-notify.service` | **448** |
+| `gnome-keyring.service` | **281** |
+| `hyprland-cleanup.service` | **393** |
+
+The claimed "281 and 448" are real, but they cover only two of the three units; `hyprland-cleanup` (393 B) was never cited. Three units changed, two numbers reported.
+
+**Important — the fix is incomplete. Two more sites carry the identical latent bug:**
+
+- `home.nix:1638` — `systemd.user.services."claude-remote-control@" = lib.optionalAttrs (!isDarwin) { … }`
+- `home.nix:1666` — `systemd.user.services."cursor-agent-worker@" = lib.optionalAttrs (!isDarwin) { … }`
+
+Confirmed by eval: on mari, `config.systemd.user.services` is
+```
+{"claude-remote-control@":{"Service":{"Environment":[],"ExecStart":[]},"Unit":{...all null/[]...}},
+ "cursor-agent-worker@":{...same...}}
+```
+— two defined-but-empty units, exactly the shape that produced the fujiwara zero-byte files. They are **currently inert** only because home-manager's `systemd.nix` wraps its whole `config` in `mkIf cfg.enable` and `systemd.user.enable` defaults to `pkgs.stdenv.isLinux` (verified: `mari.config.systemd.user.enable == false`, and `mari.config.xdg.configFile` has zero `systemd/*` entries). So they cannot bite today, but they are the same defect and they undermine the commit's own rationale being applied consistently. Fix them or write a comment saying why they're exempt.
+
+**No other genuine attrsOf-element `optionalAttrs` sites.** I enumerated every `optionalAttrs` in the repo and classified each:
+
+- Submodule/option-set targets — safe, `{}` merges to defaults: `home.nix:1908` (`gtk`), `1951` (`qt`), `1956` (`programs.walker`), `1970` (`services.kanshi`), `2038` (`services.gpg-agent`), `2048` (`ssh-tpm-agent`), `2072` (`pass-secret-service`), `2076` (`hypridle`), `2098` (`mako`), `2130` (`wayland.windowManager.hyprland`), `2145` (`hyprlock`), `2450` (`thunderbird`), `2758` (`programs.ssh`).
+- Freeform attrset *values* merged with `//` — idiomatic and correct: `env.nix:61`, `env.nix:74`, `home.nix:1327`, `home.nix:1332`, `home.nix:2134` (`settings`), `home.nix:2620` (ghostty settings).
+- `home.file` / `xdg.configFile` / `xdg.dataFile`: **zero** `optionalAttrs` uses — they all correctly use `mkIf` (e.g. `home.nix:1599-1604`, `1406`, `1450`).
+- `systemd.user.timers` / `.sockets` / `.paths` / `.targets`: not used anywhere in this repo.
+
+So the exhaustive answer to "what else has this bug" is: `home.nix:1638` and `home.nix:1666`, and nothing else.
+
+**nit — the commit rationale is factually wrong about the mechanism.** The message says the empty file "shadowed the distro unit." There is no distro `gnome-keyring.service` on fujiwara: `/usr/lib/systemd/user/` contains no `keyring`/`secret` unit at all, and `/etc/systemd/user/` has only `gnome-keyring-daemon.{service,socket} -&gt; /dev/null` (from `system/deploy`). The actual effect was that systemd counted the zero-byte file as **masked**. Same conclusion, wrong reason — and the corollary is reassuring: removing the file does *not* un-shadow anything that could race `pass-secret-service` (`home.nix:2072`) for `org.freedesktop.secrets` on this host. I checked precisely because "un-shadowing a distro unit on a headless box that deliberately uses pass-secret-service" would have been a Critical regression; it isn't one.
+
+## Angle 4 — scope discipline
+
+The diff is confined to `home.nix`; nothing else in the tree is touched, and there are no uncommitted changes. Beyond the two stated fixes:
+
+- **nit — drive-by deletion of `CORE_DIR`** (was `home.nix:346`). Verified unused: `grep -n CORE_DIR home.nix` returns nothing post-change, and it was never referenced pre-change either. Harmless, but it is an unrelated cleanup riding along.
+- **nit — the ao-run rewrite is larger than the stated bug.** The actual bug was the stray blank line after `-e AO_CONFIG_PATH=… \`, which terminated the command list; `exec docker run` then ran with **no image argument** and all the mounts/ports/`ao start` lines were dead (unreachable after `exec`). Removing that line is the fix. The `TTY_FLAG`/`HERMES_MOUNT` string→array conversion and the `"${@:-mcloud}"` quoting are separate robustness changes bundled in. They're correct (bash shebang confirmed; `[ -t 0 ] &amp;&amp; TTY_FLAG=(-t)` is safe since `writeShellScriptBin` emits no `set -e`; `"${@:-mcloud}"` is valid bash and now preserves args containing spaces, a behavior change from the previous word-splitting form), just not what the commit says it's doing.
+- **Important (operational, not a code defect) — a previously-dead code path goes live.** Because `exec docker run` used to abort on a missing image argument, ao-run has effectively never worked. The fix makes these take effect for the first time: `-p 3000:3000` and `-p 14801:14801` publish on **0.0.0.0**, and the container gets `-v /nix/store:/nix/store:ro`, `~/devel`, `~/.config/gh:ro`, `~/.aws:ro`, `~/.hermes-orchestrator`, plus `HERMES_GATEWAY_TOKEN` and `OPENAI_API_KEY` in the environment. That is plainly the original intent, so it isn't a regression — but it is unexercised, and the two published ports were inert before this commit and won't be after. Worth a conscious ack rather than discovering it from a port scan.
+- **nit (pre-existing, untouched)** — `home.nix:359-361`: `AO_CONFIG="/tmp/ao-config.yaml"` is a fixed, predictable path that gets `cp -f`'d and `chmod 644`'d. Not introduced here, but it's now on a path that actually executes. `mktemp` would be better.
+
+---
+
+**Verdict: safe to merge to master** — the fix is correct, verified against real on-disk systemd state, and breaks nothing; land it, then follow up on `home.nix:1638`/`:1666`, which carry the same bug unfixed.</result>
+<usage><subagent_tokens>67709</subagent_tokens><tool_uses>43</tool_uses><duration_ms>453969</duration_ms></usage>
+</task-notification>
+
+---
+
+yes

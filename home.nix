@@ -388,8 +388,8 @@ let
       -e OPENAI_API_BASE=https://deepseek.api.modular.com/v1 \
       -e OPENAI_API_KEY="$(cat ~/.config/hermes/secrets/api-key 2>/dev/null || echo REPLACE_ME)" \
       -e AIDER_MODEL=openai/moonshotai/kimi-k2.5 \
-      -p 3000:3000 \
-      -p 14801:14801 \
+      -p 127.0.0.1:3000:3000 \
+      -p 127.0.0.1:14801:14801 \
       ao start "''${@:-mcloud}"
   '';
 
@@ -1635,7 +1635,7 @@ in
   # headless: claude bundles its own node, connects with stdin=null and no TTY,
   # and shuts down gracefully on SIGTERM. RC refuses to start in an untrusted
   # workspace, so clp-rc pre-accepts the trust dialog in the personal profile.
-  systemd.user.services."claude-remote-control@" = lib.optionalAttrs (!isDarwin) {
+  systemd.user.services."claude-remote-control@" = lib.mkIf (!isDarwin) {
     Unit = {
       Description = "Claude Code Remote Control (personal profile) — %I";
       After = [ "network-online.target" ];
@@ -1663,7 +1663,7 @@ in
   # `ca-rc` starts a Cursor Agent pool worker for a project dir so cloud/mobile
   # sessions can claim it one agent at a time. Template keyed on project path:
   #   systemctl --user start cursor-agent-worker@$(systemd-escape -p /path/to/proj)
-  systemd.user.services."cursor-agent-worker@" = lib.optionalAttrs (!isDarwin) {
+  systemd.user.services."cursor-agent-worker@" = lib.mkIf (!isDarwin) {
     Unit = {
       Description = "Cursor Agent worker — %I";
       After = [ "network-online.target" ];

@@ -309,11 +309,11 @@
     # Measured 2026-08-28: 16 such servers holding 38 processes and 1.66 GB,
     # aged 21-72 days, every one at zero syscalls.
     #
-    # sessionVariables lands in .zshenv, which is what matters here: mosh
-    # starts the server via `ssh host mosh-server new`, and sshd runs that as a
-    # non-interactive `$SHELL -c` that reads .zshenv and nothing else. (Note
-    # home.sessionVariables would NOT work — it writes hm-session-vars.sh,
-    # which .zshenv never sources.)
+    # It has to reach .zshenv, not just .zshrc: mosh starts the server via
+    # `ssh host mosh-server new`, and sshd runs that as a non-interactive
+    # `$SHELL -c`, which reads .zshenv and never .zshrc. This block qualifies —
+    # HM emits it into .zshenv under `if [[ ! -o login ]]`, and that is exactly
+    # the shell sshd gives us.
     MOSH_SERVER_NETWORK_TMOUT = 7 * 24 * 60 * 60;
   };
 

@@ -50,6 +50,22 @@
       *":$PNPM_HOME:"*) ;;
       *) export PATH="$PNPM_HOME:$PATH" ;;
     esac
+
+    # Reap detached mosh sessions after a week of client silence.
+    #
+    # mosh-server has no reconnect timeout by default, so a client that never
+    # comes back (closed laptop, dead network) leaves the server — and every
+    # process under its pty — alive forever. Nothing downstream breaks the
+    # cycle: the shell sees a live parent and a valid tty, so it never gets a
+    # HUP, and the TUI under it blocks on a pty nobody will ever write to.
+    # Measured 2026-08-28: 16 such servers holding 38 processes and 1.66 GB,
+    # aged 21-72 days, every one at zero syscalls.
+    #
+    # This has to live in .zshenv rather than home.sessionVariables. mosh starts
+    # the server via `ssh host mosh-server new`, which sshd runs as a
+    # non-interactive `$SHELL -c`; that reads .zshenv and nothing else, and
+    # never sources hm-session-vars.sh.
+    export MOSH_SERVER_NETWORK_TMOUT=604800
   '';
 
   initContent = ''

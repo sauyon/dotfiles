@@ -1,0 +1,5 @@
+ok, so how are wen even close to 187.6
+
+---
+
+that doesn't add to 187 either though, no? and the kube pods seem to be taking a lot more memory than I would like

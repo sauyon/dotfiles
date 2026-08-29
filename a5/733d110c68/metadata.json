@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "a5733d110c68",
+  "strategy": "manual-commit",
+  "branch": "drovr/fix-ao-run-and-optionalattrs",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "flake.lock",
+    "flake.nix",
+    "home.nix"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a5/733d110c68/0/metadata.json",
+      "transcript": "/a5/733d110c68/0/full.jsonl",
+      "compact_transcript": "/a5/733d110c68/0/transcript.jsonl",
+      "content_hash": "/a5/733d110c68/0/content_hash.txt",
+      "prompt": "/a5/733d110c68/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 9433,
+    "cache_read_tokens": 320989,
+    "output_tokens": 7298,
+    "api_call_count": 5
+  }
+}

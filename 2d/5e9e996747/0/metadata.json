@@ -1,0 +1,54 @@
+{
+  "cli_version": "0.8.42",
+  "checkpoint_id": "2d5e9e996747",
+  "session_id": "dcd57957-00a8-4140-b032-7fe883c9b86f",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-29T02:22:28.658148067Z",
+  "branch": "drovr/fix-ao-run-and-optionalattrs",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "home.nix"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "94abd25042d3",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 57630,
+    "cache_read_tokens": 534917,
+    "output_tokens": 9545,
+    "api_call_count": 12
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-29T02:22:28.646980897Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 15,
+    "human_modified": 7,
+    "human_removed": 0,
+    "total_committed": 21,
+    "total_lines_changed": 22,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 421,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/fix-review-1/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/fix-review-1/002-home.nix.diff": 85,
+        ".drovr/review/fix-review-1/index.md": 28,
+        "opencode.json": 35
+      }
+    }
+  ]
+}

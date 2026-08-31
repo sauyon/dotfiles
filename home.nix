@@ -1633,6 +1633,7 @@ in
     lnav
     mosh
     opencode
+    pi-coding-agent  # earendil-works/pi terminal coding agent (binary: pi)
     forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg and forge.ko.ag
     bat
     rustup

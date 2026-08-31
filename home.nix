@@ -1279,7 +1279,7 @@ in
   # PATH (the .el files aren't templated).
   home.file.".emacs.d/lisp/grip-path.el" = lib.mkIf (!isDarwin) {
     text = ''
-      (setq grip-binary-path "${pkgs.grip}/bin/grip")
+      (setq grip-binary-path "${pkgs.python3Packages.grip}/bin/grip")
     '';
   };
 
@@ -1653,7 +1653,11 @@ in
     explore-mcp-pkg
     drovr-pkg
   ]) ++ lib.optionals (!isDarwin) [
-    pkgs.grip
+    # The markdown previewer emacs grip-mode shells out to. Top-level `grip` is
+    # an unrelated GTK audio CD ripper -- it was what 1e4530b installed, so
+    # grip-mode never had its binary, and nixpkgs dropping the ripper (GTK2) is
+    # what finally surfaced it.
+    pkgs.python3Packages.grip
     pkgs.cursor-agent-cli
     pkgs.cloudflare-warp
     pkgs.cryptomator-cli

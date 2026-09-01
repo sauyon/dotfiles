@@ -7,7 +7,7 @@
         "KC_LCTRL",
         "KC_TAB",
         "KC_LSHIFT",
-        "KC_BSPACE",
+        "KC_SPACE",
         "KC_ESCAPE",
         "KC_LGUI"
       ],
@@ -45,9 +45,9 @@
       ],
       [
         "KC_LALT",
-        "KC_ENTER",
+        "KC_BSPACE",
         "MO(1)",
-        "KC_SPACE",
+        "KC_ENTER",
         "MO(2)",
         "KC_LGUI"
       ],

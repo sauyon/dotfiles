@@ -56,12 +56,28 @@ outer column, so there was nothing to port onto them. Keeping Svalboard's
 assignment is a decision, not an accident — `build.py` lists them in
 `SPARE_LATERALS`.
 
-Thumb clusters are also stock:
+Thumb clusters are Svalboard stock apart from Space/Enter/Backspace:
 
 ```
-L: ctrl tab shift bspc esc gui
-R: alt enter MO(1) space MO(2) gui
+L: ctrl  tab   shift  space  esc    gui
+R: alt   bspc  MO(1)  enter  MO(2)  gui
 ```
+
+Stock has Backspace on the left thumb and Space on the right — the mirror of the
+Glove80, which puts Space left (69) and Backspace right (74). Swapped back.
+
+Enter and Backspace are then exchanged on the right thumb, so Enter takes the
+primary thumb key. That one **diverges** from the Glove80, where `BSPC` at 74 is
+the mirror of the left thumb's `SPACE` at 69 — the faithful port would leave
+Backspace primary. Changed deliberately after typing on it.
+
+Still mirrored versus the Glove80, left alone for now: the symbols layer
+(Glove80 left thumb `&sl 3`, here right-thumb `MO(1)`) and shift (Glove80 right
+thumb `&sk LSHFT`, here left-thumb `LSHIFT`).
+
+`build.py` asserts the stock keycodes are where `THUMB_OVERRIDES` expects before
+exchanging them, so a changed base file fails the build instead of quietly
+eating a key.
 
 ## Host setup
 

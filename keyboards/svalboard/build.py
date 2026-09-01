@@ -38,6 +38,7 @@ OUT = HERE / "SvalHandsDownNeu.vil"
 
 S, E, C, N, W = 0, 1, 2, 3, 4
 
+L_THUMB, R_THUMB = 0, 5
 L_INDEX, L_MIDDLE, L_RING, L_PINKY = 1, 2, 3, 4
 R_INDEX, R_MIDDLE, R_RING, R_PINKY = 6, 7, 8, 9
 
@@ -121,6 +122,29 @@ HDNEU_RIGHT = {
 HDNEU_EXTRA = {
     (R_PINKY, E): "KC_Z",
     (R_PINKY, W): "KC_J",
+}
+
+# Thumb clusters are otherwise Svalboard's stock assignment, with two changes.
+#
+# 1. Stock puts Backspace on the left thumb and Space on the right -- the mirror
+#    image of the Glove80, which has Space on the left (position 69) and
+#    Backspace on the right (74). Muscle memory wins; swap them back.
+#
+# 2. Enter and Backspace exchange places on the right thumb, putting Enter on
+#    index 3 (the primary thumb key, where stock had Space) and Backspace on
+#    index 1. NOTE this one diverges from the Glove80 rather than matching it:
+#    there, 74/BSPC is the mirror of the left thumb's 69/SPACE, so the faithful
+#    port would leave Backspace primary. Changed on Sauyon's explicit call after
+#    typing on it -- the board in hand beats the layout on paper.
+#
+# NOT swapped, though the Glove80 also mirrors them: the symbols layer (Glove80
+# left thumb `&sl 3` vs stock right-thumb `MO(1)`) and shift (Glove80 right
+# thumb `&sk LSHFT` vs stock left-thumb `LSHIFT`). Left as stock pending a
+# decision -- see README.
+THUMB_OVERRIDES = {
+    (L_THUMB, 3): "KC_SPACE",
+    (R_THUMB, 1): "KC_BSPACE",
+    (R_THUMB, 3): "KC_ENTER",
 }
 
 # --- Layer 1: Arensito symbols ----------------------------------------------
@@ -265,6 +289,24 @@ def main():
     base.update(place(HDNEU_LEFT, "left"))
     base.update(place(HDNEU_RIGHT, "right"))
     base.update(HDNEU_EXTRA)
+
+    # Assert the thumb slots hold what the swap assumes before exchanging them,
+    # so a changed base file surfaces here instead of silently eating a key.
+    want = {
+        (L_THUMB, 3): "KC_BSPACE",
+        (R_THUMB, 1): "KC_ENTER",
+        (R_THUMB, 3): "KC_SPACE",
+    }
+    for pos, expected in want.items():
+        actual = layers[0][pos[0]][pos[1]]
+        if actual != expected:
+            raise SystemExit(
+                f"thumb swap FAILED -- expected {expected} at row {pos[0]} "
+                f"col {pos[1]}, base has {actual}. The stock thumb cluster "
+                "moved; re-check THUMB_OVERRIDES against the base .vil."
+            )
+    base.update(THUMB_OVERRIDES)
+
     for (row, col), code in base.items():
         layers[0][row][col] = code
 

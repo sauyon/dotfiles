@@ -591,6 +591,14 @@ let
             # drovr:worktrees explicitly says not to isolate. It has to be an
             # env var rather than a prompt so that skipping isolation is a
             # deliberate act and shows up in the transcript.
+            #
+            # A repo opts out permanently with a `.claude/allow-main-edit` file
+            # at its root. Still structural rather than an allowlist: the
+            # exemption lives in the repo it exempts, travels with the clone,
+            # and needs no list here to stay in sync. Worth it only where the
+            # tree is small enough that an agent reads it in one pass, so the
+            # moving-tree failure this hook exists for cannot build up -- this
+            # repo is that; a repo with a test suite is not.
             command = ''
               [ -n "$CLAUDE_ALLOW_MAIN_EDIT" ] && exit 0
               f=$(${pkgs.jq}/bin/jq -r '.tool_input.file_path // empty')
@@ -600,6 +608,7 @@ let
               d=$f; while [ ! -d "$d" ] && [ "$d" != "/" ]; do d=$(dirname "$d"); done
               root=$(${pkgs.git}/bin/git -C "$d" rev-parse --show-toplevel 2>/dev/null) || exit 0
               [ -d "$root/.git" ] || exit 0
+              [ -e "$root/.claude/allow-main-edit" ] && exit 0
               br=$(${pkgs.git}/bin/git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)
               case "$br" in main|master) ;; *) exit 0 ;; esac
               printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"This is the primary checkout on its default branch. Work in a worktree instead: `drovr new <run> --worktree` then EnterWorktree, or EnterWorktree on an existing one. For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set."}}'

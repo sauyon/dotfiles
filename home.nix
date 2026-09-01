@@ -592,13 +592,8 @@ let
             # env var rather than a prompt so that skipping isolation is a
             # deliberate act and shows up in the transcript.
             #
-            # A repo opts out permanently with a `.claude/allow-main-edit` file
-            # at its root. Still structural rather than an allowlist: the
-            # exemption lives in the repo it exempts, travels with the clone,
-            # and needs no list here to stay in sync. Worth it only where the
-            # tree is small enough that an agent reads it in one pass, so the
-            # moving-tree failure this hook exists for cannot build up -- this
-            # repo is that; a repo with a test suite is not.
+            # `.claude/allow-main-edit` at a repo root opts that repo out
+            # permanently. Only for trees small enough to read in one pass.
             command = ''
               [ -n "$CLAUDE_ALLOW_MAIN_EDIT" ] && exit 0
               f=$(${pkgs.jq}/bin/jq -r '.tool_input.file_path // empty')
@@ -1570,6 +1565,48 @@ in
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
+  # opencode leaks (upstream #16697, unfixed); this records how fast, so a
+  # restart is an informed manual call. Never signals anything.
+  # total_kb sums RSS, which double-counts shared pages: a growth curve, not a
+  # usage figure.
+  systemd.user.services.opencode-memwatch = lib.mkIf (!isDarwin) {
+    Unit.Description = "Record opencode resident memory (observational; never signals)";
+    Service = {
+      Type = "oneshot";
+      ExecStart = pkgs.writeShellScript "opencode-memwatch" ''
+        set -eu
+        PATH=${pkgs.coreutils}/bin:${pkgs.procps}/bin:${pkgs.gawk}/bin
+        STATE="$HOME/.local/state/opencode-memwatch"
+        LOG="$STATE/rss.log"
+        mkdir -p "$STATE"
+        # Match argv, not comm: the kernel truncates comm to `.opencode-wrapp`.
+        ps -eo pid=,rss=,args= | awk -v ts="$(date -Is)" '
+          $3 ~ /opencode/ && $0 !~ /memwatch/ {
+            n++; total += $2;
+            if ($2 > max) max = $2;
+            procs = procs sprintf(" %s:%s", $1, $2);
+          }
+          END { printf "%s\tprocs=%d\ttotal_kb=%d\tmax_kb=%d\tpids=%s\n", \
+                       ts, n+0, total+0, max+0, procs }
+        ' >> "$LOG"
+        # Keep the newest 10k samples (~5 weeks at this interval).
+        if [ "$(wc -l < "$LOG")" -gt 10000 ]; then
+          tail -n 10000 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"
+        fi
+      '';
+    };
+  };
+
+  systemd.user.timers.opencode-memwatch = lib.mkIf (!isDarwin) {
+    Unit.Description = "Sample opencode resident memory every 5 minutes";
+    Timer = {
+      OnBootSec = "5min";
+      OnUnitActiveSec = "5min";
+      AccuracySec = "1min";
+    };
+    Install.WantedBy = [ "timers.target" ];
+  };
+
   # `clp rc` == `claude-prof run personal remote-control`: a persistent server
   # letting claude.ai/code and the Claude mobile app drive local sessions in a
   # project. Template unit keyed on the project path so any number can run
@@ -1665,10 +1702,7 @@ in
     explore-mcp-pkg
     drovr-pkg
   ]) ++ lib.optionals (!isDarwin) [
-    # The markdown previewer emacs grip-mode shells out to. Top-level `grip` is
-    # an unrelated GTK audio CD ripper -- it was what 1e4530b installed, so
-    # grip-mode never had its binary, and nixpkgs dropping the ripper (GTK2) is
-    # what finally surfaced it.
+    # What grip-mode shells out to; top-level `grip` is an unrelated CD ripper.
     pkgs.python3Packages.grip
     pkgs.cursor-agent-cli
     pkgs.cloudflare-warp
@@ -2630,12 +2664,8 @@ in
         "**/.claude/plans"
         "**/.superpowers"
         ".gemini-review.agent.json" # gemini-review skill's Hunk sidecar artifact
-        # Local-only, never committed: this marker disables the main-checkout
-        # edit refusal for the repo holding it, so it must not be something a
-        # repo can hand to anyone else. Ignoring it globally keeps it a
-        # deliberate local act. Note the limit -- this stops the marker
-        # spreading FROM here, but a third-party repo that commits the path
-        # itself still arrives with the file on disk and still exempts itself.
+        # Disables the main-checkout edit guard; must stay local, never handed
+        # to anyone else. Does not stop a third-party repo shipping its own.
         "**/.claude/allow-main-edit"
       ];
 

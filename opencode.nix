@@ -7,23 +7,23 @@ let
     # (~/.claude/projects/<sanitized canonical git root>/memory/), so both CLIs
     # share one set of memories. Pinned because it injects a system prompt and
     # runs a per-turn recall subagent. That subagent is pinned via
-    # OPENCODE_MEMORY_RECALL_MODEL in the wrapper below — to the cheapest Coding
-    # Plan model rather than the session's, since recall fires every turn.
+    # OPENCODE_MEMORY_RECALL_MODEL in the wrapper below — to a cheap model
+    # rather than the session's, since recall fires every turn.
     # Set OPENCODE_MEMORY_IGNORE=1 to disable injection.
     plugin = [ "opencode-model-stats@0.2.3" "opencode-claude-memory@1.7.3" ];
     disabled_providers = [ "opencode" "zai" ];
     # Pin the default: unset, opencode picks one, and non-interactive launches
     # (drovr's review panel) inherit whatever that is.
     #
-    # Z.ai's hosted GLM rather than the local model. lemonade serves 4 slots off
-    # one GPU, and with hakobiya on the same router a turn queues behind
-    # multi-minute triage requests -- a one-token reply measured 3m14s, and
-    # decode falls to 2-4 t/s under load against 31 t/s idle. ko-ag is still
+    # GLM via Modular's public API rather than the local model. lemonade serves 4
+    # slots off one GPU, and with hakobiya on the same router a turn queues
+    # behind multi-minute triage requests -- a one-token reply measured 3m14s,
+    # and decode falls to 2-4 t/s under load against 31 t/s idle. ko-ag is still
     # registered below, so `/models` can still reach the local box on purpose.
-    model = "zai-coding-plan/glm-5.3";
+    model = "modular/zai-org/glm-5.3";
     # Title generation and other throwaway calls. Unset, these inherit `model`
     # above and bill the flagship for a six-word title.
-    small_model = "zai-coding-plan/glm-5.3-flash";
+    small_model = "modular/google/gemma-4-31b-it";
     provider = {
       mcloud = {
         npm = "@ai-sdk/openai-compatible";
@@ -33,7 +33,24 @@ let
         # appears in the committed config.
         options = { };
         models = {
-          "MiniMaxAI/MiniMax-M3" = { name = "MiniMax M3"; };
+          # Exact id this endpoint serves; the unsuffixed name 404s here.
+          "MiniMaxAI/MiniMax-M3-MXFP8-MTP" = { name = "MiniMax M3"; };
+        };
+      };
+      # Different deployment from `mcloud`, different model set: this one has
+      # the GLM builds. Public hostname, so only the key comes from sops.
+      modular = {
+        npm = "@ai-sdk/openai-compatible";
+        name = "Modular (api.modular.com)";
+        options = {
+          baseURL = "https://api.modular.com/v1";
+        };
+        models = {
+          "zai-org/glm-5.3" = { name = "GLM 5.3"; };
+          "z-ai/glm-5.2" = { name = "GLM 5.2"; };
+          "moonshotai/kimi-k2.7-code" = { name = "Kimi K2.7 Code"; };
+          "google/gemma-4-31b-it" = { name = "Gemma 4 31B"; };
+          "minimax/minimax-m3" = { name = "MiniMax M3"; };
         };
       };
       "ko-ag" = {
@@ -103,7 +120,7 @@ in
           rm -f $out/bin/opencode
           makeWrapper ${prev.opencode}/bin/opencode $out/bin/opencode \
             --run ${patchModelStats} \
-            --set-default OPENCODE_MEMORY_RECALL_MODEL zai-coding-plan/glm-5.3-flash
+            --set-default OPENCODE_MEMORY_RECALL_MODEL modular/google/gemma-4-31b-it
         '';
       };
     })
@@ -125,6 +142,8 @@ in
     if [ -r "$MCLOUD_KEY_FILE" ]; then
       JQ_ARGS+=(--rawfile mcloudKey "$MCLOUD_KEY_FILE")
       JQ_FILTER="$JQ_FILTER | .provider.mcloud.options.apiKey = (\$mcloudKey | sub(\"\\n$\"; \"\"))"
+      # api.modular.com accepts the same key as the internal endpoint.
+      JQ_FILTER="$JQ_FILTER | .provider.modular.options.apiKey = (\$mcloudKey | sub(\"\\n$\"; \"\"))"
     fi
     if [ -r "$MCLOUD_URL_FILE" ]; then
       JQ_ARGS+=(--rawfile mcloudUrl "$MCLOUD_URL_FILE")

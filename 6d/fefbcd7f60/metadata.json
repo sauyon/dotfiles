@@ -3,7 +3,7 @@
   "checkpoint_id": "6dfefbcd7f60",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "hyprland.nix"
   ],
@@ -21,13 +21,20 @@
       "compact_transcript": "/6d/fefbcd7f60/1/transcript.jsonl",
       "content_hash": "/6d/fefbcd7f60/1/content_hash.txt",
       "prompt": "/6d/fefbcd7f60/1/prompt.txt"
+    },
+    {
+      "metadata": "/6d/fefbcd7f60/2/metadata.json",
+      "transcript": "/6d/fefbcd7f60/2/full.jsonl",
+      "compact_transcript": "/6d/fefbcd7f60/2/transcript.jsonl",
+      "content_hash": "/6d/fefbcd7f60/2/content_hash.txt",
+      "prompt": "/6d/fefbcd7f60/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 40,
-    "cache_creation_tokens": 40312,
-    "cache_read_tokens": 1671080,
-    "output_tokens": 10068,
-    "api_call_count": 20
+    "input_tokens": 84,
+    "cache_creation_tokens": 91286,
+    "cache_read_tokens": 2949190,
+    "output_tokens": 19747,
+    "api_call_count": 42
   }
 }

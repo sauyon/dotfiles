@@ -1,0 +1,5 @@
+help me configure my external monitor currently connected to be left of the laptop display
+
+---
+
+go

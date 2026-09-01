@@ -1778,6 +1778,10 @@ in
     pkgs.psi-notify
     pkgs.pwvucontrol
     pkgs.slack
+    # Keymap editor for the Svalboard (keyboards/svalboard/). Needs the hidraw
+    # udev rule in system/etc/udev/rules.d/92-vial.rules to see the keyboard at
+    # all -- deployed separately, this package alone is not enough.
+    pkgs.vial
     zoom # wayland wrapper bypassing Zoom's xcb-forcing launcher; see above
     # Dropped: vesktop's build pulls pnpm-10.29.2, marked insecure in nixpkgs
     # (CVE-2026-48995, CVE-2026-50014). Re-add once nixpkgs ships a patched pnpm.

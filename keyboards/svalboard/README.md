@@ -35,7 +35,26 @@ publishes `-`.
 6 7 8 9 +   * 2 3 4 5
 ```
 
+Backtick is on `MO(1)` + left pinky **West** (so `~` is that plus shift). Arensito's
+`{` takes the slot where Svalboard's stock config kept the only `KC_GRAVE`, and
+the Glove80 has grave on its base layer — losing it would be a regression, so
+it gets reseated on a lateral Arensito leaves free.
+
 **Layer 2** — nav and F-keys, untouched from Svalboard's stock config.
+
+**Spare laterals on layer 0** are inherited from the stock Colemak-DHm config,
+not ported: openers on the left hand's outward laterals, closers on the right's,
+plus `-` and Delete on the left pinky.
+
+```
+L index/middle/ring West = ( { [        R index/middle/ring East = ) } ]
+L pinky East = -                        L pinky West = Delete
+```
+
+These are columns the Svalboard doesn't have and the Glove80 fills from its
+outer column, so there was nothing to port onto them. Keeping Svalboard's
+assignment is a decision, not an accident — `build.py` lists them in
+`SPARE_LATERALS`.
 
 Thumb clusters are also stock:
 
@@ -80,6 +99,11 @@ Since that mapping is a guess about matrix order that would fail *silently* —
 producing a scrambled but valid-looking keymap — `build.py` refuses to emit
 anything until it has run the stock Colemak-DHm block back through the same code
 path and reproduced all 30 alpha positions in the shipped `.vil` exactly.
+
+A second guard catches the other silent failure: writing 60 positions over a
+config we didn't author drops whatever was underneath. `check_no_orphans()`
+fails the build if any keycode disappears from all 16 layers with no shift- or
+ISO-explained substitute. That is how `` ` `` and `~` were caught.
 
 ## Source
 

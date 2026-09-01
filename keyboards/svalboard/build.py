@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Generate a Svalboard Vial keymap (.vil) for Hands Down Neu + Arensito symbols.
 
-Source of truth for both layers is my Glove80 layout, exported from
-my.glove80.com as glove80-hdneu.json (see README.md). This script re-expresses
-that layout on the Svalboard's finger-cup geometry.
+Source of truth for both layers is my Glove80 layout, my.glove80.com layout
+e3409150-bb22-49c0-8614-10035f3f6a04, layers `Base` and `symbols`. Its grids
+are transcribed into the constants below rather than read at build time, so
+this script has no inputs beyond the base .vil.
 
 The base .vil is Svalboard's own SvalCOLEMAKDHM.vil, which supplies the thumb
 clusters, the nav/F-key layer, and all the Vial metadata we don't want to
@@ -32,9 +33,8 @@ OUT = HERE / "SvalHandsDownNeu.vil"
 # Within a finger row the columns are the five switches of that finger's cup,
 # in absolute directions (East is always screen-right, on both hands):
 #
-#   [South, East, Center, North, unused]
-#          col 0   col 1   col 2   col 3   col 4   col 5
-#          South   East    Center  North   West    (unused, always -1)
+#   col 0   col 1   col 2   col 3   col 4   col 5
+#   South   East    Center  North   West    (unused, always -1)
 
 S, E, C, N, W = 0, 1, 2, 3, 4
 
@@ -144,9 +144,34 @@ ARENSITO_RIGHT = {
     "bottom": ["LSFT(KC_8)", "KC_2", "KC_3", "KC_4", "KC_5"],
 }
 
-# Spare laterals on the symbol layer fall through to the base layer rather than
-# keeping Colemak's leftovers.
+# Arensito's `{` lands on the one slot where the stock config kept KC_GRAVE
+# (layer 1, left pinky North), and nothing else in 16 layers supplies it. That
+# would cost both ` and ~ outright -- unlike !#%^, which stay reachable as
+# shift+digit because this layer carries all ten digits. The Glove80 has grave
+# on its base layer, so losing it here would be a regression against the source
+# layout. Reseat it on the left pinky's outward lateral, which Arensito leaves
+# free.
+ARENSITO_EXTRA = {
+    (L_PINKY, W): "KC_GRAVE",
+}
+
+# Blanking the finger cups to KC_TRNS means the laterals Arensito doesn't use
+# fall through to layer 0. Note that layer 0 at those eight positions is itself
+# inherited from the stock Colemak-DHm config -- see SPARE_LATERALS below.
 FINGER_ROWS = [L_INDEX, L_MIDDLE, L_RING, L_PINKY, R_INDEX, R_MIDDLE, R_RING, R_PINKY]
+
+# The eight layer-0 finger slots this script deliberately does NOT write. The
+# Glove80 has no equivalent keys -- they belong to columns the Svalboard lacks
+# -- so they keep Svalboard's stock assignment: openers on the left hand's
+# outward laterals, closers on the right's, plus `-` and Delete on the left
+# pinky. Listed here so the inheritance is a decision on the record rather than
+# whatever the base file happened to hold.
+SPARE_LATERALS = {
+    (L_INDEX, W): "(",  (R_INDEX, E): ")",
+    (L_MIDDLE, W): "{", (R_MIDDLE, E): "}",
+    (L_RING, W): "[",   (R_RING, E): "]",
+    (L_PINKY, E): "-",  (L_PINKY, W): "Delete",
+}
 
 
 # --- Self-test ---------------------------------------------------------------
@@ -189,6 +214,39 @@ def check_mapping(base_layer0):
     return len(rebuilt)
 
 
+def check_no_orphans(base_layers, out_layers):
+    """Fail if overwriting cost a character with no other way to type it.
+
+    Writing 60 positions over a config we didn't author drops whatever was
+    underneath, silently. Most drops are harmless -- LSFT(KC_1) is still
+    shift+1 as long as KC_1 survives somewhere, and the NONUS_* keys are ISO
+    positions this ANSI board has no use for. A bare keycode vanishing outright
+    is the case that costs you a character, which is how ` and ~ were lost the
+    first time this ran.
+    """
+    def codes(layers):
+        return {k for lay in layers for row in lay for k in row if isinstance(k, str)}
+
+    surviving = codes(out_layers)
+    dropped = codes(base_layers) - surviving
+
+    orphaned = []
+    for code in sorted(dropped):
+        if "NONUS" in code:
+            continue  # ISO-only position, absent from this keyboard
+        if code.startswith("LSFT(") and code[5:-1] in surviving:
+            continue  # still reachable by holding shift
+        orphaned.append(code)
+
+    if orphaned:
+        raise SystemExit(
+            "orphan check FAILED -- these keycodes are gone from all layers "
+            "with no shift-reachable source:\n"
+            + "\n".join(f"  {c}" for c in orphaned)
+        )
+    return len(dropped)
+
+
 def main():
     if not BASE.exists():
         raise SystemExit(
@@ -219,8 +277,12 @@ def main():
     sym = {}
     sym.update(place(ARENSITO_LEFT, "left"))
     sym.update(place(ARENSITO_RIGHT, "right"))
+    sym.update(ARENSITO_EXTRA)
     for (row, col), code in sym.items():
         layers[1][row][col] = code
+
+    orphans = check_no_orphans(json.loads(BASE.read_text())["layout"], layers)
+    print(f"orphan check OK: {orphans} keycodes dropped, all shift- or ISO-explained")
 
     OUT.write_text(json.dumps(vil, indent=2) + "\n")
     print(f"wrote {OUT.name}: {len(base)} base + {len(sym)} symbol positions, "

@@ -1167,6 +1167,15 @@ in
     version = 1;
   };
 
+  # ── herdr integration (pi) ─────────────────────────────────────────────────
+  # Extension auto-loaded by pi from ~/.pi/agent/extensions; reports lifecycle
+  # state and session identity to the local herdr socket. Vendored verbatim from
+  # `herdr integration install pi` (v7); self-contained (no config registration
+  # needed) and inert unless HERDR_ENV=1. Regenerate and bump if `herdr
+  # integration status` reports it outdated.
+  home.file.".pi/agent/extensions/herdr-agent-state.ts".source =
+    ./home/.pi/agent/extensions/herdr-agent-state.ts;
+
   # ── Claude plugins ─────────────────────────────────────────────────────────
   home.file.".claude/plugins/local-auto-mode/hooks.json".source =
     ./home/.claude/plugins/local-auto-mode/hooks.json;

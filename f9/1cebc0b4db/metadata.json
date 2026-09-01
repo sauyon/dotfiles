@@ -3,7 +3,7 @@
   "checkpoint_id": "f91cebc0b4db",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "home.nix",
     "system/etc/udev/rules.d/92-vial.rules"
@@ -15,13 +15,20 @@
       "compact_transcript": "/f9/1cebc0b4db/0/transcript.jsonl",
       "content_hash": "/f9/1cebc0b4db/0/content_hash.txt",
       "prompt": "/f9/1cebc0b4db/0/prompt.txt"
+    },
+    {
+      "metadata": "/f9/1cebc0b4db/1/metadata.json",
+      "transcript": "/f9/1cebc0b4db/1/full.jsonl",
+      "compact_transcript": "/f9/1cebc0b4db/1/transcript.jsonl",
+      "content_hash": "/f9/1cebc0b4db/1/content_hash.txt",
+      "prompt": "/f9/1cebc0b4db/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 36,
-    "cache_creation_tokens": 19539,
-    "cache_read_tokens": 3004930,
-    "output_tokens": 12466,
-    "api_call_count": 18
+    "input_tokens": 62,
+    "cache_creation_tokens": 33399,
+    "cache_read_tokens": 4578864,
+    "output_tokens": 21204,
+    "api_call_count": 31
   }
 }

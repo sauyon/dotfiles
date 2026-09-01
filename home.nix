@@ -2630,6 +2630,13 @@ in
         "**/.claude/plans"
         "**/.superpowers"
         ".gemini-review.agent.json" # gemini-review skill's Hunk sidecar artifact
+        # Local-only, never committed: this marker disables the main-checkout
+        # edit refusal for the repo holding it, so it must not be something a
+        # repo can hand to anyone else. Ignoring it globally keeps it a
+        # deliberate local act. Note the limit -- this stops the marker
+        # spreading FROM here, but a third-party repo that commits the path
+        # itself still arrives with the file on disk and still exempts itself.
+        "**/.claude/allow-main-edit"
       ];
 
       signing = {

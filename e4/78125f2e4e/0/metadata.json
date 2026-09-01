@@ -55,6 +55,37 @@
         "label": "Skill: drovr:code-review",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-toolu_01M8eTTf9ND1RFUimcQD4QyR",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "6b22dcb09dfb",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 260,
+        "end": 261,
+        "entry_ids": [
+          "6a568fda-132d-43dc-94fc-cc80df7c8f87"
+        ],
+        "tool_use_id": "toolu_01M8eTTf9ND1RFUimcQD4QyR"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01M8eTTf9ND1RFUimcQD4QyR"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: code-review",
+        "default_collapsed": true
+      }
     }
   ],
   "session_metrics": {

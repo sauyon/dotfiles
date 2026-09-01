@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "e7a46cc7f1b8",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "keyboards/svalboard/README.md",
+    "keyboards/svalboard/build.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e7/a46cc7f1b8/0/metadata.json",
+      "transcript": "/e7/a46cc7f1b8/0/full.jsonl",
+      "compact_transcript": "/e7/a46cc7f1b8/0/transcript.jsonl",
+      "content_hash": "/e7/a46cc7f1b8/0/content_hash.txt",
+      "prompt": "/e7/a46cc7f1b8/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 44836,
+    "cache_read_tokens": 8030758,
+    "output_tokens": 32869,
+    "api_call_count": 40
+  }
+}

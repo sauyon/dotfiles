@@ -1,0 +1,29 @@
+newest
+
+---
+
+run it
+
+---
+
+❯ Vial
+Authorization required, but no authorization protocol specified
+
+qt.qpa.screen: QXcbConnection: Could not connect to display :0
+Could not connect to any X display.
+
+---
+
+itH
+
+---
+
+it worked
+
+---
+
+can you put space and bkspc on the thumbs I'm uf
+
+---
+
+can you put space and bkspc on the thumbs I'm used to? why did they get swapped

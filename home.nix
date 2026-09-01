@@ -1443,11 +1443,16 @@ in
 
   # ── drovr ───────────────────────────────────────────────────────────────────
   # Review panel runs on opencode, at the model pinned in opencode.nix.
-  # serve_host: the review server has NO auth, so anything it is bound to can read
-  # and act on every run. fujiwara binds its LAN address so the page is reachable
-  # from any machine on the house network without a tailnet session; that is a
-  # wider audience than the tailnet-only posture this used to have -- every device
-  # on VLAN1, guests included. utsuho stays on its tailnet address.
+  # serve_host: the review server has NO auth, so anything that can reach it can
+  # read every run and answer its asks. fujiwara binds 0.0.0.0 to get the tailnet
+  # AND the LAN at once -- `serve_host` is a single string, so a wildcard is the
+  # only way to have both -- and system/etc/nftables.d/drovr.nft is what makes
+  # that safe rather than reckless: without it, 0.0.0.0 on a Kubernetes node also
+  # publishes the server to every pod in the cluster. Read that file before
+  # widening either end. utsuho has no such rule, so it stays pinned to its
+  # tailnet address.
+  # 0.0.0.0 is IPv4-only (a v6 wildcard is a separate `[::]` listener), so this
+  # does NOT expose the box's globally-routable 2601:… address.
   # worktree: every run gets .drovr/wt/<run> on its own branch, so a run in
   # flight leaves the invoking checkout free. The default was off, and the cost
   # showed up as an agent editing main while the tree moved under it: reads went
@@ -1457,7 +1462,7 @@ in
     review_agent = "opencode"
     worktree = true
   '' + lib.optionalString (hostname == "fujiwara") ''
-    serve_host = "10.0.7.100"
+    serve_host = "0.0.0.0"
   '' + lib.optionalString (hostname == "utsuho") ''
     serve_host = "100.71.58.39"
   '';

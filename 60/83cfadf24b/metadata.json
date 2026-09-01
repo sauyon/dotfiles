@@ -3,7 +3,7 @@
   "checkpoint_id": "6083cfadf24b",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 1,
+  "checkpoints_count": 4,
   "files_touched": [
     "home.nix",
     "home/.pi/agent/extensions/herdr-agent-state.ts"
@@ -15,13 +15,20 @@
       "compact_transcript": "/60/83cfadf24b/0/transcript.jsonl",
       "content_hash": "/60/83cfadf24b/0/content_hash.txt",
       "prompt": "/60/83cfadf24b/0/prompt.txt"
+    },
+    {
+      "metadata": "/60/83cfadf24b/1/metadata.json",
+      "transcript": "/60/83cfadf24b/1/full.jsonl",
+      "compact_transcript": "/60/83cfadf24b/1/transcript.jsonl",
+      "content_hash": "/60/83cfadf24b/1/content_hash.txt",
+      "prompt": "/60/83cfadf24b/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 48,
-    "cache_creation_tokens": 65281,
-    "cache_read_tokens": 1281146,
-    "output_tokens": 7756,
-    "api_call_count": 24
+    "input_tokens": 84,
+    "cache_creation_tokens": 310031,
+    "cache_read_tokens": 5621274,
+    "output_tokens": 18374,
+    "api_call_count": 42
   }
 }

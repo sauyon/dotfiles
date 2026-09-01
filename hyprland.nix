@@ -117,6 +117,15 @@ in
         cm = "srgb";
       }
       {
+        # Desk 32" 4K, sits to the left of the laptop panel. Matched by
+        # description rather than DP-N: the connector number moves around
+        # depending on which dock port it lands on.
+        output = "desc:Dell Inc. DELL U3225QE";
+        mode = "preferred";
+        position = "auto-left";
+        scale = 1;
+      }
+      {
         output = "";
         mode = "preferred";
         position = "auto";

@@ -185,7 +185,7 @@ in
   # pane. Auto-loaded from ~/.config/opencode/plugins/ (no entry in
   # opencode.json's `plugin` array, which is for npm plugins). No-op unless
   # HERDR_ENV=1. Vendored verbatim from `herdr integration install opencode`
-  # (v8); regenerate if `herdr integration status` reports it outdated.
+  # (v9); regenerate if `herdr integration status` reports it outdated.
   xdg.configFile."opencode/plugins/herdr-agent-state.js".source =
     ./home/opencode/plugins/herdr-agent-state.js;
 

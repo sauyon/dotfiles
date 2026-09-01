@@ -1479,7 +1479,16 @@ in
   xdg.configFile."drovr/config.toml" = {
     force = true;
     text = ''
-      review_agent = "opencode"
+      # pi, not opencode. pi's findings channel is a generated TypeScript
+      # extension rather than an MCP server (pi ships no MCP client), and drovr
+      # writes it per review pass — see cli/src/pi_extension.rs upstream.
+      #
+      # No `review_model`, so panels inherit pi's own default from
+      # ~/.pi/agent/settings.json, which pi.nix sets to gemma. That is a
+      # deliberate choice and a real tradeoff: gemma has no thinking support and
+      # a 16.4K output cap against glm-5.3's 65.5K. Pin
+      # `[agents.pi] review_model = "zai-org/glm-5.3"` here to decouple the two.
+      review_agent = "pi"
       worktree = true
     '' + lib.optionalString (hostname == "fujiwara") ''
       # The TAILNET address, not 0.0.0.0. `0cce01d` deleted the nftables allowlist

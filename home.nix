@@ -1004,7 +1004,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./antigravity.nix ./opencode.nix ./cursor-agent.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ];
 
   home.stateVersion = "26.05";
 

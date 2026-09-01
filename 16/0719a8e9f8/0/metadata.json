@@ -1,0 +1,113 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "160719a8e9f8",
+  "session_id": "444d9887-4ce5-4796-82c4-30217592fff3",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-01T08:12:51.467669525Z",
+  "branch": "worktree-opencode-bump-pi",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "28a4aaadf7e4",
+  "checkpoint_transcript_start": 1231,
+  "transcript_lines_at_start": 1231,
+  "compact_transcript_start": 225,
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 6286,
+    "cache_read_tokens": 2158719,
+    "output_tokens": 4236,
+    "api_call_count": 9
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01Xfih1k3rJ3zycCyEytvoRe",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "28a4aaadf7e4",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 648,
+        "end": 649,
+        "entry_ids": [
+          "7637ff9c-c90f-45cc-981b-82ab9e1608ec"
+        ],
+        "tool_use_id": "toolu_01Xfih1k3rJ3zycCyEytvoRe"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Xfih1k3rJ3zycCyEytvoRe"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 16
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1185,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/allow-main-edit": 16,
+        ".drovr/review/bump-review-1/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/bump-review-1/002-flake.lock.diff": 19,
+        ".drovr/review/bump-review-1/003-home.nix.diff": 80,
+        ".drovr/review/bump-review-1/index.md": 30,
+        ".drovr/review/memwatch-review-1/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/memwatch-review-1/002-home.nix.diff": 65,
+        ".drovr/review/memwatch-review-1/index.md": 28,
+        ".drovr/review/memwatch-review-2/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/memwatch-review-2/002-home.nix.diff": 65,
+        ".drovr/review/memwatch-review-2/index.md": 28,
+        "opencode.json": 35
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 1931,
+      "user_lines_removed": 267,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/allow-main-edit": 16,
+        ".drovr/review/bump-review-1/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/bump-review-1/002-flake.lock.diff": 19,
+        ".drovr/review/bump-review-1/003-home.nix.diff": 80,
+        ".drovr/review/bump-review-1/index.md": 30,
+        ".drovr/review/memwatch-review-1/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/memwatch-review-1/002-home.nix.diff": 65,
+        ".drovr/review/memwatch-review-1/index.md": 28,
+        ".drovr/review/memwatch-review-2/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/memwatch-review-2/002-home.nix.diff": 65,
+        ".drovr/review/memwatch-review-2/index.md": 28,
+        ".drovr/review/memwatch-review-3/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/memwatch-review-3/002-home.nix.diff": 96,
+        ".drovr/review/memwatch-review-3/003-opencode.nix.diff": 80,
+        ".drovr/review/memwatch-review-3/index.md": 30,
+        ".opencode.drovr-backup/plugins/entire.ts": 267,
+        "opencode.json": 35
+      },
+      "user_removed_per_file": {
+        ".opencode/plugins/entire.ts": 267
+      }
+    }
+  ]
+}

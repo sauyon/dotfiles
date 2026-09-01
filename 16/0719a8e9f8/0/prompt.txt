@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b1slvhyig</task-id>
+<tool-use-id>toolu_01GtiFFs58vLTZ5FHT915pU1</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/444d9887-4ce5-4796-82c4-30217592fff3/tasks/b1slvhyig.output</output-file>
+<status>completed</status>
+<summary>Background command "Switch to activate new model config" completed (exit code 0)</summary>
+</task-notification>

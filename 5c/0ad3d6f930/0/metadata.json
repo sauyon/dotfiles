@@ -1,0 +1,148 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "5c0ad3d6f930",
+  "session_id": "68da2574-5352-4516-b909-6d4954d7c2d3",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-01T23:26:35.797860325Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "d36cddeb7d2c",
+  "checkpoint_transcript_start": 227,
+  "transcript_lines_at_start": 227,
+  "compact_transcript_start": 35,
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 22015,
+    "cache_read_tokens": 2625627,
+    "output_tokens": 16159,
+    "api_call_count": 19
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-code-review-2026-09-01T23:17:07.121683514Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "2cc0af78f0cd",
+      "timestamp": "2026-09-01T23:17:07.121683514Z",
+      "native": {
+        "command": "/code-review"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/code-review",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01Ssha4PQQPzRRHdxzpnRb83",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "d36cddeb7d2c",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 209,
+        "end": 210,
+        "entry_ids": [
+          "017eb938-ace7-4320-8942-1ec5b4cdea59"
+        ],
+        "tool_use_id": "toolu_01Ssha4PQQPzRRHdxzpnRb83"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Ssha4PQQPzRRHdxzpnRb83"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01M8eTTf9ND1RFUimcQD4QyR",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "d36cddeb7d2c",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 260,
+        "end": 261,
+        "entry_ids": [
+          "6a568fda-132d-43dc-94fc-cc80df7c8f87"
+        ],
+        "tool_use_id": "toolu_01M8eTTf9ND1RFUimcQD4QyR"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01M8eTTf9ND1RFUimcQD4QyR"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 5799,
+      "user_lines_removed": 267,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/CLAUDE.md~": 55,
+        ".claude/settings.local.json": 25,
+        ".drovr/review/hms-fix-review-1/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/hms-fix-review-1/002-home.nix.diff": 46,
+        ".drovr/review/hms-fix-review-1/index.md": 28,
+        ".drovr/review/svalboard-keymap-review-1/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/svalboard-keymap-review-1/002-keyboards_svalboard_README.md.diff": 93,
+        ".drovr/review/svalboard-keymap-review-1/003-keyboards_svalboard_SvalCOLEMAKDHM.vil.diff": 2217,
+        ".drovr/review/svalboard-keymap-review-1/004-keyboards_svalboard_SvalHandsDownNeu.vil.diff": 2216,
+        ".drovr/review/svalboard-keymap-review-1/005-keyboards_svalboard_build.py.diff": 237,
+        ".drovr/review/svalboard-keymap-review-1/index.md": 34,
+        ".opencode.drovr-backup/plugins/entire.ts": 267,
+        "opencode.json": 35
+      },
+      "user_removed_per_file": {
+        ".opencode/plugins/entire.ts": 267
+      }
+    }
+  ]
+}

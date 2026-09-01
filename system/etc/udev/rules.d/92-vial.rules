@@ -1,0 +1,18 @@
+# Vial-compatible keyboards (Svalboard Lightly and friends).
+#
+# The config interface is a /dev/hidraw* node, which udev creates 0600 root:root
+# by default. Without this rule Vial and browser-based KeyBard both enumerate the
+# keyboard and then fail to open it -- the failure surfaces as "no keyboard
+# detected", with nothing pointing at permissions.
+#
+# Matching the vial magic serial rather than VID/PID covers every Vial board on
+# one rule, which is what upstream's own rule does. Verified against this host:
+#   /sys/bus/usb/devices/9-1.4.1.2/serial = vial:f64c2b3c
+#
+# TAG+="uaccess" is the mechanism that normally does the work -- logind puts an
+# ACL on the node for whoever owns the active seat. GROUP is the fallback for
+# sessions logind doesn't treat as seated, which is a live concern on this host
+# (systemd-homed user, uid 60006, absent from /etc/passwd -- see home.nix). Note
+# upstream's rule says GROUP="users", which would be a no-op here: sauyon is in
+# input, video, audio, wheel, realtime, docker and tss, but not users.
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{serial}=="*vial:f64c2b3c*", MODE="0660", GROUP="input", TAG+="uaccess", TAG+="udev-acl"

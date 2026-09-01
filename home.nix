@@ -1458,14 +1458,27 @@ in
   # showed up as an agent editing main while the tree moved under it: reads went
   # stale, HEAD advanced past the commit under review, and a test count was
   # reported from a tree that no longer existed. `--no-worktree` per run.
-  xdg.configFile."drovr/config.toml".text = ''
-    review_agent = "opencode"
-    worktree = true
-  '' + lib.optionalString (hostname == "fujiwara") ''
-    serve_host = "0.0.0.0"
-  '' + lib.optionalString (hostname == "utsuho") ''
-    serve_host = "100.71.58.39"
-  '';
+  # force: drovr rewrites this path itself — it replaces the symlink with a real
+  # file and reserializes only the keys it knows, which is how `worktree = true`
+  # went missing on 2026-09-01 and how switch started aborting at
+  # checkLinkTargets. Nothing in here is a secret or runtime state, so let the
+  # generation win every time rather than hand-deleting the file each switch.
+  # Note the guarantee is per-switch, not continuous: force only fixes the abort
+  # and restores this content at activation. Between switches drovr still owns
+  # the file, so a key-dropping rewrite can silently disable worktree isolation
+  # again — with exactly the stale-read failure mode described just above — until
+  # the next switch puts it back.
+  xdg.configFile."drovr/config.toml" = {
+    force = true;
+    text = ''
+      review_agent = "opencode"
+      worktree = true
+    '' + lib.optionalString (hostname == "fujiwara") ''
+      serve_host = "0.0.0.0"
+    '' + lib.optionalString (hostname == "utsuho") ''
+      serve_host = "100.71.58.39"
+    '';
+  };
 
   # ── forgejo-cli (fj) ────────────────────────────────────────────────────────
   # Only the client-id table is declarative — it is a public-client PKCE ID, not
@@ -1928,8 +1941,8 @@ in
       * { -gtk-key-bindings: mac-bindings; }
     '';
     theme = {
-      name = "Plano";
-      package = pkgs.plano-theme;
+      name = "adw-gtk3-dark";
+      package = pkgs.adw-gtk3;
     };
     gtk4.theme = config.gtk.theme;
     iconTheme = {

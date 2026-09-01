@@ -13,14 +13,14 @@
       "transcript": "/77/7d9e0a0e61/0/full.jsonl",
       "compact_transcript": "/77/7d9e0a0e61/0/transcript.jsonl",
       "content_hash": "/77/7d9e0a0e61/0/content_hash.txt",
-      "prompt": "/77/7d9e0a0e61/0/prompt.txt"
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 94,
-    "cache_creation_tokens": 67552,
-    "cache_read_tokens": 3017211,
-    "output_tokens": 19194,
-    "api_call_count": 47
+    "input_tokens": 28,
+    "cache_creation_tokens": 9941,
+    "cache_read_tokens": 1306807,
+    "output_tokens": 5487,
+    "api_call_count": 14
   }
 }

@@ -1430,8 +1430,11 @@ in
 
   # ── drovr ───────────────────────────────────────────────────────────────────
   # Review panel runs on opencode, at the model pinned in opencode.nix.
-  # serve_host: the review server has NO auth, so bind it off localhost only on a
-  # trusted tailnet.
+  # serve_host: the review server has NO auth, so anything it is bound to can read
+  # and act on every run. fujiwara binds its LAN address so the page is reachable
+  # from any machine on the house network without a tailnet session; that is a
+  # wider audience than the tailnet-only posture this used to have -- every device
+  # on VLAN1, guests included. utsuho stays on its tailnet address.
   # worktree: every run gets .drovr/wt/<run> on its own branch, so a run in
   # flight leaves the invoking checkout free. The default was off, and the cost
   # showed up as an agent editing main while the tree moved under it: reads went
@@ -1441,7 +1444,7 @@ in
     review_agent = "opencode"
     worktree = true
   '' + lib.optionalString (hostname == "fujiwara") ''
-    serve_host = "100.94.172.21"
+    serve_host = "10.0.7.100"
   '' + lib.optionalString (hostname == "utsuho") ''
     serve_host = "100.71.58.39"
   '';

@@ -49,20 +49,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable systemd-oomd
 sudo systemctl restart systemd-oomd
 
-# ── drovr review server firewall ─────────────────────────────────────────────
-# `drovr serve` binds 0.0.0.0 on this host and has NO authentication, so the
-# allowlist in etc/nftables.d/drovr.nft is the only thing between the pod network
-# and every run's contents. `restart` rather than `enable --now`, for the same
-# reason as oomd above: --now is a no-op on an already-active unit, which would
-# leave an edited ruleset sitting on disk unapplied.
-#
-# NOTE the unit loads its own `inet drovr` table and nothing else. Do NOT enable
-# nftables.service to persist this instead: Arch ships /etc/nftables.conf as a
-# default-DROP input+forward ruleset, and on this Kubernetes node that is an
-# outage, not a firewall.
-sudo systemctl enable drovr-firewall
-sudo systemctl restart drovr-firewall
-
 # ── attic binary cache: make nix read nix.custom.conf + render the pull token ──
 # nix.custom.conf adds attic.ko.ag/kube as an extra substituter; the cache is
 # PRIVATE, so the nix daemon needs a read token. We are not a nix `trusted-user`,

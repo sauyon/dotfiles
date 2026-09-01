@@ -1443,16 +1443,24 @@ in
 
   # ── drovr ───────────────────────────────────────────────────────────────────
   # Review panel runs on opencode, at the model pinned in opencode.nix.
-  # serve_host: the review server has NO auth, so anything that can reach it can
-  # read every run and answer its asks. fujiwara binds 0.0.0.0 to get the tailnet
-  # AND the LAN at once -- `serve_host` is a single string, so a wildcard is the
-  # only way to have both -- and system/etc/nftables.d/drovr.nft is what makes
-  # that safe rather than reckless: without it, 0.0.0.0 on a Kubernetes node also
-  # publishes the server to every pod in the cluster. Read that file before
-  # widening either end. utsuho has no such rule, so it stays pinned to its
-  # tailnet address.
-  # 0.0.0.0 is IPv4-only (a v6 wildcard is a separate `[::]` listener), so this
-  # does NOT expose the box's globally-routable 2601:… address.
+  # serve_host: the review server has NO auth, so whatever can reach it reads
+  # every run and can answer its asks. Bind it where something else already does
+  # the authentication -- the tailnet -- so nothing here has to.
+  #
+  # A LAN bind was tried and reverted, and the reason is worth keeping.
+  # `serve_host` is a single string, so "tailnet and LAN at once" means 0.0.0.0,
+  # and on a Kubernetes node that also publishes the server to every pod on the
+  # box. The nftables allowlist written to hold that back did work -- and was
+  # still the wrong answer, because it made network location stand in for
+  # authentication. It also had to enumerate the OTHER cluster nodes by IP:
+  # cilium masquerades pod traffic to the node address, so a pod on meiko arrived
+  # as 10.0.7.110, inside any sane "my LAN" range. That list would have had to
+  # stay complete forever, and adding a node would have reopened the hole in
+  # silence. Deleted, along with the reason to need it.
+  #
+  # If a device that cannot run Tailscale ever needs this, the answer is drovr's
+  # `serve_public_host` behind a proxy that actually authenticates -- not a wider
+  # bind and another allowlist.
   # worktree: every run gets .drovr/wt/<run> on its own branch, so a run in
   # flight leaves the invoking checkout free. The default was off, and the cost
   # showed up as an agent editing main while the tree moved under it: reads went
@@ -1462,7 +1470,7 @@ in
     review_agent = "opencode"
     worktree = true
   '' + lib.optionalString (hostname == "fujiwara") ''
-    serve_host = "0.0.0.0"
+    serve_host = "100.94.172.21"
   '' + lib.optionalString (hostname == "utsuho") ''
     serve_host = "100.71.58.39"
   '';

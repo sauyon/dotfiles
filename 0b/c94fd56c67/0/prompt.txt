@@ -1,0 +1,17 @@
+why is - in my main layout when it's also in arensito layout
+
+---
+
+bind space to _ in layer 1
+
+---
+
+I guess some duplication is ok so
+
+---
+
+continuae
+
+---
+
+continue

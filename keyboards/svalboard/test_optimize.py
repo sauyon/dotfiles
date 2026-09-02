@@ -160,11 +160,21 @@ class KeyboardConfigTests(unittest.TestCase):
     """
 
     def test_finger_glyphs_are_replaced_in_order(self):
+        # Assert the whole rewritten block, not three fragments: north/south
+        # transposed would satisfy `"a" appears` and `"e" appears` while
+        # describing a different keyboard, which is the exact failure the
+        # module docstring warns about.
         out = optimize.keyboard_config(SVAL_YML, "abcde")
 
-        self.assertIn('["a"]', out)
-        self.assertIn('["b"], ["c"], ["d"]', out)
-        self.assertIn('["e"]', out)
+        self.assertIn(
+            '- [\n'
+            '      # left pinky\n'
+            '             ["a"],\n'
+            '      ["b"], ["c"], ["d"],\n'
+            '             ["e"],\n'
+            '    ]',
+            out,
+        )
 
     def test_key_costs_are_untouched(self):
         out = optimize.keyboard_config(SVAL_YML, "abcde")
@@ -190,14 +200,13 @@ class KeyboardConfigTests(unittest.TestCase):
         self.assertIn('["\\""]', out)
         self.assertIn('["\'"]', out)
 
-    def test_the_real_config_takes_the_real_layout(self):
-        # The integration the synthetic fragment cannot check: the stock
-        # sval.yml really does have exactly 40 finger entries in that shape.
-        import pathlib
-
-        stock = pathlib.Path(optimize.__file__).parent / "testdata_sval.yml"
-        if not stock.exists():
-            self.skipTest("stock sval.yml not vendored for tests")
+    # NOT tested here: that the stock sval.yml really has 40 finger entries in
+    # this shape, and that CUP_ORDER matches the optimizer's own positional
+    # order. Both live in an ephemeral checkout of someone else's repo, so a
+    # test asserting them would be a test of whether that checkout is present.
+    # The check that does cover it is the optimizer's own renderer: it draws
+    # layer 0 from the string this module hands it, and that drawing matches
+    # README.md's table key for key. Run optimize.py --evaluate-only and look.
 
 
 class BuildNgramsTests(unittest.TestCase):

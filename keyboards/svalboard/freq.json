@@ -1,12 +1,11 @@
 {
   "generated_by": "freq.py",
-  "note": "Per-1000-character rates. Aggregates only -- the corpus itself is local (~/.local/share/svalboard-freq) and unpublishable.",
+  "note": "Per-1000-character rates. Aggregates only -- the corpus itself is local (~/.local/share/svalboard-freq) and unpublishable. A source absent here collected nothing; it is not a measured zero.",
   "corpus_chars": {
     "prompts": 6592073,
     "shell": 400634,
     "code": 641649,
-    "slack": 15179,
-    "discord": 0
+    "slack": 15179
   },
   "rates": {
     "prompts": {
@@ -143,40 +142,6 @@
       "{": 0.0659,
       "|": 0.0,
       "}": 0.0659,
-      "~": 0.0
-    },
-    "discord": {
-      "!": 0.0,
-      "\"": 0.0,
-      "#": 0.0,
-      "$": 0.0,
-      "%": 0.0,
-      "&": 0.0,
-      "'": 0.0,
-      "(": 0.0,
-      ")": 0.0,
-      "*": 0.0,
-      "+": 0.0,
-      ",": 0.0,
-      "-": 0.0,
-      ".": 0.0,
-      "/": 0.0,
-      ":": 0.0,
-      ";": 0.0,
-      "<": 0.0,
-      "=": 0.0,
-      ">": 0.0,
-      "?": 0.0,
-      "@": 0.0,
-      "[": 0.0,
-      "\\": 0.0,
-      "]": 0.0,
-      "^": 0.0,
-      "_": 0.0,
-      "`": 0.0,
-      "{": 0.0,
-      "|": 0.0,
-      "}": 0.0,
       "~": 0.0
     }
   }

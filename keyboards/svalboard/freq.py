@@ -409,6 +409,29 @@ def fenced_split(corpus, char):
     return inside, outside
 
 
+def aggregate_payload(corpus):
+    """The committable half of a run: per-1000 rates, no corpus text.
+
+    Sources that collected nothing are omitted rather than written out as a
+    full table of 0.0. This file is the public evidence base the README's
+    placement argument rests on, and a column of measured zeros is the
+    strongest claim you can make about a character -- "you never type this" --
+    where the truth is only "this was never measured". `discord` is exactly
+    that until the export arrives.
+    """
+    every = [c for c in map(chr, range(33, 127)) if not c.isalnum()]
+    agg = rates(corpus, every)
+    present = [k for k in corpus if agg[k]["_chars"]]
+    return {
+        "generated_by": "freq.py",
+        "note": "Per-1000-character rates. Aggregates only -- the corpus itself "
+                "is local (~/.local/share/svalboard-freq) and unpublishable. "
+                "A source absent here collected nothing; it is not a measured zero.",
+        "corpus_chars": {k: agg[k]["_chars"] for k in present},
+        "rates": {k: {c: round(agg[k][c], 4) for c in every} for k in present},
+    }
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -470,17 +493,7 @@ def main():
                           f"({100 * n / s:>4.0f}% of all) {per1k:>6.2f}/1k in that type")
 
     # The publishable half: aggregate rates only, no corpus.
-    every = [c for c in map(chr, range(33, 127)) if not c.isalnum()]
-    agg = rates(corpus, every)
-    AGGREGATE.write_text(json.dumps({
-        "generated_by": "freq.py",
-        "note": "Per-1000-character rates. Aggregates only -- the corpus itself "
-                "is local (~/.local/share/svalboard-freq) and unpublishable.",
-        "corpus_chars": {k: agg[k]["_chars"] for k in SOURCES},
-        "rates": {
-            k: {c: round(agg[k][c], 4) for c in every} for k in SOURCES
-        },
-    }, indent=2) + "\n")
+    AGGREGATE.write_text(json.dumps(aggregate_payload(corpus), indent=2) + "\n")
     print(f"\nwrote {AGGREGATE.relative_to(REPO)} (aggregates only)")
     print(f"corpus cached in {CACHE} (local, not committed)")
 

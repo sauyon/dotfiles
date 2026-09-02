@@ -174,7 +174,8 @@ def keyboard_config(text, layout):
     if not sep:
         raise SystemExit("keyboard config has no base_layout: section")
 
-    match = FINGER_BLOCK.search(tail, tail.index("keys:"))
+    keys_at = tail.find("keys:")
+    match = FINGER_BLOCK.search(tail, keys_at) if keys_at >= 0 else None
     if not match:
         raise SystemExit("could not find the finger block in base_layout.keys")
 
@@ -193,7 +194,7 @@ def keyboard_config(text, layout):
     return head + sep + tail[:match.start()] + block + tail[match.end():]
 
 
-def build_ngrams(opt, corpus_dir, name):
+def build_ngrams(opt, corpus_dir, name, prefix="sauyon"):
     """Generate <opt>/ngrams/sauyon_<name> from one cached corpus file.
 
     Returns None when there is nothing to build from -- a cache built before
@@ -207,7 +208,7 @@ def build_ngrams(opt, corpus_dir, name):
     path = corpus_dir / f"{name}.txt"
     if not path.exists():
         return None
-    text = path.read_text(errors="replace")
+    text = path.read_text(encoding="utf-8", errors="replace")
     if name == "code":
         text = strip_path_markers(text)
     if not text.strip():
@@ -216,8 +217,8 @@ def build_ngrams(opt, corpus_dir, name):
     scratch = opt / "temp_corpus"
     scratch.mkdir(exist_ok=True)
     src = scratch / f"{name}.txt"
-    src.write_text(text)
-    out = opt / "ngrams" / f"sauyon_{name}"
+    src.write_text(text, encoding="utf-8")
+    out = opt / "ngrams" / f"{prefix}_{name}"
     try:
         run(opt, ["cargo", "run", "--release", "--bin", "ngrams", "--",
                   str(src), str(out)])
@@ -263,7 +264,7 @@ def main():
     # write it into the checkout rather than keeping a second copy in this repo.
     stock = opt / "config" / "keyboard" / "sval.yml"
     derived = opt / "config" / "keyboard" / f"{corpus_name}_sval.yml"
-    derived.write_text(keyboard_config(stock.read_text(), current))
+    derived.write_text(keyboard_config(stock.read_text(encoding="utf-8"), current), encoding="utf-8")
     kb = str(derived.relative_to(opt))
     print(f"keyboard config: {kb} (glyphs from build.py, costs from sval.yml)")
 
@@ -271,7 +272,7 @@ def main():
         print("building ngrams per corpus:")
         components = []
         for name, weight in WEIGHTS.items():
-            d = build_ngrams(opt, freq.CORPUS_DIR, name)
+            d = build_ngrams(opt, freq.CORPUS_DIR, name, prefix=corpus_name)
             if d is None:
                 print(f"  {name}: empty, dropped from the blend", file=sys.stderr)
                 continue
@@ -293,11 +294,9 @@ def main():
     if args.ngrams_only:
         return
 
-    layouts = opt / f"{corpus_name}_layouts.txt"
     solutions = opt / f"{corpus_name}_optimized_layouts.txt"
 
     if not args.evaluate_only:
-        layouts.write_text(current + "\n")
         run(opt, ["cargo", "run", "--release", "--bin", "optimize_sa", "--",
                   "--layout-config", kb,
                   "--eval-parameters", "config/evaluation/sval.yml",

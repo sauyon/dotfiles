@@ -55,6 +55,13 @@ class SlackLoaderTests(unittest.TestCase):
 
         self.assertEqual(list(freq.iter_slack_text()), ["a & b <c> d"])
 
+    def test_a_literally_typed_entity_survives_unescaping(self):
+        # The reason slack_plain unescapes &amp; LAST. Someone typing the four
+        # characters "&lt;" sends the wire form "&amp;lt;". Unescape &amp;
+        # first and that collapses to "<": four keystrokes counted as one, and
+        # one of them is the `&` whose rate decides where `&` goes.
+        self.assertEqual(freq.slack_plain("&amp;lt;"), "&lt;")
+
     def test_mentions_and_channel_refs_are_dropped(self):
         # You autocomplete these; your hands never type the U0123ABC.
         self.with_dump("d.json", [
@@ -167,6 +174,25 @@ class DiscordLoaderTests(unittest.TestCase):
         )
 
         self.assertEqual(list(freq.iter_discord_text()), ["fine"])
+
+
+class AggregateTests(unittest.TestCase):
+    def test_a_source_that_collected_nothing_is_omitted_not_zero_filled(self):
+        # freq.json is the public evidence base the README's placement argument
+        # rests on. A source with no corpus emitted as a full table of 0.0
+        # reads as "measured, never typed" -- the strongest possible claim --
+        # when it means "never measured". discord is exactly this until the
+        # export lands.
+        payload = freq.aggregate_payload({"shell": "abc", "discord": ""})
+
+        self.assertEqual(set(payload["corpus_chars"]), {"shell"})
+        self.assertEqual(set(payload["rates"]), {"shell"})
+
+    def test_a_source_with_a_corpus_is_reported(self):
+        payload = freq.aggregate_payload({"shell": "a-b-c"})
+
+        self.assertEqual(payload["corpus_chars"]["shell"], 5)
+        self.assertAlmostEqual(payload["rates"]["shell"]["-"], 400.0)
 
 
 if __name__ == "__main__":

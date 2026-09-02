@@ -227,10 +227,10 @@ def build_ngrams(opt, corpus_dir, name, prefix):
     return out
 
 
-def run(opt, cmd, capture=False):
+def run(opt, cmd):
     print(f"  $ {' '.join(cmd[:6])}...", file=sys.stderr)
     return subprocess.run(cmd, cwd=opt, check=True,
-                          capture_output=capture, text=True)
+                          text=True)
 
 
 def main():
@@ -308,9 +308,10 @@ def main():
     # The delta: score the current layout against whatever the search found,
     # under the same config and the same corpus.
     scored = opt / f"{corpus_name}_compare.txt"
-    found = solutions.read_text().splitlines() if solutions.exists() else []
+    found = (solutions.read_text(encoding="utf-8").splitlines()
+             if solutions.exists() else [])
     lines = [current] + [l for l in found if l.strip() and l.strip() != current]
-    scored.write_text("\n".join(lines) + "\n")
+    scored.write_text("\n".join(lines) + "\n", encoding="utf-8")
     run(opt, ["cargo", "run", "--release", "--bin", "evaluate", "--",
               "--layout-config", kb,
               "--eval-parameters", "config/evaluation/sval.yml",

@@ -425,10 +425,20 @@ def check_surfaces_cover_classes(layers):
     KEY_SURFACES is what contrast_pairs() iterates, so a key kind missing from
     it is a kind nothing checks -- which is how the border-on-fill gap got in.
     """
-    kinds = {label(code)[1] for code in sorted(
-        {c for lay in layers for row in lay for c in row
-         if isinstance(c, str) and c not in BLANK})}
-    unchecked = kinds - set(KEY_SURFACES) - {"trns", "dead"}
+    unknown = {fill for fill in KEY_SURFACES.values() if fill not in INK}
+    if unknown:
+        raise SystemExit(
+            f"contrast FAILED -- KEY_SURFACES names fills that are not in INK: "
+            f"{sorted(unknown)}"
+        )
+
+    # label()'s classes are exactly the filled keys. `trns` and `dead` come from
+    # resolve() instead and never appear here, which is why they are exempted in
+    # prose above rather than subtracted from this set.
+    kinds = {label(code)[1] for code in
+             {c for lay in layers for row in lay for c in row
+              if isinstance(c, str) and c not in BLANK}}
+    unchecked = kinds - set(KEY_SURFACES)
     if unchecked:
         raise SystemExit(
             "contrast FAILED -- key classes with no declared background, so "

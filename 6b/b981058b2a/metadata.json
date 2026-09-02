@@ -3,7 +3,7 @@
   "checkpoint_id": "6bb981058b2a",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "keyboards/svalboard/README.md",
     "keyboards/svalboard/cheatsheet.html",
@@ -16,13 +16,20 @@
       "compact_transcript": "/6b/b981058b2a/0/transcript.jsonl",
       "content_hash": "/6b/b981058b2a/0/content_hash.txt",
       "prompt": "/6b/b981058b2a/0/prompt.txt"
+    },
+    {
+      "metadata": "/6b/b981058b2a/1/metadata.json",
+      "transcript": "/6b/b981058b2a/1/full.jsonl",
+      "compact_transcript": "/6b/b981058b2a/1/transcript.jsonl",
+      "content_hash": "/6b/b981058b2a/1/content_hash.txt",
+      "prompt": "/6b/b981058b2a/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 14,
-    "cache_creation_tokens": 49707,
-    "cache_read_tokens": 367327,
-    "output_tokens": 4368,
-    "api_call_count": 7
+    "input_tokens": 78,
+    "cache_creation_tokens": 120709,
+    "cache_read_tokens": 2706592,
+    "output_tokens": 27056,
+    "api_call_count": 39
   }
 }

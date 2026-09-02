@@ -1642,11 +1642,6 @@ in
       # extension rather than an MCP server (pi ships no MCP client), and drovr
       # writes it per review pass — see cli/src/pi_extension.rs upstream.
       #
-      # No `review_model`, so panels inherit pi's own default from
-      # ~/.pi/agent/settings.json, which pi.nix sets to gemma. That is a
-      # deliberate choice and a real tradeoff: gemma has no thinking support and
-      # a 16.4K output cap against glm-5.3's 65.5K. Pin
-      # `[agents.pi] review_model = "zai-org/glm-5.3"` here to decouple the two.
       review_agent = "pi"
       worktree = true
     '' + lib.optionalString (hostname == "fujiwara") ''
@@ -1657,6 +1652,22 @@ in
       serve_host = "100.94.172.21"
     '' + lib.optionalString (hostname == "utsuho") ''
       serve_host = "100.71.58.39"
+    '' + ''
+      # Reviews run on GLM, not on pi's own default. LAST in the file because a
+      # TOML table swallows every key after it — the top-level settings above have
+      # to be emitted first.
+      #
+      # Measured, not preference. gemma-4-31b fabricates: four angles each returned
+      # a PASS 10-18s after their panel opened on a 3179-line diff, every one with
+      # a credible `basis` naming files it had not read. glm-5.3 on that same diff
+      # produced 17 findings across four angles, including a Critical in the change
+      # that exists to stop the fabrication. gemma also has no thinking support and
+      # caps output at 16.4K against glm-5.3's 65.5K.
+      #
+      # Only the REVIEWER moves; interactive pi keeps gemma, from pi.nix.
+      [agents.pi]
+      command = "pi"
+      review_model = "zai-org/glm-5.3"
     '';
   };
 

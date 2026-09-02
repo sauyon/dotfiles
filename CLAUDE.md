@@ -1,3 +1,23 @@
+## NO EMAILS
+
+**Never write an email address into anything.** Not into files, commit messages,
+docs, notes, handoffs or scratch files — mine, colleagues', or service accounts.
+This repo is public, and an address is a durable identifier that spreads: it
+leaks the work/personal boundary, it enumerates people, and once written it gets
+copied onward.
+
+Refer to an account by its **role** — "the personal Google account", "the work
+account", "the project's GCS service agent" — or record the command that
+recovers the identity at read time (`gcloud config get-value account`) rather
+than pasting its output. Role-based wording is better documentation anyway: "must
+be the personal account, not the work one" survives an address change; a pasted
+address does not.
+
+If an address seems genuinely load-bearing, ask first.
+
+The exception is the git identity already configured in `home.nix`, which git
+requires and which is on every commit regardless.
+
 ## Commit and Push Policy
 
 This is a personal dotfiles repo on `master`. When asked to commit and push, do both without asking for confirmation. The global "ask before public communications" rule does not apply here.

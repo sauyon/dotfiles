@@ -171,6 +171,35 @@ guards, on top of `build.py`'s four:
   it is — and only shows up as a shrunken printout after you've walked to the
   printer.
 
+## Measuring what actually gets typed
+
+```sh
+python3 freq.py            # refresh the corpus, report the promoted set
+python3 freq.py '`' '~'    # rates for specific characters, with context checks
+python3 freq.py --all      # every printable ASCII symbol
+```
+
+The promotions above are argued from measured frequency, and this is what
+measures it: prompts you typed (sidechains and machine-injected blocks dropped),
+zsh history, and the tracked text files in this repo, reported per 1000
+characters.
+
+**The corpus is cached in `~/.local/share/svalboard-freq/` and must never be
+committed** — it is shell history and work prompts, and this repo is public.
+What is safe to publish is the aggregate, so `freq.py` writes `freq.json` here:
+per-character rates only, which say nothing about content.
+
+Two context checks come with it, because a raw rate lies in exactly the way
+`*` lied. Prompts are split inside/outside ``` fences, since a rate driven by
+fenced blocks is driven by pasting rather than typing; the code corpus is split
+by file extension, since a symbol confined to one file type is a symbol you type
+in one context.
+
+One caveat on comparing against the table above: those numbers are weighted
+toward shell history, and `freq.py`'s combined figure is dominated by the prompt
+corpus, which is ~18x larger. The ordering agrees, the absolute values do not.
+Compare like with like — the per-corpus columns, not the blend.
+
 ## Regenerating
 
 ```sh

@@ -218,6 +218,35 @@ INK = {
     "paper": "#ffffff",
 }
 
+# Which fill each kind of key box is painted with, keyed by the CSS class that
+# label() hands back, so these entries and the rendered classes are one
+# vocabulary. The `background:` declarations in CSS are GENERATED from this --
+# it was a second copy of the same mapping for one commit, and a checker that
+# compared two copies would only have told us which one to believe. Derive
+# instead: there is nothing left to disagree.
+#
+# `dead` and `trns` are absent on purpose. They come from resolve() rather than
+# label(), keep .k's paper background, and their borders are checked against
+# paper directly in contrast_pairs().
+KEY_SURFACES = {
+    "alpha": "paper",
+    "sym": "fill_sym",
+    "num": "fill_num",
+    "mod": "fill_mod",
+    "fn": "fill_mod",   # .k.mod and .k.fn share one CSS rule
+}
+
+_unknown_fills = sorted(f for f in KEY_SURFACES.values() if f not in INK)
+if _unknown_fills:
+    raise SystemExit(
+        f"cheatsheet: KEY_SURFACES names fills that are not in INK: {_unknown_fills}"
+    )
+
+KEY_FILL_CSS = "\n".join(
+    f".k.{kind} {{ background: {INK[fill]}; }}"
+    for kind, fill in KEY_SURFACES.items()
+)
+
 CSS = f"""
 @page {{ size: letter portrait; margin: {PAGE_MARGIN_IN}in; }}
 
@@ -269,13 +298,15 @@ h2 .num {{ font-weight: 700; color: {INK['text']}; margin-right: 6px; }}
   overflow: hidden;
 }}
 
+/* Every `background:` below is generated from KEY_SURFACES; nothing here
+   restates a fill by hand. */
+{KEY_FILL_CSS}
+
 /* Glyphs keep the full size; the word-legends shrink to fit their box. */
-.k.mod, .k.fn {{ font-size: 8.5px; font-weight: 500; color: {INK['text']}; background: {INK['fill_mod']}; }}
+.k.mod, .k.fn {{ font-size: 8.5px; font-weight: 500; color: {INK['text']}; }}
 /* Only the word-legends; a lone `_` on the thumb keeps glyph size. */
 .k.mod.thumb, .k.trns.thumb {{ font-size: 7.5px; }}
 .k.alpha {{ font-weight: 600; }}
-.k.sym {{ background: {INK['fill_sym']}; }}
-.k.num {{ background: {INK['fill_num']}; }}
 .k.dead {{ border-style: dashed; border-color: {INK['dead_border']}; background: {INK['paper']}; }}
 /* Italic as well as grey: two greys stop being two greys on a tired printer,
    but an italic `e` is still an italic `e`. */
@@ -389,19 +420,6 @@ LINE_FLOOR = 3.0   # borders and rules -- a line is shape as much as tone
 # while the symbol keys actually drew it on #e4e4e4 at 2.72:1. A false pass on
 # exactly the failure the check exists to catch.
 #
-# Keyed by CSS class, so these entries and the classes label() hands back are one
-# vocabulary rather than two lists to keep in step; check_surfaces_cover_classes()
-# holds them together. `dead` and `trns` are absent on purpose -- both keep the
-# paper background, and their borders are checked against it directly above.
-KEY_SURFACES = {
-    "alpha": "paper",
-    "sym": "fill_sym",
-    "num": "fill_num",
-    "mod": "fill_mod",
-    "fn": "fill_mod",   # .k.mod and .k.fn share one CSS rule
-}
-
-
 def contrast_pairs():
     """(what, fg, bg, floor) for every ink-on-background pair the sheet prints."""
     pairs = [
@@ -425,16 +443,9 @@ def check_surfaces_cover_classes(layers):
     KEY_SURFACES is what contrast_pairs() iterates, so a key kind missing from
     it is a kind nothing checks -- which is how the border-on-fill gap got in.
     """
-    unknown = {fill for fill in KEY_SURFACES.values() if fill not in INK}
-    if unknown:
-        raise SystemExit(
-            f"contrast FAILED -- KEY_SURFACES names fills that are not in INK: "
-            f"{sorted(unknown)}"
-        )
-
     # label()'s classes are exactly the filled keys. `trns` and `dead` come from
-    # resolve() instead and never appear here, which is why they are exempted in
-    # prose above rather than subtracted from this set.
+    # resolve() instead and never appear here, which is why they are exempted
+    # where KEY_SURFACES is defined rather than subtracted from this set.
     kinds = {label(code)[1] for code in
              {c for lay in layers for row in lay for c in row
               if isinstance(c, str) and c not in BLANK}}

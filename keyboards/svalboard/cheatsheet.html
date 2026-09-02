@@ -54,13 +54,19 @@ h2 .num { font-weight: 700; color: #111111; margin-right: 6px; }
   overflow: hidden;
 }
 
+/* Every `background:` below is generated from KEY_SURFACES; nothing here
+   restates a fill by hand. */
+.k.alpha { background: #ffffff; }
+.k.sym { background: #e4e4e4; }
+.k.num { background: #f0f0f0; }
+.k.mod { background: #ececec; }
+.k.fn { background: #ececec; }
+
 /* Glyphs keep the full size; the word-legends shrink to fit their box. */
-.k.mod, .k.fn { font-size: 8.5px; font-weight: 500; color: #111111; background: #ececec; }
+.k.mod, .k.fn { font-size: 8.5px; font-weight: 500; color: #111111; }
 /* Only the word-legends; a lone `_` on the thumb keeps glyph size. */
 .k.mod.thumb, .k.trns.thumb { font-size: 7.5px; }
 .k.alpha { font-weight: 600; }
-.k.sym { background: #e4e4e4; }
-.k.num { background: #f0f0f0; }
 .k.dead { border-style: dashed; border-color: #8f8f8f; background: #ffffff; }
 /* Italic as well as grey: two greys stop being two greys on a tired printer,
    but an italic `e` is still an italic `e`. */

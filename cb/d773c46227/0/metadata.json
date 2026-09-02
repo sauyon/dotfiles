@@ -56,6 +56,37 @@
         "label": "Skill: drovr:code-review",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-toolu_019vn4wYSmrQMHvU8LCEUmHf",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "d5782ae9f7ad",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 570,
+        "end": 571,
+        "entry_ids": [
+          "4efc1c31-c8ad-494d-9049-0cc730a3f445"
+        ],
+        "tool_use_id": "toolu_019vn4wYSmrQMHvU8LCEUmHf"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_019vn4wYSmrQMHvU8LCEUmHf"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
     }
   ],
   "session_metrics": {

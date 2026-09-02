@@ -1,0 +1,29 @@
+but wouldn't it be better to install these things with nix actually
+
+---
+
+sure
+
+---
+
+can you keep it local only
+
+---
+
+do it
+
+---
+
+hm. do you think I should promote ` or
+
+---
+
+hm. do you think I should promote ` or ~ to the main layer
+
+---
+
+hm. do you think I should promote ` or ~ to the main layer
+
+---
+
+can you save the data or corpus somewhere so we don't have to rederive

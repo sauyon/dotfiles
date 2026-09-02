@@ -1,0 +1,74 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "f2e1a4ba4aee",
+  "session_id": "8d41d772-5f92-4a9b-ad52-21b41a728e8d",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-02T03:05:50.491199291Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "keyboards/svalboard/cheatsheet.py"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "6d694ea17c68",
+  "checkpoint_transcript_start": 501,
+  "transcript_lines_at_start": 501,
+  "compact_transcript_start": 103,
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 9483,
+    "cache_read_tokens": 2309469,
+    "output_tokens": 6203,
+    "api_call_count": 13
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01JY5UcyrtKiPRiBy8NzAnS3",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "6d694ea17c68",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 176,
+        "end": 177,
+        "entry_ids": [
+          "a6fbcddd-6edc-4c91-9f28-5c5479fc045f"
+        ],
+        "tool_use_id": "toolu_01JY5UcyrtKiPRiBy8NzAnS3"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01JY5UcyrtKiPRiBy8NzAnS3"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-02T03:05:50.384031402Z",
+    "agent_lines": 36,
+    "agent_removed": 25,
+    "human_added": 9,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 45,
+    "total_lines_changed": 73,
+    "agent_percentage": 83.56164383561644,
+    "metric_version": 2
+  }
+}

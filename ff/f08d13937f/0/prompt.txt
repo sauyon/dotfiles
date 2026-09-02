@@ -1,0 +1,19 @@
+<task-notification>
+<task-id>bmkuf5ldk</task-id>
+<summary>Monitor event: "nix-home run for the hms/fonts commit"</summary>
+<event>run 64: running</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bmkuf5ldk</task-id>
+<summary>Monitor event: "nix-home run for the hms/fonts commit"</summary>
+<event>run 64: success</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+do it

@@ -289,6 +289,25 @@ class DiscordLoaderTests(unittest.TestCase):
         self.assertEqual(freq.discord_plain("hm \N{THINKING FACE}"), "hm :thi\t")
         self.assertEqual(freq.discord_plain("\N{EYES} look"), ":eye\t look")
 
+    def test_one_autocomplete_is_one_keystroke_run_however_many_codepoints(self):
+        # 👍🏽 is THUMBS UP + a skin-tone modifier; a ZWJ family is five
+        # codepoints. All of them are ONE `:thu<tab>`. Counting per codepoint
+        # would emit two or three colons for one autocomplete -- inflating the
+        # exact character this whole emoji model exists to stop undercounting.
+        self.assertEqual(
+            freq.discord_plain("\N{THUMBS UP SIGN}\N{EMOJI MODIFIER FITZPATRICK TYPE-4}"),
+            ":thu\t")
+        self.assertEqual(
+            freq.discord_plain(
+                "\N{MAN}‍\N{WOMAN}‍\N{GIRL}"),
+            ":man\t")
+
+    def test_adjacent_but_separate_emoji_stay_separate(self):
+        # The cluster rule must not swallow two unrelated emoji into one: no
+        # ZWJ between them means two autocompletes, two colons.
+        self.assertEqual(freq.discord_plain("\N{EYES}\N{THUMBS UP SIGN}"),
+                         ":eye\t:thu\t")
+
     def test_a_run_of_emoji_does_not_fabricate_a_doubled_colon(self):
         # Two emoji in a row must not produce "::" -- a same-key repeat on a
         # lateral is exactly the signal the `-` finding rests on, and inventing

@@ -86,8 +86,8 @@ FIXED = set(",./;\"'")
 # than the prompt transcripts -- while the Slack sample is 15k. Weighting by
 # size would let a decade of chat outvote what Sauyon types now, which is what
 # the layout is actually for; weighting it at the 0.05 it had while the export
-# was still missing would ignore real personal typing. 0.20 splits that: present
-# and substantial, not dominant.
+# was still missing would ignore real personal typing. 0.26 splits that:
+# present and substantial, not dominant.
 #
 #
 # `code` is low on purpose, and lower than its 683k characters suggest. Sauyon

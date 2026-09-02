@@ -292,7 +292,17 @@ DISCORD_TIMESTAMP = re.compile(r"<t:\d+(?::[tTdDfFR])?>")
 # typed around `:eyes:` are gone from the export -- 15,673 of them in the real
 # one, against 11,239 surviving colons. Restoring them matters because `:` is
 # one of the seven symbols README.md promoted on a measured rate.
-EMOJI = re.compile(r"[\U0001F000-\U0001FAFF\u2600-\u27BF]+")
+# One emoji as the picker produces it, not one codepoint. \uD83D\uDC4D\uD83C\uDFFD is a base plus a
+# skin-tone modifier; a family is several bases joined by ZWJ. Every one of
+# those is a SINGLE `:thu<tab>`, so matching per codepoint would emit two or
+# three colons for one autocomplete -- inflating the very character this model
+# exists to stop undercounting. Adjacent emoji with no ZWJ between them stay
+# separate, because those really are two autocompletes.
+_EMOJI_BASE = "[\U0001F000-\U0001FAFF\u2600-\u27BF]"
+_EMOJI_MOD = "[\uFE0F\U0001F3FB-\U0001F3FF]"
+EMOJI = re.compile(
+    f"{_EMOJI_BASE}{_EMOJI_MOD}*(?:\u200D{_EMOJI_BASE}{_EMOJI_MOD}*)*"
+)
 
 # How many letters get typed before Tab takes over. Sauyon's example was
 # `:eye<tab>`; three is the shortest prefix that usually disambiguates.
@@ -314,13 +324,12 @@ def emoji_shortcode(match):
     impossible between adjacent emoji -- and a same-key repeat on a lateral is
     the exact signal the `-` finding rests on.
     """
-    out = []
-    for ch in match.group():
-        name = unicodedata.name(ch, "")
-        if name:
-            letters = "".join(c for c in name.lower() if c.isalpha())
-            out.append(f":{letters[:EMOJI_PREFIX]}\t")
-    return "".join(out)
+    # The cluster's first codepoint is the one you were typing toward; the
+    # modifiers and ZWJ partners came with it. If it has no Unicode name the
+    # keystrokes still happened, so fall back rather than dropping the colon.
+    name = unicodedata.name(match.group()[0], "")
+    letters = "".join(c for c in name.lower() if c.isalpha())[:EMOJI_PREFIX]
+    return f":{letters or 'emo'}\t"
 
 
 def discord_plain(text):

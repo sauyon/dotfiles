@@ -145,8 +145,22 @@ HDNEU_RIGHT = {
 BASE_LATERALS = {
     (R_PINKY, W): "KC_Z",    # inner, x=22.0
     (R_PINKY, E): "KC_J",    # outer, x=24.0
+    # Hands Down Neu publishes `-` on the right inner column; this port puts `;`
+    # there, following the Glove80. That evicts `-`, and `-` is far too frequent
+    # -- kebab-case, `->`, `--flag` -- to sit behind MO(1). It gets a lateral.
     (L_PINKY, E): "KC_MINUS",
     (L_PINKY, W): "KC_TAB",    # outermost key on the left hand, x=0.0
+
+    # Parens likewise: frequent enough in code to be worth a base-layer key
+    # rather than MO(1)+key. The left ring's two laterals are the only adjacent
+    # free pair on the hand. West is screen-left and East screen-right on both
+    # hands, so `(` West / `)` East reads in the order you type it.
+    (L_RING, W): "LSFT(KC_9)",
+
+    # `&` promoted off the symbol layer too. The three free right-hand laterals
+    # are all East (outer); the index's is the strongest of them, and putting it
+    # on the right hand balances `-`, `(` and `)`, which are all on the left.
+    (R_INDEX, E): "LSFT(KC_7)",
 
     # In Hands Down the left index owns the entire inner column -- v, b and g
     # are all index-finger keys. INNER_LATERAL has to scatter them, because a
@@ -159,11 +173,11 @@ BASE_LATERALS = {
     #
     #   index East = b (from INNER_LATERAL)   index West = g (here)
     #
-    # `(` is displaced off index West and takes the ring's East, which g vacated.
     (L_INDEX, W): "KC_G",
-    # place() still puts g on the ring's East as bottom-inner. Blank it, or g
-    # ends up on two keys.
-    (L_RING, E): "KC_NO",
+    # place() still puts g on the ring's East as bottom-inner, so this overrides
+    # it -- without it g would be on two cups. `)` is what the ring's East now
+    # holds; the slot g vacated is exactly the one the parens pair needed.
+    (L_RING, E): "LSFT(KC_0)",
 }
 
 # Thumb clusters, declared by physical x rather than column index -- the indices
@@ -224,6 +238,17 @@ def thumb_row(by_x, row):
         cells[x_to_col[x]] = code
     return cells
 
+
+def thumb_col(row, x):
+    """Column index of the thumb key at physical x, for sparse overrides."""
+    for col, xy in THUMB_XY[row].items():
+        if xy[0] == x:
+            return col
+    raise SystemExit(
+        f"thumb row {row}: no key at x={x}, hardware has "
+        f"{sorted(xy[0] for xy in THUMB_XY[row].values())}"
+    )
+
 # --- Layer 1: Arensito symbols ----------------------------------------------
 #
 #   { } [ ] @   & _ < > $
@@ -233,15 +258,26 @@ def thumb_row(by_x, row):
 # Ported from the Glove80 `symbols` layer, reached there by a sticky `&sl 3`
 # and here by holding MO(1) on the right thumb.
 
+# Five of Arensito's own cells are holes here. Each of those symbols is already
+# reachable in one key elsewhere, and nothing should be on two keys:
+#
+#   `-`     base layer, left pinky East       -- no MO(1) at all
+#   `(` `)` base layer, left ring West/East   -- no MO(1) at all
+#   `&`     base layer, right index East      -- no MO(1) at all
+#   `_`     left thumb's space key            -- see SYMBOL_THUMB_X below
+#
+# They are KC_NO rather than KC_TRNS on purpose. Transparent would fall through
+# to layer 0 and quietly type `n`, `.`, `e`, `i` and `/` from the middle of the
+# symbol layer; a dead key is the lesser failure.
 ARENSITO_LEFT = {
     "top":    ["LSFT(KC_LBRACKET)", "LSFT(KC_RBRACKET)", "KC_LBRACKET", "KC_RBRACKET", "LSFT(KC_2)"],
-    "home":   ["KC_SCOLON", "KC_SLASH", "KC_MINUS", "KC_0", "LSFT(KC_SCOLON)"],
+    "home":   ["KC_SCOLON", "KC_SLASH", "KC_NO", "KC_0", "LSFT(KC_SCOLON)"],   # was `-`
     "bottom": ["KC_6", "KC_7", "KC_8", "KC_9", "LSFT(KC_EQUAL)"],
 }
 
 ARENSITO_RIGHT = {
-    "top":    ["LSFT(KC_7)", "LSFT(KC_MINUS)", "LSFT(KC_COMMA)", "LSFT(KC_DOT)", "LSFT(KC_4)"],
-    "home":   ["KC_BSLASH", "KC_1", "LSFT(KC_9)", "LSFT(KC_0)", "KC_EQUAL"],
+    "top":    ["KC_NO", "KC_NO", "LSFT(KC_COMMA)", "LSFT(KC_DOT)", "LSFT(KC_4)"],   # were `&` `_`
+    "home":   ["KC_BSLASH", "KC_1", "KC_NO", "KC_NO", "KC_EQUAL"],   # were `(` `)`
     "bottom": ["LSFT(KC_8)", "KC_2", "KC_3", "KC_4", "KC_5"],
 }
 
@@ -265,6 +301,19 @@ SYMBOL_LATERALS = {
     (L_RING, W): "LSFT(KC_5)",         # %
     (R_INDEX, E): "LSFT(KC_BSLASH)",   # |  beside \ on the index's West
     (R_MIDDLE, E): "LSFT(KC_6)",       # ^
+}
+
+# `_` also takes the left thumb's space key. Arensito puts it on the right
+# index's North, which is the same hand as MO(1) on the right thumb -- so
+# snake_case is a same-hand contortion. On space it is MO(1) right, `_` left,
+# the same alternating roll as any other layer-1 symbol. `_` stays on the right
+# index too; this is a second seat, not a move.
+#
+# The cost is that space is not typeable while MO(1) is held. Every other thumb
+# stays transparent, so shift, ctrl, enter and backspace all still work on the
+# layer. Declared by x like the base thumbs, for the reason in BASE_L_THUMB_X.
+SYMBOL_THUMB_X = {
+    L_THUMB: {7.9: "LSFT(KC_MINUS)"},
 }
 
 # --- Layer 2: navigation and function keys -----------------------------------
@@ -336,6 +385,9 @@ def build_layers():
     sym.update(SYMBOL_LATERALS)
     for (row, col), code in sym.items():
         layers[1][row][col] = code
+    for row, by_x in SYMBOL_THUMB_X.items():
+        for x, code in by_x.items():
+            layers[1][row][thumb_col(row, x)] = code
 
     # Arensito covers every finger cup except the laterals; anything it leaves
     # alone should fall through rather than repeat layer 0's brackets.

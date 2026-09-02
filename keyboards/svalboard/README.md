@@ -24,10 +24,10 @@ hands, so West is inward on the right hand and outward on the left.
 ```
              W    N     C     S     E
   L pinky    tab  w     r     x     -
-  L ring     .    f     s     c     .
+  L ring     (    f     s     c     )
   L middle   .    m     n     l     v
   L index    g    p     t     d     b
-  R index    ,    .     a     u     .
+  R index    ,    .     a     u     &
   R middle   /    q     e     o     .
   R ring     ;    "     i     y     .
   R pinky    z    '     h     k     j
@@ -46,17 +46,27 @@ fingers per hand and the layout assumes five columns:
   Svalboard doesn't have. `tab` gets the left pinky's West, x=0.0, the outermost
   point of the hand.
 
-Parens and brackets are deliberately *not* on this layer; Arensito has them.
+Brackets are deliberately *not* on this layer; Arensito has them. Four symbols
+*are*, because they're frequent enough that `MO(1)` isn't worth paying and the
+laterals were free: `-` (left pinky East), `(` and `)` (left ring West/East, in
+reading order), and `&` (right index East). Each is promoted, not copied — all
+four are holes on layer 1, so nothing sits on two keys.
 
 ### Layer 1 — Arensito symbols (hold `MO(1)`)
 
 ```
-  { } [ ] @   & _ < > $
-  ; / - 0 :   \ 1 ( ) =
+  { } [ ] @   · · < > $
+  ; / · 0 :   \ 1 · · =
   6 7 8 9 +   * 2 3 4 5
 ```
 
-Ported from the Glove80 `symbols` layer. The grid above is on N/C/S; the
+Ported from the Glove80 `symbols` layer. `·` is a dead key — Arensito puts
+`-`, `&`, `_`, `(` and `)` there, and all five are one-key elsewhere now (see
+layer 0 and the thumbs below). They're dead rather than transparent on purpose:
+falling through would type `n`, `.`, `e`, `i` and `/` from the middle of the
+symbol layer.
+
+The grid above is on N/C/S; the
 laterals carry the six symbols Arensito leaves out, which would otherwise cost
 `MO(1)`+shift+key:
 
@@ -67,6 +77,12 @@ laterals carry the six symbols Arensito leaves out, which would otherwise cost
 ```
 
 `?` isn't here on purpose — it's shift+`/`, and `/` is on the base layer.
+
+`_` gets a second seat on the **left thumb's space key**. Arensito's own `_` is
+on the right index's North, the same hand as `MO(1)`; on space it's a
+left-right roll instead. Space itself isn't typeable while `MO(1)` is held —
+every other thumb stays transparent, so shift, ctrl, enter and backspace still
+work on the layer.
 
 ### Layer 2 — navigation (hold `MO(2)`)
 

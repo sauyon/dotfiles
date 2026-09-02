@@ -1,0 +1,10 @@
+<task-notification>
+<task-id>bm3jbw1dy</task-id>
+<summary>Monitor event: "nix-home CI run for the attic fix"</summary>
+<event>run 62: success — ci: substitute from attic in-cluster, and --f</event>
+If this event is something the user would act on now, send a PushNotification. Routine or benign output doesn't need one.
+</task-notification>
+
+---
+
+do it yourself

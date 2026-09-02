@@ -440,14 +440,26 @@ let
   # tunnel). fj has no `git-credential` subcommand, so this shim reads keys.json
   # directly.
   #
-  # Both hosts are logged in with `fj auth add-token` (LoginInfo::Application),
-  # not `fj auth login` (OAuth). Application tokens have no expiry, so nothing
-  # here has to trigger a refresh. Keep it that way: fj's OAuth refresh rotates
-  # the token and rewrites keys.json with no flock and a truncate-in-place write
-  # (upstream src/keys.rs save()), and a refresh whose new token never lands on
-  # disk wedges the login permanently with "token was already used". Re-auth
-  # then needs `fj auth login`, which shells out to xdg-open — useless on a
-  # headless box over SSH.
+  # forge.ko.ag is a `fj auth login` OAuth grant (LoginInfo::OAuth), not a
+  # `fj auth add-token` application token: the access token in keys.json carries
+  # an expires_at roughly an hour out, and only fj can mint a new one. Handing
+  # git an expired one fails the push outright — the shim exits 0 with a
+  # credential, so git never falls through to a prompt or to another helper.
+  # So when the stored expiry has passed, poke fj first: any authenticated call
+  # runs LoginInfo::refresh + KeyInfo::save (upstream src/keys.rs) and rewrites
+  # keys.json in place, and the read below then picks up the new token.
+  #
+  # Gate the poke on the expiry rather than running it every time. fj's save()
+  # is a truncate-in-place write with no locking, and a rotation whose new
+  # refresh token never reaches disk wedges the login permanently with "token
+  # was already used"; recovering needs `fj auth login`, which shells out to
+  # xdg-open and is useless on this box over SSH. Same reason for the flock:
+  # it keeps two concurrent git operations from racing a rotation against each
+  # other. (macOS has no flock(1) in $PATH, so mari pokes unserialized — one
+  # laptop, one user, and the window is a single expiry instant.)
+  #
+  # Application logins have no expires_at, so they skip the poke entirely and
+  # this stays a pure keys.json read for them.
   git-credential-fj = pkgs.writeShellScriptBin "git-credential-fj" ''
     set -euo pipefail
 
@@ -465,6 +477,27 @@ let
 
     keys="''${XDG_DATA_HOME:-$HOME/.local/share}/forgejo-cli/keys.json"
     [ -r "$keys" ] || exit 0
+
+    # expires_at is time::OffsetDateTime's serde tuple, in order:
+    # [year, day-of-year, hour, minute, second, nanos, offset-h, offset-m,
+    # offset-s]. jq's mktime wants [year, month0, mday, h, m, s, wday, yday]
+    # and is UTC-based, so build January 1st and add the ordinal by hand.
+    # `-e` makes "still valid" exit 0; anything else — expired, absent
+    # (Application login or unknown host), or unparseable — exits nonzero.
+    if ! ${lib.getExe pkgs.jq} -e --arg h "$host" '
+      .hosts[$h].expires_at
+      | if type == "array" and length >= 9 then
+          ([.[0], 0, 1, .[2], .[3], .[4], 0, 0] | mktime)
+            + (.[1] - 1) * 86400
+            - (.[6] * 3600 + .[7] * 60 + .[8])
+          > now
+        else true end
+    ' "$keys" >/dev/null 2>&1; then
+      # Best-effort: a failed refresh still falls through to whatever is on
+      # disk rather than dropping git to a terminal prompt.
+      ${lib.optionalString (!isDarwin) ''${pkgs.util-linux}/bin/flock -w 60 "''${XDG_RUNTIME_DIR:-''${TMPDIR:-/tmp}}/git-credential-fj.lock" \''}
+        ${lib.getExe pkgs.forgejo-cli} -H "$host" whoami >/dev/null 2>&1 || true
+    fi
 
     # A nonzero exit aborts git's whole operation rather than falling through
     # to a prompt, so a half-written keys.json degrades to "no credential".

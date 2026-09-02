@@ -165,6 +165,76 @@ class DiscordLoaderTests(unittest.TestCase):
         self.addCleanup(lambda: setattr(freq, "DISCORD_DIR", old))
         return root
 
+    def with_json_export(self, *channels: tuple[str, str], top="Messages"):
+        """A real 2026 export: <top>/c<id>/messages.json, not messages.csv."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        for name, payload in channels:
+            d = root / top / name
+            d.mkdir(parents=True)
+            (d / "messages.json").write_text(payload, encoding="utf-8")
+        old = freq.DISCORD_DIR
+        freq.DISCORD_DIR = root
+        self.addCleanup(lambda: setattr(freq, "DISCORD_DIR", old))
+        return root
+
+    def test_reads_the_json_export_discord_actually_ships(self):
+        # The export that arrived in 2026 has no CSV at all: 1085 channels,
+        # every one of them messages.json, under a capitalised Messages/.
+        # Same field names, different container.
+        # Invented text and invented ids. The export is personal chat and this
+        # repo is public -- the rule the whole pipeline is built around is that
+        # the corpus never lands here, and a test fixture is still here.
+        self.with_json_export(("c000000000000000001", json.dumps([
+            {"ID": 1, "Timestamp": "2020-01-01 00:00:00",
+             "Contents": "first message", "Attachments": ""},
+            {"ID": 2, "Timestamp": "2020-01-01 00:00:01",
+             "Contents": "second message", "Attachments": ""},
+        ])))
+
+        self.assertEqual(list(freq.iter_discord_text()),
+                         ["first message", "second message"])
+
+    def test_the_messages_directory_is_found_whatever_its_case(self):
+        # Older exports used lowercase `messages/`. Both are the same export.
+        self.with_json_export(("c1", json.dumps([{"Contents": "lower"}])), top="messages")
+
+        self.assertEqual(list(freq.iter_discord_text()), ["lower"])
+
+    def test_a_channel_with_both_shapes_is_counted_once(self):
+        # Reading json and csv means a channel holding both gets its text
+        # counted twice, silently doubling that channel's weight in the rates
+        # the README's argument is built on. JSON wins: it is the shape the
+        # current export ships, so a stale CSV beside it is the older copy.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        d = root / "Messages" / "c1"
+        d.mkdir(parents=True)
+        (d / "messages.json").write_text(json.dumps([{"Contents": "from json"}]),
+                                         encoding="utf-8")
+        (d / "messages.csv").write_text(
+            'ID,Timestamp,Contents,Attachments\n1,t,from csv,\n', encoding="utf-8")
+        old = freq.DISCORD_DIR
+        freq.DISCORD_DIR = root
+        self.addCleanup(lambda: setattr(freq, "DISCORD_DIR", old))
+
+        self.assertEqual(list(freq.iter_discord_text()), ["from json"])
+
+    def test_csv_exports_still_work(self):
+        # Don't strand an older export sitting in $CACHE.
+        self.with_export(
+            ("c1", 'ID,Timestamp,Contents,Attachments\n1,t,from csv,\n'),
+        )
+
+        self.assertEqual(list(freq.iter_discord_text()), ["from csv"])
+
+    def test_a_json_channel_of_the_wrong_shape_is_announced_not_silent(self):
+        self.with_json_export(("c1", json.dumps({"not": "a list"})))
+
+        self.assertEqual(list(freq.iter_discord_text()), [])
+
     def test_discord_is_a_registered_source(self):
         self.assertIn("discord", freq.SOURCES)
 
@@ -204,6 +274,56 @@ class DiscordLoaderTests(unittest.TestCase):
             list(freq.iter_discord_text()),
             ["hey  and  in  role  emoji :party: :spin:"],
         )
+
+    def test_literal_emoji_are_restored_to_the_keys_actually_pressed(self):
+        # Discord stores the RENDERED character for standard emoji, so nothing
+        # of what you pressed survives in the export. The real one has 15,673
+        # of these against 11,239 surviving colons, so taking the file at face
+        # value undercounts `:` by ~2.4x, and `:` is one of the seven symbols
+        # README.md promoted on a measured rate.
+        #
+        # What Sauyon actually presses is `:eye<tab>` -- ONE colon, a short
+        # prefix, and Tab. The closing colon and the rest of the name are the
+        # autocomplete's, not his hands', so reconstructing the full `:eyes:`
+        # would invent a second colon and a word nobody typed.
+        self.assertEqual(freq.discord_plain("hm \N{THINKING FACE}"), "hm :thi\t")
+        self.assertEqual(freq.discord_plain("\N{EYES} look"), ":eye\t look")
+
+    def test_a_run_of_emoji_does_not_fabricate_a_doubled_colon(self):
+        # Two emoji in a row must not produce "::" -- a same-key repeat on a
+        # lateral is exactly the signal the `-` finding rests on, and inventing
+        # one here would corrupt the evidence for it. The Tab between them
+        # makes that structurally impossible, which is the real reason to
+        # model the keystroke rather than the rendered name.
+        out = freq.discord_plain("\N{EYES}\N{EYES}")
+
+        self.assertNotIn("::", out)
+        self.assertEqual(out, ":eye\t:eye\t")
+
+    def test_timestamp_markup_is_dropped(self):
+        # `<t:1600000000:t>` is inserted by Discord, never typed, and carries
+        # two colons -- and `:` is one of the seven symbols the README promoted
+        # on a measured rate. Only 29 survive in the real export, so this
+        # changes no conclusion; it is here because a construct nobody types
+        # should not be in a corpus of what someone typed.
+        self.assertEqual(freq.discord_plain("at <t:1600000000:t> ok"), "at  ok")
+        self.assertEqual(freq.discord_plain("on <t:1600000001:F>!"), "on !")
+
+    def test_an_emoji_inside_a_url_does_not_leave_url_fragments_behind(self):
+        # Emoji restoration inserts a Tab, and BARE_URL stops at whitespace.
+        # Run it first and the synthetic Tab cuts the URL in half, leaving the
+        # tail to be counted as typing. Strip URLs first.
+        self.assertEqual(freq.discord_plain("see https://ex.com/\N{EYES}/x done"),
+                         "see  done")
+
+    def test_pasted_urls_are_dropped_like_slack_does(self):
+        # The export is full of bare links (https://discord.gg/..., every image
+        # host). A pasted URL is not typing, and slack_plain already drops
+        # them -- counting them here would inflate `/`, `:` and `.`, and `:`
+        # is one of the seven symbols the README promoted on measured rate.
+        self.assertEqual(freq.discord_plain("see https://discord.gg/DkMRTtAn ok"),
+                         "see  ok")
+        self.assertEqual(freq.discord_plain("no url here"), "no url here")
 
     def test_empty_contents_rows_are_skipped(self):
         # Attachment-only messages: a drag-and-drop, not keystrokes.

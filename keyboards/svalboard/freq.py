@@ -50,6 +50,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import unicodedata
 from collections import Counter
 from datetime import datetime, timezone
 
@@ -279,9 +280,65 @@ def iter_slack_text():
 DISCORD_MENTION = re.compile(r"<[@#][!&]?\d+>")
 DISCORD_EMOJI = re.compile(r"<a?:(\w+):\d+>")
 
+# A pasted link. Slack marks its own with angle brackets; Discord ships them
+# bare, so they have to be recognised by shape.
+BARE_URL = re.compile(r"https?://\S+")
+
+# `<t:1600000000:t>` -- a timestamp Discord inserts and renders in the reader's
+# own timezone. Nobody types one, and each carries two `:`.
+DISCORD_TIMESTAMP = re.compile(r"<t:\d+(?::[tTdDfFR])?>")
+
+# Standard emoji. Discord stores the RENDERED character, so the two colons you
+# typed around `:eyes:` are gone from the export -- 15,673 of them in the real
+# one, against 11,239 surviving colons. Restoring them matters because `:` is
+# one of the seven symbols README.md promoted on a measured rate.
+EMOJI = re.compile(r"[\U0001F000-\U0001FAFF\u2600-\u27BF]+")
+
+# How many letters get typed before Tab takes over. Sauyon's example was
+# `:eye<tab>`; three is the shortest prefix that usually disambiguates.
+EMOJI_PREFIX = 3
+
+
+def emoji_shortcode(match):
+    """A run of literal emoji back to the keys that produced it.
+
+    Emoji go in as `:eye<tab>`, not as `:eyes:` -- you type a colon, enough
+    letters to disambiguate, and Tab. The closing colon and the rest of the
+    name come from the autocomplete, so reconstructing the rendered name would
+    invent a second colon and a word nobody's hands made. This models the
+    keystrokes: one `:`, EMOJI_PREFIX letters, one Tab.
+
+    The prefix length is a stand-in for "enough to disambiguate" and is the
+    approximate part; the colon count, which is what the layout argument turns
+    on, is exact. The trailing Tab also makes a fabricated `::` structurally
+    impossible between adjacent emoji -- and a same-key repeat on a lateral is
+    the exact signal the `-` finding rests on.
+    """
+    out = []
+    for ch in match.group():
+        name = unicodedata.name(ch, "")
+        if name:
+            letters = "".join(c for c in name.lower() if c.isalpha())
+            out.append(f":{letters[:EMOJI_PREFIX]}\t")
+    return "".join(out)
+
 
 def discord_plain(text):
-    return DISCORD_EMOJI.sub(r":\1:", DISCORD_MENTION.sub("", text))
+    """Discord's wire format back to what a person pressed.
+
+    Bare URLs come out for the same reason slack_plain drops them: a pasted
+    link is not typing, and the export is full of them. Left in, they would
+    inflate `/`, `:` and `.` -- and `:` is one of the seven symbols the README
+    promoted on a measured rate, so this is not cosmetic.
+    """
+    text = DISCORD_TIMESTAMP.sub("", text)
+    text = DISCORD_MENTION.sub("", text)
+    text = DISCORD_EMOJI.sub(r":\1:", text)
+    # URLs go before emoji restoration, not after: restoration inserts a Tab,
+    # and BARE_URL stops at whitespace, so an emoji inside a link would cut it
+    # in half and leave the tail to be counted as something someone typed.
+    text = BARE_URL.sub("", text)
+    return EMOJI.sub(emoji_shortcode, text)
 
 
 def iter_discord_text():
@@ -292,36 +349,66 @@ def iter_discord_text():
     self-bot and is bannable, and a bot user can only see guilds you administer
     and never your DMs. The clean route is the export you are entitled to --
     Settings -> Data & Privacy -> Request all my data -- which takes days to a
-    month to arrive. Unzip it to $CACHE/discord/ so that
-    $CACHE/discord/messages/<channel>/messages.csv exists.
+    month to arrive. Unzip it into $CACHE/discord/ so that
+    $CACHE/discord/Messages/<channel>/messages.json exists.
 
-    Everything in that export is yours by construction, so there is no author
-    filtering to do. Read with the csv module rather than by lines: Contents is
-    a quoted field and multi-line messages span lines inside it.
+    TWO SHAPES, BOTH REAL. The export Discord shipped in 2026 is
+    `Messages/c<id>/messages.json` -- a JSON list, under a capitalised
+    directory. The documented (older) one is `messages/<id>/messages.csv`.
+    The field names are identical either way; only the container moved. Both
+    are read, because an older export sitting in $CACHE should not be stranded,
+    and the directory is matched case-insensitively for the same reason.
+
+    Everything in the export is yours by construction, so there is no author
+    filtering to do. The CSV path uses the csv module rather than splitting
+    lines: Contents is a quoted field and multi-line messages span lines.
     """
-    root = DISCORD_DIR / "messages"
-    if not root.is_dir():
-        print(f"  discord: {root} missing, skipping "
+    root = next((d for d in sorted(DISCORD_DIR.iterdir())
+                 if d.is_dir() and d.name.lower() == "messages"), None) \
+        if DISCORD_DIR.is_dir() else None
+    if root is None:
+        print(f"  discord: no messages/ under {DISCORD_DIR}, skipping "
               "(request the export: Settings -> Data & Privacy)", file=sys.stderr)
         return
-    paths = sorted(root.glob("*/messages.csv"))
+
+    # One file per channel. A channel holding both shapes would otherwise have
+    # its text counted twice, silently doubling that channel's weight in rates
+    # the README's argument rests on. JSON wins: it is what the current export
+    # ships, so a CSV beside it is the older copy.
+    by_channel = {}
+    for path in sorted(root.glob("*/messages.csv")) + sorted(root.glob("*/messages.json")):
+        by_channel[path.parent.name] = path
+    paths = [by_channel[k] for k in sorted(by_channel)]
     n = skipped = 0
     for path in paths:
         try:
-            with path.open(newline="", encoding="utf-8", errors="replace") as fh:
-                reader = csv.DictReader(fh)
-                if reader.fieldnames is None or "Contents" not in reader.fieldnames:
-                    print(f"  discord: {path.parent.name} has no Contents column "
-                          f"({reader.fieldnames}), skipping", file=sys.stderr)
+            if path.suffix == ".json":
+                rows = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+                if not isinstance(rows, list):
+                    print(f"  discord: {path.parent.name} is not a list of messages "
+                          f"({type(rows).__name__}), skipping", file=sys.stderr)
                     continue
-                for row in reader:
-                    text = row.get("Contents")
-                    if not text:
-                        skipped += 1
+            else:
+                with path.open(newline="", encoding="utf-8", errors="replace") as fh:
+                    reader = csv.DictReader(fh)
+                    if reader.fieldnames is None or "Contents" not in reader.fieldnames:
+                        print(f"  discord: {path.parent.name} has no Contents column "
+                              f"({reader.fieldnames}), skipping", file=sys.stderr)
                         continue
-                    n += 1
-                    yield discord_plain(text)
-        except (OSError, csv.Error) as exc:
+                    rows = list(reader)
+            for row in rows:
+                text = row.get("Contents") if isinstance(row, dict) else None
+                if not isinstance(text, str) or not text:
+                    skipped += 1
+                    continue
+                plain = discord_plain(text)
+                if not plain.strip():
+                    # Was a bare link or a lone mention: nothing was typed.
+                    skipped += 1
+                    continue
+                n += 1
+                yield plain
+        except (OSError, csv.Error, json.JSONDecodeError, ValueError) as exc:
             print(f"  discord: {path} unreadable ({exc}), skipping", file=sys.stderr)
     print(f"  discord: {len(paths)} channels, {n} messages, "
           f"{skipped} without typed text skipped", file=sys.stderr)

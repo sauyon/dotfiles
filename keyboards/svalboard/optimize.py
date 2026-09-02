@@ -81,18 +81,32 @@ PERMUTING = set("abcdefghijklmnopqrstuvwxyz") | set("-:()&@~")
 FIXED = set(",./;\"'")
 
 # How much of a day's typing each corpus stands for. NOT the corpus sizes: those
-# are sampling artifacts (the prompt transcripts are ~430x the Slack sample and
-# nobody types in that ratio). These are estimates, they are the softest number
-# in the whole pipeline, and they are here as one editable constant so that a
-# result can be re-run against a different guess. ngram_merge normalizes each
-# component to the first one's total before applying these, so they are shares
-# of the blend rather than raw counts.
+# are sampling artifacts, and the Discord export proved it. It arrived at 7.4M
+# characters -- 339,675 messages over ~14 years, the largest corpus here, bigger
+# than the prompt transcripts -- while the Slack sample is 15k. Weighting by
+# size would let a decade of chat outvote what Sauyon types now, which is what
+# the layout is actually for; weighting it at the 0.05 it had while the export
+# was still missing would ignore real personal typing. 0.20 splits that: present
+# and substantial, not dominant.
+#
+#
+# `code` is low on purpose, and lower than its 683k characters suggest. Sauyon
+# does not write much code by hand any more -- the typing that replaced it is
+# in `prompts`, which is why that one carries the largest share. The corpus is
+# also the weakest proxy here: it is the text tracked in this repo, which
+# includes plenty nobody sat and typed.
+#
+# These are estimates, they are the softest number in the whole pipeline, and
+# they are here as one editable constant so a result can be re-run against a
+# different guess -- do that before believing any delta. ngram_merge normalizes
+# each component to the first one's total before applying these, so they are
+# shares of the blend rather than raw counts.
 WEIGHTS = {
-    "prompts": 0.40,
-    "shell":   0.20,
-    "code":    0.20,
-    "slack":   0.15,
-    "discord": 0.05,
+    "prompts": 0.38,
+    "shell":   0.18,
+    "code":    0.08,
+    "slack":   0.10,
+    "discord": 0.26,
 }
 
 PATH_MARKER = re.compile(r"\x00PATH:[^\n]*\n?")

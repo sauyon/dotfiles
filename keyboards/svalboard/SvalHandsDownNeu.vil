@@ -44,11 +44,11 @@
         -1
       ],
       [
-        "KC_LALT",
-        "KC_ENTER",
+        "OSM(MOD_LALT)",
+        "MO(2)",
         "MO(1)",
         "KC_BSPACE",
-        "MO(2)",
+        "KC_ENTER",
         "KC_RALT"
       ],
       [

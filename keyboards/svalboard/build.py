@@ -73,6 +73,28 @@ CUP_XY = {
 # Thumb keys, same source. Reason about these by x, never by column index -- the
 # indices are NOT mirrored between hands (left col 3 at x=7.9 is the mirror of
 # right col 4 at x=13.6, not right col 3 at x=14.1).
+#
+# These x/y are a flattened KLE projection and they LIE about the physical
+# cluster. The six thumb switches are not laid out in space for a thumb to slide
+# across: they are struck by different PARTS of the one thumb, and the column
+# index -- which is mirrored, unlike x -- is what names them:
+#
+#   col 0  knuckle       col 3  pad
+#   col 1  nail          col 4  up
+#   col 2  down          col 5  double-down
+#
+# `double-down` is not a sixth position at all. It is col 2 pressed harder --
+# the DataHand deep press, inherited. That is the real reason x=9.0 and x=13.0
+# read as unusable below: they are not keys with no free side, they are a
+# heavier press of the key next to them. GUI sat there and could not be hit;
+# Tab was worse.
+#
+# CHORDS: a thumb holds ONE of these at a time. The exception is a fat-finger
+# pair, of which knuckle+nail is the reliable one -- that is the only way a
+# single thumb holds two thumb keys, and it is why alt and MO(2) sit on col 0
+# and col 1. Community ranking for the rest: pad is the favourite, nail beats
+# knuckle, knuckle is the worst key on the cluster and belongs to a modifier,
+# and up strains under heavy use.
 THUMB_XY = {
     L_THUMB: {4: (7.4, 7.0), 3: (7.9, 6.0), 2: (8.5, 7.0),
               5: (9.0, 6.0), 0: (9.6, 7.0), 1: (10.1, 6.0)},
@@ -233,21 +255,20 @@ BASE_LATERALS = {
 # are not mirrored between hands and reasoning about them directly has already
 # produced one wrong answer. THUMB_XY converts.
 #
-# The cluster is two interleaved rows: y=7.0 at x 7.4/8.5/9.6 (left) and
-# 11.4/12.5/13.6 (right), y=6.0 between them at 7.9/9.0/10.1 and
-# 11.9/13.0/14.1. Every y=6.0 key is flanked by two y=7.0 keys, and the middle
-# one of the three is flanked on both sides -- x=9.0 and x=13.0 are the only
-# positions on the whole cluster with no free side. Nothing you press often
-# belongs there.
+# The KLE draws two interleaved rows, but see THUMB_XY: what those coordinates
+# are really showing is six parts of one thumb. x=9.0 and x=13.0 are the
+# double-down, the deep press on the down key at x=8.5 and x=12.5 -- which is
+# why nothing you press often belongs there. They were found empirically, as
+# "the only positions with no free side", years before the mechanism had a name.
 #
 # Space left / Backspace right matches Glove80 positions 69 and 74; Svalboard's
 # own configs ship those mirrored.
 #
-# GUI used to sit on both x=9.0 and x=13.0, i.e. both unreachable slots, which
-# is how it was found. There is now one GUI, on the left at x=10.1, matching the
+# GUI used to sit on both x=9.0 and x=13.0, i.e. on both double-downs, which is
+# how they were found. There is now one GUI, on the left at x=10.1, matching the
 # Glove80 (which has LGUI at 70 and nothing on the right thumb).
 #
-# The two flanked slots get keys you genuinely never need in a hurry. Tab was
+# The two double-downs get keys you genuinely never need in a hurry. Tab was
 # tried at x=9.0 and is emphatically not one of those -- shell completion alone
 # makes it constant -- so it moved off the cluster entirely, to the left pinky's
 # West lateral. That is x=0.0, the outermost point of the left hand, and the
@@ -256,22 +277,52 @@ BASE_LATERALS = {
 # also has Delete on a thumb (55). RALT takes x=13.0, likewise from the Glove80
 # right thumb (72).
 BASE_L_THUMB_X = {
-    7.4: "KC_ESCAPE",
-    7.9: "KC_SPACE",
-    8.5: "KC_LSHIFT",
-    9.0: "KC_DELETE",   # flanked both sides -- nothing time-critical here
-    9.6: "KC_LCTRL",
-    10.1: "KC_LGUI",
+    7.4: "KC_ESCAPE",   # up
+    7.9: "KC_SPACE",    # pad -- the favourite key, and the most-pressed thumb
+    8.5: "KC_LSHIFT",   # down
+    9.0: "KC_DELETE",   # double-down -- nothing time-critical here
+    9.6: "KC_LCTRL",    # knuckle
+    10.1: "KC_LGUI",    # nail
 }
 
 BASE_R_THUMB_X = {
-    11.4: "KC_LALT",
-    11.9: "KC_ENTER",
-    12.5: "MO(1)",
-    13.0: "KC_RALT",    # flanked both sides
-    13.6: "MO(2)",
-    14.1: "KC_BSPACE",
+    11.4: "OSM(MOD_LALT)",  # knuckle -- one-shot, see below
+    11.9: "MO(2)",      # nail -- chords with alt, see below
+    12.5: "MO(1)",      # down
+    13.0: "KC_RALT",    # double-down
+    13.6: "KC_ENTER",   # up
+    14.1: "KC_BSPACE",  # pad
 }
+
+# MO(2) is on the nail so that alt can be held with it.
+#
+# It used to be on `up` at x=13.6, and that made alt+arrow -- so alt+shift+down,
+# ctrl+alt+left, the lot -- not awkward but *unpressable*. One thumb holds one
+# thumb key; alt is on the knuckle, and no thumb reaches knuckle and up at once.
+# Shift, ctrl and GUI escape this by living on the left thumb. Alt cannot follow
+# them: the left thumb's six seats are full, and this layout has both layer
+# holds and alt on the right, against the usual advice of keeping modifiers on
+# one thumb and layer switches on the other.
+#
+# So MO(2) moved to the one seat that chords with alt -- knuckle+nail, the
+# fat-finger pair -- and enter took `up` in exchange. Enter is a tap and pays
+# `up`'s strain once; MO(2) is a hold and was paying it for the length of every
+# arrow key. Alt, MO(1) and backspace do not move.
+#
+# That fixes alt+arrow and costs alt+enter, which was the previous occupant of
+# knuckle+nail. Hence the second half: alt is a ONE-SHOT.
+#
+# A one-shot alt sticks to the next key, so it needs no chord at all --
+# alt+enter, alt+backspace and alt+arrow all become tap-then-press, and
+# alt+backspace has never been available on this layout by any other route
+# (backspace is on the pad, and the knuckle pairs only with the nail). Holding
+# it is unchanged and still a plain alt hold, so alt+tab still cycles.
+#
+# One-shot mods are one of the three fixes the Svalboard community names for
+# exactly this squeeze; the others are one layer hold per thumb (this layout has
+# both on the right) and bottom-row mods (South is alphas here). It must be
+# OSM(MOD_LALT) and not OSM(KC_LALT) -- Vial accepts both, but they are
+# different keycodes (0x52A8 vs 0x52E3) and the latter reloads as raw hex.
 
 
 def thumb_row(by_x, row):

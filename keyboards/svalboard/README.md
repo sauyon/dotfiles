@@ -147,6 +147,10 @@ base-layer positions 75–78:
 
 F1–F12, home/end, pgup/pgdn, volume and play/pause fill the rest.
 
+`MO(2)` is on the right thumb's **nail** so that `alt` can be held with it — see
+"Thumbs" below. Everything else on the layer is a right-hand finger, so shift,
+ctrl and GUI reach it from the left thumb without contortion.
+
 ### Layer 15 — mouse
 
 Svalboard's firmware switches here by itself when the pointing device moves, and
@@ -156,17 +160,60 @@ hands; `USER06` is `SV_RECALIBRATE_POINTER`.
 
 ### Thumbs
 
-```
-LEFT                                RIGHT
- row7  esc(7.4)  shift(8.5)  ctrl(9.6)     alt(11.4)  MO1(12.5)  MO2(13.6)
- row6   space(7.9) delete(9.0) gui(10.1)    enter(11.9) ralt(13.0) bspc(14.1)
-```
+The cluster is not six keys laid out in space. It is six switches hit by
+different **parts of the same thumb**, and the `.vil` column index — which *is*
+mirrored between hands, unlike the x coordinate — names them:
 
-The two rows interleave in x, so every row-6 key sits between two row-7 keys —
-and the **middle** row-6 key on each hand, x=9.0 and x=13.0, is the only
-position with no free side. Nothing you press in a hurry goes there. `gui` was
-there originally (on both hands) and was unusable; `tab` was tried there and was
-worse. They now hold `delete` and `ralt`.
+| col | part | left | right |
+|---|---|---|---|
+| 0 | knuckle | ctrl | **alt** (one-shot) |
+| 1 | nail | gui | **`MO(2)`** |
+| 2 | down | shift | `MO(1)` |
+| 3 | pad | space | bspc |
+| 4 | up | esc | enter |
+| 5 | double-down | delete | ralt |
+
+`pad` is the community favourite and holds the most-pressed thumb key on each
+hand. `down` takes the heaviest hold. `knuckle` is the worst key on the cluster
+and is exactly where a modifier belongs. `up` strains under heavy use, so it
+gets taps rather than holds.
+
+**One thumb holds one of these at a time.** The exception is a *fat-finger*
+pair, of which knuckle+nail is the reliable one — the only way a single thumb
+holds two thumb keys at once.
+
+That is the whole reason `MO(2)` sits on the nail. It used to be on `up`, and
+that made `alt`+arrow — `alt+shift+down`, `ctrl+alt+left`, all of them — not
+awkward but **unpressable**: alt is on the knuckle, and no thumb reaches knuckle
+and up together. Moving `MO(2)` to the nail puts it on alt's fat-finger partner
+and costs only `enter`, which took `up` in exchange. Enter is a tap and pays
+`up`'s strain once; `MO(2)` is a hold and was paying it for the length of every
+arrow key.
+
+**Alt is a one-shot**, `OSM(MOD_LALT)`, because one chord partner is not enough.
+The knuckle pairs with the nail and nothing else, so alt can chord with exactly
+one right-thumb key — and `MO(2)`, `enter` and `bspc` all want to be it. Sticky
+alt sidesteps the whole problem: tap it and it holds for the next key, so
+`M-RET` and `M-DEL` work without a chord at all. `M-DEL` has never been
+available on this layout by any other route — backspace is on the pad. Holding
+it is unchanged, so `alt+tab` still cycles.
+
+That is one of the three fixes the Svalboard community names for this squeeze.
+The other two don't fit here: **one layer hold per thumb** (this layout has both
+on the right) and **bottom-row mods**, "because south is so good on sval" —
+South is alphas here. The underlying rule being broken is *modifiers on one
+thumb, layer switches on the other*: `alt`, `MO(1)` and `MO(2)` are all on the
+right. Shift, ctrl and GUI escape it by being left-thumb keys. Alt can't follow
+them; the left thumb's six seats are full.
+
+Note `OSM(MOD_LALT)`, not `OSM(KC_LALT)` — Vial accepts both, but they are
+different keycodes (`0x52A8` vs `0x52E3`) and the latter reloads as raw hex.
+
+`double-down` is not a sixth position. It is the `down` key pressed harder, the
+DataHand deep press. That is why nothing you press in a hurry goes there — `gui`
+sat on both and was unusable, `tab` was tried and was worse. They now hold
+`delete` and `ralt`. Those two slots were found empirically, as "the only
+positions with no free side", well before the mechanism had a name.
 
 `space` left and `bspc` right match Glove80 positions 69 and 74 — Svalboard's own
 configs ship those mirrored.

@@ -64,6 +64,9 @@ NAMED = {
     "KC_BSPACE": "bspc", "KC_DELETE": "del", "KC_ESCAPE": "esc",
     "KC_LSHIFT": "shift", "KC_LCTRL": "ctrl", "KC_LGUI": "gui",
     "KC_LALT": "alt", "KC_RALT": "ralt",
+    # Sticky: tap and it holds for the next key. The dot is the only thing on
+    # the sheet distinguishing it from a plain modifier, so it stays.
+    "OSM(MOD_LALT)": "alt ·",
     "KC_HOME": "home", "KC_END": "end", "KC_PGUP": "pgup", "KC_PGDOWN": "pgdn",
     "KC_LEFT": "←", "KC_DOWN": "↓", "KC_UP": "↑",
     "KC_RIGHT": "→",

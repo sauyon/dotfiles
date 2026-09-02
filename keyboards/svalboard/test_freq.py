@@ -90,6 +90,54 @@ class SlackLoaderTests(unittest.TestCase):
 
         self.assertEqual(list(freq.iter_slack_text()), ["real"])
 
+    def test_a_dump_of_the_wrong_shape_says_so_instead_of_vanishing(self):
+        # A dict with no "messages" key, or a bare scalar, is a dump written
+        # wrong -- most likely a changed search-API response. Yielding nothing
+        # silently makes that indistinguishable from "you sent no messages",
+        # and the corpus just quietly shrinks. The discord loader already
+        # announces this case; slack should too.
+        self.with_dump("d.json", {"items": [{"text": "wrong key"}]})
+
+        with self.assertLogs_stderr() as err:
+            self.assertEqual(list(freq.iter_slack_text()), [])
+        self.assertIn("d.json", err())
+        self.assertIn("shape", err())
+
+    def assertLogs_stderr(self):
+        import contextlib
+        import io
+
+        buf = io.StringIO()
+
+        class Cap:
+            def __enter__(inner):
+                inner.ctx = contextlib.redirect_stderr(buf)
+                inner.ctx.__enter__()
+                return lambda: buf.getvalue()
+
+            def __exit__(inner, *a):
+                return inner.ctx.__exit__(*a)
+
+        return Cap()
+
+    def test_dumps_are_decoded_as_utf8_regardless_of_locale(self):
+        # freq.py exists to count characters. Decoding the corpus through
+        # whatever LANG happens to be set would make the counts themselves
+        # machine-dependent -- the one thing this tool must not be.
+        import tempfile
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        d = Path(tmp.name)
+        (d / "d.json").write_bytes(
+            json.dumps([{"text": "café — naïve"}], ensure_ascii=False).encode("utf-8")
+        )
+        old = freq.SLACK_DIR
+        freq.SLACK_DIR = d
+        self.addCleanup(lambda: setattr(freq, "SLACK_DIR", old))
+
+        self.assertEqual(list(freq.iter_slack_text()), ["café — naïve"])
+
     def test_accepts_the_messages_envelope_form(self):
         # slack_search_* returns {"messages": [...]}; a hand-saved dump may be
         # the bare list. Both are dumps we would plausibly write.

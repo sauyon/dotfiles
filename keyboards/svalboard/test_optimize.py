@@ -259,14 +259,14 @@ class BuildNgramsTests(unittest.TestCase):
         opt, corpus = self.with_dirs()
         self.no_run()
 
-        self.assertIsNone(optimize.build_ngrams(opt, corpus, "slack"))
+        self.assertIsNone(optimize.build_ngrams(opt, corpus, "slack", "sauyon"))
 
     def test_an_empty_corpus_file_is_skipped(self):
         opt, corpus = self.with_dirs()
         (corpus / "discord.txt").write_text("   \n")
         self.no_run()
 
-        self.assertIsNone(optimize.build_ngrams(opt, corpus, "discord"))
+        self.assertIsNone(optimize.build_ngrams(opt, corpus, "discord", "sauyon"))
 
     def test_the_scratch_copy_is_removed_even_when_the_build_fails(self):
         # build_ngrams copies raw corpus text into the optimizer checkout so
@@ -280,7 +280,7 @@ class BuildNgramsTests(unittest.TestCase):
         import subprocess
 
         with self.assertRaises(subprocess.CalledProcessError):
-            optimize.build_ngrams(opt, corpus, "shell")
+            optimize.build_ngrams(opt, corpus, "shell", "sauyon")
 
         leftovers = list((opt / "temp_corpus").glob("*.txt"))
         self.assertEqual(leftovers, [])
@@ -290,7 +290,7 @@ class BuildNgramsTests(unittest.TestCase):
         (corpus / "code.txt").write_text("\x00PATH:a.py\nreal code")
         calls = self.no_run()
 
-        optimize.build_ngrams(opt, corpus, "code")
+        optimize.build_ngrams(opt, corpus, "code", "sauyon")
 
         self.assertEqual(len(calls), 1)
         _argv, written = calls[0]

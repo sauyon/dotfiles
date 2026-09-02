@@ -98,7 +98,7 @@ def iter_prompt_text():
     kept = dropped = 0
     for path in files:
         try:
-            raw = path.read_text(errors="replace")
+            raw = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
         for line in raw.splitlines():
@@ -148,7 +148,7 @@ def iter_shell_text():
     if not ZSH_HISTORY.exists():
         print(f"  shell: {ZSH_HISTORY} missing, skipping", file=sys.stderr)
         return
-    raw = ZSH_HISTORY.read_text(errors="replace")
+    raw = ZSH_HISTORY.read_text(encoding="utf-8", errors="replace")
     n = 0
     for line in raw.splitlines():
         cmd = ZSH_META.sub("", line)
@@ -179,7 +179,7 @@ def iter_code_text():
             continue
         full = REPO / p
         try:
-            text = full.read_text(errors="strict")
+            text = full.read_text(encoding="utf-8", errors="strict")
         except (OSError, UnicodeDecodeError):
             continue  # binary or unreadable
         n += 1
@@ -239,13 +239,23 @@ def iter_slack_text():
     n = skipped = 0
     for path in files:
         try:
-            payload = json.loads(path.read_text(errors="replace"))
+            payload = json.loads(path.read_text(encoding="utf-8", errors="replace"))
         except (OSError, json.JSONDecodeError, ValueError) as exc:
             print(f"  slack: {path.name} unreadable ({exc}), skipping", file=sys.stderr)
             continue
         if isinstance(payload, dict):
-            payload = payload.get("messages", [])
+            # Only the documented envelope. `.get("messages", [])` would turn
+            # any other dict into an empty list, collapsing "written wrong"
+            # into "valid, and you said nothing".
+            payload = payload["messages"] if "messages" in payload else None
         if not isinstance(payload, list):
+            # Say so. A dump of the wrong shape is a dump written wrong -- most
+            # likely the search API changed under us -- and yielding nothing
+            # silently would read as "you sent no messages" while the corpus
+            # quietly shrank.
+            print(f"  slack: {path.name} has an unexpected shape "
+                  f"({type(payload).__name__}, expected a list or "
+                  '{"messages": [...]}), skipping', file=sys.stderr)
             continue
         for msg in payload:
             if not isinstance(msg, dict):
@@ -298,7 +308,7 @@ def iter_discord_text():
     n = skipped = 0
     for path in paths:
         try:
-            with path.open(newline="", errors="replace") as fh:
+            with path.open(newline="", encoding="utf-8", errors="replace") as fh:
                 reader = csv.DictReader(fh)
                 if reader.fieldnames is None or "Contents" not in reader.fieldnames:
                     print(f"  discord: {path.parent.name} has no Contents column "
@@ -337,9 +347,9 @@ def build_corpus():
     for name, fn in SOURCES.items():
         parts = list(fn())
         text = "\n".join(parts)
-        (CORPUS_DIR / f"{name}.txt").write_text(text)
+        (CORPUS_DIR / f"{name}.txt").write_text(text, encoding="utf-8")
         manifest["sources"][name] = {"chars": len(text), "blocks": len(parts)}
-    MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
+    MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return manifest
 
 
@@ -351,7 +361,7 @@ def load_corpus():
     out = {}
     for name in SOURCES:
         p = CORPUS_DIR / f"{name}.txt"
-        out[name] = p.read_text(errors="replace") if p.exists() else ""
+        out[name] = p.read_text(encoding="utf-8", errors="replace") if p.exists() else ""
     return out
 
 
@@ -493,7 +503,8 @@ def main():
                           f"({100 * n / s:>4.0f}% of all) {per1k:>6.2f}/1k in that type")
 
     # The publishable half: aggregate rates only, no corpus.
-    AGGREGATE.write_text(json.dumps(aggregate_payload(corpus), indent=2) + "\n")
+    AGGREGATE.write_text(json.dumps(aggregate_payload(corpus), indent=2) + "\n",
+                         encoding="utf-8")
     print(f"\nwrote {AGGREGATE.relative_to(REPO)} (aggregates only)")
     print(f"corpus cached in {CACHE} (local, not committed)")
 

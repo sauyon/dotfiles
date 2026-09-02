@@ -194,7 +194,7 @@ def keyboard_config(text, layout):
     return head + sep + tail[:match.start()] + block + tail[match.end():]
 
 
-def build_ngrams(opt, corpus_dir, name, prefix="sauyon"):
+def build_ngrams(opt, corpus_dir, name, prefix):
     """Generate <opt>/ngrams/sauyon_<name> from one cached corpus file.
 
     Returns None when there is nothing to build from -- a cache built before

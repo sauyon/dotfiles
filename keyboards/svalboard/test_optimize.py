@@ -103,5 +103,93 @@ class WeightTests(unittest.TestCase):
         self.assertAlmostEqual(sum(optimize.WEIGHTS.values()), 1.0)
 
 
+class BuildNgramsTests(unittest.TestCase):
+    def with_dirs(self):
+        import tempfile
+        from pathlib import Path
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "opt").mkdir()
+        (root / "corpus").mkdir()
+        return root / "opt", root / "corpus"
+
+    def no_run(self):
+        """Replace the subprocess wrapper.
+
+        Records (argv, contents of the scratch file it was pointed at) --
+        read inside the call, because build_ngrams deletes the scratch file
+        as soon as the command returns.
+        """
+        from pathlib import Path
+
+        calls = []
+        old = optimize.run
+
+        def record(opt, cmd, capture=False):
+            calls.append((cmd, Path(cmd[-2]).read_text()))
+
+        optimize.run = record
+        self.addCleanup(lambda: setattr(optimize, "run", old))
+        return calls
+
+    def failing_run(self):
+        import subprocess
+
+        old = optimize.run
+
+        def boom(opt, cmd, capture=False):
+            raise subprocess.CalledProcessError(1, cmd)
+
+        optimize.run = boom
+        self.addCleanup(lambda: setattr(optimize, "run", old))
+
+    def test_a_missing_corpus_file_is_skipped_not_a_traceback(self):
+        # An existing $CACHE built before slack/discord existed has no
+        # slack.txt. main()'s "run freq.py first" guard is the intended
+        # message; a bare FileNotFoundError from here would preempt it, and
+        # this is the most likely first run of the new script.
+        opt, corpus = self.with_dirs()
+        self.no_run()
+
+        self.assertIsNone(optimize.build_ngrams(opt, corpus, "slack"))
+
+    def test_an_empty_corpus_file_is_skipped(self):
+        opt, corpus = self.with_dirs()
+        (corpus / "discord.txt").write_text("   \n")
+        self.no_run()
+
+        self.assertIsNone(optimize.build_ngrams(opt, corpus, "discord"))
+
+    def test_the_scratch_copy_is_removed_even_when_the_build_fails(self):
+        # build_ngrams copies raw corpus text into the optimizer checkout so
+        # the ngram binary can read it. That text is work Slack and shell
+        # history. If cargo fails, it must not be left behind in an unrelated
+        # repo -- $CACHE is the only place the docstrings promise it lives.
+        opt, corpus = self.with_dirs()
+        (corpus / "shell.txt").write_text("some history")
+        self.failing_run()
+
+        import subprocess
+
+        with self.assertRaises(subprocess.CalledProcessError):
+            optimize.build_ngrams(opt, corpus, "shell")
+
+        leftovers = list((opt / "temp_corpus").glob("*.txt"))
+        self.assertEqual(leftovers, [])
+
+    def test_the_code_corpus_is_scrubbed_before_the_ngram_binary_sees_it(self):
+        opt, corpus = self.with_dirs()
+        (corpus / "code.txt").write_text("\x00PATH:a.py\nreal code")
+        calls = self.no_run()
+
+        optimize.build_ngrams(opt, corpus, "code")
+
+        self.assertEqual(len(calls), 1)
+        _argv, written = calls[0]
+        self.assertEqual(written, "real code")
+
+
 if __name__ == "__main__":
     unittest.main()

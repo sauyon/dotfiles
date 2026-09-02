@@ -126,20 +126,35 @@ def layout_string():
 
 
 def build_ngrams(opt, corpus_dir, name):
-    """Generate <opt>/ngrams/<name> from one cached corpus file."""
-    text = (corpus_dir / f"{name}.txt").read_text(errors="replace")
+    """Generate <opt>/ngrams/sauyon_<name> from one cached corpus file.
+
+    Returns None when there is nothing to build from -- a cache built before
+    this source existed simply has no <name>.txt, and that is main()'s "run
+    freq.py first" case, not a traceback.
+
+    The scratch copy is deleted in a finally: it is raw corpus text (shell
+    history, work Slack) and the optimizer checkout is not where the docstrings
+    promise that lives. A failed cargo run must not leave it there.
+    """
+    path = corpus_dir / f"{name}.txt"
+    if not path.exists():
+        return None
+    text = path.read_text(errors="replace")
     if name == "code":
         text = strip_path_markers(text)
     if not text.strip():
         return None
+
     scratch = opt / "temp_corpus"
     scratch.mkdir(exist_ok=True)
     src = scratch / f"{name}.txt"
     src.write_text(text)
     out = opt / "ngrams" / f"sauyon_{name}"
-    run(opt, ["cargo", "run", "--release", "--bin", "ngrams", "--",
-              str(src), str(out)])
-    src.unlink()
+    try:
+        run(opt, ["cargo", "run", "--release", "--bin", "ngrams", "--",
+                  str(src), str(out)])
+    finally:
+        src.unlink(missing_ok=True)
     return out
 
 
@@ -155,8 +170,13 @@ def main():
     ap.add_argument("--opt", required=True, type=pathlib.Path,
                     help="path to a svalboard_layout_optimizer checkout")
     ap.add_argument("--name", default="sauyon", help="corpus name inside the optimizer")
-    ap.add_argument("--ngrams-only", action="store_true")
-    ap.add_argument("--evaluate-only", action="store_true")
+    # Both together would skip the ngram build and then return before
+    # evaluating: a silent no-op, so it is not expressible.
+    stage = ap.add_mutually_exclusive_group()
+    stage.add_argument("--ngrams-only", action="store_true",
+                       help="build the blended ngrams and stop")
+    stage.add_argument("--evaluate-only", action="store_true",
+                       help="re-score existing solutions, run no search")
     args = ap.parse_args()
 
     opt = args.opt.expanduser().resolve()
@@ -178,8 +198,12 @@ def main():
         if not components:
             raise SystemExit("no corpora -- run freq.py first")
 
+        # Not ignore_errors: a swallowed failure here means ngram_merge writes
+        # into a directory still holding the previous run's files, blending
+        # against weights nobody chose.
         blend = opt / "ngrams" / args.name
-        shutil.rmtree(blend, ignore_errors=True)
+        if blend.exists():
+            shutil.rmtree(blend)
         print(f"merging with weights {WEIGHTS}")
         run(opt, ["cargo", "run", "--release", "--bin", "ngram_merge", "--",
                   str(blend)] + components)

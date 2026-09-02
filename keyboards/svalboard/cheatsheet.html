@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Svalboard — Hands Down Neu + Arensito</title>
+<style>
+@page { size: letter portrait; margin: 0.4in; }
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 11px/1.4 -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  color: #111;
+  background: #fff;
+}
+
+.page { width: 723px; margin: 0 auto; padding: 8px 0 0; }
+
+h1 {
+  font-size: 15px;
+  font-weight: 650;
+  margin: 0 0 1px;
+  letter-spacing: -0.01em;
+}
+
+.sub { color: #666; margin: 0 0 10px; font-size: 10px; }
+
+.layer { margin: 0 0 9px; break-inside: avoid; }
+
+h2 {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #555;
+  margin: 0 0 3px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #ddd;
+}
+
+h2 .num { font-weight: 700; color: #111; margin-right: 6px; }
+
+.board { position: relative; }
+
+.k {
+  position: absolute;
+  border: 1px solid #b4b4b4;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  background: #fff;
+  overflow: hidden;
+}
+
+/* Glyphs keep the full size; the word-legends shrink to fit their box. */
+.k.mod, .k.fn { font-size: 8.5px; font-weight: 500; color: #333; background: #f4f4f4; }
+/* Only the word-legends; a lone `_` on the thumb keeps glyph size. */
+.k.mod.thumb, .k.trns.thumb { font-size: 7.5px; }
+.k.alpha { font-weight: 600; }
+.k.sym { background: #ededed; }
+.k.num { background: #f7f7f7; }
+.k.dead { border-style: dashed; border-color: #dcdcdc; background: #fff; }
+.k.trns { color: #c2c2c2; border-color: #e6e6e6; font-weight: 400; }
+
+.notes {
+  display: flex;
+  gap: 14px;
+  font-size: 9px;
+  color: #555;
+  border-top: 1px solid #ddd;
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
+.notes div { flex: 1; }
+.notes b { color: #111; font-weight: 600; display: block; margin-bottom: 2px; }
+.notes p { margin: 0 0 3px; }
+
+.foot {
+  margin-top: 6px;
+  font-size: 8px;
+  color: #999;
+  text-align: right;
+}
+
+@media print {
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Svalboard Lightly — Hands Down Neu + Arensito symbols</h1>
+  <p class="sub">Generated from <code>build.py</code>. Load
+  <code>SvalHandsDownNeu.vil</code> in KeyBard; no reflash.</p>
+
+<section class="layer">
+  <h2><span class="num">Layer 0</span> Hands Down Neu — base</h2>
+  <div class="board" style="width:723px;height:193px">
+<div class="k mod thumb" style="left:276.5px;top:166.8px;width:30.5px;height:26.7px">ctrl</div>
+<div class="k mod thumb" style="left:291.0px;top:137.8px;width:30.5px;height:26.7px">gui</div>
+<div class="k mod thumb" style="left:244.6px;top:166.8px;width:30.5px;height:26.7px">shift</div>
+<div class="k mod thumb" style="left:227.2px;top:137.8px;width:30.5px;height:26.7px">space</div>
+<div class="k mod thumb" style="left:212.7px;top:166.8px;width:30.5px;height:26.7px">esc</div>
+<div class="k mod thumb" style="left:259.1px;top:137.8px;width:30.5px;height:26.7px">del</div>
+<div class="k alpha" style="left:275.5px;top:101.5px;width:26.7px;height:26.7px">d</div>
+<div class="k alpha" style="left:304.5px;top:72.5px;width:26.7px;height:26.7px">b</div>
+<div class="k alpha" style="left:275.5px;top:72.5px;width:26.7px;height:26.7px">t</div>
+<div class="k alpha" style="left:275.5px;top:43.5px;width:26.7px;height:26.7px">p</div>
+<div class="k alpha" style="left:246.5px;top:72.5px;width:26.7px;height:26.7px">g</div>
+<div class="k alpha" style="left:203.0px;top:58.0px;width:26.7px;height:26.7px">l</div>
+<div class="k alpha" style="left:232.0px;top:29.0px;width:26.7px;height:26.7px">v</div>
+<div class="k alpha" style="left:203.0px;top:29.0px;width:26.7px;height:26.7px">n</div>
+<div class="k alpha" style="left:203.0px;top:0.0px;width:26.7px;height:26.7px">m</div>
+<div class="k sym" style="left:174.0px;top:29.0px;width:26.7px;height:26.7px">(</div>
+<div class="k alpha" style="left:101.5px;top:58.0px;width:26.7px;height:26.7px">c</div>
+<div class="k dead" style="left:130.5px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k alpha" style="left:101.5px;top:29.0px;width:26.7px;height:26.7px">s</div>
+<div class="k alpha" style="left:101.5px;top:0.0px;width:26.7px;height:26.7px">f</div>
+<div class="k dead" style="left:72.5px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k alpha" style="left:29.0px;top:101.5px;width:26.7px;height:26.7px">x</div>
+<div class="k sym" style="left:58.0px;top:72.5px;width:26.7px;height:26.7px">-</div>
+<div class="k alpha" style="left:29.0px;top:72.5px;width:26.7px;height:26.7px">r</div>
+<div class="k alpha" style="left:29.0px;top:43.5px;width:26.7px;height:26.7px">w</div>
+<div class="k mod" style="left:0.0px;top:72.5px;width:26.7px;height:26.7px">tab</div>
+<div class="k mod thumb" style="left:328.7px;top:166.8px;width:30.5px;height:26.7px">alt</div>
+<div class="k mod thumb" style="left:343.2px;top:137.8px;width:30.5px;height:26.7px">enter</div>
+<div class="k mod thumb" style="left:360.6px;top:166.8px;width:30.5px;height:26.7px">MO(1)</div>
+<div class="k mod thumb" style="left:407.0px;top:137.8px;width:30.5px;height:26.7px">bspc</div>
+<div class="k mod thumb" style="left:392.5px;top:166.8px;width:30.5px;height:26.7px">MO(2)</div>
+<div class="k mod thumb" style="left:375.1px;top:137.8px;width:30.5px;height:26.7px">ralt</div>
+<div class="k alpha" style="left:420.5px;top:101.5px;width:26.7px;height:26.7px">u</div>
+<div class="k sym" style="left:449.5px;top:72.5px;width:26.7px;height:26.7px">:</div>
+<div class="k alpha" style="left:420.5px;top:72.5px;width:26.7px;height:26.7px">a</div>
+<div class="k sym" style="left:420.5px;top:43.5px;width:26.7px;height:26.7px">.</div>
+<div class="k sym" style="left:391.5px;top:72.5px;width:26.7px;height:26.7px">,</div>
+<div class="k alpha" style="left:493.0px;top:58.0px;width:26.7px;height:26.7px">o</div>
+<div class="k sym" style="left:522.0px;top:29.0px;width:26.7px;height:26.7px">)</div>
+<div class="k alpha" style="left:493.0px;top:29.0px;width:26.7px;height:26.7px">e</div>
+<div class="k alpha" style="left:493.0px;top:0.0px;width:26.7px;height:26.7px">q</div>
+<div class="k sym" style="left:464.0px;top:29.0px;width:26.7px;height:26.7px">/</div>
+<div class="k alpha" style="left:594.5px;top:58.0px;width:26.7px;height:26.7px">y</div>
+<div class="k sym" style="left:623.5px;top:29.0px;width:26.7px;height:26.7px">&amp;</div>
+<div class="k alpha" style="left:594.5px;top:29.0px;width:26.7px;height:26.7px">i</div>
+<div class="k sym" style="left:594.5px;top:0.0px;width:26.7px;height:26.7px">&quot;</div>
+<div class="k sym" style="left:565.5px;top:29.0px;width:26.7px;height:26.7px">;</div>
+<div class="k alpha" style="left:667.0px;top:101.5px;width:26.7px;height:26.7px">k</div>
+<div class="k alpha" style="left:696.0px;top:72.5px;width:26.7px;height:26.7px">j</div>
+<div class="k alpha" style="left:667.0px;top:72.5px;width:26.7px;height:26.7px">h</div>
+<div class="k sym" style="left:667.0px;top:43.5px;width:26.7px;height:26.7px">&#x27;</div>
+<div class="k alpha" style="left:638.0px;top:72.5px;width:26.7px;height:26.7px">z</div>
+  </div>
+</section>
+<section class="layer">
+  <h2><span class="num">Layer 1</span> Arensito symbols — hold MO(1), right thumb</h2>
+  <div class="board" style="width:723px;height:193px">
+<div class="k trns thumb" style="left:276.5px;top:166.8px;width:30.5px;height:26.7px">ctrl</div>
+<div class="k trns thumb" style="left:291.0px;top:137.8px;width:30.5px;height:26.7px">gui</div>
+<div class="k trns thumb" style="left:244.6px;top:166.8px;width:30.5px;height:26.7px">shift</div>
+<div class="k sym thumb" style="left:227.2px;top:137.8px;width:30.5px;height:26.7px">_</div>
+<div class="k trns thumb" style="left:212.7px;top:166.8px;width:30.5px;height:26.7px">esc</div>
+<div class="k trns thumb" style="left:259.1px;top:137.8px;width:30.5px;height:26.7px">del</div>
+<div class="k num" style="left:275.5px;top:101.5px;width:26.7px;height:26.7px">9</div>
+<div class="k dead" style="left:304.5px;top:72.5px;width:26.7px;height:26.7px"></div>
+<div class="k num" style="left:275.5px;top:72.5px;width:26.7px;height:26.7px">0</div>
+<div class="k sym" style="left:275.5px;top:43.5px;width:26.7px;height:26.7px">]</div>
+<div class="k sym" style="left:246.5px;top:72.5px;width:26.7px;height:26.7px">!</div>
+<div class="k num" style="left:203.0px;top:58.0px;width:26.7px;height:26.7px">8</div>
+<div class="k sym" style="left:232.0px;top:29.0px;width:26.7px;height:26.7px">@</div>
+<div class="k dead" style="left:203.0px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k sym" style="left:203.0px;top:0.0px;width:26.7px;height:26.7px">[</div>
+<div class="k sym" style="left:174.0px;top:29.0px;width:26.7px;height:26.7px">#</div>
+<div class="k num" style="left:101.5px;top:58.0px;width:26.7px;height:26.7px">7</div>
+<div class="k sym" style="left:130.5px;top:29.0px;width:26.7px;height:26.7px">+</div>
+<div class="k sym" style="left:101.5px;top:29.0px;width:26.7px;height:26.7px">/</div>
+<div class="k sym" style="left:101.5px;top:0.0px;width:26.7px;height:26.7px">}</div>
+<div class="k sym" style="left:72.5px;top:29.0px;width:26.7px;height:26.7px">%</div>
+<div class="k num" style="left:29.0px;top:101.5px;width:26.7px;height:26.7px">6</div>
+<div class="k sym" style="left:58.0px;top:72.5px;width:26.7px;height:26.7px">~</div>
+<div class="k sym" style="left:29.0px;top:72.5px;width:26.7px;height:26.7px">;</div>
+<div class="k sym" style="left:29.0px;top:43.5px;width:26.7px;height:26.7px">{</div>
+<div class="k sym" style="left:0.0px;top:72.5px;width:26.7px;height:26.7px">`</div>
+<div class="k trns thumb" style="left:328.7px;top:166.8px;width:30.5px;height:26.7px">alt</div>
+<div class="k trns thumb" style="left:343.2px;top:137.8px;width:30.5px;height:26.7px">enter</div>
+<div class="k trns thumb" style="left:360.6px;top:166.8px;width:30.5px;height:26.7px">MO(1)</div>
+<div class="k trns thumb" style="left:407.0px;top:137.8px;width:30.5px;height:26.7px">bspc</div>
+<div class="k trns thumb" style="left:392.5px;top:166.8px;width:30.5px;height:26.7px">MO(2)</div>
+<div class="k trns thumb" style="left:375.1px;top:137.8px;width:30.5px;height:26.7px">ralt</div>
+<div class="k num" style="left:420.5px;top:101.5px;width:26.7px;height:26.7px">2</div>
+<div class="k sym" style="left:449.5px;top:72.5px;width:26.7px;height:26.7px">|</div>
+<div class="k num" style="left:420.5px;top:72.5px;width:26.7px;height:26.7px">1</div>
+<div class="k dead" style="left:420.5px;top:43.5px;width:26.7px;height:26.7px"></div>
+<div class="k sym" style="left:391.5px;top:72.5px;width:26.7px;height:26.7px">\</div>
+<div class="k num" style="left:493.0px;top:58.0px;width:26.7px;height:26.7px">3</div>
+<div class="k sym" style="left:522.0px;top:29.0px;width:26.7px;height:26.7px">^</div>
+<div class="k dead" style="left:493.0px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k sym" style="left:493.0px;top:0.0px;width:26.7px;height:26.7px">&lt;</div>
+<div class="k dead" style="left:464.0px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k num" style="left:594.5px;top:58.0px;width:26.7px;height:26.7px">4</div>
+<div class="k trns" style="left:623.5px;top:29.0px;width:26.7px;height:26.7px">&amp;</div>
+<div class="k dead" style="left:594.5px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k sym" style="left:594.5px;top:0.0px;width:26.7px;height:26.7px">&gt;</div>
+<div class="k sym" style="left:565.5px;top:29.0px;width:26.7px;height:26.7px">*</div>
+<div class="k num" style="left:667.0px;top:101.5px;width:26.7px;height:26.7px">5</div>
+<div class="k trns" style="left:696.0px;top:72.5px;width:26.7px;height:26.7px">j</div>
+<div class="k sym" style="left:667.0px;top:72.5px;width:26.7px;height:26.7px">=</div>
+<div class="k sym" style="left:667.0px;top:43.5px;width:26.7px;height:26.7px">$</div>
+<div class="k trns" style="left:638.0px;top:72.5px;width:26.7px;height:26.7px">z</div>
+  </div>
+</section>
+<section class="layer">
+  <h2><span class="num">Layer 2</span> Navigation — hold MO(2), right thumb</h2>
+  <div class="board" style="width:723px;height:193px">
+<div class="k trns thumb" style="left:276.5px;top:166.8px;width:30.5px;height:26.7px">ctrl</div>
+<div class="k trns thumb" style="left:291.0px;top:137.8px;width:30.5px;height:26.7px">gui</div>
+<div class="k trns thumb" style="left:244.6px;top:166.8px;width:30.5px;height:26.7px">shift</div>
+<div class="k trns thumb" style="left:227.2px;top:137.8px;width:30.5px;height:26.7px">space</div>
+<div class="k trns thumb" style="left:212.7px;top:166.8px;width:30.5px;height:26.7px">esc</div>
+<div class="k trns thumb" style="left:259.1px;top:137.8px;width:30.5px;height:26.7px">del</div>
+<div class="k mod" style="left:275.5px;top:101.5px;width:26.7px;height:26.7px">play</div>
+<div class="k dead" style="left:304.5px;top:72.5px;width:26.7px;height:26.7px"></div>
+<div class="k dead" style="left:275.5px;top:72.5px;width:26.7px;height:26.7px"></div>
+<div class="k fn" style="left:275.5px;top:43.5px;width:26.7px;height:26.7px">F4</div>
+<div class="k dead" style="left:246.5px;top:72.5px;width:26.7px;height:26.7px"></div>
+<div class="k mod" style="left:203.0px;top:58.0px;width:26.7px;height:26.7px">prtsc</div>
+<div class="k dead" style="left:232.0px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k dead" style="left:203.0px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k fn" style="left:203.0px;top:0.0px;width:26.7px;height:26.7px">F3</div>
+<div class="k dead" style="left:174.0px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k fn" style="left:101.5px;top:58.0px;width:26.7px;height:26.7px">F10</div>
+<div class="k dead" style="left:130.5px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k mod" style="left:101.5px;top:29.0px;width:26.7px;height:26.7px">end</div>
+<div class="k fn" style="left:101.5px;top:0.0px;width:26.7px;height:26.7px">F2</div>
+<div class="k dead" style="left:72.5px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k fn" style="left:29.0px;top:101.5px;width:26.7px;height:26.7px">F9</div>
+<div class="k dead" style="left:58.0px;top:72.5px;width:26.7px;height:26.7px"></div>
+<div class="k mod" style="left:29.0px;top:72.5px;width:26.7px;height:26.7px">home</div>
+<div class="k fn" style="left:29.0px;top:43.5px;width:26.7px;height:26.7px">F1</div>
+<div class="k dead" style="left:0.0px;top:72.5px;width:26.7px;height:26.7px"></div>
+<div class="k trns thumb" style="left:328.7px;top:166.8px;width:30.5px;height:26.7px">alt</div>
+<div class="k trns thumb" style="left:343.2px;top:137.8px;width:30.5px;height:26.7px">enter</div>
+<div class="k trns thumb" style="left:360.6px;top:166.8px;width:30.5px;height:26.7px">MO(1)</div>
+<div class="k trns thumb" style="left:407.0px;top:137.8px;width:30.5px;height:26.7px">bspc</div>
+<div class="k trns thumb" style="left:392.5px;top:166.8px;width:30.5px;height:26.7px">MO(2)</div>
+<div class="k trns thumb" style="left:375.1px;top:137.8px;width:30.5px;height:26.7px">ralt</div>
+<div class="k mod" style="left:420.5px;top:101.5px;width:26.7px;height:26.7px">vol+</div>
+<div class="k dead" style="left:449.5px;top:72.5px;width:26.7px;height:26.7px"></div>
+<div class="k mod" style="left:420.5px;top:72.5px;width:26.7px;height:26.7px">←</div>
+<div class="k fn" style="left:420.5px;top:43.5px;width:26.7px;height:26.7px">F5</div>
+<div class="k dead" style="left:391.5px;top:72.5px;width:26.7px;height:26.7px"></div>
+<div class="k mod" style="left:493.0px;top:58.0px;width:26.7px;height:26.7px">vol−</div>
+<div class="k dead" style="left:522.0px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k mod" style="left:493.0px;top:29.0px;width:26.7px;height:26.7px">↓</div>
+<div class="k fn" style="left:493.0px;top:0.0px;width:26.7px;height:26.7px">F6</div>
+<div class="k dead" style="left:464.0px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k fn" style="left:594.5px;top:58.0px;width:26.7px;height:26.7px">F11</div>
+<div class="k mod" style="left:623.5px;top:29.0px;width:26.7px;height:26.7px">pgup</div>
+<div class="k mod" style="left:594.5px;top:29.0px;width:26.7px;height:26.7px">↑</div>
+<div class="k fn" style="left:594.5px;top:0.0px;width:26.7px;height:26.7px">F7</div>
+<div class="k dead" style="left:565.5px;top:29.0px;width:26.7px;height:26.7px"></div>
+<div class="k fn" style="left:667.0px;top:101.5px;width:26.7px;height:26.7px">F12</div>
+<div class="k mod" style="left:696.0px;top:72.5px;width:26.7px;height:26.7px">pgdn</div>
+<div class="k mod" style="left:667.0px;top:72.5px;width:26.7px;height:26.7px">→</div>
+<div class="k fn" style="left:667.0px;top:43.5px;width:26.7px;height:26.7px">F8</div>
+<div class="k dead" style="left:638.0px;top:72.5px;width:26.7px;height:26.7px"></div>
+  </div>
+</section>
+
+<div class="notes">
+  <div>
+    <b>Reading the diagram</b>
+    <p>Each finger sits in a cup of five switches: North, South, East, West and
+    Center (the plain down-press). East is screen-right on both hands.</p>
+    <p>Dashed = dead key. Grey glyphs on layers 1&nbsp;and&nbsp;2 fall through to
+    layer&nbsp;0.</p>
+  </div>
+  <div>
+    <b>Layer 15 &mdash; mouse</b>
+    <p>No key reaches it. The firmware switches over when the pointer moves and
+    leaves on the first key that isn't on the layer.</p>
+    <p>Buttons 1/3/2 on index/middle/ring South, both hands. Pinky Center
+    recalibrates the pointer.</p>
+  </div>
+  <div>
+    <b>Departures from the port</b>
+    <p><b style="display:inline">g</b> is on the left index's West so the index
+    keeps two of its three inner-column letters; <b style="display:inline">v</b>
+    is exiled to the middle finger.</p>
+    <p><code>-</code> <code>:</code> <code>(</code> <code>)</code>
+    <code>&amp;</code> are promoted to layer&nbsp;0 by measured frequency and are
+    holes on layer&nbsp;1, never on two keys.</p>
+  </div>
+</div>
+
+  <p class="foot">python3 cheatsheet.py</p>
+</div>
+</body>
+</html>

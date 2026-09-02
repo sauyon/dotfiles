@@ -137,6 +137,29 @@ worse. They now hold `delete` and `ralt`.
 `space` left and `bspc` right match Glove80 positions 69 and 74 — Svalboard's own
 configs ship those mirrored.
 
+## Printable cheatsheet
+
+```sh
+python3 cheatsheet.py   # writes cheatsheet.html
+```
+
+Open it and print: one portrait Letter page, layers 0, 1 and 2 drawn at the
+hardware's own key positions, with the layer-15 note in the footer. On layers 1
+and 2, keys that fall through to layer 0 are printed faint rather than left
+blank — under `MO(1)` shift, ctrl, enter and backspace are all still live, and
+an empty box would say otherwise.
+
+There is no second copy of the layout in it: `cheatsheet.py` imports `build.py`
+and reads the emitted layers, so the sheet cannot disagree with the `.vil`. Two
+guards, on top of `build.py`'s four:
+
+- **Labels.** Every live keycode must have a glyph. Adding a key to `build.py`
+  without labelling it aborts the build instead of printing a blank box.
+- **Page width.** The board must fit inside the printable width at the declared
+  margins. Too wide looks fine on screen — the browser viewport is whatever size
+  it is — and only shows up as a shrunken printout after you've walked to the
+  printer.
+
 ## Regenerating
 
 ```sh

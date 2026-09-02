@@ -561,47 +561,158 @@ let
       exit 1
     fi
 
+    # Fetch before deciding: these boxes push to each other constantly, so an
+    # unconditional `push HEAD:master` loses the race regularly, and `set -e`
+    # would turn that into a wall of git hints. Worse, waiting on a run for a SHA
+    # that is not what origin/master holds would be waiting on the wrong build.
+    # Rebasing is a history decision, so say what is wrong and stop.
+    git -C "$repo" fetch --quiet origin master
     sha=$(git -C "$repo" rev-parse HEAD)
-    git -C "$repo" push --quiet origin HEAD:master
-    echo "hms: pushed ''${sha:0:7}"
+    remote=$(git -C "$repo" rev-parse origin/master)
+    if [ "$sha" = "$remote" ]; then
+      echo "hms: ''${sha:0:7} is already origin/master"
+    elif git -C "$repo" merge-base --is-ancestor "$remote" "$sha"; then
+      # Fetching narrows the race but cannot close it — another box can advance
+      # origin/master between the fetch and the push. Catch that rather than let
+      # `set -e` surface the same hint wall this block exists to avoid. git keeps
+      # its stderr: a rejected push and a failed auth are not the same problem,
+      # and only a ref that actually moved earns the race message.
+      if git -C "$repo" push --quiet origin HEAD:master; then
+        echo "hms: pushed ''${sha:0:7}"
+      else
+        # Only a ref we watched move earns the race message. An ls-remote that
+        # did not run tells us nothing, and guessing "someone else pushed" from
+        # its empty output would point at the wrong culprit.
+        moved=""
+        if now=$(git -C "$repo" ls-remote --heads origin master 2>/dev/null | cut -f1) \
+           && [ -n "$now" ] && [ "$now" != "$remote" ]; then
+          moved=1
+        fi
+        if [ -n "$moved" ]; then
+          echo "hms: push lost the race — origin/master moved just now. Re-run." >&2
+        else
+          echo "hms: push failed — see git's error above." >&2
+        fi
+        exit 1
+      fi
+    else
+      behind=$(git -C "$repo" rev-list --count "$sha..$remote")
+      ahead=$(git -C "$repo" rev-list --count "$remote..$sha")
+      echo "hms: origin/master (''${remote:0:7}) has $behind commit(s) you do not have." >&2
+      if [ "$ahead" -gt 0 ]; then
+        echo "hms: and you have $ahead it does not — rebase, then re-run." >&2
+      else
+        echo "hms: you are strictly behind — pull, then re-run." >&2
+      fi
+      # -n 5 rather than `| head -5`: under pipefail, head closing the pipe makes
+      # git exit 141 and `set -e` aborts on that instead of the exit 1 below.
+      git -C "$repo" --no-pager log --oneline -n 5 "$sha..$remote" >&2
+      exit 1
+    fi
 
     # The token lands in a 0600 curl config, never in argv or the environment —
     # /proc/<pid>/cmdline and environ are world-readable.
     keys="''${XDG_DATA_HOME:-$HOME/.local/share}/forgejo-cli/keys.json"
     tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    # Timeouts belong here, not on the call sites: the poll's hour-long bound
+    # counts iterations, so a connection that stalls forever would never reach it.
     ( umask 077
-      printf 'header = "Authorization: token %s"\nsilent\n' \
+      printf 'header = "Authorization: token %s"\nsilent\nconnect-timeout = 10\nmax-time = 120\n' \
         "$($jq -r '.hosts["forge.ko.ag"].token' "$keys")" > "$tmp/curlrc" )
 
-    api() { local p="$1"; shift; $curl -K "$tmp/curlrc" "$forge$p" "$@"; }
+    # An HTTP error must not read as success — otherwise a dead token gives jq an
+    # error body to find no runs in, and hms concludes "nothing CI-relevant
+    # changed" and quietly builds locally. But --fail alone only yields curl's
+    # exit 22 for everything >=400, which cannot tell an expired token from a
+    # forge having a bad day, so the status code is carried out explicitly.
+    # The code goes to a file, not a variable: every call site is `x=$(api ...)`,
+    # which runs api in a subshell, so an assignment inside it would never reach
+    # api_why and every failure would read as "could not reach". 0 means the
+    # request never got an HTTP response at all.
+    echo 0 > "$tmp/code"
+    api() {
+      local p="$1"; shift
+      local out code
+      if ! out=$($curl -K "$tmp/curlrc" -w '\n%{http_code}' "$forge$p" "$@"); then
+        echo 0 > "$tmp/code"; return 1
+      fi
+      code=''${out##*$'\n'}
+      echo "$code" > "$tmp/code"
+      printf '%s' "''${out%$'\n'*}"
+      [ "$code" -lt 400 ]
+    }
+
+    # Why the request failed, in the terms that decide what you do about it.
+    api_why() {
+      local code; code=$(cat "$tmp/code" 2>/dev/null || echo 0)
+      case "$code" in
+        0)       echo "could not reach $forge" ;;
+        401|403) echo "$forge rejected our token (HTTP $code) — try 'fj auth add-token'" ;;
+        5??)     echo "$forge returned HTTP $code — server-side, retry later" ;;
+        *)       echo "$forge returned HTTP $code" ;;
+      esac
+    }
+
+    # The job-id lookup is the exception: it *wants* the 404 body, which is the
+    # only place Forgejo 13 names the job id. Failing on it would throw that away.
+    api_raw() { local p="$1"; shift; $curl -K "$tmp/curlrc" "$forge$p" "$@"; }
 
     # The workflow's `paths:` filter means a commit touching nothing nix-shaped
     # never starts a run. Give it 90s to appear, then stop waiting for a run that
     # is not coming.
+    # Both poll loops tolerate a failed request rather than assign from a failing
+    # pipeline: under `set -o pipefail` that would abort a wait minutes deep over
+    # one blip. `last_ok` tracks the most recent attempt, not whether one ever
+    # worked — the question at the deadline is "did the forge just tell us there
+    # is no run", and a success ten tries ago does not answer it.
     echo -n "hms: waiting for a run on ''${sha:0:7}"
-    run=""; waited=0
+    run=""; last_ok=""; why=""; give_up=$((SECONDS + 90))
     while [ -z "$run" ]; do
-      run=$(api "/api/v1/repos/$slug/actions/tasks?limit=20" \
-        | $jq -r --arg s "$sha" 'first(.workflow_runs[]
+      if tasks=$(api "/api/v1/repos/$slug/actions/tasks?limit=20"); then
+        last_ok=1
+        run=$(printf '%s' "$tasks" | $jq -r --arg s "$sha" 'first(.workflow_runs[]
             | select(.head_sha == $s and .workflow_id == "nix-home.yml")
-            | .run_number) // empty')
+            | .run_number) // empty' 2>/dev/null || true)
+      else
+        last_ok=""; why=$(api_why)
+      fi
       [ -z "$run" ] || break
-      if [ "$waited" -ge 90 ]; then
-        echo; echo "hms: no run for ''${sha:0:7} (nothing CI-relevant changed) — switching locally" >&2
+      if [ "$SECONDS" -ge "$give_up" ]; then
+        echo
+        if [ -n "$last_ok" ]; then
+          echo "hms: no run for ''${sha:0:7} (nothing CI-relevant changed) — switching locally" >&2
+        else
+          echo "hms: ''${why:-request failed} — switching locally" >&2
+        fi
         switch_now
       fi
-      echo -n "."; sleep 10; waited=$((waited + 10))
+      echo -n "."; sleep 10
     done
     echo; echo "hms: run $run — $forge/$slug/actions/runs/$run"
 
-    status=""
+    # A blip here leaves $status alone and the loop simply asks again. Bounded at
+    # an hour so a run that never reaches a terminal state cannot hang the shell —
+    # by SECONDS, not an iteration count, since a request can burn max-time before
+    # returning and a counted hour would then be several.
+    status=""; degraded=""; deadline=$((SECONDS + 3600))
     while :; do
-      status=$(api "/api/v1/repos/$slug/actions/tasks?limit=20" \
-        | $jq -r --arg n "$run" 'first(.workflow_runs[]
-            | select(.run_number == ($n | tonumber)) | .status) // empty')
+      if tasks=$(api "/api/v1/repos/$slug/actions/tasks?limit=20"); then
+        [ -z "$degraded" ] || { echo "hms: forge back" >&2; degraded=""; }
+        status=$(printf '%s' "$tasks" | $jq -r --arg n "$run" 'first(.workflow_runs[]
+            | select(.run_number == ($n | tonumber)) | .status) // empty' 2>/dev/null || true)
+      else
+        # Say it once per outage rather than every 15s, and once on recovery: an
+        # hour of silence is indistinguishable from an hour of patient waiting.
+        [ -n "$degraded" ] || { echo "hms: $(api_why); still waiting" >&2; degraded=1; }
+      fi
       case "$status" in
         success|failure|cancelled|skipped) break ;;
       esac
+      if [ "$SECONDS" -ge "$deadline" ]; then
+        echo "hms: run $run still ''${status:-unknown} after an hour — giving up on the wait." >&2
+        echo "hms: check $forge/$slug/actions/runs/$run, or 'hms --local'." >&2
+        exit 1
+      fi
       sleep 15
     done
 
@@ -613,12 +724,18 @@ let
     echo "hms: run $run $status" >&2
     # Forgejo 13 exposes no run->job API, but the web job endpoint names the job
     # id in its error body, and /actions/jobs/<id>/logs then serves the log.
-    job=$(api "/sauyon/dotfiles/actions/runs/$run/jobs/0" -X POST \
+    job=$(api_raw "/$slug/actions/runs/$run/jobs/0" -X POST \
             -H 'Content-Type: application/json' -d '{"logCursors":[]}' \
           | ${lib.getExe pkgs.gnugrep} -o 'job_id [0-9]*' | tr -dc '0-9' || true)
     if [ -n "$job" ]; then
       log="$tmp/job.log"
-      api "/api/v1/repos/$slug/actions/jobs/$job/logs" > "$log" || true
+      if ! api "/api/v1/repos/$slug/actions/jobs/$job/logs" > "$log"; then
+        # Printing "--- CI error ---" over an empty file would read as "the run
+        # failed silently", which is a different and much more alarming bug.
+        echo "hms: could not fetch the job log: $(api_why)" >&2
+        echo "hms: read it at $forge/$slug/actions/runs/$run" >&2
+        exit 1
+      fi
       echo "--- CI error ---" >&2
       # Timestamps are a fixed 29-char prefix; drop them so the errors read.
       # A pipeline's status is its last command, so grep's miss has to be

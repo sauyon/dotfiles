@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "510cb482ec1f",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "keyboards/svalboard/freq.py",
+    "keyboards/svalboard/optimize.py",
+    "keyboards/svalboard/test_freq.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/51/0cb482ec1f/0/metadata.json",
+      "transcript": "/51/0cb482ec1f/0/full.jsonl",
+      "compact_transcript": "/51/0cb482ec1f/0/transcript.jsonl",
+      "content_hash": "/51/0cb482ec1f/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 12544,
+    "cache_read_tokens": 5781276,
+    "output_tokens": 5863,
+    "api_call_count": 14
+  }
+}

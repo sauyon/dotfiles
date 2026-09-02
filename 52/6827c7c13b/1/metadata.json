@@ -1,0 +1,118 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "526827c7c13b",
+  "session_id": "b2928516-0301-495a-a3e3-b71bb4ff0cce",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-02T01:52:42.259581845Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "b6f65defe4ca",
+  "checkpoint_transcript_start": 194,
+  "transcript_lines_at_start": 194,
+  "compact_transcript_start": 36,
+  "token_usage": {
+    "input_tokens": 26,
+    "cache_creation_tokens": 16179,
+    "cache_read_tokens": 1302150,
+    "output_tokens": 7825,
+    "api_call_count": 13
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_011mrU1YT1UJqJYhr9r15Jus",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "b6f65defe4ca",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 176,
+        "end": 177,
+        "entry_ids": [
+          "acf7db59-2724-448d-8371-3e10d848050b"
+        ],
+        "tool_use_id": "toolu_011mrU1YT1UJqJYhr9r15Jus"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_011mrU1YT1UJqJYhr9r15Jus"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 7299,
+      "user_lines_removed": 12,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".claude/CLAUDE.md~": 55,
+        ".claude/settings.local.json": 25,
+        ".drovr/review/fj-helper-refresh-review-1/001-home.nix.diff": 67,
+        ".drovr/review/fj-helper-refresh-review-1/index.md": 26,
+        ".drovr/review/fj-helper-refresh-review-2/001-home.nix.diff": 67,
+        ".drovr/review/fj-helper-refresh-review-2/index.md": 26,
+        ".drovr/review/hms-fix-review-1/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/hms-fix-review-1/002-home.nix.diff": 46,
+        ".drovr/review/hms-fix-review-1/index.md": 28,
+        ".drovr/review/svalboard-cheatsheet-review-1/001-keyboards_svalboard_README.md.diff": 34,
+        ".drovr/review/svalboard-cheatsheet-review-1/002-keyboards_svalboard_cheatsheet.html.diff": 306,
+        ".drovr/review/svalboard-cheatsheet-review-1/003-keyboards_svalboard_cheatsheet.py.diff": 380,
+        ".drovr/review/svalboard-cheatsheet-review-1/index.md": 30,
+        ".drovr/review/svalboard-freq-placement-review-1/001-keyboards_svalboard_README.md.diff": 75,
+        ".drovr/review/svalboard-freq-placement-review-1/002-keyboards_svalboard_SvalHandsDownNeu.vil.diff": 59,
+        ".drovr/review/svalboard-freq-placement-review-1/003-keyboards_svalboard_build.py.diff": 92,
+        ".drovr/review/svalboard-freq-placement-review-1/index.md": 30,
+        ".drovr/review/svalboard-keymap-review-1/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/svalboard-keymap-review-1/002-keyboards_svalboard_README.md.diff": 93,
+        ".drovr/review/svalboard-keymap-review-1/003-keyboards_svalboard_SvalCOLEMAKDHM.vil.diff": 2217,
+        ".drovr/review/svalboard-keymap-review-1/004-keyboards_svalboard_SvalHandsDownNeu.vil.diff": 2216,
+        ".drovr/review/svalboard-keymap-review-1/005-keyboards_svalboard_build.py.diff": 237,
+        ".drovr/review/svalboard-keymap-review-1/index.md": 34,
+        ".drovr/review/svalboard-symbol-promotions-review-1/001-keyboards_svalboard_README.md.diff": 62,
+        ".drovr/review/svalboard-symbol-promotions-review-1/002-keyboards_svalboard_SvalHandsDownNeu.vil.diff": 71,
+        ".drovr/review/svalboard-symbol-promotions-review-1/003-keyboards_svalboard_build.py.diff": 122,
+        ".drovr/review/svalboard-symbol-promotions-review-1/index.md": 30,
+        ".opencode.drovr-backup/plugins/entire.ts": 267,
+        "keyboards/svalboard/README.md": 1,
+        "keyboards/svalboard/SvalHandsDownNeu.vil": 2,
+        "keyboards/svalboard/build.py": 18,
+        "keyboards/svalboard/cheatsheet.html": 2,
+        "opencode.json": 35
+      },
+      "user_removed_per_file": {
+        "keyboards/svalboard/README.md": 1,
+        "keyboards/svalboard/SvalHandsDownNeu.vil": 2,
+        "keyboards/svalboard/build.py": 7,
+        "keyboards/svalboard/cheatsheet.html": 2
+      }
+    }
+  ]
+}

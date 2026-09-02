@@ -23,7 +23,10 @@ jobs:
       NIX_CONFIG: |
         experimental-features = nix-command flakes
         netrc-file = /root/.config/nix/netrc
-        extra-substituters = https://attic.ko.ag/kube
+        # In-cluster Service, not https://attic.ko.ag/kube — see nix-home.yml for
+        # why: the Cloudflare hairpin caps a single response at 600s, and the
+        # 2.44 GiB google-fonts NAR cannot land inside it.
+        extra-substituters = http://attic.attic.svc.cluster.local/kube
         extra-trusted-public-keys = kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=
         max-jobs = 6
         cores = 4
@@ -39,8 +42,12 @@ jobs:
           set -eu
           mkdir -p /root/.config/nix
           umask 077
-          printf 'machine attic.ko.ag password %s\n' "$ATTIC_TOKEN" \
+          printf 'machine %s password %s\n' \
+            attic.attic.svc.cluster.local "$ATTIC_TOKEN" \
             > /root/.config/nix/netrc
+          printf 'machine %s password %s\n' \
+            attic.ko.ag "$ATTIC_TOKEN" \
+            >> /root/.config/nix/netrc
 
       # Hand-rolled: actions/checkout cannot run in this image (no node).
       - name: checkout
@@ -53,7 +60,9 @@ jobs:
       - name: realise utsuho closure
         run: |
           set -eu
-          nix build --no-link --print-out-paths \
+          # --fallback: build a path locally rather than abort the scan when a
+          # substituter dies mid-NAR.
+          nix build --fallback --no-link --print-out-paths \
             .#homeConfigurations.utsuho.activationPackage > /tmp/drv
           cat /tmp/drv
 

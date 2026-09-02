@@ -70,6 +70,54 @@ let
   };
 
   modelsTemplate = pkgs.writeText "pi-models.json.tmpl" (builtins.toJSON piModels);
+
+  # Rate limits. pi's DEFAULT gives a 429 three session-level retries at 2s, 4s,
+  # 8s and then kills the turn — measured, not read off the docs: an always-429
+  # stub endpoint got exactly four requests 14s apart end to end, and pi emitted
+  # `auto_retry_start delayMs=2000/4000/8000`. Worse, the `Retry-After` the
+  # server sends is ignored on that path; a stub answering `Retry-After: 5` was
+  # still hit on the same 2/4/8 schedule.
+  #
+  # There are TWO retry layers and the shape of each decides how the hour gets
+  # spent. Both were measured against the same stub:
+  #
+  #   retry.*           session level, on by default. delay = baseDelayMs *
+  #                     2^(n-1), UNCAPPED, and it never reads Retry-After. Cheap
+  #                     in requests, but the tail runs away: maxRetries = 11
+  #                     reaches an hour only by ending on one 34-minute sleep,
+  #                     so a limit that clears in five minutes still costs 34.
+  #
+  #   retry.provider.*  per-request, and OFF by default (maxRetries = 0) — which
+  #                     is why the default retries ignore Retry-After: the layer
+  #                     that honors it never runs. delay = min(0.5*2^n, 8)s with
+  #                     jitter, so it polls steadily rather than sleeping through
+  #                     the recovery, and it prefers Retry-After when present.
+  #
+  # So put the hour in the CAPPED layer: 9 session attempts (8 retries = 2,4,
+  # ...,256s, 8.5 min of backoff, longest single sleep 4.3 min), each carrying up
+  # to 55 provider retries at <=8s (~7 min). Worst case ~70 min and ~500
+  # requests — roughly 7/min, each rejected at Modular's edge. Turning that dial
+  # down is a tradeoff against how long a limit can last and still be ridden out.
+  #
+  # maxRetryDelayMs bounds what the SERVER is allowed to ask for, not our own
+  # backoff: past it pi throws `Server requested Ns retry delay` instead of
+  # waiting that long. The 60s default is shorter than a quota window, so a
+  # polite upstream saying "come back in 5 minutes" would fail the turn outright.
+  piRetry = {
+    maxRetries = 8;
+    baseDelayMs = 2000;
+    provider = {
+      maxRetries = 55;
+      maxRetryDelayMs = 300000;
+    };
+  };
+
+  # Handed to jq as a FILE rather than interpolated into the activation script.
+  # `--argjson retry '${...}'` reads identically and is safe for the integers
+  # above, but it puts Nix-rendered JSON inside shell single quotes: the day this
+  # attrset gains a string value containing a quote, the word ends early and the
+  # rest runs as commands at activation time. A store path cannot contain one.
+  retryTemplate = pkgs.writeText "pi-retry.json" (builtins.toJSON piRetry);
 in
 {
   # `~/.pi/agent/models.json` is rendered at activation with the Modular key
@@ -97,8 +145,10 @@ in
   # `settings.json` is MERGED, not replaced. pi writes its own runtime keys into
   # this file (`theme`, `lastChangelogVersion`), so rendering it from a template
   # — or `force`-ing a home.file over it — would reset them at every switch and
-  # fight the agent for ownership the way drovr's config.toml did. Only the two
-  # keys this repo has an opinion about are set.
+  # fight the agent for ownership the way drovr's config.toml did. Only the keys
+  # this repo has an opinion about are set — the two defaults, and `retry`, whose
+  # subtree IS replaced wholesale (see `piRetry` above) so a stale hand-edit of
+  # one knob cannot leave the other three at pi's defaults.
   #
   # The default matters beyond convenience: non-interactive launches (drovr's
   # review panel spawns `pi` with no `--model`) inherit whatever this is, and
@@ -108,8 +158,8 @@ in
     DEST="$HOME/.pi/agent/settings.json"
     $DRY_RUN_CMD mkdir -p "$HOME/.pi/agent"
     [ -f "$DEST" ] || $DRY_RUN_CMD sh -c 'echo "{}" > "'"$DEST"'"'
-    $DRY_RUN_CMD ${pkgs.jq}/bin/jq \
-      '.defaultProvider = "modular" | .defaultModel = "google/gemma-4-31b-it"' \
+    $DRY_RUN_CMD ${pkgs.jq}/bin/jq --slurpfile retry "${retryTemplate}" \
+      '.defaultProvider = "modular" | .defaultModel = "google/gemma-4-31b-it" | .retry = $retry[0]' \
       "$DEST" > "$DEST.new"
     $DRY_RUN_CMD mv "$DEST.new" "$DEST"
   '';

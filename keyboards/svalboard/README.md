@@ -4,87 +4,105 @@ Vial keymap for the Svalboard Lightly, ported from my Glove80.
 
 ## Load it
 
-1. Open [KeyBard](https://captdeaf.github.io/keybard/) (or the Vial app) with the
-   Svalboard plugged in.
+1. Open [KeyBard](https://captdeaf.github.io/keybard/) with the Svalboard plugged in.
 2. **Load** → `SvalHandsDownNeu.vil`.
 
-No reflash needed — Vial writes the keymap to the keyboard live.
+No reflash — Vial writes the keymap live.
+
+Needs `/dev/hidraw*` to be readable, which it isn't by default. The udev rule is
+in `system/etc/udev/rules.d/92-vial.rules`. Without it, KeyBard and Vial both see
+the keyboard and then silently fail to open it.
 
 ## Layers
 
-**Layer 0 — Hands Down Neu**
+Each finger sits in a cup with five switches: **N**orth, **S**outh, **E**ast,
+**W**est and **C**enter (the plain down-press). East is screen-right on both
+hands, so West is inward on the right hand and outward on the left.
+
+### Layer 0 — Hands Down Neu
 
 ```
-w f m p v   / . q " '
-r s n t b   , a e i h
-x c l d g   ; u o y k
+             W    N     C     S     E
+  L pinky    tab  w     r     x     -
+  L ring     .    f     s     c     .
+  L middle   .    m     n     l     v
+  L index    g    p     t     d     b
+  R index    ,    .     a     u     .
+  R middle   /    q     e     o     .
+  R ring     ;    "     i     y     .
+  R pinky    z    '     h     k     j
 ```
 
-`z` and `j` sit on the right pinky's East and West laterals. On the Glove80 they
-live in the outer column, which the Svalboard doesn't have.
+The alphas are Hands Down Neu as it sits on the Glove80 — note `;` on the right
+inner column where upstream publishes `-`.
 
-Note this is my Glove80's Neu, not upstream's: `;` on the right inner column
-where [alanreiser.com](https://sites.google.com/alanreiser.com/handsdown/home/hands-down-neu)
-publishes `-`.
+Two places this departs from a literal port, both because the Svalboard has four
+fingers per hand and the layout assumes five columns:
 
-**Layer 1 — Arensito symbols** (hold `MO(1)`, right thumb)
+- **`g` is on the index's West.** Hands Down gives the left index the whole
+  inner column (`v`/`b`/`g`). Only two fit on an index cup, so it keeps `b` and
+  `g` and exiles `v` — the rarest — to the middle finger.
+- **`z`, `j` and `tab` are on laterals.** They live in outer columns the
+  Svalboard doesn't have. `tab` gets the left pinky's West, x=0.0, the outermost
+  point of the hand.
 
-```
-{ } [ ] @   & _ < > $
-; / - 0 :   \ 1 ( ) =
-6 7 8 9 +   * 2 3 4 5
-```
+Parens and brackets are deliberately *not* on this layer; Arensito has them.
 
-Backtick is on `MO(1)` + left pinky **West** (so `~` is that plus shift). Arensito's
-`{` takes the slot where Svalboard's stock config kept the only `KC_GRAVE`, and
-the Glove80 has grave on its base layer — losing it would be a regression, so
-it gets reseated on a lateral Arensito leaves free.
-
-**Layer 2** — nav and F-keys, untouched from Svalboard's stock config.
-
-**Spare laterals on layer 0** are inherited from the stock Colemak-DHm config,
-not ported: openers on the left hand's outward laterals, closers on the right's,
-plus `-` and Delete on the left pinky.
+### Layer 1 — Arensito symbols (hold `MO(1)`)
 
 ```
-L index/middle/ring West = ( { [        R index/middle/ring East = ) } ]
-L pinky East = -                        L pinky West = Delete
+  { } [ ] @   & _ < > $
+  ; / - 0 :   \ 1 ( ) =
+  6 7 8 9 +   * 2 3 4 5
 ```
 
-These are columns the Svalboard doesn't have and the Glove80 fills from its
-outer column, so there was nothing to port onto them. Keeping Svalboard's
-assignment is a decision, not an accident — `build.py` lists them in
-`SPARE_LATERALS`.
-
-Thumb clusters are Svalboard stock apart from Space/Enter/Backspace:
+Ported from the Glove80 `symbols` layer. The grid above is on N/C/S; the
+laterals carry the six symbols Arensito leaves out, which would otherwise cost
+`MO(1)`+shift+key:
 
 ```
-L: ctrl  tab   shift  space  esc    gui
-R: alt   bspc  MO(1)  enter  MO(2)  gui
+  ` ~ on the left pinky      ! on the left index
+  % on the left ring         # on the left middle
+  | on the right index       ^ on the right middle
 ```
 
-Stock has Backspace on the left thumb and Space on the right — the mirror of the
-Glove80, which puts Space left (69) and Backspace right (74). Swapped back.
+`?` isn't here on purpose — it's shift+`/`, and `/` is on the base layer.
 
-Enter and Backspace are then exchanged on the right thumb, so Enter takes the
-primary thumb key. That one **diverges** from the Glove80, where `BSPC` at 74 is
-the mirror of the left thumb's `SPACE` at 69 — the faithful port would leave
-Backspace primary. Changed deliberately after typing on it.
+### Layer 2 — navigation (hold `MO(2)`)
 
-Still mirrored versus the Glove80, left alone for now: the symbols layer
-(Glove80 left thumb `&sl 3`, here right-thumb `MO(1)`) and shift (Glove80 right
-thumb `&sk LSHFT`, here left-thumb `LSHIFT`).
+Arrows four-across on the right hand, innermost to outermost, matching Glove80
+base-layer positions 75–78:
 
-`build.py` asserts the stock keycodes are where `THUMB_OVERRIDES` expects before
-exchanging them, so a changed base file fails the build instead of quietly
-eating a key.
+```
+  R index  R middle  R ring  R pinky
+     ←        ↓        ↑        →
+```
 
-## Host setup
+F1–F12, home/end, pgup/pgdn, volume and play/pause fill the rest.
 
-Nothing to do. Hyprland scopes my Colemak variant to the two internal keyboards
-by device name (`hyprland.nix`), so the Svalboard falls through to the default
-plain `us` — which is what a firmware-side layout wants. Adding the Svalboard to
-that `device` list would double-translate every keystroke.
+### Layer 15 — mouse
+
+Svalboard's firmware switches here by itself when the pointing device moves, and
+leaves on the first key that isn't on this layer. **Nothing reaches it by
+keypress, by design.** Buttons 1/3/2 sit on index/middle/ring South of both
+hands; `USER06` is `SV_RECALIBRATE_POINTER`.
+
+### Thumbs
+
+```
+LEFT                                RIGHT
+ row7  esc(7.4)  shift(8.5)  ctrl(9.6)     alt(11.4)  MO1(12.5)  MO2(13.6)
+ row6   space(7.9) delete(9.0) gui(10.1)    enter(11.9) ralt(13.0) bspc(14.1)
+```
+
+The two rows interleave in x, so every row-6 key sits between two row-7 keys —
+and the **middle** row-6 key on each hand, x=9.0 and x=13.0, is the only
+position with no free side. Nothing you press in a hurry goes there. `gui` was
+there originally (on both hands) and was unusable; `tab` was tried there and was
+worse. They now hold `delete` and `ralt`.
+
+`space` left and `bspc` right match Glove80 positions 69 and 74 — Svalboard's own
+configs ship those mirrored.
 
 ## Regenerating
 
@@ -92,36 +110,41 @@ that `device` list would double-translate every keystroke.
 python3 build.py
 ```
 
-`build.py` rewrites the 40 finger-cup positions on layers 0 and 1 of
-`SvalCOLEMAKDHM.vil` (vendored from
-[svalboard/svalboard-configs](https://github.com/svalboard/svalboard-configs)),
-leaving thumbs, layer 2, and Vial metadata alone.
+`build.py` emits the entire `.vil`. There is no base file to patch and no
+network access — every layer, keycode and piece of Vial metadata is declared in
+it. It was cut over from a patch-the-Colemak-config approach by diffing against
+the old output until byte-identical, so the rewrite carried nothing over by
+accident.
 
-The interesting part is the geometry. Svalboard `.vil` layers are 10×6:
+Four guards, any of which aborts the build:
 
-```
-row 0 = left thumb        row 5 = right thumb
-rows 1-4 = left  index, middle, ring, pinky
-rows 6-9 = right index, middle, ring, pinky
-cols     = [South, East, Center, North, West, unused]
-```
+- **Geometry.** `CUP_XY` holds the physical position of all 40 finger switches,
+  read out of the keyboard's own `vial.json` over the Vial protocol. The build
+  asserts North is above Center, South below, East right and West left, for
+  every cup. Get the column order wrong and you still emit a structurally
+  perfect file with every key in the wrong place — this is the check that
+  catches it, and it checks against the hardware rather than another config's
+  conventions.
+- **Coverage.** All 26 letters and 10 digits reachable, plus space, backspace,
+  enter, tab and grave. Grave has no shift-fallback and went missing once when
+  Arensito's `{` landed on top of it.
+- **Symbol cost.** No printable ASCII symbol may require `MO(1)`+shift+key.
+- **Duplicates.** Nothing on the base layer reachable from two positions.
+  Moving a key by adding an override leaves the original behind unless it's
+  blanked; that put `g` on two cups once.
 
-Each finger has only N/C/S for its column, so the layout's inner-index column
-spills onto one inward lateral per finger — `inner-top → middle`,
-`inner-home → index`, `inner-bottom → ring`. That convention is Svalboard's own,
-reverse-engineered from their Colemak-DHm config.
-
-Since that mapping is a guess about matrix order that would fail *silently* —
-producing a scrambled but valid-looking keymap — `build.py` refuses to emit
-anything until it has run the stock Colemak-DHm block back through the same code
-path and reproduced all 30 alpha positions in the shipped `.vil` exactly.
-
-A second guard catches the other silent failure: writing 60 positions over a
-config we didn't author drops whatever was underneath. `check_no_orphans()`
-fails the build if any keycode disappears from all 16 layers with no shift- or
-ISO-explained substitute. That is how `` ` `` and `~` were caught.
+Thumb rows are declared by physical x, not column index, and the build fails if
+the declared positions don't match the hardware. The indices are **not** mirrored
+between hands — left column 3 is at x=7.9 and mirrors right column *4* at
+x=13.6, not right column 3 at x=14.1. Reasoning about them directly produced one
+wrong answer already.
 
 ## Source
 
 Glove80 layout `e3409150-bb22-49c0-8614-10035f3f6a04` ("Sauyon layout
-2026-01-20"), layer `Base` and layer `symbols`.
+2026-01-20"), layers `Base` and `symbols`. Its grids are transcribed into
+`build.py`; nothing is fetched at build time.
+
+Custom `USER*` keycode names (`SV_SCROLL_TOGGLE`, `SV_TOGGLE_AUTOMOUSE`, the
+sniper modes, DPI controls) come from the keyboard itself — Vial command
+`0xFE 0x02` returns an LZMA-compressed `vial.json` describing them.

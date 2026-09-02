@@ -24,7 +24,7 @@ hands, so West is inward on the right hand and outward on the left.
 ```
              W    N     C     S     E
   L pinky    tab  w     r     x     -
-  L ring     ·    f     s     c     @
+  L ring     ~    f     s     c     @
   L middle   (    m     n     l     v
   L index    g    p     t     d     b
   R index    ,    .     a     u     :
@@ -46,15 +46,15 @@ fingers per hand and the layout assumes five columns:
   Svalboard doesn't have. `tab` gets the left pinky's West, x=0.0, the outermost
   point of the hand.
 
-Brackets are deliberately *not* on this layer; Arensito has them. Six symbols
+Brackets are deliberately *not* on this layer; Arensito has them. Seven symbols
 *are*, placed by measured frequency rather than by feel — counted over hand-typed
 prompts and shell history (agent-driven sessions excluded) and over code authored
 here, per 1000 characters:
 
-| | `-` | `:` | `(` `)` | `&` | `@` |
-|---|---|---|---|---|---|
-| code | 11.6 | 9.3 | 4.9 | 0.68 | 0.17 |
-| hand-typed | 33.5 | 5.1 | 0.30 | 0.17 | 0.01 |
+| | `-` | `:` | `(` `)` | `&` | `@` | `~` |
+|---|---|---|---|---|---|---|
+| code | 11.6 | 9.3 | 4.9 | 0.68 | 0.17 | 0.22 |
+| hand-typed | 33.5 | 5.1 | 0.30 | 0.17 | 0.01 | 0.12 |
 
 - `-` → **left pinky East.** The clear winner on both counts.
 - `:` → **right index East**, the strongest free lateral. Was shift+`;`.
@@ -68,17 +68,36 @@ here, per 1000 characters:
   it on `MO(1)`. It gets promoted because the promotion is free: both ring
   laterals were empty, so one bad key displaces nothing and still beats two good
   ones. East is the inward of the two; West stays free.
+- `~` → **left ring West**, the lateral `@` left open, on the same argument. By
+  `freq.py` it is 0.12/1k hand-typed against `@`'s 0.06 and 0.22 in code against
+  `@`'s 0.33 — the same order of magnitude, ahead on the typed side. It suits a
+  bad key for a reason a rate does not show: 338 occurrences hand-typed, **zero**
+  of them consecutive repeats, longest run 1. You hit `~` once at the front of a
+  path and leave, and a key you never hit twice in a row is the right thing to
+  put somewhere awkward.
 
 `*` was considered and rejected: it looks like 6.7/1k in code, but 90% of that
 is `**` in markdown prose, and it is 0.03/1k in anything hand-typed.
+
+`` ` `` was considered and rejected for the opposite reason — it is the
+strongest candidate on the board and there is nowhere to put it. At 8.34/1k
+hand-typed and 3.58 in code it outranks `:` and `(`, which both hold good keys.
+But the only free slot was a ring lateral, and *nothing frequent goes on a ring
+lateral*; worse, backtick comes in pairs around inline code spans, so that slot
+would be the worst key here hit twice per span. It stays on `MO(1)` at the left
+pinky's West, which is at least a left-right alternation against the right-thumb
+`MO(1)`. Promoting it would mean demoting a letter — `z`, `q` and `j` are the
+only cheaper occupants left — and a thumb hold mid-word for "jazz" or "quiz" is
+worse than the hold it would save.
 
 `@`'s two numbers come from a later counting pass than the other four columns —
 in that same pass `&` read 1.10 and 0.19, so read the gap between the two, not
 the absolute against the older columns. Most of even that 0.17 is `@types/…`
 imports and `git@github.com`, which are completed rather than typed.
 
-Each is promoted, not copied — all six are holes on layer 1, so nothing sits on
-two keys.
+Each is promoted, not copied — all seven are holes on layer 1, so nothing sits on
+two keys. Six of those holes are in Arensito's own grid; `~`'s is on a lateral,
+which is why the lateral list below is one shorter than it was.
 
 ### Layer 1 — Arensito symbols (hold `MO(1)`)
 
@@ -99,10 +118,14 @@ laterals carry the six symbols Arensito leaves out, which would otherwise cost
 `MO(1)`+shift+key:
 
 ```
-  ` ~ on the left pinky      ! on the left index
+  ` on the left pinky        ! on the left index
   % on the left ring         # on the left middle
   | on the right index       ^ on the right middle
 ```
+
+`~` used to sit beside `` ` `` on the left pinky's East, paired with its
+unshifted partner. It is on the base layer now, and its old lateral is dead
+rather than transparent — falling through would type `-`.
 
 `?` isn't here on purpose — it's shift+`/`, and `/` is on the base layer.
 

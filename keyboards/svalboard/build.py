@@ -207,6 +207,26 @@ BASE_LATERALS = {
     # East is the inward lateral of the two, so `@` takes it and the outward one
     # stays free for the next symbol that has to go somewhere.
     (L_RING, E): "LSFT(KC_2)",
+
+    # `~` is that next symbol, and it takes the outward lateral on the same
+    # argument. Measured with freq.py: 0.12 per 1000 hand-typed characters and
+    # 0.22 in code here -- twice `@` on the hand-typed side, the same order of
+    # magnitude on both. If `@` earned a ring lateral, this earned the other one.
+    #
+    # It suits a bad key in a way a rate alone does not show: 338 occurrences in
+    # the hand-typed corpus, ZERO of them consecutive repeats, longest run 1.
+    # You hit `~` once at the front of a path and leave. A key you never have to
+    # hit twice in a row is the right kind of key to put somewhere awkward.
+    #
+    # This is also why `` ` `` did NOT take it, despite being the strongest
+    # promotion candidate on the board by frequency (8.34 hand-typed, 3.58 in
+    # code -- ahead of `:` and `(`, which both got good keys). Backtick comes in
+    # pairs around inline code spans, so a ring lateral would be the worst key
+    # here hit twice per span. It stays on MO(1) at the left pinky's West, where
+    # it is at least a left-right alternation against the right-thumb MO(1).
+    # There is no good free key left for it; the honest answer is that it wants
+    # one and none exists.
+    (L_RING, W): "LSFT(KC_GRAVE)",
 }
 
 # Thumb clusters, declared by physical x rather than column index -- the indices
@@ -320,13 +340,18 @@ ARENSITO_RIGHT = {
 # themselves on this layer, that means holding MO(1) AND shift AND the key.
 # Three keys for `!` is not a symbol layer doing its job. They go on the laterals
 # Arensito leaves free, paired with their unshifted partners where that helps:
-# ~ beside `, | beside \.
+# | beside \. (`~` used to sit beside `` ` `` here for the same reason; it is on
+# the base layer now, so the pairing is gone and the slot with it.)
 #
 # `?` is deliberately absent: it is shift+/ and `/` is on the base layer, so it
 # already costs two keys, not three.
 SYMBOL_LATERALS = {
     (L_PINKY, W): "KC_GRAVE",
-    (L_PINKY, E): "LSFT(KC_GRAVE)",    # ~  beside `
+    # `~` was here. It is on the base layer at the left ring's West now, and a
+    # promoted symbol is never copied -- leaving it would put it on two keys.
+    # KC_NO rather than dropping the entry: dropping it falls through to layer
+    # 0's `-` on this lateral, which is a worse failure than a dead key.
+    (L_PINKY, E): "KC_NO",
     (L_INDEX, W): "LSFT(KC_1)",        # !  easiest left lateral, most frequent
     (L_MIDDLE, W): "LSFT(KC_3)",       # #
     (L_RING, W): "LSFT(KC_5)",         # %

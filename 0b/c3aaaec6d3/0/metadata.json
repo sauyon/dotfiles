@@ -1,0 +1,197 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "0bc3aaaec6d3",
+  "session_id": "49977280-bbfe-4635-83f3-4eb24e3ce458",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-02T18:32:04.071088257Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "pi.nix"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "fc3ffd59c9df",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 130,
+    "cache_creation_tokens": 137870,
+    "cache_read_tokens": 5926997,
+    "output_tokens": 40056,
+    "api_call_count": 65
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01Auyw4mpCsZXiyEeueaPLua",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "fc3ffd59c9df",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 161,
+        "end": 162,
+        "entry_ids": [
+          "d7a48ad4-7f06-4940-acd2-38383d20b6fe"
+        ],
+        "tool_use_id": "toolu_01Auyw4mpCsZXiyEeueaPLua"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Auyw4mpCsZXiyEeueaPLua"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_014uPSLDSQjK682kQiEX4bF5",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "fc3ffd59c9df",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 403,
+        "end": 404,
+        "entry_ids": [
+          "bf7c2d29-e33a-403c-81d6-2acbf78c2648"
+        ],
+        "tool_use_id": "toolu_014uPSLDSQjK682kQiEX4bF5"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_014uPSLDSQjK682kQiEX4bF5"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-02T18:32:04.03714817Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 43,
+    "human_modified": 4,
+    "human_removed": 0,
+    "total_committed": 43,
+    "total_lines_changed": 47,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 4829,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/browser-gate-review-1/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/browser-gate-review-1/002-env.nix.diff": 33,
+        ".drovr/review/browser-gate-review-1/003-flake.lock.diff": 20,
+        ".drovr/review/browser-gate-review-1/004-home.nix.diff": 12,
+        ".drovr/review/browser-gate-review-1/index.md": 32,
+        ".drovr/review/browser-gate-review-2/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/browser-gate-review-2/002-env.nix.diff": 33,
+        ".drovr/review/browser-gate-review-2/003-flake.lock.diff": 20,
+        ".drovr/review/browser-gate-review-2/004-home.nix.diff": 12,
+        ".drovr/review/browser-gate-review-2/index.md": 32,
+        ".drovr/review/browser-gate-review-3/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/browser-gate-review-3/002-env.nix.diff": 33,
+        ".drovr/review/browser-gate-review-3/003-flake.lock.diff": 20,
+        ".drovr/review/browser-gate-review-3/004-home.nix.diff": 12,
+        ".drovr/review/browser-gate-review-3/index.md": 32,
+        ".drovr/review/ci-attic-fix-review-1/001-.forgejo_workflows_nix-home.yml.diff": 62,
+        ".drovr/review/ci-attic-fix-review-1/002-docs_ci-nix-home.md.diff": 27,
+        ".drovr/review/ci-attic-fix-review-1/index.md": 28,
+        ".drovr/review/ci-attic-fix-review-2/001-.forgejo_workflows_nix-home.yml.diff": 62,
+        ".drovr/review/ci-attic-fix-review-2/002-docs_ci-nix-home.md.diff": 27,
+        ".drovr/review/ci-attic-fix-review-2/index.md": 28,
+        ".drovr/review/ci-vulnix-fix-review-1/001-.forgejo_workflows_vulnix-scan.yml.diff": 41,
+        ".drovr/review/ci-vulnix-fix-review-1/index.md": 26,
+        ".drovr/review/ci-vulnix-fix-review-2/001-.forgejo_workflows_vulnix-scan.yml.diff": 41,
+        ".drovr/review/ci-vulnix-fix-review-2/index.md": 26,
+        ".drovr/review/ci-vulnix-fix-review-3/001-.forgejo_workflows_vulnix-scan.yml.diff": 41,
+        ".drovr/review/ci-vulnix-fix-review-3/index.md": 26,
+        ".drovr/review/gui-flag-review-1/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/gui-flag-review-1/002-flake.lock.diff": 20,
+        ".drovr/review/gui-flag-review-1/003-flake.nix.diff": 17,
+        ".drovr/review/gui-flag-review-1/index.md": 30,
+        ".drovr/review/gui-flag-review-2/001-.opencode_plugins_entire.ts.diff": 273,
+        ".drovr/review/gui-flag-review-2/002-flake.lock.diff": 20,
+        ".drovr/review/gui-flag-review-2/003-flake.nix.diff": 17,
+        ".drovr/review/gui-flag-review-2/004-home.nix.diff": 94,
+        ".drovr/review/gui-flag-review-2/index.md": 32,
+        ".drovr/review/hms-ff-docs-review-1/001-CLAUDE.md.diff": 25,
+        ".drovr/review/hms-ff-docs-review-1/002-README.md.diff": 38,
+        ".drovr/review/hms-ff-docs-review-1/003-home.nix.diff": 38,
+        ".drovr/review/hms-ff-docs-review-1/index.md": 30,
+        ".drovr/review/hms-ff-docs-review-10/001-CLAUDE.md.diff": 25,
+        ".drovr/review/hms-ff-docs-review-10/002-README.md.diff": 38,
+        ".drovr/review/hms-ff-docs-review-10/003-home.nix.diff": 187,
+        ".drovr/review/hms-ff-docs-review-10/index.md": 30,
+        ".drovr/review/hms-ff-docs-review-11/001-CLAUDE.md.diff": 25,
+        ".drovr/review/hms-ff-docs-review-11/002-README.md.diff": 38,
+        ".drovr/review/hms-ff-docs-review-11/003-home.nix.diff": 199,
+        ".drovr/review/hms-ff-docs-review-11/index.md": 30,
+        ".drovr/review/hms-ff-docs-review-2/001-CLAUDE.md.diff": 25,
+        ".drovr/review/hms-ff-docs-review-2/002-README.md.diff": 38,
+        ".drovr/review/hms-ff-docs-review-2/003-home.nix.diff": 38,
+        ".drovr/review/hms-ff-docs-review-2/index.md": 30,
+        ".drovr/review/hms-ff-docs-review-3/001-CLAUDE.md.diff": 25,
+        ".drovr/review/hms-ff-docs-review-3/002-README.md.diff": 38,
+        ".drovr/review/hms-ff-docs-review-3/003-home.nix.diff": 45,
+        ".drovr/review/hms-ff-docs-review-3/index.md": 30,
+        ".drovr/review/hms-ff-docs-review-4/001-CLAUDE.md.diff": 25,
+        ".drovr/review/hms-ff-docs-review-4/002-README.md.diff": 38,
+        ".drovr/review/hms-ff-docs-review-4/003-home.nix.diff": 52,
+        ".drovr/review/hms-ff-docs-review-4/index.md": 30,
+        ".drovr/review/hms-ff-docs-review-5/001-CLAUDE.md.diff": 25,
+        ".drovr/review/hms-ff-docs-review-5/002-README.md.diff": 38,
+        ".drovr/review/hms-ff-docs-review-5/003-home.nix.diff": 61,
+        ".drovr/review/hms-ff-docs-review-5/index.md": 30,
+        ".drovr/review/hms-ff-docs-review-6/001-CLAUDE.md.diff": 25,
+        ".drovr/review/hms-ff-docs-review-6/002-README.md.diff": 38,
+        ".drovr/review/hms-ff-docs-review-6/003-home.nix.diff": 123,
+        ".drovr/review/hms-ff-docs-review-6/index.md": 30,
+        ".drovr/review/hms-ff-docs-review-7/001-CLAUDE.md.diff": 25,
+        ".drovr/review/hms-ff-docs-review-7/002-README.md.diff": 38,
+        ".drovr/review/hms-ff-docs-review-7/003-home.nix.diff": 151,
+        ".drovr/review/hms-ff-docs-review-7/index.md": 30,
+        ".drovr/review/hms-ff-docs-review-8/001-CLAUDE.md.diff": 25,
+        ".drovr/review/hms-ff-docs-review-8/002-README.md.diff": 38,
+        ".drovr/review/hms-ff-docs-review-8/003-home.nix.diff": 153,
+        ".drovr/review/hms-ff-docs-review-8/index.md": 30,
+        ".drovr/review/hms-ff-docs-review-9/001-CLAUDE.md.diff": 25,
+        ".drovr/review/hms-ff-docs-review-9/002-README.md.diff": 38,
+        ".drovr/review/hms-ff-docs-review-9/003-home.nix.diff": 158,
+        ".drovr/review/hms-ff-docs-review-9/index.md": 30,
+        ".drovr/review/hms-fonts-review-1/001-.forgejo_workflows_nix-home.yml.diff": 21,
+        ".drovr/review/hms-fonts-review-1/002-home.nix.diff": 179,
+        ".drovr/review/hms-fonts-review-1/003-zsh.nix.diff": 14,
+        ".drovr/review/hms-fonts-review-1/index.md": 30,
+        "nohup.out": 1,
+        "opencode.json": 35
+      }
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+# Phase: implement — run `svalboard-layout-opt`
+
+You are the implement phase of a drovr run. You are the **single writer**: you edit,
+read-only explorers investigate. Project dir: `/home/sauyon/devel/dotfiles` (public repo).
+
+## First action
+
+Read `/home/sauyon/.local/share/drovr/runs/svalboard-layout-opt/scope-HANDOFF.md` in full
+before anything else. It is the output of the scope phase and it is your spec: it records the
+decisions, the interfaces, and the two assumptions you are allowed to overturn. Do not
+re-derive what it already settled.
+
+Summary of the task it hands you: wire Sauyon's own typing corpus into the existing
+`jeffzi/svalboard_layout_optimizer` and run it over the Svalboard layer-0 alphas + the 7
+promoted symbols (thumbs frozen), reporting the delta against the current layout rather than
+a bare "winner".
+
+## Checklist
+
+Create one tracked task per step before starting step 1.
+
+1. Read `scope-HANDOFF.md` in full, plus `keyboards/svalboard/README.md` (the existing layout
+   rationale your output has to argue against).
+2. Read `<opt>/src/bin/ngrams.rs`, `<opt>/scripts/ngrams/normalize.py`, and `ngram_merge.rs`
+   to learn the exact corpus→ngram contract. `<opt>` =
+   `/tmp/claude-60006/-home-sauyon-devel-dotfiles/0caf5eac-36cc-4722-91b8-30c9c9c8644c/scratchpad/sval-opt/`
+   (verified present; re-fetch command is in the handoff's Artifact pointers if it vanishes).
+   `ngram_merge.rs` likely already does the weighted blend the handoff assumes — read before
+   hand-rolling.
+3. Add the `slack` source to `keyboards/svalboard/freq.py` `SOURCES`, test-first per
+   `drovr:tdd`. `freq.py` has no tests today; the Slack loader is the first piece with a
+   parseable input format worth pinning, so it carries the first test.
+4. Add the `discord` source as an **official-data-export loader** (`messages/*/messages.csv`),
+   not an API scraper — a user token against the Discord API is a self-bot and bannable. This
+   must not block anything else; the export takes days to arrive.
+5. Build the corpus→ngram bridge and run `task optimize` + `task evaluate`, then report the
+   comparison against the current layout.
+
+## Non-negotiables from the scope phase
+
+- **The corpus never enters the repo.** Raw caches to `~/.local/share/svalboard-freq/`; only
+  per-1000-character aggregates go to the committed `freq.json`. This repo is public and the
+  corpus carries internal Modular hostnames. 2-gram and 3-gram files are **not** safe to
+  commit — a 3-gram file leaks substrings.
+- **Do not "fix" `config/keyboard/sval.yml` to match `build.py`'s `CUP_XY`.** They are a
+  relabeling of the same 40 switches; the key costs in `config/evaluation/sval.yml` were
+  fitted to sval.yml's coordinates.
+- **Thumbs are frozen.** Their layout is argued from hardware constraints the optimizer
+  cannot model.
+- **Report the delta.** Every run evaluates the current layout under the same config and
+  corpus so the output is a comparison, not an oracle.
+
+## Working discipline
+
+- `drovr:tdd` for every code change — a test you have watched fail before implementation.
+- `drovr:code-review` before you call any change done. Not optional, not gated on size.
+- `drovr:verification-before-completion` before claiming anything passes — run the command,
+  read the output.
+- Per `CLAUDE.md`, this dotfiles repo commits and pushes without asking.
+- Escalate to Sauyon rather than deciding: anything that would put corpus text in the repo,
+  and any change to the frozen-thumb or geometry decisions above.
+
+## Completion
+
+Author `/home/sauyon/.local/share/drovr/runs/svalboard-layout-opt/implement-HANDOFF.md`
+(the seven sections — `drovr handoff-scaffold` writes the empty shape), then run
+`drovr phase done svalboard-layout-opt implement` as your final action.
+
+---
+
+continue

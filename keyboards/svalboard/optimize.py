@@ -42,6 +42,7 @@ substrings -- and this repo is public.
 """
 
 import argparse
+import json
 import pathlib
 import re
 import shutil
@@ -96,6 +97,23 @@ WEIGHTS = {
 
 PATH_MARKER = re.compile(r"\x00PATH:[^\n]*\n?")
 
+# --name is joined onto the checkout and the result is passed to shutil.rmtree.
+# A name containing a separator, or "..", or nothing at all, walks that rmtree
+# out of the checkout. This is not a trust boundary -- you are the only one
+# passing it -- but the failure mode is deleting the wrong directory, so it is
+# worth one regex.
+SAFE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*\Z")
+
+
+def checked_name(name):
+    """The corpus name, or exit if it would escape the optimizer checkout."""
+    if not SAFE_NAME.match(name):
+        raise SystemExit(
+            f"--name {name!r}: use letters, digits, '-' and '_' only. "
+            "It is joined onto the checkout and the result gets removed."
+        )
+    return name
+
 
 def strip_path_markers(text):
     """Drop iter_code_text's "\\x00PATH:<rel>" file headers.
@@ -123,6 +141,56 @@ def layout_string():
             glyph, _ = cheatsheet.label(layer[row][direction])
             out.append(glyph if len(glyph) == 1 else PLACEHOLDER)
     return "".join(out)
+
+
+# One `["<glyph>"]` entry in base_layout.keys. The stock file has no `"` on any
+# key, so a naive [^"]* is enough to FIND them; they are written back with
+# json.dumps, which is a YAML subset and quotes correctly.
+KEY_ENTRY = re.compile(r'\["[^"]*"\]')
+
+# The finger block: `- [` on its own, up to the first line that is only `]`.
+# Entries like `["x"],` cannot end it -- their `]` is not preceded by a newline.
+FINGER_BLOCK = re.compile(r"- \[\n.*?\n\s*\]", re.S)
+
+
+def keyboard_config(text, layout):
+    """sval.yml rewritten to carry this layout's glyph inventory.
+
+    optimize_sa refuses any character not in the first level of `base_layout`:
+
+        Invalid keyboard layout: Unsupported characters in provided layout
+        (not in first level of `base_layout` ...): '"&()/:;@~'
+
+    Those nine are all on this board and none are in the stock config, whose
+    base_layout is the optimizer author's own Hands Down variant. So the
+    inventory has to come from here.
+
+    This rewrites the glyphs and NOTHING else. `positions` and `key_costs` in
+    that file were fitted to each other -- the costs describe those coordinates,
+    not this repo's CUP_XY -- so re-measuring either is out of scope, and the
+    thumb block stays as it is because thumbs do not move.
+    """
+    head, sep, tail = text.partition("base_layout:")
+    if not sep:
+        raise SystemExit("keyboard config has no base_layout: section")
+
+    match = FINGER_BLOCK.search(tail, tail.index("keys:"))
+    if not match:
+        raise SystemExit("could not find the finger block in base_layout.keys")
+
+    # Count before substituting: running out of glyphs mid-substitution would
+    # surface as a StopIteration from inside re, not as the mismatch it is.
+    n = len(KEY_ENTRY.findall(match.group()))
+    if n != len(layout):
+        raise SystemExit(
+            f"keyboard config has {n} finger keys but the layout has {len(layout)}"
+        )
+    glyphs = iter(layout)
+    block = KEY_ENTRY.sub(
+        lambda _: "[" + json.dumps(next(glyphs), ensure_ascii=False) + "]",
+        match.group(),
+    )
+    return head + sep + tail[:match.start()] + block + tail[match.end():]
 
 
 def build_ngrams(opt, corpus_dir, name):
@@ -179,12 +247,25 @@ def main():
                        help="re-score existing solutions, run no search")
     args = ap.parse_args()
 
+    # Not `name`: the per-corpus loop below binds that, and a validated value
+    # that gets shadowed is worse than no validation -- it reads as checked.
+    corpus_name = checked_name(args.name)
     opt = args.opt.expanduser().resolve()
     if not (opt / "Taskfile.yml").exists():
         raise SystemExit(f"{opt} does not look like a svalboard_layout_optimizer checkout")
 
     current = layout_string()
     print(f"current layout: {current}  ({len(current)} keys)")
+
+    # The stock base_layout is the optimizer author's own Hands Down variant and
+    # has none of `"&()/:;@~`, so it rejects this board outright. Derive a config
+    # that carries this layout's glyphs and is otherwise byte-identical, and
+    # write it into the checkout rather than keeping a second copy in this repo.
+    stock = opt / "config" / "keyboard" / "sval.yml"
+    derived = opt / "config" / "keyboard" / f"{corpus_name}_sval.yml"
+    derived.write_text(keyboard_config(stock.read_text(), current))
+    kb = str(derived.relative_to(opt))
+    print(f"keyboard config: {kb} (glyphs from build.py, costs from sval.yml)")
 
     if not args.evaluate_only:
         print("building ngrams per corpus:")
@@ -201,7 +282,7 @@ def main():
         # Not ignore_errors: a swallowed failure here means ngram_merge writes
         # into a directory still holding the previous run's files, blending
         # against weights nobody chose.
-        blend = opt / "ngrams" / args.name
+        blend = opt / "ngrams" / corpus_name
         if blend.exists():
             shutil.rmtree(blend)
         print(f"merging with weights {WEIGHTS}")
@@ -212,29 +293,29 @@ def main():
     if args.ngrams_only:
         return
 
-    layouts = opt / f"{args.name}_layouts.txt"
-    solutions = opt / f"{args.name}_optimized_layouts.txt"
+    layouts = opt / f"{corpus_name}_layouts.txt"
+    solutions = opt / f"{corpus_name}_optimized_layouts.txt"
 
     if not args.evaluate_only:
         layouts.write_text(current + "\n")
         run(opt, ["cargo", "run", "--release", "--bin", "optimize_sa", "--",
-                  "--layout-config", "config/keyboard/sval.yml",
+                  "--layout-config", kb,
                   "--eval-parameters", "config/evaluation/sval.yml",
-                  "--ngrams", f"ngrams/{args.name}",
+                  "--ngrams", f"ngrams/{corpus_name}",
                   "--start-layouts", current,
                   "--fix", "".join(sorted(FIXED)),
                   "--append-solutions-to", str(solutions)])
 
     # The delta: score the current layout against whatever the search found,
     # under the same config and the same corpus.
-    scored = opt / f"{args.name}_compare.txt"
+    scored = opt / f"{corpus_name}_compare.txt"
     found = solutions.read_text().splitlines() if solutions.exists() else []
     lines = [current] + [l for l in found if l.strip() and l.strip() != current]
     scored.write_text("\n".join(lines) + "\n")
     run(opt, ["cargo", "run", "--release", "--bin", "evaluate", "--",
-              "--layout-config", "config/keyboard/sval.yml",
+              "--layout-config", kb,
               "--eval-parameters", "config/evaluation/sval.yml",
-              "--ngrams", f"ngrams/{args.name}",
+              "--ngrams", f"ngrams/{corpus_name}",
               "--from-file", str(scored), "--sort"])
 
 

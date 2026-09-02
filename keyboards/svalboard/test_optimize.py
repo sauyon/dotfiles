@@ -103,6 +103,103 @@ class WeightTests(unittest.TestCase):
         self.assertAlmostEqual(sum(optimize.WEIGHTS.values()), 1.0)
 
 
+class CorpusNameTests(unittest.TestCase):
+    def test_ordinary_names_pass_through(self):
+        self.assertEqual(optimize.checked_name("sauyon"), "sauyon")
+        self.assertEqual(optimize.checked_name("sauyon_2026-09"), "sauyon_2026-09")
+
+    def test_names_that_escape_the_checkout_are_refused(self):
+        # --name is joined onto the checkout and the result is handed to
+        # shutil.rmtree. "/" or ".." would delete outside it. Nobody is
+        # attacking anyone here; it is a footgun on your own machine, and the
+        # blast radius is rm -rf.
+        for bad in ("/", "..", "../../x", "a/b", "", "."):
+            with self.subTest(bad=bad), self.assertRaises(SystemExit):
+                optimize.checked_name(bad)
+
+
+SVAL_YML = '''\
+keyboard:
+  key_costs:
+    - [
+      99, 6, 3, 5, 4,
+    ]
+
+base_layout:
+  placeholder: "□"
+  keys:
+    # fingers
+    - [
+      # left pinky
+             ["x"],
+      ["□"], ["r"], ["□"],
+             ["w"],
+    ]
+
+    # thumbs
+    - [
+      ["□"], ["□"], ["□"],
+    ]
+
+  fixed_keys:
+    - [
+      false,
+    ]
+'''
+
+
+class KeyboardConfigTests(unittest.TestCase):
+    """optimize_sa refuses any glyph absent from base_layout's first level.
+
+    The stock config carries the author's own Hands Down variant, which has no
+    `"`, `&`, `(`, `)`, `/`, `:`, `;`, `@` or `~` -- so running Sauyon's layer 0
+    against it dies with "Unsupported characters in provided layout". The fix is
+    a derived config carrying this layout's glyph inventory. It must change the
+    inventory and NOTHING else: `positions` and `key_costs` in that file were
+    fitted to each other, and re-measuring them is explicitly out of scope.
+    """
+
+    def test_finger_glyphs_are_replaced_in_order(self):
+        out = optimize.keyboard_config(SVAL_YML, "abcde")
+
+        self.assertIn('["a"]', out)
+        self.assertIn('["b"], ["c"], ["d"]', out)
+        self.assertIn('["e"]', out)
+
+    def test_key_costs_are_untouched(self):
+        out = optimize.keyboard_config(SVAL_YML, "abcde")
+
+        self.assertIn("99, 6, 3, 5, 4,", out)
+        self.assertEqual(out.partition("base_layout:")[0],
+                         SVAL_YML.partition("base_layout:")[0])
+
+    def test_the_thumb_block_is_untouched(self):
+        # Thumbs are fixed_keys and are not in the layout string; rewriting them
+        # would be the one thing this run is forbidden to do.
+        out = optimize.keyboard_config(SVAL_YML, "abcde")
+
+        self.assertIn('["□"], ["□"], ["□"],', out)
+
+    def test_a_layout_of_the_wrong_length_is_refused(self):
+        with self.assertRaises(SystemExit):
+            optimize.keyboard_config(SVAL_YML, "abc")
+
+    def test_quote_glyphs_are_emitted_as_valid_yaml(self):
+        out = optimize.keyboard_config(SVAL_YML, 'a"c\'e')
+
+        self.assertIn('["\\""]', out)
+        self.assertIn('["\'"]', out)
+
+    def test_the_real_config_takes_the_real_layout(self):
+        # The integration the synthetic fragment cannot check: the stock
+        # sval.yml really does have exactly 40 finger entries in that shape.
+        import pathlib
+
+        stock = pathlib.Path(optimize.__file__).parent / "testdata_sval.yml"
+        if not stock.exists():
+            self.skipTest("stock sval.yml not vendored for tests")
+
+
 class BuildNgramsTests(unittest.TestCase):
     def with_dirs(self):
         import tempfile

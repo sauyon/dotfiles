@@ -49,6 +49,10 @@
       gui = true;
       gpu = "amd";
     };
+    homeConfigurations.kyuusaku = linuxHome {
+      hostname = "kyuusaku";
+      gui = false;
+    };
     homeConfigurations.setsuna = linuxHome {
       hostname = "setsuna";
       gui = true;

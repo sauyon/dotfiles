@@ -40,7 +40,13 @@ jobs:
       NIX_CONFIG: |
         experimental-features = nix-command flakes
         netrc-file = /root/.config/nix/netrc
-        extra-substituters = https://attic.ko.ag/kube
+        # In-cluster Service, NOT the public https://attic.ko.ag/kube. Pulling
+        # through Cloudflare hairpins out of the cluster and back, and that path
+        # cuts any single response at a hard 600s: every run that had to fetch
+        # the 2.44 GiB google-fonts NAR died at 601.0s with "HTTP error 200
+        # (curl error: Stream error in the HTTP/2 framing layer)", which nix does
+        # not retry. Same Service the push step below already uses.
+        extra-substituters = http://attic.attic.svc.cluster.local/kube
         extra-trusted-public-keys = kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=
         # 32 cores would otherwise start 32 builds inside a 16Gi cgroup.
         max-jobs = 6
@@ -66,9 +72,12 @@ jobs:
           fi
           echo "privileged OK; sandbox=$(nix config show sandbox 2>/dev/null || echo '?')"
 
-      # attic.ko.ag is not anonymously readable, and nix silently ignores a
-      # substituter it cannot authenticate to — so this must precede any nix
-      # command or the job rebuilds everything instead of substituting.
+      # attic is not anonymously readable, and nix silently ignores a substituter
+      # it cannot authenticate to — so this must precede any nix command or the
+      # job rebuilds everything instead of substituting. Both hosts get an entry:
+      # the in-cluster Service is what the substituter above uses, attic.ko.ag is
+      # kept so reverting that one line is all it takes to go back through
+      # Cloudflare. netrc is matched on host, so the extra line is inert.
       - name: authorise nix against attic
         env:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
@@ -76,8 +85,12 @@ jobs:
           set -eu
           mkdir -p /root/.config/nix
           umask 077
-          printf 'machine attic.ko.ag password %s\n' "$ATTIC_TOKEN" \
+          printf 'machine %s password %s\n' \
+            attic.attic.svc.cluster.local "$ATTIC_TOKEN" \
             > /root/.config/nix/netrc
+          printf 'machine %s password %s\n' \
+            attic.ko.ag "$ATTIC_TOKEN" \
+            >> /root/.config/nix/netrc
 
       # Hand-rolled because actions/checkout cannot run in this image. Full
       # clone: a shallow one cannot check out an arbitrary SHA.
@@ -91,7 +104,11 @@ jobs:
       - name: build home closures
         run: |
           set -eu
-          nix build --no-link --print-out-paths \
+          # --fallback: a substituter that dies mid-NAR otherwise aborts the whole
+          # job ("no substituter that can build it") after ten minutes of transfer.
+          # With it, an unfetchable path is built locally instead — slower, but the
+          # run still ends with a closure to push.
+          nix build --fallback --no-link --print-out-paths \
             .#homeConfigurations.utsuho.activationPackage \
             .#homeConfigurations.setsuna.activationPackage \
             .#homeConfigurations.fujiwara.activationPackage \

@@ -22,10 +22,20 @@ Two constraints that are not obvious from the file:
   and `bash` but no `node`, so no JS action can execute — `actions/checkout`
   included. The checkout is a hand-rolled `git clone`. Adding a `uses:` step
   fails at "Set up job".
-- **The attic netrc must be written before the first nix command.** `attic.ko.ag`
-  is not anonymously readable, and nix silently ignores a substituter it cannot
+- **The attic netrc must be written before the first nix command.** attic is not
+  anonymously readable, and nix silently ignores a substituter it cannot
   authenticate to. Reorder that step after the build and the job stops
   substituting and rebuilds everything from source, with no error to say so.
+- **The job substitutes from the in-cluster Service, not `attic.ko.ag`.** Pulling
+  through Cloudflare hairpins out of the cluster and back, and that path caps a
+  single response at a hard 600s. Every run that had to fetch the 2.44 GiB
+  `google-fonts` NAR died at exactly 601.0s with `HTTP error 200 (curl error:
+  Stream error in the HTTP/2 framing layer)` — a failure nix does not retry, so
+  the whole job died after ten minutes of transfer. 47 of the first 61 runs
+  failed this way. Pull and push now both use
+  `http://attic.attic.svc.cluster.local`. `nix build` also passes `--fallback`,
+  so a substituter that dies mid-NAR degrades to a local build instead of
+  killing the run.
 
 There is also a **nix version floor**: `home.nix` merges `programs.gpg.package`
 with a later `programs = { gpg = { … } }` block, which nix 2.24 rejects as a

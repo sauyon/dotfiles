@@ -4,21 +4,23 @@
   "strategy": "manual-commit",
   "branch": "master",
   "checkpoints_count": 3,
-  "files_touched": null,
+  "files_touched": [
+    "home.nix"
+  ],
   "sessions": [
     {
       "metadata": "/ff/f08d13937f/0/metadata.json",
       "transcript": "/ff/f08d13937f/0/full.jsonl",
       "compact_transcript": "/ff/f08d13937f/0/transcript.jsonl",
       "content_hash": "/ff/f08d13937f/0/content_hash.txt",
-      "prompt": "/ff/f08d13937f/0/prompt.txt"
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 46,
-    "cache_creation_tokens": 19151,
-    "cache_read_tokens": 4991154,
-    "output_tokens": 13015,
-    "api_call_count": 23
+    "input_tokens": 14,
+    "cache_creation_tokens": 7571,
+    "cache_read_tokens": 1605086,
+    "output_tokens": 3518,
+    "api_call_count": 7
   }
 }

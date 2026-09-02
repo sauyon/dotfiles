@@ -152,15 +152,34 @@ BASE_LATERALS = {
     (L_PINKY, W): "KC_TAB",    # outermost key on the left hand, x=0.0
 
     # Parens likewise: frequent enough in code to be worth a base-layer key
-    # rather than MO(1)+key. The left ring's two laterals are the only adjacent
-    # free pair on the hand. West is screen-left and East screen-right on both
-    # hands, so `(` West / `)` East reads in the order you type it.
-    (L_RING, W): "LSFT(KC_9)",
+    # rather than MO(1)+key.
+    #
+    # They were on the left ring's two laterals, which is the wrong pair. The
+    # ring laterals are the hardest keys on this board to hit -- that is a
+    # verdict from typing on it, and the only kind available: CUP_XY is KLE
+    # layout units, so it can say where a key is drawn but nothing about the
+    # reach. Nothing frequent goes on a ring lateral.
+    #
+    # The middles' outer laterals are the strongest free pair instead, and they
+    # mirror: West is outward on the left hand, East outward on the right. That
+    # also makes `()` alternate hands rather than roll along one.
+    (L_MIDDLE, W): "LSFT(KC_9)",
+    (R_MIDDLE, E): "LSFT(KC_0)",
 
-    # `&` promoted off the symbol layer too. The three free right-hand laterals
-    # are all East (outer); the index's is the strongest of them, and putting it
-    # on the right hand balances `-`, `(` and `)`, which are all on the left.
-    (R_INDEX, E): "LSFT(KC_7)",
+    # `:` takes the index's East, the strongest free right-hand lateral. It is
+    # the most frequent symbol that still costs two keys: ~9 per 1000 chars of
+    # code written here, and that survives context-checking -- 47% of it is
+    # `key: value` in yaml/json/nix and 16% slices and ternaries, against only
+    # 27% prose colon. It was shift+`;`, so this saves one keystroke, the same
+    # win the parens got.
+    (R_INDEX, E): "LSFT(KC_SCOLON)",
+
+    # `&` is the opposite case and lands on a ring lateral deliberately: 0.68
+    # per 1000 in code, 0.17 in hand-typed text, the rarest thing on the base
+    # layer. The ring laterals are the worst keys here, which is exactly what a
+    # symbol this rare should be occupying. It stays on the right hand, where
+    # Arensito had it.
+    (R_RING, E): "LSFT(KC_7)",
 
     # In Hands Down the left index owns the entire inner column -- v, b and g
     # are all index-finger keys. INNER_LATERAL has to scatter them, because a
@@ -174,10 +193,10 @@ BASE_LATERALS = {
     #   index East = b (from INNER_LATERAL)   index West = g (here)
     #
     (L_INDEX, W): "KC_G",
-    # place() still puts g on the ring's East as bottom-inner, so this overrides
-    # it -- without it g would be on two cups. `)` is what the ring's East now
-    # holds; the slot g vacated is exactly the one the parens pair needed.
-    (L_RING, E): "LSFT(KC_0)",
+    # place() still puts g on the ring's East as bottom-inner, so this has to
+    # blank it explicitly or g ends up on two cups. It stays KC_NO: the ring
+    # laterals are the worst keys here, so nothing wants the slot g vacated.
+    (L_RING, E): "KC_NO",
 }
 
 # Thumb clusters, declared by physical x rather than column index -- the indices
@@ -258,20 +277,21 @@ def thumb_col(row, x):
 # Ported from the Glove80 `symbols` layer, reached there by a sticky `&sl 3`
 # and here by holding MO(1) on the right thumb.
 
-# Five of Arensito's own cells are holes here. Each of those symbols is already
+# Six of Arensito's own cells are holes here. Each of those symbols is already
 # reachable in one key elsewhere, and nothing should be on two keys:
 #
-#   `-`     base layer, left pinky East       -- no MO(1) at all
-#   `(` `)` base layer, left ring West/East   -- no MO(1) at all
-#   `&`     base layer, right index East      -- no MO(1) at all
-#   `_`     left thumb's space key            -- see SYMBOL_THUMB_X below
+#   `-`     base layer, left pinky East          -- no MO(1) at all
+#   `(` `)` base layer, left/right middle outer  -- no MO(1) at all
+#   `:`     base layer, right index East         -- no MO(1) at all
+#   `&`     base layer, right ring East          -- no MO(1) at all
+#   `_`     left thumb's space key               -- see SYMBOL_THUMB_X below
 #
 # They are KC_NO rather than KC_TRNS on purpose. Transparent would fall through
-# to layer 0 and quietly type `n`, `.`, `e`, `i` and `/` from the middle of the
-# symbol layer; a dead key is the lesser failure.
+# to layer 0 and quietly type `n`, `.`, `e`, `i`, `b` and `/` from the middle of
+# the symbol layer; a dead key is the lesser failure.
 ARENSITO_LEFT = {
     "top":    ["LSFT(KC_LBRACKET)", "LSFT(KC_RBRACKET)", "KC_LBRACKET", "KC_RBRACKET", "LSFT(KC_2)"],
-    "home":   ["KC_SCOLON", "KC_SLASH", "KC_NO", "KC_0", "LSFT(KC_SCOLON)"],   # was `-`
+    "home":   ["KC_SCOLON", "KC_SLASH", "KC_NO", "KC_0", "KC_NO"],   # were `-` `:`
     "bottom": ["KC_6", "KC_7", "KC_8", "KC_9", "LSFT(KC_EQUAL)"],
 }
 

@@ -121,7 +121,8 @@ in
         # description rather than DP-N: the connector number moves around
         # depending on which dock port it lands on.
         output = "desc:Dell Inc. DELL U3225QE";
-        mode = "preferred";
+        # Pinned, not "preferred": the EDID preferred mode is 60Hz.
+        mode = "3840x2160@120";
         position = "auto-left";
         scale = 1;
       }

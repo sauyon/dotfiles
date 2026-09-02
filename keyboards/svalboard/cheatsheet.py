@@ -382,11 +382,17 @@ LINE_FLOOR = 3.0   # borders and rules -- a line is shape as much as tone
 #
 # `dead` and `trns` keys are absent on purpose: both keep the paper background,
 # and their borders are checked against it directly.
+# Keys are by CSS class, so that the entries here and the classes label() hands
+# back are the same vocabulary rather than two lists to keep in step. `trns` is
+# absent because it takes .k's background by inheritance and `dead` declares
+# paper explicitly -- both keep the paper background, and their borders are
+# checked against it directly above.
 KEY_SURFACES = {
-    "plain key": "paper",
-    "symbol key": "fill_sym",
-    "digit key": "fill_num",
-    "modifier key": "fill_mod",
+    "alpha": "paper",
+    "sym": "fill_sym",
+    "num": "fill_num",
+    "mod": "fill_mod",
+    "fn": "fill_mod",   # .k.mod and .k.fn share one CSS rule
 }
 
 
@@ -401,10 +407,28 @@ def contrast_pairs():
         ("dead-key borders", INK["dead_border"], INK["paper"], LINE_FLOOR),
         ("fall-through borders", INK["dead_border"], INK["paper"], LINE_FLOOR),
     ]
-    for what, fill in KEY_SURFACES.items():
-        pairs.append((f"{what} legend", INK["text"], INK[fill], TEXT_FLOOR))
-        pairs.append((f"{what} border", INK["key_border"], INK[fill], LINE_FLOOR))
+    for kind, fill in KEY_SURFACES.items():
+        pairs.append((f".{kind} legend", INK["text"], INK[fill], TEXT_FLOOR))
+        pairs.append((f".{kind} border", INK["key_border"], INK[fill], LINE_FLOOR))
     return pairs
+
+
+def check_surfaces_cover_classes(layers):
+    """Every CSS class label() can emit must have a declared background.
+
+    KEY_SURFACES is what contrast_pairs() iterates, so a key kind missing from
+    it is a kind nothing checks -- which is how the border-on-fill gap got in.
+    """
+    kinds = {label(code)[1] for code in sorted(
+        {c for lay in layers for row in lay for c in row
+         if isinstance(c, str) and c not in BLANK})}
+    unchecked = kinds - set(KEY_SURFACES) - {"trns", "dead"}
+    if unchecked:
+        raise SystemExit(
+            "contrast FAILED -- key classes with no declared background, so "
+            f"nothing checks their ink: {sorted(unchecked)}"
+        )
+    return len(kinds)
 
 
 def check_contrast():
@@ -457,8 +481,10 @@ def main():
     labelled = check_labels(layers)
     print(f"labels OK: {labelled} distinct keycodes all have a glyph")
 
-    pairs, floor = check_contrast()
-    print(f"contrast OK: {pairs} ink pairs, faintest is {floor:.2f}:1")
+    kinds = check_surfaces_cover_classes(layers)
+    pairs, faintest = check_contrast()
+    print(f"contrast OK: {pairs} ink pairs over {kinds} key classes, "
+          f"faintest is {faintest:.2f}:1")
 
     printable = check_fits()
     print(f"page OK: {BOARD_W:.0f}px board in {printable:.0f}px of printable width")

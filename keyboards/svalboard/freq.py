@@ -22,8 +22,8 @@ writes freq.json here and that is what the README's table is built from.
 If you ever change the extraction, delete the cache rather than trusting it:
 the manifest records the filters that produced it, but not their intent.
 
-THE THREE CORPORA
------------------
+THE CORPORA
+-----------
 `prompts`  Text you typed to agents. Sidechains (subagent transcripts) and
            machine-injected blocks are dropped -- see EXCLUDE_PREFIXES. What
            survives is meant to be keystrokes your hands actually made, which
@@ -33,12 +33,18 @@ THE THREE CORPORA
 `code`     Text files tracked in this repo, minus generated artifacts. Counting
            a generated .vil or the rendered cheatsheet would be measuring this
            script's own output, not typing.
+`slack`    Work chat. Not fetched by this script -- freq.py has no network and
+           no Slack token. Drop JSON dumps into $CACHE/slack/ (see
+           iter_slack_text) and this reads them.
+`discord`  Personal chat, from the official data export -- not an API scrape,
+           which would be a self-bot and bannable. See iter_discord_text.
 
 A rate is per 1000 characters of the corpus, so the corpora stay comparable
 despite very different sizes.
 """
 
 import argparse
+import csv
 import json
 import pathlib
 import re
@@ -51,6 +57,8 @@ HERE = pathlib.Path(__file__).parent
 REPO = HERE.parent.parent
 CACHE = pathlib.Path.home() / ".local/share/svalboard-freq"
 CORPUS_DIR = CACHE / "corpus"
+SLACK_DIR = CACHE / "slack"
+DISCORD_DIR = CACHE / "discord"
 MANIFEST = CACHE / "manifest.json"
 AGGREGATE = HERE / "freq.json"
 
@@ -179,10 +187,142 @@ def iter_code_text():
     print(f"  code: {n} tracked text files", file=sys.stderr)
 
 
+# Slack's own markup, none of which anyone types by hand:
+#   <@U0123ABC>  <@U0123ABC|name>       a mention, autocompleted from a picker
+#   <#C0456DEF|general>                 a channel ref, same
+#   <!here> <!channel> <!subteam^S1|@x> a broadcast, same
+# and links, which are `<url>` bare or `<url|label>` when you gave them text.
+SLACK_ENTITY = re.compile(r"<[@#!][^<>]*>")
+SLACK_LINK_LABELLED = re.compile(r"<[^<>|]+\|([^<>]*)>")
+SLACK_LINK_BARE = re.compile(r"<[^<>|]+>")
+
+
+def slack_plain(text):
+    """Slack's wire format back to the characters a person actually pressed.
+
+    Two things happen here and the second one is the point. Entities and bare
+    URLs come out: a mention is a click in a picker and a pasted URL is a
+    paste, so counting either would credit the keyboard for keys nobody hit.
+    Labels survive, because you typed those.
+
+    Then `&amp;` `&lt;` `&gt;` are unescaped. That matters more than it looks:
+    this layout's whole argument for where `&` goes is a measured rate, and
+    Slack ships every typed `&` as `&amp;` -- reading the raw text would count
+    an `a`, an `m` and a `p` instead, and undercount the one character the
+    README spends a paragraph placing. Unescape `&amp;` last so a literal
+    "&amp;lt;" resolves to "&lt;" rather than to "<".
+    """
+    text = SLACK_ENTITY.sub("", text)
+    text = SLACK_LINK_LABELLED.sub(r"\1", text)
+    text = SLACK_LINK_BARE.sub("", text)
+    return text.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
+
+
+def iter_slack_text():
+    """Messages you sent on Slack, from JSON dumps in $CACHE/slack/.
+
+    freq.py does not fetch these. It has no network and no Slack token, and
+    keeping it that way is deliberate -- the fetch needs credentials and a
+    `from:@me` scope decision, and neither belongs in a frequency counter. Put
+    dumps in $CACHE/slack/ yourself: either a bare JSON list of message objects
+    or the `{"messages": [...]}` envelope the search API returns. Anything with
+    a `subtype` is a join, a bot post or a file-share stub rather than
+    something you typed, so it is skipped.
+
+    Like the rest of the corpus these stay in $CACHE and are never committed --
+    work Slack is the single most sensitive source here.
+    """
+    if not SLACK_DIR.is_dir():
+        print(f"  slack: {SLACK_DIR} missing, skipping", file=sys.stderr)
+        return
+    files = sorted(SLACK_DIR.glob("*.json"))
+    n = skipped = 0
+    for path in files:
+        try:
+            payload = json.loads(path.read_text(errors="replace"))
+        except (OSError, json.JSONDecodeError, ValueError) as exc:
+            print(f"  slack: {path.name} unreadable ({exc}), skipping", file=sys.stderr)
+            continue
+        if isinstance(payload, dict):
+            payload = payload.get("messages", [])
+        if not isinstance(payload, list):
+            continue
+        for msg in payload:
+            if not isinstance(msg, dict):
+                continue
+            if msg.get("subtype"):
+                skipped += 1
+                continue
+            text = msg.get("text")
+            if not isinstance(text, str) or not text:
+                skipped += 1
+                continue
+            n += 1
+            yield slack_plain(text)
+    print(f"  slack: {len(files)} dumps, {n} messages, {skipped} non-typed skipped",
+          file=sys.stderr)
+
+
+# Discord's markup. Mentions and channel/role refs come out of a picker;
+# custom emoji are stored as <:name:id> but typed as `:name:`, so they reduce
+# to the form your hands actually made rather than vanishing.
+DISCORD_MENTION = re.compile(r"<[@#][!&]?\d+>")
+DISCORD_EMOJI = re.compile(r"<a?:(\w+):\d+>")
+
+
+def discord_plain(text):
+    return DISCORD_EMOJI.sub(r":\1:", DISCORD_MENTION.sub("", text))
+
+
+def iter_discord_text():
+    """Messages you sent on Discord, from the official data export.
+
+    NOT an API scraper, on purpose. Discord offers no ToS-clean way to read
+    your own history programmatically: a user token against the API is a
+    self-bot and is bannable, and a bot user can only see guilds you administer
+    and never your DMs. The clean route is the export you are entitled to --
+    Settings -> Data & Privacy -> Request all my data -- which takes days to a
+    month to arrive. Unzip it to $CACHE/discord/ so that
+    $CACHE/discord/messages/<channel>/messages.csv exists.
+
+    Everything in that export is yours by construction, so there is no author
+    filtering to do. Read with the csv module rather than by lines: Contents is
+    a quoted field and multi-line messages span lines inside it.
+    """
+    root = DISCORD_DIR / "messages"
+    if not root.is_dir():
+        print(f"  discord: {root} missing, skipping "
+              "(request the export: Settings -> Data & Privacy)", file=sys.stderr)
+        return
+    paths = sorted(root.glob("*/messages.csv"))
+    n = skipped = 0
+    for path in paths:
+        try:
+            with path.open(newline="", errors="replace") as fh:
+                reader = csv.DictReader(fh)
+                if reader.fieldnames is None or "Contents" not in reader.fieldnames:
+                    print(f"  discord: {path.parent.name} has no Contents column "
+                          f"({reader.fieldnames}), skipping", file=sys.stderr)
+                    continue
+                for row in reader:
+                    text = row.get("Contents")
+                    if not text:
+                        skipped += 1
+                        continue
+                    n += 1
+                    yield discord_plain(text)
+        except (OSError, csv.Error) as exc:
+            print(f"  discord: {path} unreadable ({exc}), skipping", file=sys.stderr)
+    print(f"  discord: {len(paths)} channels, {n} messages, "
+          f"{skipped} without typed text skipped", file=sys.stderr)
+
+
 SOURCES = {
     "prompts": iter_prompt_text,
     "shell": iter_shell_text,
     "code": iter_code_text,
+    "slack": iter_slack_text,
+    "discord": iter_discord_text,
 }
 
 

@@ -3,7 +3,7 @@
   "checkpoint_id": "45b59e784462",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "keyboards/svalboard/cheatsheet.py"
   ],
@@ -14,13 +14,20 @@
       "compact_transcript": "/45/b59e784462/0/transcript.jsonl",
       "content_hash": "/45/b59e784462/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/45/b59e784462/1/metadata.json",
+      "transcript": "/45/b59e784462/1/full.jsonl",
+      "compact_transcript": "/45/b59e784462/1/transcript.jsonl",
+      "content_hash": "/45/b59e784462/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 6,
-    "cache_creation_tokens": 16372,
-    "cache_read_tokens": 169592,
-    "output_tokens": 9078,
-    "api_call_count": 3
+    "input_tokens": 18,
+    "cache_creation_tokens": 21103,
+    "cache_read_tokens": 1168611,
+    "output_tokens": 11732,
+    "api_call_count": 9
   }
 }

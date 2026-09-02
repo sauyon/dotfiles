@@ -24,7 +24,7 @@ hands, so West is inward on the right hand and outward on the left.
 ```
              W    N     C     S     E
   L pinky    tab  w     r     x     -
-  L ring     .    f     s     c     .
+  L ring     ·    f     s     c     @
   L middle   (    m     n     l     v
   L index    g    p     t     d     b
   R index    ,    .     a     u     :
@@ -46,42 +46,53 @@ fingers per hand and the layout assumes five columns:
   Svalboard doesn't have. `tab` gets the left pinky's West, x=0.0, the outermost
   point of the hand.
 
-Brackets are deliberately *not* on this layer; Arensito has them. Five symbols
+Brackets are deliberately *not* on this layer; Arensito has them. Six symbols
 *are*, placed by measured frequency rather than by feel — counted over hand-typed
 prompts and shell history (agent-driven sessions excluded) and over code authored
 here, per 1000 characters:
 
-| | `-` | `:` | `(` `)` | `&` |
-|---|---|---|---|---|
-| code | 11.6 | 9.3 | 4.9 | 0.68 |
-| hand-typed | 33.5 | 5.1 | 0.30 | 0.17 |
+| | `-` | `:` | `(` `)` | `&` | `@` |
+|---|---|---|---|---|---|
+| code | 11.6 | 9.3 | 4.9 | 0.68 | 0.17 |
+| hand-typed | 33.5 | 5.1 | 0.30 | 0.17 | 0.01 |
 
 - `-` → **left pinky East.** The clear winner on both counts.
 - `:` → **right index East**, the strongest free lateral. Was shift+`;`.
 - `(` `)` → **left middle West / right middle East**, an outward-facing mirror
   pair, so `()` alternates hands. They earn a base key from code only.
-- `&` → **right ring East.** The rarest thing on this layer, on the worst key
-  here, which is the point. Ring laterals are the hardest cups to reach.
+- `&` → **right ring East.** The rarest thing on this layer bar `@`, on one of
+  the worst keys here, which is the point. Ring laterals are the hardest cups to
+  reach.
+- `@` → **left ring East**, the other ring lateral, and the slot `g` vacated. It
+  is rarer than `&` by 6× in code and 19× typed, so frequency alone would leave
+  it on `MO(1)`. It gets promoted because the promotion is free: both ring
+  laterals were empty, so one bad key displaces nothing and still beats two good
+  ones. East is the inward of the two; West stays free.
 
 `*` was considered and rejected: it looks like 6.7/1k in code, but 90% of that
 is `**` in markdown prose, and it is 0.03/1k in anything hand-typed.
 
-Each is promoted, not copied — all five are holes on layer 1, so nothing sits on
+`@`'s two numbers come from a later counting pass than the other four columns —
+in that same pass `&` read 1.10 and 0.19, so read the gap between the two, not
+the absolute against the older columns. Most of even that 0.17 is `@types/…`
+imports and `git@github.com`, which are completed rather than typed.
+
+Each is promoted, not copied — all six are holes on layer 1, so nothing sits on
 two keys.
 
 ### Layer 1 — Arensito symbols (hold `MO(1)`)
 
 ```
-  { } [ ] @   · · < > $
+  { } [ ] ·   · · < > $
   ; / · 0 ·   \ 1 · · =
   6 7 8 9 +   * 2 3 4 5
 ```
 
 Ported from the Glove80 `symbols` layer. `·` is a dead key — Arensito puts
-`-`, `:`, `&`, `_`, `(` and `)` there, and all six are one-key elsewhere now
-(see layer 0 and the thumbs below). They're dead rather than transparent on
-purpose: falling through would type `n`, `.`, `e`, `i`, `b` and `/` from the
-middle of the symbol layer.
+`-`, `:`, `&`, `@`, `_`, `(` and `)` there, and all seven are one-key elsewhere
+now (see layer 0 and the thumbs below). They're dead rather than transparent on
+purpose: falling through would type `n`, `.`, `e`, `i`, `b`, `v` and `/` from
+the middle of the symbol layer.
 
 The grid above is on N/C/S; the
 laterals carry the six symbols Arensito leaves out, which would otherwise cost

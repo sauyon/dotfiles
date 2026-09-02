@@ -29,7 +29,7 @@
       ],
       [
         "KC_C",
-        "KC_NO",
+        "LSFT(KC_2)",
         "KC_S",
         "KC_F",
         "KC_NO",
@@ -103,7 +103,7 @@
       ],
       [
         "KC_8",
-        "LSFT(KC_2)",
+        "KC_NO",
         "KC_NO",
         "KC_LBRACKET",
         "LSFT(KC_3)",

@@ -11,8 +11,8 @@
 body {
   margin: 0;
   font: 11px/1.4 -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
-  color: #111;
-  background: #fff;
+  color: #111111;
+  background: #ffffff;
 }
 
 .page { width: 723px; margin: 0 auto; padding: 8px 0 0; }
@@ -24,64 +24,66 @@ h1 {
   letter-spacing: -0.01em;
 }
 
-.sub { color: #666; margin: 0 0 10px; font-size: 10px; }
+.sub { color: #444444; margin: 0 0 10px; font-size: 10px; }
 
 .layer { margin: 0 0 9px; break-inside: avoid; }
 
 h2 {
   font-size: 10.5px;
   font-weight: 500;
-  color: #555;
+  color: #444444;
   margin: 0 0 3px;
   padding-bottom: 2px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #949494;
 }
 
-h2 .num { font-weight: 700; color: #111; margin-right: 6px; }
+h2 .num { font-weight: 700; color: #111111; margin-right: 6px; }
 
 .board { position: relative; }
 
 .k {
   position: absolute;
-  border: 1px solid #b4b4b4;
+  border: 1px solid #8a8a8a;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 13px;
   font-weight: 500;
-  background: #fff;
+  background: #ffffff;
   overflow: hidden;
 }
 
 /* Glyphs keep the full size; the word-legends shrink to fit their box. */
-.k.mod, .k.fn { font-size: 8.5px; font-weight: 500; color: #333; background: #f4f4f4; }
+.k.mod, .k.fn { font-size: 8.5px; font-weight: 500; color: #111111; background: #ececec; }
 /* Only the word-legends; a lone `_` on the thumb keeps glyph size. */
 .k.mod.thumb, .k.trns.thumb { font-size: 7.5px; }
 .k.alpha { font-weight: 600; }
-.k.sym { background: #ededed; }
-.k.num { background: #f7f7f7; }
-.k.dead { border-style: dashed; border-color: #dcdcdc; background: #fff; }
-.k.trns { color: #c2c2c2; border-color: #e6e6e6; font-weight: 400; }
+.k.sym { background: #e4e4e4; }
+.k.num { background: #f0f0f0; }
+.k.dead { border-style: dashed; border-color: #8f8f8f; background: #ffffff; }
+/* Italic as well as grey: two greys stop being two greys on a tired printer,
+   but an italic `e` is still an italic `e`. */
+.k.trns { color: #767676; border-color: #8f8f8f; font-weight: 400; font-style: italic; }
 
 .notes {
   display: flex;
   gap: 14px;
   font-size: 9px;
-  color: #555;
-  border-top: 1px solid #ddd;
+  color: #444444;
+  border-top: 1px solid #949494;
   padding-top: 6px;
   margin-top: 2px;
 }
 
 .notes div { flex: 1; }
-.notes b { color: #111; font-weight: 600; display: block; margin-bottom: 2px; }
+.notes b { color: #111111; font-weight: 600; display: block; margin-bottom: 2px; }
 .notes p { margin: 0 0 3px; }
 
 .foot {
   margin-top: 6px;
   font-size: 8px;
-  color: #999;
+  color: #767676;
   text-align: right;
 }
 
@@ -273,8 +275,8 @@ h2 .num { font-weight: 700; color: #111; margin-right: 6px; }
     <b>Reading the diagram</b>
     <p>Each finger sits in a cup of five switches: North, South, East, West and
     Center (the plain down-press). East is screen-right on both hands.</p>
-    <p>Dashed = dead key. Grey glyphs on layers 1&nbsp;and&nbsp;2 fall through to
-    layer&nbsp;0.</p>
+    <p>Dashed = dead key. Grey <i>italic</i> glyphs on layers 1&nbsp;and&nbsp;2
+    fall through to layer&nbsp;0.</p>
   </div>
   <div>
     <b>Layer 15 &mdash; mouse</b>
@@ -289,8 +291,8 @@ h2 .num { font-weight: 700; color: #111; margin-right: 6px; }
     keeps two of its three inner-column letters; <b style="display:inline">v</b>
     is exiled to the middle finger.</p>
     <p><code>-</code> <code>:</code> <code>(</code> <code>)</code>
-    <code>&amp;</code> are promoted to layer&nbsp;0 by measured frequency and are
-    holes on layer&nbsp;1, never on two keys.</p>
+    <code>&amp;</code> <code>@</code> are promoted to layer&nbsp;0 and are holes
+    on layer&nbsp;1, never on two keys.</p>
   </div>
 </div>
 

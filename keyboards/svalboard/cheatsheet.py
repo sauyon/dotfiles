@@ -188,6 +188,36 @@ def render_layer(index, layers):
 </section>"""
 
 
+# --- Ink ---------------------------------------------------------------------
+#
+# Every grey on the sheet, in one place, because they were picked on screen and
+# printed on a laser that was low on toner: the fall-through glyphs at #c2c2c2
+# and the dead-key borders at #dcdcdc came out invisible. A screen backlights
+# white paper; a printer subtracts from it, and a tired one subtracts unevenly
+# at exactly the light end.
+#
+# So the greys are now WCAG contrast ratios rather than eyeballed hex, and
+# check_contrast() below holds them there -- 4.5:1 for anything carrying a
+# glyph, 3:1 for the borders, which are shape as much as tone.
+#
+# `trns` is the constraint that shapes the rest. It has to stay visibly lighter
+# than a real legend (it means "this falls through to layer 0") while still
+# printing, and 4.5:1 is as light as that goes. It gets italics too, so the
+# distinction is carried by letterform as well as by tone and survives a
+# printer that has stopped rendering the difference between two greys.
+INK = {
+    "text": "#111111",         # legends, headings
+    "muted": "#444444",        # subtitles, section heads, notes
+    "faint": "#767676",        # fall-through glyphs, footer -- exactly 4.5:1
+    "rule": "#949494",         # hairline separators -- 3.03:1, the floor
+    "key_border": "#8a8a8a",
+    "dead_border": "#8f8f8f",  # dashed; the dashes do the work, tone assists
+    "fill_sym": "#e4e4e4",
+    "fill_num": "#f0f0f0",
+    "fill_mod": "#ececec",
+    "paper": "#ffffff",
+}
+
 CSS = f"""
 @page {{ size: letter portrait; margin: {PAGE_MARGIN_IN}in; }}
 
@@ -196,8 +226,8 @@ CSS = f"""
 body {{
   margin: 0;
   font: 11px/1.4 -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
-  color: #111;
-  background: #fff;
+  color: {INK['text']};
+  background: {INK['paper']};
 }}
 
 .page {{ width: {BOARD_W:.0f}px; margin: 0 auto; padding: 8px 0 0; }}
@@ -209,64 +239,66 @@ h1 {{
   letter-spacing: -0.01em;
 }}
 
-.sub {{ color: #666; margin: 0 0 10px; font-size: 10px; }}
+.sub {{ color: {INK['muted']}; margin: 0 0 10px; font-size: 10px; }}
 
 .layer {{ margin: 0 0 9px; break-inside: avoid; }}
 
 h2 {{
   font-size: 10.5px;
   font-weight: 500;
-  color: #555;
+  color: {INK['muted']};
   margin: 0 0 3px;
   padding-bottom: 2px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid {INK['rule']};
 }}
 
-h2 .num {{ font-weight: 700; color: #111; margin-right: 6px; }}
+h2 .num {{ font-weight: 700; color: {INK['text']}; margin-right: 6px; }}
 
 .board {{ position: relative; }}
 
 .k {{
   position: absolute;
-  border: 1px solid #b4b4b4;
+  border: 1px solid {INK['key_border']};
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 13px;
   font-weight: 500;
-  background: #fff;
+  background: {INK['paper']};
   overflow: hidden;
 }}
 
 /* Glyphs keep the full size; the word-legends shrink to fit their box. */
-.k.mod, .k.fn {{ font-size: 8.5px; font-weight: 500; color: #333; background: #f4f4f4; }}
+.k.mod, .k.fn {{ font-size: 8.5px; font-weight: 500; color: {INK['text']}; background: {INK['fill_mod']}; }}
 /* Only the word-legends; a lone `_` on the thumb keeps glyph size. */
 .k.mod.thumb, .k.trns.thumb {{ font-size: 7.5px; }}
 .k.alpha {{ font-weight: 600; }}
-.k.sym {{ background: #ededed; }}
-.k.num {{ background: #f7f7f7; }}
-.k.dead {{ border-style: dashed; border-color: #dcdcdc; background: #fff; }}
-.k.trns {{ color: #c2c2c2; border-color: #e6e6e6; font-weight: 400; }}
+.k.sym {{ background: {INK['fill_sym']}; }}
+.k.num {{ background: {INK['fill_num']}; }}
+.k.dead {{ border-style: dashed; border-color: {INK['dead_border']}; background: {INK['paper']}; }}
+/* Italic as well as grey: two greys stop being two greys on a tired printer,
+   but an italic `e` is still an italic `e`. */
+.k.trns {{ color: {INK['faint']}; border-color: {INK['dead_border']}; font-weight: 400; font-style: italic; }}
 
 .notes {{
   display: flex;
   gap: 14px;
   font-size: 9px;
-  color: #555;
-  border-top: 1px solid #ddd;
+  color: {INK['muted']};
+  border-top: 1px solid {INK['rule']};
   padding-top: 6px;
   margin-top: 2px;
 }}
 
 .notes div {{ flex: 1; }}
-.notes b {{ color: #111; font-weight: 600; display: block; margin-bottom: 2px; }}
+.notes b {{ color: {INK['text']}; font-weight: 600; display: block; margin-bottom: 2px; }}
 .notes p {{ margin: 0 0 3px; }}
 
 .foot {{
   margin-top: 6px;
   font-size: 8px;
-  color: #999;
+  color: {INK['faint']};
   text-align: right;
 }}
 
@@ -281,8 +313,8 @@ NOTES = """
     <b>Reading the diagram</b>
     <p>Each finger sits in a cup of five switches: North, South, East, West and
     Center (the plain down-press). East is screen-right on both hands.</p>
-    <p>Dashed = dead key. Grey glyphs on layers 1&nbsp;and&nbsp;2 fall through to
-    layer&nbsp;0.</p>
+    <p>Dashed = dead key. Grey <i>italic</i> glyphs on layers 1&nbsp;and&nbsp;2
+    fall through to layer&nbsp;0.</p>
   </div>
   <div>
     <b>Layer 15 &mdash; mouse</b>
@@ -297,8 +329,8 @@ NOTES = """
     keeps two of its three inner-column letters; <b style="display:inline">v</b>
     is exiled to the middle finger.</p>
     <p><code>-</code> <code>:</code> <code>(</code> <code>)</code>
-    <code>&amp;</code> are promoted to layer&nbsp;0 by measured frequency and are
-    holes on layer&nbsp;1, never on two keys.</p>
+    <code>&amp;</code> <code>@</code> are promoted to layer&nbsp;0 and are holes
+    on layer&nbsp;1, never on two keys.</p>
   </div>
 </div>
 """
@@ -318,6 +350,67 @@ def check_fits():
             f"{PAGE_MARGIN_IN}in margins is {printable:.0f}px. Lower UNIT."
         )
     return printable
+
+
+def _luminance(hex_color):
+    """WCAG relative luminance of an #rrggbb string."""
+    channels = []
+    for i in (1, 3, 5):
+        c = int(hex_color[i:i + 2], 16) / 255
+        channels.append(c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4)
+    r, g, b = channels
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(fg, bg):
+    """WCAG contrast ratio between two #rrggbb strings, 1.0 to 21.0."""
+    a, b = _luminance(fg), _luminance(bg)
+    lo, hi = sorted((a, b))
+    return (hi + 0.05) / (lo + 0.05)
+
+
+# Every foreground/background pair the sheet actually puts on paper, with the
+# floor it has to clear. Text is 4.5:1; borders are 3:1, because a border is a
+# line in a known place and half of what makes it legible is that it is straight.
+CONTRAST_FLOORS = [
+    ("body text", INK["text"], INK["paper"], 4.5),
+    ("subtitles and notes", INK["muted"], INK["paper"], 4.5),
+    ("fall-through glyphs", INK["faint"], INK["paper"], 4.5),
+    ("footer", INK["faint"], INK["paper"], 4.5),
+    ("symbol legends", INK["text"], INK["fill_sym"], 4.5),
+    ("digit legends", INK["text"], INK["fill_num"], 4.5),
+    ("modifier legends", INK["text"], INK["fill_mod"], 4.5),
+    ("key borders", INK["key_border"], INK["paper"], 3.0),
+    ("dead-key borders", INK["dead_border"], INK["paper"], 3.0),
+    ("hairline rules", INK["rule"], INK["paper"], 3.0),
+]
+
+
+def check_contrast():
+    """No ink on this sheet may be lighter than it can be printed.
+
+    The greys were picked on a backlit screen once and came off the printer
+    invisible. A ratio is the part of that judgement a screen cannot talk you
+    out of, so the numbers live in INK and this refuses to emit anything that
+    drifts back below them.
+    """
+    bad = []
+    for name, fg, bg, floor in CONTRAST_FLOORS:
+        ratio = contrast(fg, bg)
+        if ratio < floor:
+            bad.append(f"  {name}: {fg} on {bg} is {ratio:.2f}:1, needs {floor}:1")
+    if bad:
+        raise SystemExit("contrast FAILED:\n" + "\n".join(bad))
+
+    # The fall-through glyphs have to stay visibly lighter than a real legend --
+    # that lightness is what says "this key belongs to layer 0". Darkening them
+    # until they print is only half the fix; this is the other half.
+    if contrast(INK["faint"], INK["paper"]) >= contrast(INK["text"], INK["paper"]) / 2:
+        raise SystemExit(
+            f"contrast FAILED -- fall-through grey {INK['faint']} is no longer "
+            f"distinguishable from body text {INK['text']}"
+        )
+    return min(contrast(fg, bg) for _, fg, bg, _ in CONTRAST_FLOORS)
 
 
 def check_labels(layers):
@@ -341,6 +434,9 @@ def main():
 
     labelled = check_labels(layers)
     print(f"labels OK: {labelled} distinct keycodes all have a glyph")
+
+    floor = check_contrast()
+    print(f"contrast OK: {len(CONTRAST_FLOORS)} ink pairs, faintest is {floor:.2f}:1")
 
     printable = check_fits()
     print(f"page OK: {BOARD_W:.0f}px board in {printable:.0f}px of printable width")

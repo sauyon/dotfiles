@@ -24,15 +24,15 @@
         "KC_V",
         "KC_N",
         "KC_M",
-        "KC_NO",
+        "LSFT(KC_9)",
         -1
       ],
       [
         "KC_C",
-        "LSFT(KC_0)",
+        "KC_NO",
         "KC_S",
         "KC_F",
-        "LSFT(KC_9)",
+        "KC_NO",
         -1
       ],
       [
@@ -53,7 +53,7 @@
       ],
       [
         "KC_U",
-        "LSFT(KC_7)",
+        "LSFT(KC_SCOLON)",
         "KC_A",
         "KC_DOT",
         "KC_COMMA",
@@ -61,7 +61,7 @@
       ],
       [
         "KC_O",
-        "KC_NO",
+        "LSFT(KC_0)",
         "KC_E",
         "KC_Q",
         "KC_SLASH",
@@ -69,7 +69,7 @@
       ],
       [
         "KC_Y",
-        "KC_NO",
+        "LSFT(KC_7)",
         "KC_I",
         "LSFT(KC_QUOTE)",
         "KC_SCOLON",
@@ -95,7 +95,7 @@
       ],
       [
         "KC_9",
-        "LSFT(KC_SCOLON)",
+        "KC_NO",
         "KC_0",
         "KC_RBRACKET",
         "LSFT(KC_1)",

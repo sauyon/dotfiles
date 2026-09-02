@@ -24,12 +24,12 @@ hands, so West is inward on the right hand and outward on the left.
 ```
              W    N     C     S     E
   L pinky    tab  w     r     x     -
-  L ring     (    f     s     c     )
-  L middle   .    m     n     l     v
+  L ring     .    f     s     c     .
+  L middle   (    m     n     l     v
   L index    g    p     t     d     b
-  R index    ,    .     a     u     &
-  R middle   /    q     e     o     .
-  R ring     ;    "     i     y     .
+  R index    ,    .     a     u     :
+  R middle   /    q     e     o     )
+  R ring     ;    "     i     y     &
   R pinky    z    '     h     k     j
 ```
 
@@ -46,25 +46,42 @@ fingers per hand and the layout assumes five columns:
   Svalboard doesn't have. `tab` gets the left pinky's West, x=0.0, the outermost
   point of the hand.
 
-Brackets are deliberately *not* on this layer; Arensito has them. Four symbols
-*are*, because they're frequent enough that `MO(1)` isn't worth paying and the
-laterals were free: `-` (left pinky East), `(` and `)` (left ring West/East, in
-reading order), and `&` (right index East). Each is promoted, not copied — all
-four are holes on layer 1, so nothing sits on two keys.
+Brackets are deliberately *not* on this layer; Arensito has them. Five symbols
+*are*, placed by measured frequency rather than by feel — counted over hand-typed
+prompts and shell history (agent-driven sessions excluded) and over code authored
+here, per 1000 characters:
+
+| | `-` | `:` | `(` `)` | `&` |
+|---|---|---|---|---|
+| code | 11.6 | 9.3 | 4.9 | 0.68 |
+| hand-typed | 33.5 | 5.1 | 0.30 | 0.17 |
+
+- `-` → **left pinky East.** The clear winner on both counts.
+- `:` → **right index East**, the strongest free lateral. Was shift+`;`.
+- `(` `)` → **left middle West / right middle East**, an outward-facing mirror
+  pair, so `()` alternates hands. They earn a base key from code only.
+- `&` → **right ring East.** The rarest thing on this layer, on the worst key
+  here, which is the point. Ring laterals are the hardest cups to reach.
+
+`*` was considered and rejected: it looks like 6.7/1k in code, but 90% of that
+is `**` in markdown prose, and it is 0.03/1k in anything hand-typed.
+
+Each is promoted, not copied — all five are holes on layer 1, so nothing sits on
+two keys.
 
 ### Layer 1 — Arensito symbols (hold `MO(1)`)
 
 ```
   { } [ ] @   · · < > $
-  ; / · 0 :   \ 1 · · =
+  ; / · 0 ·   \ 1 · · =
   6 7 8 9 +   * 2 3 4 5
 ```
 
 Ported from the Glove80 `symbols` layer. `·` is a dead key — Arensito puts
-`-`, `&`, `_`, `(` and `)` there, and all five are one-key elsewhere now (see
-layer 0 and the thumbs below). They're dead rather than transparent on purpose:
-falling through would type `n`, `.`, `e`, `i` and `/` from the middle of the
-symbol layer.
+`-`, `:`, `&`, `_`, `(` and `)` there, and all six are one-key elsewhere now
+(see layer 0 and the thumbs below). They're dead rather than transparent on
+purpose: falling through would type `n`, `.`, `e`, `i`, `b` and `/` from the
+middle of the symbol layer.
 
 The grid above is on N/C/S; the
 laterals carry the six symbols Arensito leaves out, which would otherwise cost

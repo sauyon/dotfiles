@@ -210,8 +210,8 @@ INK = {
     "muted": "#444444",        # subtitles, section heads, notes
     "faint": "#767676",        # fall-through glyphs, footer -- exactly 4.5:1
     "rule": "#949494",         # hairline separators -- 3.03:1, the floor
-    "key_border": "#8a8a8a",
-    "dead_border": "#8f8f8f",  # dashed; the dashes do the work, tone assists
+    "key_border": "#7a7a7a",   # drawn on the key's fill, not on paper; see below
+    "dead_border": "#8f8f8f",  # dashed, on paper; the dashes do most of the work
     "fill_sym": "#e4e4e4",
     "fill_num": "#f0f0f0",
     "fill_mod": "#ececec",
@@ -329,8 +329,8 @@ NOTES = """
     keeps two of its three inner-column letters; <b style="display:inline">v</b>
     is exiled to the middle finger.</p>
     <p><code>-</code> <code>:</code> <code>(</code> <code>)</code>
-    <code>&amp;</code> <code>@</code> are promoted to layer&nbsp;0 and are holes
-    on layer&nbsp;1, never on two keys.</p>
+    <code>&amp;</code> <code>@</code> <code>~</code> are promoted to
+    layer&nbsp;0 and are holes on layer&nbsp;1, never on two keys.</p>
   </div>
 </div>
 """
@@ -369,21 +369,42 @@ def contrast(fg, bg):
     return (hi + 0.05) / (lo + 0.05)
 
 
-# Every foreground/background pair the sheet actually puts on paper, with the
-# floor it has to clear. Text is 4.5:1; borders are 3:1, because a border is a
-# line in a known place and half of what makes it legible is that it is straight.
-CONTRAST_FLOORS = [
-    ("body text", INK["text"], INK["paper"], 4.5),
-    ("subtitles and notes", INK["muted"], INK["paper"], 4.5),
-    ("fall-through glyphs", INK["faint"], INK["paper"], 4.5),
-    ("footer", INK["faint"], INK["paper"], 4.5),
-    ("symbol legends", INK["text"], INK["fill_sym"], 4.5),
-    ("digit legends", INK["text"], INK["fill_num"], 4.5),
-    ("modifier legends", INK["text"], INK["fill_mod"], 4.5),
-    ("key borders", INK["key_border"], INK["paper"], 3.0),
-    ("dead-key borders", INK["dead_border"], INK["paper"], 3.0),
-    ("hairline rules", INK["rule"], INK["paper"], 3.0),
-]
+TEXT_FLOOR = 4.5   # anything carrying a glyph
+LINE_FLOOR = 3.0   # borders and rules -- a line is shape as much as tone
+
+# The background a key box can have, per CSS class. Both the legend and the
+# border of a key are drawn against the key's own fill, not against the paper
+# behind it, so the pairs below are generated from this rather than listed out:
+# the first version of this check enumerated them by hand and shipped already
+# missing every border-on-fill pair, passing key_border against paper (3.45:1)
+# while the symbol keys actually drew it on #e4e4e4 at 2.72:1. A false pass on
+# exactly the failure the check exists to catch.
+#
+# `dead` and `trns` keys are absent on purpose: both keep the paper background,
+# and their borders are checked against it directly.
+KEY_SURFACES = {
+    "plain key": "paper",
+    "symbol key": "fill_sym",
+    "digit key": "fill_num",
+    "modifier key": "fill_mod",
+}
+
+
+def contrast_pairs():
+    """(what, fg, bg, floor) for every ink-on-background pair the sheet prints."""
+    pairs = [
+        ("body text", INK["text"], INK["paper"], TEXT_FLOOR),
+        ("subtitles and notes", INK["muted"], INK["paper"], TEXT_FLOOR),
+        ("fall-through glyphs", INK["faint"], INK["paper"], TEXT_FLOOR),
+        ("footer", INK["faint"], INK["paper"], TEXT_FLOOR),
+        ("hairline rules", INK["rule"], INK["paper"], LINE_FLOOR),
+        ("dead-key borders", INK["dead_border"], INK["paper"], LINE_FLOOR),
+        ("fall-through borders", INK["dead_border"], INK["paper"], LINE_FLOOR),
+    ]
+    for what, fill in KEY_SURFACES.items():
+        pairs.append((f"{what} legend", INK["text"], INK[fill], TEXT_FLOOR))
+        pairs.append((f"{what} border", INK["key_border"], INK[fill], LINE_FLOOR))
+    return pairs
 
 
 def check_contrast():
@@ -394,8 +415,9 @@ def check_contrast():
     out of, so the numbers live in INK and this refuses to emit anything that
     drifts back below them.
     """
+    pairs = contrast_pairs()
     bad = []
-    for name, fg, bg, floor in CONTRAST_FLOORS:
+    for name, fg, bg, floor in pairs:
         ratio = contrast(fg, bg)
         if ratio < floor:
             bad.append(f"  {name}: {fg} on {bg} is {ratio:.2f}:1, needs {floor}:1")
@@ -410,7 +432,7 @@ def check_contrast():
             f"contrast FAILED -- fall-through grey {INK['faint']} is no longer "
             f"distinguishable from body text {INK['text']}"
         )
-    return min(contrast(fg, bg) for _, fg, bg, _ in CONTRAST_FLOORS)
+    return len(pairs), min(contrast(fg, bg) for _, fg, bg, _ in pairs)
 
 
 def check_labels(layers):
@@ -435,8 +457,8 @@ def main():
     labelled = check_labels(layers)
     print(f"labels OK: {labelled} distinct keycodes all have a glyph")
 
-    floor = check_contrast()
-    print(f"contrast OK: {len(CONTRAST_FLOORS)} ink pairs, faintest is {floor:.2f}:1")
+    pairs, floor = check_contrast()
+    print(f"contrast OK: {pairs} ink pairs, faintest is {floor:.2f}:1")
 
     printable = check_fits()
     print(f"page OK: {BOARD_W:.0f}px board in {printable:.0f}px of printable width")

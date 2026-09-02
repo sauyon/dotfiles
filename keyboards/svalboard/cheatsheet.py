@@ -354,6 +354,15 @@ def check_fits():
 
 def _luminance(hex_color):
     """WCAG relative luminance of an #rrggbb string."""
+    # Only #rrggbb. CSS would take `#fff` and `rebeccapurple` too, and both
+    # would otherwise reach int(..., 16) and come back as a ValueError naming
+    # neither the colour nor the file it is in.
+    if (len(hex_color) != 7 or not hex_color.startswith("#")
+            or any(c not in "0123456789abcdefABCDEF" for c in hex_color[1:])):
+        raise SystemExit(
+            f"contrast FAILED -- INK value {hex_color!r} is not #rrggbb; "
+            "the contrast check cannot read shorthand or named colours"
+        )
     channels = []
     for i in (1, 3, 5):
         c = int(hex_color[i:i + 2], 16) / 255
@@ -380,13 +389,10 @@ LINE_FLOOR = 3.0   # borders and rules -- a line is shape as much as tone
 # while the symbol keys actually drew it on #e4e4e4 at 2.72:1. A false pass on
 # exactly the failure the check exists to catch.
 #
-# `dead` and `trns` keys are absent on purpose: both keep the paper background,
-# and their borders are checked against it directly.
-# Keys are by CSS class, so that the entries here and the classes label() hands
-# back are the same vocabulary rather than two lists to keep in step. `trns` is
-# absent because it takes .k's background by inheritance and `dead` declares
-# paper explicitly -- both keep the paper background, and their borders are
-# checked against it directly above.
+# Keyed by CSS class, so these entries and the classes label() hands back are one
+# vocabulary rather than two lists to keep in step; check_surfaces_cover_classes()
+# holds them together. `dead` and `trns` are absent on purpose -- both keep the
+# paper background, and their borders are checked against it directly above.
 KEY_SURFACES = {
     "alpha": "paper",
     "sym": "fill_sym",

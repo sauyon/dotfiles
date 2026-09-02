@@ -418,7 +418,8 @@
     zl = "zellij list-sessions | rg -v EXITED";
 
     hm = "home-manager";
-    hms = "home-manager switch --flake ${home}/devel/dotfiles#$HOST";
+    # hms is a script now (home.nix): it pushes and waits for CI so the switch
+    # is a download rather than a local build. `hms --local` is the old alias.
     hmu = "nix flake update --flake ${home}/devel/dotfiles";
   };
 }

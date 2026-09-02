@@ -19,10 +19,14 @@ on:
   # Forgejo has no re-run API; dispatch is the only way to retry.
   workflow_dispatch:
 
-# A closure build is long, and two at once share one dind cgroup.
+# A closure build is long, and two at once share one dind cgroup — so the group
+# stays, and it still serializes. But it queues rather than cancels: cancelling
+# discarded runs 58, 59 and 60 mid-build, and `hms` now blocks on the run for its
+# own commit, which a follow-up push would otherwise kill under it. Queued runs
+# still supersede each other, so this cannot pile up.
 concurrency:
   group: nix-home-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-and-push:

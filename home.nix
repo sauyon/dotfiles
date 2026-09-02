@@ -508,6 +508,132 @@ let
     printf 'username=oauth2\npassword=%s\n' "$token"
   '';
 
+  # `hms` — switch this host, but let the forge do the building.
+  #
+  # A local switch compiles whatever is not in attic; the in-cluster runner has
+  # far more of everything and pushes its result to attic, so waiting for CI and
+  # then switching turns the switch into a pure download. The wait is only worth
+  # it because the closure CI pushes is bit-identical to the one we would build.
+  #
+  # Refuses on a dirty tree: CI builds a pushed commit, so an uncommitted switch
+  # is one CI can never reproduce, and silently building it locally would hide
+  # that. `--local` is the escape hatch for exactly that case.
+  hms = pkgs.writeShellScriptBin "hms" ''
+    set -euo pipefail
+
+    repo="$HOME/devel/dotfiles"
+    host="$(uname -n)"
+    forge="https://forge.ko.ag"
+    slug="sauyon/dotfiles"
+    curl=${lib.getExe pkgs.curl}
+    jq=${lib.getExe pkgs.jq}
+
+    local_only=0
+    hm_args=()
+    for a in "$@"; do
+      case "$a" in
+        -l|--local) local_only=1 ;;
+        -h|--help)
+          echo "usage: hms [--local] [home-manager switch args...]"
+          echo "  default: push HEAD, wait for its CI run, then switch (a download)"
+          echo "  --local: skip CI and build here"
+          exit 0 ;;
+        *) hm_args+=("$a") ;;
+      esac
+    done
+
+    switch_now() {
+      exec home-manager switch --flake "$repo#$host" ''${hm_args[@]+"''${hm_args[@]}"}
+    }
+
+    # mari (darwin) has no Linux CI job; nix-home.yml builds only these three.
+    case "$host" in
+      utsuho|setsuna|fujiwara) ;;
+      *) echo "hms: $host has no CI job — switching locally" >&2; switch_now ;;
+    esac
+
+    [ "$local_only" -eq 0 ] || switch_now
+
+    if [ -n "$(git -C "$repo" status --porcelain)" ]; then
+      echo "hms: working tree dirty. Commit before switching:" >&2
+      git -C "$repo" status --short >&2
+      echo "hms: or run 'hms --local' to build it here." >&2
+      exit 1
+    fi
+
+    sha=$(git -C "$repo" rev-parse HEAD)
+    git -C "$repo" push --quiet origin HEAD:master
+    echo "hms: pushed ''${sha:0:7}"
+
+    # The token lands in a 0600 curl config, never in argv or the environment —
+    # /proc/<pid>/cmdline and environ are world-readable.
+    keys="''${XDG_DATA_HOME:-$HOME/.local/share}/forgejo-cli/keys.json"
+    tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+    ( umask 077
+      printf 'header = "Authorization: token %s"\nsilent\n' \
+        "$($jq -r '.hosts["forge.ko.ag"].token' "$keys")" > "$tmp/curlrc" )
+
+    api() { local p="$1"; shift; $curl -K "$tmp/curlrc" "$forge$p" "$@"; }
+
+    # The workflow's `paths:` filter means a commit touching nothing nix-shaped
+    # never starts a run. Give it 90s to appear, then stop waiting for a run that
+    # is not coming.
+    echo -n "hms: waiting for a run on ''${sha:0:7}"
+    run=""; waited=0
+    while [ -z "$run" ]; do
+      run=$(api "/api/v1/repos/$slug/actions/tasks?limit=20" \
+        | $jq -r --arg s "$sha" 'first(.workflow_runs[]
+            | select(.head_sha == $s and .workflow_id == "nix-home.yml")
+            | .run_number) // empty')
+      [ -z "$run" ] || break
+      if [ "$waited" -ge 90 ]; then
+        echo; echo "hms: no run for ''${sha:0:7} (nothing CI-relevant changed) — switching locally" >&2
+        switch_now
+      fi
+      echo -n "."; sleep 10; waited=$((waited + 10))
+    done
+    echo; echo "hms: run $run — $forge/$slug/actions/runs/$run"
+
+    status=""
+    while :; do
+      status=$(api "/api/v1/repos/$slug/actions/tasks?limit=20" \
+        | $jq -r --arg n "$run" 'first(.workflow_runs[]
+            | select(.run_number == ($n | tonumber)) | .status) // empty')
+      case "$status" in
+        success|failure|cancelled|skipped) break ;;
+      esac
+      sleep 15
+    done
+
+    if [ "$status" = "success" ]; then
+      echo "hms: run $run green — switching (should be a download)"
+      switch_now
+    fi
+
+    echo "hms: run $run $status" >&2
+    # Forgejo 13 exposes no run->job API, but the web job endpoint names the job
+    # id in its error body, and /actions/jobs/<id>/logs then serves the log.
+    job=$(api "/sauyon/dotfiles/actions/runs/$run/jobs/0" -X POST \
+            -H 'Content-Type: application/json' -d '{"logCursors":[]}' \
+          | ${lib.getExe pkgs.gnugrep} -o 'job_id [0-9]*' | tr -dc '0-9' || true)
+    if [ -n "$job" ]; then
+      log="$tmp/job.log"
+      api "/api/v1/repos/$slug/actions/jobs/$job/logs" > "$log" || true
+      echo "--- CI error ---" >&2
+      # Timestamps are a fixed 29-char prefix; drop them so the errors read.
+      # A pipeline's status is its last command, so grep's miss has to be
+      # captured rather than tested through `cut | tail`.
+      errs=$(${lib.getExe pkgs.gnugrep} -aE "^.{29}(error:|.*Job failed)" "$log" || true)
+      if [ -n "$errs" ]; then
+        printf '%s\n' "$errs" | cut -c30- | tail -30 >&2
+      else
+        tail -30 "$log" | cut -c30- >&2
+      fi
+    fi
+    echo "hms: not switching. Fix CI, or 'hms --local' to build here." >&2
+    exit 1
+  '';
+
   claude-prof = pkgs.writeShellScriptBin "claude-prof" ''
     set -euo pipefail
     CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
@@ -1745,6 +1871,7 @@ in
   home.packages = [
     claude-prof
     herdr-pkg
+    hms
   ]
   # Enrolment/recovery tool for the TPM-sealed keyring passphrase; the daemon
   # wrapper itself is referenced straight from its unit, so it stays off PATH.
@@ -1752,7 +1879,32 @@ in
   ++ (with pkgs; [
     bfs
     btopPkg
-    google-fonts
+
+    # The full google-fonts is ~2,000 families and a 2.44 GiB output — the single
+    # largest path in every closure, and the one whose NAR used to blow the CI
+    # substituter's ten-minute ceiling. Nothing here names a Google font (the UI
+    # font is NotoSans Nerd Font, from nerd-fonts.noto); this set exists so web
+    # pages and documents find common families rather than falling back.
+    #
+    # Names are matched against TTF filenames, and a name that matches nothing is
+    # silently dropped rather than an error — so verify against
+    # `ls $out/share/fonts/truetype` after changing this, do not trust the build
+    # going green. (The *build* still fetches the whole google/fonts repo; only
+    # the output, which is what gets substituted, shrinks.)
+    (google-fonts.override {
+      fonts = [
+        # sans
+        "Roboto" "OpenSans" "Lato" "Montserrat" "Inter" "Poppins" "Nunito"
+        "Raleway" "WorkSans" "SourceSans3" "IBMPlexSans" "NotoSans" "DMSans"
+        "Rubik" "Figtree" "FiraSans" "Oswald" "Ubuntu"
+        # serif
+        "Merriweather" "PlayfairDisplay" "SourceSerif4" "NotoSerif" "RobotoSlab"
+        # mono
+        "RobotoMono" "SourceCodePro" "IBMPlexMono" "NotoSansMono" "JetBrainsMono"
+        "FiraCode"
+      ];
+    })
+
     claude-agent-acp
     coder
     comma

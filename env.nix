@@ -58,7 +58,7 @@ rec {
   # programs.ssh.settings are the real source of truth.
   CODER_SSH_CONFIG_FILE = "${xdg.configHome}/coderv2/ssh-config";
 }
-// lib.optionalAttrs (!pkgs.stdenv.isDarwin) {
+// lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isDarwin) {
   SSH_AGENT_PID = "";
   # ssh-tpm-agent is the primary SSH agent (programs.ssh-tpm-agent.enable in
   # home.nix); gpg-agent has SSH support explicitly disabled there. ssh-tpm-agent
@@ -71,7 +71,7 @@ rec {
   # terminfo (e.g. ghostty) and the distro's.
   TERMINFO_DIRS = "${home}/.nix-profile/share/terminfo:/usr/share/terminfo";
 }
-// lib.optionalAttrs (!pkgs.stdenv.isDarwin && isDesktop) {
+// lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isDarwin && isDesktop) {
   # Desktop-only: programs.firefox.enable is isDesktop-gated, so on a headless
   # host this would name a binary that isn't installed. Leave BROWSER unset
   # there and let each tool fall back to its own default rather than fail with

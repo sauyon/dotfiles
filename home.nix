@@ -16,7 +16,7 @@
 }:
 
 let
-  isDarwin = pkgs.stdenv.isDarwin;
+  isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
   gpu = machine.gpu or null;

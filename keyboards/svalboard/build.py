@@ -444,6 +444,35 @@ MOUSE = {
     (R_PINKY, C): "USER06",
 }
 
+# "Leaves on the first key that isn't on it" is true and is not the same as a
+# way out. Eight cups are taken above -- index, middle and ring South on both
+# hands, plus both pinky Centers -- so if the first thing you type after nudging
+# the pointer is `d`, `f`, `c`, `r`, `u`, `o`, `y` or `h`, it clicks or
+# recalibrates instead. The layer does leave, but it eats the keystroke on the
+# way out. TO(0) is the exit that costs no character.
+#
+# TO(0), not one of the keyboard's own USER* keycodes: there isn't one. All
+# twenty in vial.json are pointer settings, scroll modes and layer toggles; the
+# closest, SV_TOGGLE_AUTOMOUSE, disables auto-activation altogether rather than
+# dismissing a single visit.
+#
+# TO(0) rather than TO(15) matters more than it looks. QMK's auto-mouse
+# intercepts a TO() aimed at the mouse layer itself and reads it as "pin this
+# layer on" -- the opposite of the ask. A TO() at any other layer isn't
+# intercepted, so this falls through to a plain layer_move(0) that clears 15
+# outright. Nothing desyncs: auto_mouse_layer_off() tests the real layer state
+# rather than a cached flag, so the next movement of the pointer brings the
+# layer straight back.
+#
+# Right double-down, x=13.0. On layer 0 it holds `ralt`, which is the least
+# missed key on the cluster while a hand is on the pointer. The left
+# double-down keeps `delete` on purpose: select with the pointer, press delete,
+# and the delete both lands and leaves the layer -- an exit key there would
+# swallow it and cost a second press.
+MOUSE_THUMB_X = {
+    R_THUMB: {13.0: "TO(0)"},
+}
+
 
 def blank_layer(fill):
     """A 10x6 layer of `fill`, with column 5 held at -1 on the finger rows."""
@@ -494,6 +523,9 @@ def build_layers():
 
     for (row, col), code in MOUSE.items():
         layers[15][row][col] = code
+    for row, by_x in MOUSE_THUMB_X.items():
+        for x, code in by_x.items():
+            layers[15][row][thumb_col(row, x)] = code
 
     return layers
 

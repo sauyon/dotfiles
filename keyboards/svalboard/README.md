@@ -165,6 +165,31 @@ leaves on the first key that isn't on this layer. **Nothing reaches it by
 keypress, by design.** Buttons 1/3/2 sit on index/middle/ring South of both
 hands; `USER06` is `SV_RECALIBRATE_POINTER`.
 
+"Leaves on the first key that isn't on this layer" is true, and is not the same
+as a way out. Eight cups are taken — index, middle and ring South on both hands
+plus both pinky Centers — so if the first thing you type after nudging the
+pointer is `d`, `f`, `c`, `r`, `u`, `o`, `y` or `h`, it clicks or recalibrates
+instead. The layer leaves, having eaten the keystroke.
+
+**The right thumb's double-down is `TO(0)`** — the exit that costs no character.
+Three things about that choice:
+
+- **Not a Svalboard keycode**, because there isn't one. All twenty `USER*`
+  codes in the keyboard's `vial.json` are pointer settings, scroll modes and
+  layer toggles; the nearest, `SV_TOGGLE_AUTOMOUSE`, switches auto-activation
+  off altogether rather than dismissing one visit.
+- **`TO(0)`, not `TO(15)`.** QMK's auto-mouse intercepts a `TO()` aimed at the
+  mouse layer itself and reads it as *pin this layer on* — the opposite. A
+  `TO()` at any other layer isn't intercepted, so it falls through to a plain
+  `layer_move(0)` that clears 15 outright. Nothing desyncs:
+  `auto_mouse_layer_off()` tests real layer state rather than a cached flag, so
+  the next movement of the pointer brings the layer straight back.
+- **Right double-down**, which is `ralt` on layer 0 and the least missed key on
+  the cluster while a hand is on the pointer. The left double-down keeps
+  `delete` deliberately: select with the pointer, press delete, and the delete
+  both lands *and* leaves the layer. An exit key there would swallow it and
+  cost a second press.
+
 ### Thumbs
 
 The cluster is not six keys laid out in space. It is six switches hit by
@@ -178,7 +203,7 @@ mirrored between hands, unlike the x coordinate — names them:
 | 2 | down | shift | `MO(1)` |
 | 3 | pad | space | bspc |
 | 4 | up | esc | enter |
-| 5 | double-down | delete | ralt |
+| 5 | double-down | delete | ralt (`TO(0)` on layer 15) |
 
 `pad` is the community favourite and holds the most-pressed thumb key on each
 hand. `down` takes the heaviest hold. `knuckle` is the worst key on the cluster
@@ -221,6 +246,11 @@ DataHand deep press. That is why nothing you press in a hurry goes there — `gu
 sat on both and was unusable, `tab` was tried and was worse. They now hold
 `delete` and `ralt`. Those two slots were found empirically, as "the only
 positions with no free side", well before the mechanism had a name.
+
+Layer 15's `TO(0)` on the right double-down does not break that rule. The rule
+is about keys hit reflexively, mid-word, in flow. Leaving mouse mode is the
+opposite: a deliberate hand-off between two things you were doing, with the
+pause already in it.
 
 `space` left and `bspc` right match Glove80 positions 69 and 74 — Svalboard's own
 configs ship those mirrored.

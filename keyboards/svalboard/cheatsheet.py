@@ -74,6 +74,9 @@ NAMED = {
     "KC_PSCREEN": "prtsc",
     "KC_BTN1": "btn 1", "KC_BTN2": "btn 2", "KC_BTN3": "btn 3",
     "USER06": "recal",
+    # Only ever on layer 15, where it means "back to typing" rather than the
+    # literal "go to layer 0" -- layer 0 is where you already were.
+    "TO(0)": "type",
     "MO(1)": "MO(1)", "MO(2)": "MO(2)",
 }
 
@@ -353,7 +356,9 @@ NOTES = """
   <div>
     <b>Layer 15 &mdash; mouse</b>
     <p>No key reaches it. The firmware switches over when the pointer moves and
-    leaves on the first key that isn't on the layer.</p>
+    leaves on the first key that isn't on the layer &mdash; but that key is
+    eaten, so the right thumb's <b style="display:inline">double-down</b> leaves
+    without typing anything.</p>
     <p>Buttons 1/3/2 on index/middle/ring South, both hands. Pinky Center
     recalibrates the pointer.</p>
   </div>

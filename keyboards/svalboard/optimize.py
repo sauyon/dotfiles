@@ -71,14 +71,86 @@ CUP_ROWS = (
 
 PLACEHOLDER = "□"
 
-# What floats: the 26 alphas and the 7 symbols the README argues onto layer 0.
-PERMUTING = set("abcdefghijklmnopqrstuvwxyz") | set("-:()&@~")
+# What the ranking is allowed to see. Deliberately ASCII: the corpus carries
+# emoji and CJK (Discord is fourteen years of chat), and none of that is a
+# candidate for a key.
+ASCII_PRINTABLE = [chr(c) for c in range(0x21, 0x7F)]
 
-# What stays: the rest of layer 0's printable keys, pinned via --fix. Not
-# because they are good placements -- they are simply outside this run's scope,
-# and sval.yml marks every finger key permutable, so --fix is the only per-key
-# freeze that does not mean editing a config whose key costs were fitted to it.
-FIXED = set(",./;\"'")
+# What --fix holds in place, and it is now nothing.
+#
+# This used to be `, . / ; " '`, pinned because the run was scoped to "the
+# alphas plus the seven promoted symbols" and those six were neither. That was
+# a statement about the run, never about the placements -- and it cost more
+# than it looked: a pinned key is one the search cannot even consider, so every
+# candidate it returned carried those six unexamined.
+#
+# There is no scope left to protect. The finger keys hold 26 alphas, tab and 13
+# symbols. The alphas and tab stay on the layer by Sauyon's rule -- nothing gets
+# demoted to a layer, and no alpha goes on a thumb -- but that constrains WHICH
+# glyphs are on layer 0, not where any of them sits. Which 13 symbols is a
+# measurement now (promoted_symbols), not a list. So everything on the fingers
+# floats, and the thumbs stay frozen because sval.yml marks them fixed_keys.
+FIXED = set()
+
+# What floats: everything else printable on the layer. Derived rather than
+# listed -- a second copy of the inventory is a second thing that can go stale,
+# and this one would go stale silently the moment build.py promoted a symbol.
+def permuting(layout):
+    """The glyphs optimize_sa may move: the layer, less --fix and less tab."""
+    return set(layout) - FIXED - {PLACEHOLDER}
+
+
+def blended_rates(per_corpus, weights):
+    """One rate per character, weighted across corpora the way ngram_merge is.
+
+    freq.rates reports per corpus because that is what the README's tables
+    argue from. Ranking needs a single number, and taking it from the raw
+    totals would rank by corpus size: Discord is 7.4M characters of fourteen
+    years of chat against shell's 450k, and the layout is not for that.
+
+    A corpus that collected nothing is dropped rather than counted as zero, and
+    the remaining weights are renormalized. Otherwise a missing source silently
+    scales every rate down by its share -- the same "absent is not a measured
+    zero" mistake freq.py's aggregate_payload already had to fix once.
+    """
+    present = {name: w for name, w in weights.items()
+               if per_corpus.get(name, {}).get("_chars", 0) > 0}
+    total = sum(present.values())
+    if not total:
+        raise SystemExit("no corpus has any text -- run freq.py first")
+    out = {}
+    for name, weight in present.items():
+        for char, rate in per_corpus[name].items():
+            if char == "_chars":
+                continue
+            out[char] = out.get(char, 0.0) + rate * weight / total
+    return out
+
+
+def promoted_symbols(rates, count):
+    """The `count` most frequent symbols that are not already pinned.
+
+    Which symbols earn a layer-0 key used to be a hardcoded list, argued one at
+    a time in build.py's comments. Three of those arguments have since expired
+    against the corpus that now exists -- `@`, `&` and `~` sit 31st, 27th and
+    28th among symbols, behind `` ` ``, `*` and `_`, which are not on the layer
+    at all. A list cannot notice when its own premise stops holding; a
+    measurement can, which is the whole reason freq.py exists.
+
+    `rates` is a char -> rate mapping (freq.rates' shape; the units cancel).
+    Alphanumerics and whitespace are not candidates -- the alphas have their own
+    argument and space is on a thumb -- and neither are the FIXED symbols, which
+    already hold seats --fix will not let the search move.
+    """
+    candidates = [c for c in rates
+                  if len(c) == 1
+                  and not c.isalnum()
+                  and not c.isspace()
+                  and c not in FIXED]
+    # Rate descending, then the character itself, so a tie is not resolved by
+    # whatever order the corpus happened to yield.
+    candidates.sort(key=lambda c: (-rates[c], c))
+    return candidates[:count]
 
 # How much of a day's typing each corpus stands for. NOT the corpus sizes: those
 # are sampling artifacts, and the Discord export proved it. It arrived at 7.4M
@@ -208,6 +280,35 @@ def keyboard_config(text, layout):
     return head + sep + tail[:match.start()] + block + tail[match.end():]
 
 
+def start_layout(current, symbols):
+    """`current` with its floating symbols replaced by `symbols`.
+
+    optimize_sa learns the glyph inventory from two places, and they have to
+    agree: base_layout in the keyboard config (keyboard_config writes that) and
+    the --start-layouts string. Annealing moves all of them anyway, so a
+    symbol's starting position is arbitrary; the inventory is not.
+
+    Symbols already earning a seat keep it, which keeps the diff readable when
+    the run is re-scored by hand. The rest fill the vacated seats in the order
+    given -- highest measured rate first, since that is how promoted_symbols
+    returns them.
+    """
+    seats = [i for i, c in enumerate(current)
+             if c in permuting(current) and not c.isalpha()]
+    if len(seats) != len(symbols):
+        raise SystemExit(
+            f"{len(symbols)} symbols for {len(seats)} floating seats: "
+            f"{''.join(symbols)!r} against {''.join(current[i] for i in seats)!r}. "
+            "A dropped glyph would still evaluate, on a board missing a key."
+        )
+    incoming = iter([s for s in symbols if s not in current])
+    out = list(current)
+    for i in seats:
+        if current[i] not in symbols:
+            out[i] = next(incoming)
+    return "".join(out)
+
+
 def build_ngrams(opt, corpus_dir, name, prefix):
     """Generate <opt>/ngrams/sauyon_<name> from one cached corpus file.
 
@@ -272,6 +373,27 @@ def main():
     current = layout_string()
     print(f"current layout: {current}  ({len(current)} keys)")
 
+    # Which symbols deserve layer 0 is a measurement, not the list build.py
+    # happens to hold. Seats are however many the current layer already spends
+    # on floating symbols; what fills them is the top of the measured ranking.
+    floating = {c for c in current if c in permuting(current) and not c.isalpha()}
+    seats = len(floating)
+    rank = blended_rates(freq.rates(freq.load_corpus(), ASCII_PRINTABLE), WEIGHTS)
+    inventory = promoted_symbols(rank, seats)
+    demoted = sorted(floating - set(inventory), key=lambda c: -rank[c])
+    print(f"symbol seats: {seats}")
+    for n, c in enumerate(promoted_symbols(rank, seats + 4), 1):
+        mark = "  <- in" if c in inventory else "  <- out"
+        was = " (on layer 0 today)" if c in current else ""
+        print(f"  {n:2}. {c!r:<5} {rank[c]:7.3f}/1k{mark}{was}")
+    if demoted:
+        print(f"demoted: {' '.join(repr(c) for c in demoted)}")
+
+    start = start_layout(current, inventory)
+    if start != current:
+        print(f"start layout:   {start}  (inventory corrected)")
+    current = start
+
     # The stock base_layout is the optimizer author's own Hands Down variant and
     # has none of `"&()/:;@~`, so it rejects this board outright. Derive a config
     # that carries this layout's glyphs and is otherwise byte-identical, and
@@ -316,7 +438,10 @@ def main():
                   "--eval-parameters", "config/evaluation/sval.yml",
                   "--ngrams", f"ngrams/{corpus_name}",
                   "--start-layouts", current,
-                  "--fix", "".join(sorted(FIXED)),
+                  # Omitted rather than passed empty: `--fix ''` is a request to
+                  # freeze the empty set, and nothing promises the binary reads
+                  # it that way rather than as a malformed argument.
+                  *(["--fix", "".join(sorted(FIXED))] if FIXED else []),
                   "--append-solutions-to", str(solutions)])
 
     # The delta: score the current layout against whatever the search found,

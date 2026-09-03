@@ -23,81 +23,81 @@ hands, so West is inward on the right hand and outward on the left.
 
 ```
              W    N     C     S     E
-  L pinky    tab  w     r     x     -
-  L ring     ~    f     s     c     @
-  L middle   (    m     n     l     v
+  L pinky    tab  w     r     x     "
+  L ring     )    v     s     c     =
+  L middle   *    m     n     f     l
   L index    g    p     t     d     b
-  R index    ,    .     a     u     :
-  R middle   /    q     e     o     )
-  R ring     ;    "     i     y     &
-  R pinky    z    '     h     k     j
+  R index    .    `     a     u     '
+  R middle   -    q     e     o     _
+  R ring     ,    /     i     y     (
+  R pinky    z    :     h     k     j
 ```
 
-The alphas are Hands Down Neu as it sits on the Glove80 — note `;` on the right
-inner column where upstream publishes `-`.
+The alphas are Hands Down Neu as it sits on the Glove80, with three exceptions
+and one structural departure.
 
-Two places this departs from a literal port, both because the Svalboard has four
-fingers per hand and the layout assumes five columns:
+- **`f`, `v` and `l` rotate.** `f` takes the left middle's South, `v` the ring's
+  North, `l` the middle's East. `f` is one of the config's high-frequency double
+  consonants and a ring North is a position its constraint table scores 10 --
+  `ff` is 11.5% of `f` presses here and 12.0% in English, so this is not an
+  artifact of one corpus. These three keys are worth 264 points; the next ten
+  alpha keys are worth about 11 each.
+- **`g` is on the index's West.** Hands Down gives the left index the whole inner
+  column (`v`/`b`/`g`). Only two fit on an index cup, so it keeps `b` and `g`.
+- **`z` and `tab` are on laterals.** They live in outer columns the Svalboard
+  does not have. `tab` gets the left pinky's West, x=0.0, the outermost point of
+  the hand -- and it stays there by hand, because tab has no frequency in the
+  corpus, so the optimizer reads it as free and parks it on the worst key.
 
-- **`g` is on the index's West.** Hands Down gives the left index the whole
-  inner column (`v`/`b`/`g`). Only two fit on an index cup, so it keeps `b` and
-  `g` and exiles `v` — the rarest — to the middle finger.
-- **`z`, `j` and `tab` are on laterals.** They live in outer columns the
-  Svalboard doesn't have. `tab` gets the left pinky's West, x=0.0, the outermost
-  point of the hand.
+### The thirteen symbols are measured, not argued
 
-Brackets are deliberately *not* on this layer; Arensito has them. Seven symbols
-*are*, placed by measured frequency rather than by feel — counted over hand-typed
-prompts and shell history (agent-driven sessions excluded) and over code authored
-here, per 1000 characters:
+26 alphas and tab occupy 27 of the 40 finger keys. The remaining **13 are symbol
+seats**, and which 13 symbols fill them is decided by `freq.py` against the
+corpus actually typed here -- agent prompts, shell history, Slack, fourteen
+years of Discord, and the text tracked in this repo. Per 1000 characters:
 
-| | `-` | `:` | `(` `)` | `&` | `@` | `~` |
-|---|---|---|---|---|---|---|
-| code | 11.6 | 9.3 | 4.9 | 0.68 | 0.17 | 0.22 |
-| hand-typed | 33.5 | 5.1 | 0.30 | 0.17 | 0.01 | 0.12 |
+| in | `-` | `.` | `/` | `'` | `` ` `` | `,` | `*` | `:` | `_` | `"` | `=` | `)` | `(` |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| | 14.07 | 9.20 | 9.19 | 7.78 | 5.52 | 5.40 | 4.42 | 4.29 | 4.24 | 3.27 | 2.11 | 1.68 | 1.63 |
 
-- `-` → **left pinky East.** The clear winner on both counts.
-- `:` → **right index East**, the strongest free lateral. Was shift+`;`.
-- `(` `)` → **left middle West / right middle East**, an outward-facing mirror
-  pair, so `()` alternates hands. They earn a base key from code only.
-- `&` → **right ring East.** The rarest thing on this layer bar `@`, on one of
-  the worst keys here, which is the point. Ring laterals are the hardest cups to
-  reach.
-- `@` → **left ring East**, the other ring lateral, and the slot `g` vacated. It
-  is rarer than `&` by 6× in code and 19× typed, so frequency alone would leave
-  it on `MO(1)`. It gets promoted because the promotion is free: both ring
-  laterals were empty, so one bad key displaces nothing and still beats two good
-  ones. East is the inward of the two; West stays free.
-- `~` → **left ring West**, the lateral `@` left open, on the same argument. By
-  `freq.py` it is 0.12/1k hand-typed against `@`'s 0.06 and 0.22 in code against
-  `@`'s 0.33 — the same order of magnitude, ahead on the typed side. It suits a
-  bad key for a reason a rate does not show: 338 occurrences hand-typed, **zero**
-  of them consecutive repeats, longest run 1. You hit `~` once at the front of a
-  path and leave, and a key you never hit twice in a row is the right thing to
-  put somewhere awkward.
+| out | `;` | `&` | `~` | `@` |
+|---|---|---|---|---|
+| | 1.14 | 0.19 | 0.18 | 0.05 |
 
-`*` was considered and rejected: it looks like 6.7/1k in code, but 90% of that
-is `**` in markdown prose, and it is 0.03/1k in anything hand-typed.
+Every symbol off this layer costs two keystrokes -- a shift pair or `MO(1)` --
+and every one on it costs one, so the right 13 are simply the 13 most frequent.
+`` ` `` alone is **102x `@`**. The trade is worth **14.74 keystrokes per 1000
+characters**, about 1.5% of everything typed.
 
-`` ` `` was considered and rejected for the opposite reason — it is the
-strongest candidate on the board and there is nowhere to put it. At 8.34/1k
-hand-typed and 3.58 in code it outranks `:` and `(`, which both hold good keys.
-But the only free slot was a ring lateral, and *nothing frequent goes on a ring
-lateral*; worse, backtick comes in pairs around inline code spans, so that slot
-would be the worst key here hit twice per span. It stays on `MO(1)` at the left
-pinky's West, which is at least a left-right alternation against the right-thumb
-`MO(1)`. Promoting it would mean demoting a letter — `z`, `q` and `j` are the
-only cheaper occupants left — and a thumb hold mid-word for "jazz" or "quiz" is
-worse than the hold it would save.
+`(` and `)` both make the cut, at ranks 12 and 13, so the pair stays together.
 
-`@`'s two numbers come from a later counting pass than the other four columns —
-in that same pass `&` read 1.10 and 0.19, so read the gap between the two, not
-the absolute against the older columns. Most of even that 0.17 is `@types/…`
-imports and `git@github.com`, which are completed rather than typed.
+**Two earlier arguments on this layer have expired**, and both are worth
+recording because they were wrong in instructive ways:
 
-Each is promoted, not copied — all seven are holes on layer 1, so nothing sits on
-two keys. Six of those holes are in Arensito's own grid; `~`'s is on a lateral,
-which is why the lateral list below is one shorter than it was.
+- `@` and `~` were promoted onto the ring outer laterals on the reasoning that
+  those keys were empty, so a symbol there "displaces nothing and still beats
+  two". It does not. `config/keyboard/sval.yml` scores both of those laterals
+  **99**, against 2+3 for a hold plus a decent key -- so each promotion was a
+  loss of roughly 17 per 1000 characters, not a free win. A key nobody wants is
+  not the same as a key that is free.
+- `~` earned its lateral on a count of **zero** consecutive repeats. That was
+  true of the corpus available at the time. It is **38.3%** now: the Discord
+  export arrived carrying `~~strikethrough~~`. The measurement was honest and
+  the conclusion still expired, which is the argument for deriving this from a
+  corpus that gets rebuilt rather than from a comment.
+
+Placement within the 13 seats is the annealer's, not hand-argued. With the
+alphas pinned, three of four restarts returned this arrangement identically --
+which is what makes it worth trusting, where four earlier unconstrained runs
+disagreed with each other from identical inputs and were discarded.
+
+`?` and `~` stay reachable as shift+`/` and shift+`` ` ``, both now on this
+layer. `;` is on `MO(1)`; `@` and `&` moved to the left pinky's laterals there,
+because `check_symbols()` fails the build on any symbol costing three keys.
+
+Against the layout this replaces, scored on the same corpus and config:
+**838.50 to 235.22**, and Character Constraints -- every hand-authored placement
+rule in the evaluation config -- reaches **zero** for the first time.
 
 ### Layer 1 — Arensito symbols (hold `MO(1)`)
 

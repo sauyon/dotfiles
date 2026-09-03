@@ -149,16 +149,34 @@ def place(block, hand):
 # As it sits on the Glove80, including `;` on the right inner column where
 # upstream Hands Down Neu publishes `-`.
 
+# `f`, `v` and `l` rotate off the literal Hands Down assignment: f moves to the
+# left middle's South, v takes the ring's North and l takes the middle's East.
+#
+# This is the ONLY place the alphas depart from the port, and it is three keys.
+# `f` on the ring's North is 100% of the layout's remaining Character
+# Constraints penalty once the symbols are placed -- `f` is one of the config's
+# high-frequency double consonants (`ff`, 11.5% of `f` presses here and 12.0% in
+# English, so the premise is not corpus-specific) and a ring North is a position
+# that table scores 10. Rotating these three takes that term to zero, and it is
+# worth 264 of the 400 points that any letter movement can buy at all: the next
+# ten alpha keys are worth ~11 each against 88 each for these three.
 HDNEU_LEFT = {
-    "top":    ["KC_W", "KC_F", "KC_M", "KC_P", "KC_V"],
+    "top":    ["KC_W", "KC_V", "KC_M", "KC_P", "KC_L"],
     "home":   ["KC_R", "KC_S", "KC_N", "KC_T", "KC_B"],
-    "bottom": ["KC_X", "KC_C", "KC_L", "KC_D", "KC_G"],
+    "bottom": ["KC_X", "KC_C", "KC_F", "KC_D", "KC_G"],
 }
 
+# The right hand keeps every letter where Hands Down puts it. What changed is
+# the punctuation woven through the same block: `.` and `,` move one cup
+# outward, `/` and `:` take the ring's and pinky's North, and `-` -- the single
+# most frequent character on the board after the alphas -- comes across from the
+# left pinky's East to the right middle's West. Every one of the four annealing
+# restarts moved `-` to the right hand, and so did all four of the earlier
+# unconstrained ones; it is the most reproducible result in the whole exercise.
 HDNEU_RIGHT = {
-    "top":    ["KC_SLASH", "KC_DOT", "KC_Q", "LSFT(KC_QUOTE)", "KC_QUOTE"],
-    "home":   ["KC_COMMA", "KC_A", "KC_E", "KC_I", "KC_H"],
-    "bottom": ["KC_SCOLON", "KC_U", "KC_O", "KC_Y", "KC_K"],
+    "top":    ["KC_MINUS", "KC_GRAVE", "KC_Q", "KC_SLASH", "LSFT(KC_SCOLON)"],
+    "home":   ["KC_DOT", "KC_A", "KC_E", "KC_I", "KC_H"],
+    "bottom": ["KC_COMMA", "KC_U", "KC_O", "KC_Y", "KC_K"],
 }
 
 # The Glove80's outer column (z, j) and its bottom row (grave, backslash,
@@ -167,88 +185,46 @@ HDNEU_RIGHT = {
 BASE_LATERALS = {
     (R_PINKY, W): "KC_Z",    # inner, x=22.0
     (R_PINKY, E): "KC_J",    # outer, x=24.0
-    # Hands Down Neu publishes `-` on the right inner column; this port puts `;`
-    # there, following the Glove80. That evicts `-`, and `-` is far too frequent
-    # -- kebab-case, `->`, `--flag` -- to sit behind MO(1). It gets a lateral.
-    (L_PINKY, E): "KC_MINUS",
-    (L_PINKY, W): "KC_TAB",    # outermost key on the left hand, x=0.0
-
-    # Parens likewise: frequent enough in code to be worth a base-layer key
-    # rather than MO(1)+key.
-    #
-    # They were on the left ring's two laterals, which is the wrong pair. The
-    # ring laterals are the hardest keys on this board to hit -- that is a
-    # verdict from typing on it, and the only kind available: CUP_XY is KLE
-    # layout units, so it can say where a key is drawn but nothing about the
-    # reach. Nothing frequent goes on a ring lateral.
-    #
-    # The middles' outer laterals are the strongest free pair instead, and they
-    # mirror: West is outward on the left hand, East outward on the right. That
-    # also makes `()` alternate hands rather than roll along one.
-    (L_MIDDLE, W): "LSFT(KC_9)",
-    (R_MIDDLE, E): "LSFT(KC_0)",
-
-    # `:` takes the index's East, the strongest free right-hand lateral. It is
-    # the most frequent symbol that still costs two keys: ~9 per 1000 chars of
-    # code written here, and that survives context-checking -- 47% of it is
-    # `key: value` in yaml/json/nix and 16% slices and ternaries, against only
-    # 27% prose colon. It was shift+`;`, so this saves one keystroke, the same
-    # win the parens got.
-    (R_INDEX, E): "LSFT(KC_SCOLON)",
-
-    # `&` is the opposite case and lands on a ring lateral deliberately: 0.68
-    # per 1000 in code, 0.17 in hand-typed text, the rarest thing on the base
-    # layer. The ring laterals are the worst keys here, which is exactly what a
-    # symbol this rare should be occupying. It stays on the right hand, where
-    # Arensito had it.
-    (R_RING, E): "LSFT(KC_7)",
-
-    # In Hands Down the left index owns the entire inner column -- v, b and g
-    # are all index-finger keys. INNER_LATERAL has to scatter them, because a
-    # Svalboard index cup has only two spare directions for three letters, and
-    # it spread them one per finger: v to middle, b to index, g to ring.
-    #
-    # That breaks the finger assignment for the sake of geometric tidiness. Give
-    # the index both of the directions it has, so it keeps two of its three
-    # letters and only v -- the rarest -- is exiled to the middle finger:
-    #
-    #   index East = b (from INNER_LATERAL)   index West = g (here)
-    #
+    (L_PINKY, W): "KC_TAB",  # outermost key on the left hand, x=0.0
     (L_INDEX, W): "KC_G",
-    # place() still puts g on the ring's East as bottom-inner, so this has to
-    # override it explicitly or g ends up on two cups. What takes the slot is
-    # `@`, for the same reason `&` took the right ring's East: it is the rarest
-    # thing on this layer, 0.17 per 1000 characters of code written here and
-    # 0.01 in hand-typed text -- rarer than `&` on both counts, and most of even
-    # that 0.17 is `@types/...` imports and `git@github.com`, which are
-    # completed rather than typed.
-    #
-    # By frequency alone it would stay on MO(1). It gets promoted anyway because
-    # this costs nothing: the ring laterals are the worst keys on the board and
-    # both were empty, so one key here displaces nothing and still beats two.
-    # East is the inward lateral of the two, so `@` takes it and the outward one
-    # stays free for the next symbol that has to go somewhere.
-    (L_RING, E): "LSFT(KC_2)",
 
-    # `~` is that next symbol, and it takes the outward lateral on the same
-    # argument. Measured with freq.py: 0.12 per 1000 hand-typed characters and
-    # 0.22 in code here -- twice `@` on the hand-typed side, the same order of
-    # magnitude on both. If `@` earned a ring lateral, this earned the other one.
+    # The remaining eight laterals carry symbols, and WHICH symbols is measured
+    # rather than argued. freq.py counts the corpus Sauyon actually types --
+    # agent prompts, shell history, Slack, fourteen years of Discord, and the
+    # text tracked here -- and the thirteen most frequent symbols get the
+    # thirteen seats that 26 alphas and tab leave free. Nothing is demoted to
+    # reach this: the count of symbol seats is unchanged, only their occupants.
     #
-    # It suits a bad key in a way a rate alone does not show: 338 occurrences in
-    # the hand-typed corpus, ZERO of them consecutive repeats, longest run 1.
-    # You hit `~` once at the front of a path and leave. A key you never have to
-    # hit twice in a row is the right kind of key to put somewhere awkward.
+    # That evicted `;` `&` `~` `@`, at 1.14, 0.19, 0.18 and 0.05 per 1000
+    # characters, for `` ` `` `*` `_` `=` at 5.52, 4.42, 4.24 and 2.11. `` ` ``
+    # alone is 102x `@`. The four that left are still reachable: `;` sits on
+    # MO(1) at the left pinky's Center, `~` is shift+`` ` `` now that grave has
+    # a key, and `&` and `@` are shifts of digits. The four that arrived save
+    # 14.74 keystrokes per 1000 characters -- about 1.5% of everything typed.
     #
-    # This is also why `` ` `` did NOT take it, despite being the strongest
-    # promotion candidate on the board by frequency (8.34 hand-typed, 3.58 in
-    # code -- ahead of `:` and `(`, which both got good keys). Backtick comes in
-    # pairs around inline code spans, so a ring lateral would be the worst key
-    # here hit twice per span. It stays on MO(1) at the left pinky's West, where
-    # it is at least a left-right alternation against the right-thumb MO(1).
-    # There is no good free key left for it; the honest answer is that it wants
-    # one and none exists.
-    (L_RING, W): "LSFT(KC_GRAVE)",
+    # The old argument for `@` and `~` was that a ring lateral costs nothing
+    # because it was empty and "still beats two". It does not: config/keyboard/
+    # sval.yml scores both ring outer laterals 99, against 2+3 for a hold and a
+    # decent key, so promoting a symbol there was a loss of about 17 per 1000
+    # characters each. The claim that `~` is never doubled has also expired --
+    # it was true of the corpus available then and is 38.3% now, because
+    # `~~strikethrough~~` arrived with the Discord export.
+    #
+    # Placement is the annealer's, not hand-argued: three of four restarts
+    # returned this arrangement identically with the alphas pinned, which is
+    # what makes it trustworthy where the earlier unconstrained runs were not.
+    # They disagreed with each other from identical inputs.
+    (L_PINKY, E): "LSFT(KC_QUOTE)",   # "
+    (L_RING, W): "LSFT(KC_0)",        # )  -- the rarest of the thirteen, on
+                                      #    the worst key. That is the trade the
+                                      #    old `@`/`~` argument wanted and got
+                                      #    backwards by putting frequent
+                                      #    symbols there instead.
+    (L_RING, E): "KC_EQUAL",          # =
+    (L_MIDDLE, W): "LSFT(KC_8)",      # *
+    (R_INDEX, E): "KC_QUOTE",         # '
+    (R_MIDDLE, E): "LSFT(KC_MINUS)",  # _
+    (R_RING, E): "LSFT(KC_9)",        # (
 }
 
 # Thumb clusters, declared by physical x rather than column index -- the indices
@@ -397,12 +373,18 @@ ARENSITO_RIGHT = {
 # `?` is deliberately absent: it is shift+/ and `/` is on the base layer, so it
 # already costs two keys, not three.
 SYMBOL_LATERALS = {
-    (L_PINKY, W): "KC_GRAVE",
-    # `~` was here. It is on the base layer at the left ring's West now, and a
-    # promoted symbol is never copied -- leaving it would put it on two keys.
-    # KC_NO rather than dropping the entry: dropping it falls through to layer
-    # 0's `-` on this lateral, which is a worse failure than a dead key.
-    (L_PINKY, E): "KC_NO",
+    # `` ` `` was here and is on the base layer now, at the right index's North.
+    # A promoted symbol is never copied, so this seat is free -- and `@` needs
+    # it. `@` came OFF the base layer in the same reshuffle, and it is shift+2
+    # with the digits on this layer, so without a seat here it would cost
+    # MO(1)+shift+key. check_symbols() fails the build on exactly that, which is
+    # how this was caught rather than shipped.
+    (L_PINKY, W): "LSFT(KC_2)",        # @
+    # `~` was here, then on the base layer at the left ring's West, and is now
+    # neither: it is shift+`` ` ``, and grave is on the base layer, so it costs
+    # two keys without a seat. `&` takes the slot for the same reason `@` took
+    # the one above -- shift+7 against digits that live here.
+    (L_PINKY, E): "LSFT(KC_7)",        # &
     (L_INDEX, W): "LSFT(KC_1)",        # !  easiest left lateral, most frequent
     (L_MIDDLE, W): "LSFT(KC_3)",       # #
     (L_RING, W): "LSFT(KC_5)",         # %

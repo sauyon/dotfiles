@@ -89,6 +89,7 @@ let
       hash = "sha256-kh57ooLzY9ttkrKVHvbh97qlD0CDZPJ93VaGy0Yj5ZM=";
     };
     vendorHash = "sha256-n2MhWWb7T4zzgmo66PzhmV89S15WcPEK00hgFYTXP8A=";
+    ldflags = [ "-X github.com/FogDong/kcs/cmd.version=${version}" ];
   };
 
   # herdr — pinned to my fork's rev with both focus-steal fixes (pane/workspace

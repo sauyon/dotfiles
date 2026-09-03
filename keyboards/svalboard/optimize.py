@@ -29,10 +29,17 @@ cluster is argued from hardware the optimizer cannot model (one thumb holds one
 key; only the knuckle+nail fat-finger pair chords; double-down is a harder press
 of down, not a sixth position).
 
-On the fingers, the 26 alphas and the 7 promoted symbols float. The other six
-printable layer-0 keys (`,` `.` `/` `;` `'` `"`) are pinned with --fix, because
-sval.yml marks every finger key permutable and --fix is the only per-key freeze
-that does not mean editing a config whose key costs were fitted to it.
+On the fingers, everything floats: 26 alphas, tab and 13 symbols, and --fix now
+holds nothing. It used to pin `,` `.` `/` `;` `'` `"` because the run was scoped
+to "the alphas plus the seven promoted symbols" and those six were neither --
+a statement about the run, never about the placements, and a pinned key is one
+the search cannot examine.
+
+WHICH 13 SYMBOLS is itself measured rather than listed: promoted_symbols() ranks
+every ASCII symbol by blended corpus rate and takes as many as there are seats.
+Sauyon's rule -- nothing demoted to a layer, no alpha on a thumb -- fixes the
+seat COUNT at 13, because 26 alphas and tab occupy the other 27 finger keys. It
+says nothing about which symbol sits where, so the annealer decides that.
 
 THE CORPUS NEVER ENTERS THIS REPO
 ---------------------------------
@@ -125,6 +132,19 @@ def blended_rates(per_corpus, weights):
                 continue
             out[char] = out.get(char, 0.0) + rate * weight / total
     return out
+
+
+def symbol_seats(layout):
+    """Indices of the layer-0 keys a symbol may occupy.
+
+    One definition, because both callers need exactly the same set and a second
+    copy is a second thing that can drift: start_layout fills these, and main
+    counts them to decide how many symbols to ask promoted_symbols for. If they
+    ever disagreed, the search would be handed a board with a glyph missing and
+    would report an improvement on it.
+    """
+    floating = permuting(layout)
+    return [i for i, c in enumerate(layout) if c in floating and not c.isalpha()]
 
 
 def promoted_symbols(rates, count):
@@ -293,8 +313,7 @@ def start_layout(current, symbols):
     given -- highest measured rate first, since that is how promoted_symbols
     returns them.
     """
-    seats = [i for i, c in enumerate(current)
-             if c in permuting(current) and not c.isalpha()]
+    seats = symbol_seats(current)
     if len(seats) != len(symbols):
         raise SystemExit(
             f"{len(symbols)} symbols for {len(seats)} floating seats: "
@@ -376,8 +395,9 @@ def main():
     # Which symbols deserve layer 0 is a measurement, not the list build.py
     # happens to hold. Seats are however many the current layer already spends
     # on floating symbols; what fills them is the top of the measured ranking.
-    floating = {c for c in current if c in permuting(current) and not c.isalpha()}
-    seats = len(floating)
+    seats_at = symbol_seats(current)
+    floating = {current[i] for i in seats_at}
+    seats = len(seats_at)
     rank = blended_rates(freq.rates(freq.load_corpus(), ASCII_PRINTABLE), WEIGHTS)
     inventory = promoted_symbols(rank, seats)
     demoted = sorted(floating - set(inventory), key=lambda c: -rank[c])

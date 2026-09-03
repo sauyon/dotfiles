@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>ba2tfdqce</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-4852684/-local-mnt-workspace-kyuusaku-devel-dotfiles/142bf962-c957-469e-8631-0491baa3b8b2/tasks/ba2tfdqce.output</output-file>
+<status>completed</status>
+<summary>Background command "Apply config via hms" completed (exit code 0)</summary>
+</task-notification>

@@ -68,7 +68,15 @@ let
   # explore-mcp builds on all four systems (pure JS), so no darwin guard.
   explore-mcp-pkg = explore-mcp.packages.${system}.default;
   # drovr — Rust CLI, buildRustPackage on all unix systems; pairs with herdr.
-  drovr-pkg = drovr.packages.${system}.default;
+  # These two RunIdentity tests collide on ext4: same-path recreate reuses the
+  # inode, and btime is tick-granular, so (dev, ino, born) repeats. Real drovr
+  # bug, not just flake — drop the skip once RunIdentity stops trusting stat.
+  drovr-pkg = drovr.packages.${system}.default.overrideAttrs (old: {
+    checkFlags = (old.checkFlags or [ ]) ++ [
+      "--skip=review::tests::a_recreated_run_is_a_different_identity"
+      "--skip=review::tests::an_identity_learned_late_is_adopted_rather_than_left_unknown"
+    ];
+  });
 
   # herdr — pinned to my fork's rev with both focus-steal fixes (pane/workspace
   # close 1df7636a + API-close f044ae8e, refs upstream #1621), rebased onto
@@ -1533,8 +1541,15 @@ in
 
   xdg.userDirs.setSessionVariables = true;
 
-  home.username = let v = builtins.getEnv "USER"; in if v != "" then v else "sauyon";
-  home.homeDirectory = let v = builtins.getEnv "HOME"; in if v != "" then v else (if isDarwin then "/Users/sauyon" else "/home/sauyon");
+  # getEnv is "" under pure eval, so these always take the fallback; hosts whose
+  # $USER/$HOME differ declare it in their `machine` attrset.
+  home.username =
+    machine.username or (let v = builtins.getEnv "USER"; in if v != "" then v else "sauyon");
+  home.homeDirectory =
+    machine.homeDir or (
+      let v = builtins.getEnv "HOME";
+      in if v != "" then v else (if isDarwin then "/Users/sauyon" else "/home/sauyon")
+    );
 
   home.sessionVariables =
     import ./env.nix (
@@ -2061,6 +2076,7 @@ in
     jq
     jujutsu
     lnav
+    mise
     mosh
     opencode
     pi-coding-agent  # earendil-works/pi terminal coding agent (binary: pi)

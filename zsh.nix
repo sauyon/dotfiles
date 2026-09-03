@@ -275,7 +275,6 @@
 
     bindkey '^T' transpose-chars
 
-    # kcs ships via mise (vfox:sauyon/vfox-kcs); guard so hosts without it stay quiet.
     if command -v kcs >/dev/null 2>&1; then
       eval "$(kcs init)"
     fi

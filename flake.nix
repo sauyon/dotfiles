@@ -52,6 +52,7 @@
     homeConfigurations.kyuusaku = linuxHome {
       hostname = "kyuusaku";
       gui = false;
+      homeDir = "/local/mnt/workspace/kyuusaku";
     };
     homeConfigurations.setsuna = linuxHome {
       hostname = "setsuna";

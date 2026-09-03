@@ -78,6 +78,19 @@ let
     ];
   });
 
+  # kcs — kube config switch helper; `zsh.nix` runs `kcs init`. Not in nixpkgs.
+  kcs = pkgs.buildGoModule rec {
+    pname = "kcs";
+    version = "0.2.2";
+    src = pkgs.fetchFromGitHub {
+      owner = "FogDong";
+      repo = "kcs";
+      rev = "v${version}";
+      hash = "sha256-kh57ooLzY9ttkrKVHvbh97qlD0CDZPJ93VaGy0Yj5ZM=";
+    };
+    vendorHash = "sha256-n2MhWWb7T4zzgmo66PzhmV89S15WcPEK00hgFYTXP8A=";
+  };
+
   # herdr — pinned to my fork's rev with both focus-steal fixes (pane/workspace
   # close 1df7636a + API-close f044ae8e, refs upstream #1621), rebased onto
   # upstream master dc2506ea 2026-07-26. Being ahead of v0.7.4 bumped
@@ -2035,6 +2048,7 @@ in
     claude-prof
     herdr-pkg
     hms
+    kcs
   ]
   # Enrolment/recovery tool for the TPM-sealed keyring passphrase; the daemon
   # wrapper itself is referenced straight from its unit, so it stays off PATH.

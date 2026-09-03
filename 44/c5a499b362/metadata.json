@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "44c5a499b362",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 13,
+  "files_touched": [
+    "keyboards/svalboard/optimize.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/44/c5a499b362/0/metadata.json",
+      "transcript": "/44/c5a499b362/0/full.jsonl",
+      "compact_transcript": "/44/c5a499b362/0/transcript.jsonl",
+      "content_hash": "/44/c5a499b362/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 12446,
+    "cache_read_tokens": 2214820,
+    "output_tokens": 5725,
+    "api_call_count": 7
+  }
+}

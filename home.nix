@@ -912,21 +912,6 @@ let
           matcher = "Bash";
           hooks = [ {
             type = "command";
-            # Block `gh pr create` outside the quite-app worktree. Inspect
-            # tool_input.command from the stdin hook JSON ourselves, since
-            # `matcher` only filters on tool name.
-            command = ''
-              case "$PWD" in ${config.home.homeDirectory}/devel/quite-app*) exit 0 ;; esac
-              input=$(cat)
-              case "$input" in *'"command":"gh pr create'*) ;; *) exit 0 ;; esac
-              printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Do not run `gh pr create`. Print a PR creation link instead (e.g. https://github.com/<owner>/<repo>/compare/<base>...<head>?expand=1, or https://github.com/<owner>/<repo>/pull/new/<branch>) and let the user create the PR themselves."}}'
-            '';
-          } ];
-        }
-        {
-          matcher = "Bash";
-          hooks = [ {
-            type = "command";
             # Block `coder ssh` anywhere in a command: the ssh config already
             # proxies coder workspaces through plain ssh (coder.* / *.coder
             # blocks below), keeping known-hosts and config in one place.
@@ -934,19 +919,6 @@ let
               input=$(cat)
               case "$input" in *'coder ssh'*) ;; *) exit 0 ;; esac
               printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Do not use `coder ssh`. The ssh config already proxies coder workspaces; use standard ssh instead: `ssh coder.<workspace>` (or `ssh <workspace>.coder`)."}}'
-            '';
-          } ];
-        }
-        {
-          matcher = "mcp__github__create_pull_request";
-          hooks = [ {
-            type = "command";
-            # Mirror the `gh pr create` hook for the GitHub MCP tool: block PR
-            # creation outside the quite-app worktree. A flat permissions.deny
-            # can't be scoped to a directory, so gate on $PWD here.
-            command = ''
-              case "$PWD" in ${config.home.homeDirectory}/devel/quite-app*) exit 0 ;; esac
-              printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Do not create pull requests here. Print a PR creation link instead (e.g. https://github.com/<owner>/<repo>/pull/new/<branch>) and let the user create the PR themselves."}}'
             '';
           } ];
         }
@@ -1104,10 +1076,10 @@ let
     autoMode = {
       allow = [
         "$defaults"
-        # PR creation is fine inside quite-app, so don't block the hook-allowed
-        # path there. (cwd is in the classifier's prompt; outside quite-app the
-        # hooks above still deny deterministically.)
-        "Creating a pull request (`gh pr create`, a `gh api` POST to a repo's pulls endpoint, or mcp__github__create_pull_request) is ALLOWED when the working directory is under ${config.home.homeDirectory}/devel/quite-app. PR creation stays blocked in every other directory."
+        # PR creation auto-approves inside quite-app only. Nothing denies it
+        # elsewhere any more — it just isn't auto-mode work, so it surfaces a
+        # prompt, which is what CLAUDE.md's confirm-before-a-PR rule wants.
+        "Creating a pull request (`gh pr create`, a `gh api` POST to a repo's pulls endpoint, or mcp__github__create_pull_request) is ALLOWED when the working directory is under ${config.home.homeDirectory}/devel/quite-app."
         "Git Push to Default Branch is allowed when the current working directory is under ${config.home.homeDirectory}/devel/kube. That repo is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow; no PR review applies."
       ];
     };

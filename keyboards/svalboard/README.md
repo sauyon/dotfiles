@@ -123,9 +123,16 @@ laterals carry the six symbols Arensito leaves out, which would otherwise cost
   | on the right index       ^ on the right middle
 ```
 
-`~` used to sit beside `` ` `` on the left pinky's East, paired with its
-unshifted partner. It is on the base layer now, and its old lateral is dead
-rather than transparent — falling through would type `-`.
+`@` and `&` are here, on the left pinky's two laterals. Both came *off* layer 0
+in the symbol reshuffle, and both are shift+digit with the digits on this layer
+— so without a seat here each would cost `MO(1)`+shift+key. `check_symbols()`
+fails the build on exactly that, which is how this was caught rather than
+shipped.
+
+`` ` `` used to hold the left pinky's West and is on layer 0 now; a promoted
+symbol is never copied, so the seat went to `@`. `~` is no longer on either
+layer as a key: it is shift+`` ` ``, which costs two keys now that grave has a
+base-layer seat.
 
 `?` isn't here on purpose — it's shift+`/`, and `/` is on the base layer.
 

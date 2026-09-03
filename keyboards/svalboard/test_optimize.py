@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import string
 import unittest
+import unittest.mock
 
 import optimize
 
@@ -136,11 +137,16 @@ class PromotedSymbolTests(unittest.TestCase):
         self.assertEqual(picked, [".", ",", "`", "*", "_", "="])
 
     def test_anything_pinned_is_never_returned(self):
-        # FIXED is empty today, so this guards the rule rather than a case:
-        # a pinned symbol already holds a seat --fix will not let the search
-        # move, and offering it again would double-count that seat.
-        picked = optimize.promoted_symbols(self.RATES, 6)
-        self.assertEqual(set(picked) & optimize.FIXED, set())
+        # FIXED is empty today, so asserting `picked & FIXED == set()` would be
+        # asserting against the empty set and could not fail. Pin something for
+        # the length of the test instead, so the rule is actually exercised:
+        # a pinned symbol holds a seat --fix will not let the search move, and
+        # offering it again would double-count that seat.
+        pinned = {".", "`"}
+        with unittest.mock.patch.object(optimize, "FIXED", pinned):
+            picked = optimize.promoted_symbols(self.RATES, 6)
+        self.assertEqual(set(picked) & pinned, set())
+        self.assertEqual(picked, [",", "*", "_", "=", "#", "@"])
 
     def test_asking_for_more_than_there_are_returns_what_there_is(self):
         self.assertEqual(len(optimize.promoted_symbols(self.RATES, 99)), 8)
@@ -212,10 +218,26 @@ class StartLayoutTests(unittest.TestCase):
         self.assertEqual(letters, [(i, out[i]) for i, _ in letters])
 
     def test_the_layout_build_emits_already_carries_the_inventory(self):
-        # The point of the whole exercise: build.py and the measurement agree,
-        # so a run starts from the real board rather than a corrected copy of
-        # it. If freq.py's ranking ever moves, this is what notices.
+        # build.py and the recorded measurement agree, so a run starts from the
+        # real board rather than a corrected copy of it.
+        #
+        # This compares against a frozen INVENTORY and does NOT read freq.json,
+        # so it will not notice the corpus drifting underneath -- only build.py
+        # drifting from the inventory recorded here. Catching a ranking change
+        # needs a run of optimize.py against a rebuilt corpus, which is a thing
+        # a test with no network and no cache cannot do.
         self.assertEqual(optimize.start_layout(CURRENT, self.INVENTORY), CURRENT)
+
+    def test_a_repeated_symbol_is_refused_not_a_StopIteration(self):
+        # len(symbols) == len(seats) is not the invariant that makes the fill
+        # safe: two copies of a symbol already on the board both filter out of
+        # `incoming`, leaving it short, and next() then raises a bare
+        # StopIteration from inside a comprehension rather than the SystemExit
+        # this is supposed to refuse with.
+        dup = ["-", "-", "/", "'", "`", ",", "*", ":", "_", '"', "=", ")", "("]
+        self.assertEqual(len(dup), 13)
+        with self.assertRaises(SystemExit):
+            optimize.start_layout(self.PREVIOUS, dup)
 
     def test_an_inventory_that_does_not_fit_the_seats_is_refused(self):
         # Silently dropping one would hand optimize_sa a board with a glyph

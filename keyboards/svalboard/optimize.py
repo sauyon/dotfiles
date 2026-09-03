@@ -134,6 +134,18 @@ def blended_rates(per_corpus, weights):
     return out
 
 
+def is_symbol(c):
+    """One definition of what counts as a symbol, for both sides of the pipe.
+
+    symbol_seats decides which keys a symbol MAY occupy and promoted_symbols
+    decides which symbols compete for them; if the two disagreed, the seat count
+    and the inventory length would be measuring different sets and start_layout
+    would refuse a perfectly good run. Digits are excluded for the same reason
+    letters are -- neither is on layer 0, and neither is a candidate for it.
+    """
+    return len(c) == 1 and not c.isalnum() and not c.isspace()
+
+
 def symbol_seats(layout):
     """Indices of the layer-0 keys a symbol may occupy.
 
@@ -144,7 +156,7 @@ def symbol_seats(layout):
     would report an improvement on it.
     """
     floating = permuting(layout)
-    return [i for i, c in enumerate(layout) if c in floating and not c.isalpha()]
+    return [i for i, c in enumerate(layout) if c in floating and is_symbol(c)]
 
 
 def promoted_symbols(rates, count):
@@ -162,11 +174,7 @@ def promoted_symbols(rates, count):
     argument and space is on a thumb -- and neither are the FIXED symbols, which
     already hold seats --fix will not let the search move.
     """
-    candidates = [c for c in rates
-                  if len(c) == 1
-                  and not c.isalnum()
-                  and not c.isspace()
-                  and c not in FIXED]
+    candidates = [c for c in rates if is_symbol(c) and c not in FIXED]
     # Rate descending, then the character itself, so a tie is not resolved by
     # whatever order the corpus happened to yield.
     candidates.sort(key=lambda c: (-rates[c], c))
@@ -320,6 +328,17 @@ def start_layout(current, symbols):
             f"{''.join(symbols)!r} against {''.join(current[i] for i in seats)!r}. "
             "A dropped glyph would still evaluate, on a board missing a key."
         )
+    # Counting is not enough. A repeated symbol passes the length check and then
+    # filters out of `incoming` twice over, leaving fewer glyphs than vacated
+    # seats -- and next() raises a bare StopIteration from inside the loop
+    # instead of refusing here. Same failure this function exists to prevent, so
+    # it gets the same refusal.
+    if len(set(symbols)) != len(symbols):
+        repeated = sorted({s for s in symbols if symbols.count(s) > 1})
+        raise SystemExit(
+            f"repeated symbol(s) {''.join(repeated)!r} in the inventory. "
+            "One glyph cannot hold two seats, and the board would come out a key short."
+        )
     incoming = iter([s for s in symbols if s not in current])
     out = list(current)
     for i in seats:
@@ -400,12 +419,15 @@ def main():
     seats = len(seats_at)
     rank = blended_rates(freq.rates(freq.load_corpus(), ASCII_PRINTABLE), WEIGHTS)
     inventory = promoted_symbols(rank, seats)
-    demoted = sorted(floating - set(inventory), key=lambda c: -rank[c])
+    # .get, not [c]: a layer-0 glyph the corpus never produced -- anything
+    # non-ASCII, or a symbol typed exactly zero times -- is absent from `rank`,
+    # and reporting what got demoted must not be the thing that crashes the run.
+    demoted = sorted(floating - set(inventory), key=lambda c: -rank.get(c, 0.0))
     print(f"symbol seats: {seats}")
     for n, c in enumerate(promoted_symbols(rank, seats + 4), 1):
         mark = "  <- in" if c in inventory else "  <- out"
         was = " (on layer 0 today)" if c in current else ""
-        print(f"  {n:2}. {c!r:<5} {rank[c]:7.3f}/1k{mark}{was}")
+        print(f"  {n:2}. {c!r:<5} {rank.get(c, 0.0):7.3f}/1k{mark}{was}")
     if demoted:
         print(f"demoted: {' '.join(repr(c) for c in demoted)}")
 

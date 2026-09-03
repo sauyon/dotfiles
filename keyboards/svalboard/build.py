@@ -337,12 +337,15 @@ def thumb_col(row, x):
 # Seven of Arensito's own cells are holes here. Each of those symbols is already
 # reachable in one key elsewhere, and nothing should be on two keys:
 #
-#   `-`     base layer, left pinky East          -- no MO(1) at all
-#   `(` `)` base layer, left/right middle outer  -- no MO(1) at all
-#   `:`     base layer, right index East         -- no MO(1) at all
-#   `&`     base layer, right ring East          -- no MO(1) at all
-#   `@`     base layer, left ring East           -- no MO(1) at all
-#   `_`     left thumb's space key               -- see SYMBOL_THUMB_X below
+#   `-`     base layer, right middle West       -- no MO(1) at all
+#   `(` `)` base layer, right ring East / left ring West
+#   `:`     base layer, right pinky North        -- no MO(1) at all
+#   `_`     base layer, right middle East, AND the left thumb's space key
+#           below -- the one deliberate duplicate, see SYMBOL_THUMB_X
+#
+# `&` and `@` used to be on this list and are not: they came off the base layer
+# when the inventory was measured, and they now hold the left pinky's laterals
+# on THIS layer. See SYMBOL_LATERALS.
 #
 # They are KC_NO rather than KC_TRNS on purpose. Transparent would fall through
 # to layer 0 and quietly type `n`, `.`, `e`, `i`, `b`, `v` and `/` from the
@@ -367,8 +370,10 @@ ARENSITO_RIGHT = {
 # themselves on this layer, that means holding MO(1) AND shift AND the key.
 # Three keys for `!` is not a symbol layer doing its job. They go on the laterals
 # Arensito leaves free, paired with their unshifted partners where that helps:
-# | beside \. (`~` used to sit beside `` ` `` here for the same reason; it is on
-# the base layer now, so the pairing is gone and the slot with it.)
+# | beside \. (`~` used to sit beside `` ` `` here for the same reason. Neither
+# is on this layer now: `` ` `` earned a base-layer seat on measured frequency
+# and `~` is shift+`` ` `` off it, so the pairing is gone and both slots with
+# it -- they hold `@` and `&` instead.)
 #
 # `?` is deliberately absent: it is shift+/ and `/` is on the base layer, so it
 # already costs two keys, not three.

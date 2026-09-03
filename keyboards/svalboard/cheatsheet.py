@@ -360,11 +360,16 @@ NOTES = """
   <div>
     <b>Departures from the port</b>
     <p><b style="display:inline">g</b> is on the left index's West so the index
-    keeps two of its three inner-column letters; <b style="display:inline">v</b>
-    is exiled to the middle finger.</p>
-    <p><code>-</code> <code>:</code> <code>(</code> <code>)</code>
-    <code>&amp;</code> <code>@</code> <code>~</code> are promoted to
-    layer&nbsp;0 and are holes on layer&nbsp;1, never on two keys.</p>
+    keeps two of its three inner-column letters. <b style="display:inline">f</b>,
+    <b style="display:inline">v</b> and <b style="display:inline">l</b> rotate:
+    f to the middle's South, v to the ring's North, l to the middle's East.</p>
+    <p>The thirteen symbols on layer&nbsp;0 are the thirteen most frequent in
+    the measured corpus, not a hand-picked set. <code>;</code> <code>&amp;</code>
+    <code>~</code> <code>@</code> lost their seats to <code>`</code>
+    <code>*</code> <code>_</code> <code>=</code>; <code>~</code> is
+    shift+<code>`</code> and <code>?</code> is shift+<code>/</code>, both on
+    layer&nbsp;0, while <code>@</code> and <code>&amp;</code> took the left
+    pinky's laterals on layer&nbsp;1.</p>
   </div>
 </div>
 """

@@ -186,15 +186,31 @@ def promoted_symbols(rates, count):
 # than the prompt transcripts -- while the Slack sample is 15k. Weighting by
 # size would let a decade of chat outvote what Sauyon types now, which is what
 # the layout is actually for; weighting it at the 0.05 it had while the export
-# was still missing would ignore real personal typing. 0.26 splits that:
+# was still missing would ignore real personal typing. 0.20 splits that:
 # present and substantial, not dominant.
 #
+# Discord came down from 0.26 because it is the one register here where Sauyon
+# does not punctuate: `,` runs 1.28 per 1000 characters against 7.74 in prompts
+# and `.` 3.57 against 13.12. At 0.26 it held both marks below the rate of
+# ordinary English prose, which is a claim about chat habits leaking into a
+# layout meant for everything else. It moves the rates, not the ranking --
+# `,` is 6th among symbols at every weighting tried.
 #
-# `code` is low on purpose, and lower than its 683k characters suggest. Sauyon
-# does not write much code by hand any more -- the typing that replaced it is
-# in `prompts`, which is why that one carries the largest share. The corpus is
-# also the weakest proxy here: it is the text tracked in this repo, which
-# includes plenty nobody sat and typed.
+# `code` and `shell` are low on purpose, and lower than their 683k and 442k
+# characters suggest. Sauyon does not write much code by hand any more -- the
+# typing that replaced it is in `prompts`, which is why that one carries the
+# largest share. `code` is also the weakest proxy here: it is the text tracked
+# in this repo, which includes plenty nobody sat and typed. `shell` is real
+# typing but a narrow register, and it is what puts `/` and `-` near the top of
+# the ranking on its own.
+#
+# `slack` is the one weight that is deliberately out of proportion to its
+# sample. It is 15,179 characters -- 0.1% of the corpus by size -- carrying 0.20
+# of the blend, so each Slack character counts for roughly a thousand Discord
+# ones. That is on purpose: work chat is a register Sauyon types in daily and
+# the export is just small. The cost is that sampling noise in it is amplified
+# by the same factor, so a symbol whose rate rests mainly on `slack` should be
+# re-checked against a larger export before anything is moved for it.
 #
 # These are estimates, they are the softest number in the whole pipeline, and
 # they are here as one editable constant so a result can be re-run against a
@@ -202,11 +218,11 @@ def promoted_symbols(rates, count):
 # each component to the first one's total before applying these, so they are
 # shares of the blend rather than raw counts.
 WEIGHTS = {
-    "prompts": 0.38,
-    "shell":   0.18,
-    "code":    0.08,
-    "slack":   0.10,
-    "discord": 0.26,
+    "prompts": 0.45,
+    "shell":   0.10,
+    "code":    0.05,
+    "slack":   0.20,
+    "discord": 0.20,
 }
 
 PATH_MARKER = re.compile(r"\x00PATH:[^\n]*\n?")

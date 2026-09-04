@@ -62,13 +62,17 @@ class SlackLoaderTests(unittest.TestCase):
         # one of them is the `&` whose rate decides where `&` goes.
         self.assertEqual(freq.slack_plain("&amp;lt;"), "&lt;")
 
-    def test_mentions_and_channel_refs_are_dropped(self):
-        # You autocomplete these; your hands never type the U0123ABC.
+    def test_mentions_keep_the_sigil_that_opened_the_picker(self):
+        # You autocomplete these, so the U0123ABC is never typed -- but the
+        # picker does not open by itself. `@` and `#` are keystrokes, and
+        # deleting the whole entity counted a ping as zero keys pressed. Same
+        # call the emoji path already makes by keeping the typed colons.
+        # <!here> is typed "@here", so its sigil is `@`, not `!`.
         self.with_dump("d.json", [
             {"text": "hey <@U0123ABC> see <#C0456DEF|general> <!here>"},
         ])
 
-        self.assertEqual(list(freq.iter_slack_text()), ["hey  see  "])
+        self.assertEqual(list(freq.iter_slack_text()), ["hey @ see # @"])
 
     def test_links_keep_the_label_and_drop_the_url(self):
         # A pasted URL is not typing; a label you wrote is.
@@ -263,7 +267,9 @@ class DiscordLoaderTests(unittest.TestCase):
 
         self.assertEqual(list(freq.iter_discord_text()), ["one\ntwo"])
 
-    def test_mentions_dropped_and_custom_emoji_reduced_to_typed_form(self):
+    def test_mentions_keep_their_sigil_and_custom_emoji_reduce_to_typed_form(self):
+        # `<@123>`, `<@!456>` and `<@&321>` are all opened by typing `@`; the
+        # id and the `!`/`&` disambiguator are the export's, not the typist's.
         self.with_export((
             "c1",
             'ID,Timestamp,Contents,Attachments\n'
@@ -272,7 +278,7 @@ class DiscordLoaderTests(unittest.TestCase):
 
         self.assertEqual(
             list(freq.iter_discord_text()),
-            ["hey  and  in  role  emoji :party: :spin:"],
+            ["hey @ and @ in # role @ emoji :party: :spin:"],
         )
 
     def test_literal_emoji_are_restored_to_the_keys_actually_pressed(self):
@@ -361,6 +367,83 @@ class DiscordLoaderTests(unittest.TestCase):
         )
 
         self.assertEqual(list(freq.iter_discord_text()), ["fine"])
+
+
+class PromptLoaderTests(unittest.TestCase):
+    """What counts as typing in a Claude Code transcript.
+
+    The module docstring says `prompts` has no contract worth asserting, and
+    that is true of *what is on this machine*. It is not true of the filtering:
+    which blocks are machine-injected is this file's own rule, and it is the
+    rule that decides 45% of the blend.
+    """
+
+    def with_transcript(self, *records) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        proj = Path(tmp.name) / "a-project"
+        proj.mkdir()
+        (proj / "session.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in records), encoding="utf-8"
+        )
+        old = freq.PROJECTS
+        freq.PROJECTS = Path(tmp.name)
+        self.addCleanup(lambda: setattr(freq, "PROJECTS", old))
+
+    @staticmethod
+    def user(text: str) -> dict:
+        return {"type": "user", "message": {"role": "user", "content": text}}
+
+    def test_a_block_that_opens_with_an_injected_marker_is_dropped(self):
+        self.with_transcript(self.user("<system-reminder>machine</system-reminder>"))
+
+        self.assertEqual(list(freq.iter_prompt_text()), [])
+
+    def test_an_injected_block_appended_after_typing_is_cut_off(self):
+        # The hook appends its card AFTER what you typed, so startswith() never
+        # saw it. 42 blocks and 666k characters -- 9.4% of the prompts corpus,
+        # the heaviest-weighted source -- were machine text counted as typing.
+        self.with_transcript(
+            self.user("what I typed\n<SUBAGENT-STOP>machine text here")
+        )
+
+        self.assertEqual(list(freq.iter_prompt_text()), ["what I typed\n"])
+
+    def test_typing_with_no_marker_survives_whole(self):
+        # The cut must not be won by truncating everything.
+        self.with_transcript(self.user("a normal prompt with `ticks` and -flags"))
+
+        self.assertEqual(
+            list(freq.iter_prompt_text()), ["a normal prompt with `ticks` and -flags"]
+        )
+
+
+class ContextCheckTests(unittest.TestCase):
+    """Where a rate comes from, not just how big it is."""
+
+    def test_an_unbalanced_fence_does_not_leak_into_the_next_record(self):
+        # The prompts corpus is every prompt concatenated, so one prompt that
+        # opens a ``` fence and never closes it used to leave the flag on for
+        # every prompt after it. That reported 67% of backticks as fenced
+        # against a per-record truth of 6% -- an argument for demoting a
+        # symbol that is in fact typed in prose.
+        corpus = {"prompts": "\x00".join([
+            "```\nunclosed fence",
+            "plain `tick` prose",
+        ])}
+
+        inside, outside = freq.fenced_split(corpus, "`")
+
+        self.assertEqual(outside, 2, "the second prompt is not inside a fence")
+
+    def test_a_closed_fence_still_counts_as_inside(self):
+        # The guard above must not be won by never reporting anything fenced.
+        corpus = {"prompts": "before `a`\n```\n`b`\n```\nafter `c`"}
+
+        inside, outside = freq.fenced_split(corpus, "`")
+
+        self.assertEqual(inside, 8)   # 3 + 2 + 3 on the fence lines and body
+        self.assertEqual(outside, 4)  # `a` and `c`
 
 
 class AggregateTests(unittest.TestCase):

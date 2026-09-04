@@ -25,9 +25,12 @@ the manifest records the filters that produced it, but not their intent.
 THE CORPORA
 -----------
 `prompts`  Text you typed to agents. Sidechains (subagent transcripts) and
-           machine-injected blocks are dropped -- see EXCLUDE_PREFIXES. What
-           survives is meant to be keystrokes your hands actually made, which
-           is the thing a keymap should be optimised for.
+           machine-injected blocks are dropped -- see EXCLUDE_PREFIXES, which
+           both skips a block that opens with a marker and trims one that has
+           a marker stapled to its end, since a UserPromptSubmit hook appends
+           its card after your typing. What survives is meant to be keystrokes
+           your hands actually made, which is the thing a keymap should be
+           optimised for.
 `shell`    zsh history, with the `: <ts>:<elapsed>;` metadata stripped so the
            timestamps don't dilute the rates.
 `code`     Text files tracked in this repo, minus generated artifacts. Counting
@@ -41,6 +44,34 @@ THE CORPORA
 
 A rate is per 1000 characters of the corpus, so the corpora stay comparable
 despite very different sizes.
+
+WHAT THIS STILL CANNOT SEE
+--------------------------
+Every corpus here is a record of text that ended up somewhere, not of keys that
+were pressed, and the two differ in ways that are worth knowing before moving a
+key on the strength of a number. Measured where measurable:
+
+`shell`    History records what ran, never how it was entered. A command
+           recalled with Ctrl-R or up-arrow costs two or three keystrokes and
+           is counted at its full length, and a path finished with Tab is
+           counted as if typed out. Both inflate `/`, `-` and `.` specifically,
+           which are exactly the characters this corpus ranks highest -- 44.44
+           and 33.97 per 1000 for `-` and `/`. Nothing in the file distinguishes
+           them, so the weight in optimize.py is the only available correction.
+`code`     Tracked repo text. Much of it was written by an agent, and none of it
+           was typed as a stream -- autocomplete, reformatters and paste all
+           contribute. Weighted 0.05 for this reason.
+`prompts`  Pasted text is indistinguishable from typed text; only one block in
+           the whole corpus carried a `[Pasted text #N]` marker. The closest
+           available proxy is fenced_split -- 11.9% of this corpus sits inside
+           ``` fences -- and that content is counted, not excluded.
+mentions   `@` is credited once per ping (see mention_sigil), but the two to
+           four characters typed to narrow the picker are not: about 0.5-1.1
+           per 1000 characters, spread across whatever letters those names
+           begin with. Below the resolution of any placement decision here.
+chat       Fenced blocks in chat are counted as typed: 6.6% of `slack`, 1.2% of
+           `discord`. Some of that is genuinely typed at a keyboard and some is
+           a pasted log, and nothing separates them.
 """
 
 import argparse
@@ -65,6 +96,18 @@ AGGREGATE = HERE / "freq.json"
 
 PROJECTS = pathlib.Path.home() / ".config/claude-work/projects"
 ZSH_HISTORY = pathlib.Path.home() / ".local/share/zsh/history"
+
+# What separates one prompt, message or command from the next inside a cached
+# corpus file. NUL rather than newline, because the records are themselves
+# multi-line and a line-based check cannot otherwise tell "end of this prompt"
+# from "next line of this prompt". fenced_split needs exactly that distinction:
+# joined on "\n", one unbalanced ``` opened a fence over every prompt after it.
+#
+# NUL is outside the printable ASCII the rates are computed over and is one
+# character wide like the newline it replaces, so this changes no measured rate
+# and no corpus length. `code` records already begin with their own \x00PATH:
+# marker, which is where the convention comes from.
+RECORD_SEP = "\x00"
 
 # The symbols the README argues about, in the order that table lists them.
 PROMOTED = ["-", ":", "(", ")", "&"]
@@ -96,7 +139,7 @@ def iter_prompt_text():
     home (systemd-homed), so the transcripts are globbed.
     """
     files = sorted(PROJECTS.glob("*/*.jsonl"))
-    kept = dropped = 0
+    kept = dropped = trimmed = 0
     for path in files:
         try:
             raw = path.read_text(encoding="utf-8", errors="replace")
@@ -134,10 +177,29 @@ def iter_prompt_text():
                 if any(stripped.startswith(p) for p in EXCLUDE_PREFIXES):
                     dropped += 1
                     continue
+                # A marker at position 0 means the whole block is machine text.
+                # A marker further in means the block is typing with machine
+                # text stapled to the end -- which is what a UserPromptSubmit
+                # hook does, appending its card after what you actually typed.
+                # Testing only the start let that through: 42 blocks and 666k
+                # characters, 9.4% of this corpus, counted as keystrokes.
+                #
+                # Cut to the end of the block rather than trying to excise a
+                # region: the injected blocks here are unterminated as often as
+                # not, and nothing typed has ever followed one.
+                cut = min((i for i in (text.find(p) for p in EXCLUDE_PREFIXES)
+                           if i > 0), default=-1)
+                if cut > 0:
+                    text = text[:cut]
+                    trimmed += 1
+                    if not text.strip():
+                        dropped += 1
+                        continue
                 kept += 1
                 yield text
     print(f"  prompts: {len(files)} transcripts, {kept} blocks kept, "
-          f"{dropped} machine-injected blocks dropped", file=sys.stderr)
+          f"{dropped} machine-injected blocks dropped, "
+          f"{trimmed} trimmed of an appended one", file=sys.stderr)
 
 
 # zsh extended history: ": <epoch>:<elapsed>;<command>", commands may continue
@@ -188,23 +250,42 @@ def iter_code_text():
     print(f"  code: {n} tracked text files", file=sys.stderr)
 
 
-# Slack's own markup, none of which anyone types by hand:
-#   <@U0123ABC>  <@U0123ABC|name>       a mention, autocompleted from a picker
-#   <#C0456DEF|general>                 a channel ref, same
-#   <!here> <!channel> <!subteam^S1|@x> a broadcast, same
+# Slack's own markup. The body of each is autocompleted from a picker -- nobody
+# types U0123ABC -- but the picker does not open by itself:
+#   <@U0123ABC>  <@U0123ABC|name>       a mention, opened by typing `@`
+#   <#C0456DEF|general>                 a channel ref, opened by typing `#`
+#   <!here> <!channel> <!subteam^S1|@x> a broadcast, typed "@here", so `@`
 # and links, which are `<url>` bare or `<url|label>` when you gave them text.
 SLACK_ENTITY = re.compile(r"<[@#!][^<>]*>")
 SLACK_LINK_LABELLED = re.compile(r"<[^<>|]+\|([^<>]*)>")
 SLACK_LINK_BARE = re.compile(r"<[^<>|]+>")
 
 
+def mention_sigil(match):
+    """The one character a person pressed to open a mention picker.
+
+    Shared by both chat loaders because both had the same bug: the entity was
+    deleted whole, so a ping counted as zero keystrokes. It is one -- `@` for a
+    user, role or broadcast, `#` for a channel -- and at Sauyon's rates that
+    single character is the difference between `@` reading as the rarest symbol
+    on the board and reading as mid-tail. This is the same call
+    DISCORD_EMOJI already makes by keeping the colons around a shortcode.
+
+    Slack's `<!here>` and Discord's `<@!123>` / `<@&321>` both carry a
+    disambiguator the typist never pressed; only the sigil position matters,
+    and for a broadcast the sigil you type is `@`.
+    """
+    return "#" if match.group(0)[1] == "#" else "@"
+
+
 def slack_plain(text):
     """Slack's wire format back to the characters a person actually pressed.
 
-    Two things happen here and the second one is the point. Entities and bare
-    URLs come out: a mention is a click in a picker and a pasted URL is a
-    paste, so counting either would credit the keyboard for keys nobody hit.
-    Labels survive, because you typed those.
+    Two things happen here and the second one is the point. Bare URLs come out
+    whole -- a pasted URL is a paste, and counting it would credit the keyboard
+    for keys nobody hit. Entities come out down to their sigil: the picker ate
+    the name, but `@` or `#` is what opened it. Labels survive, because you
+    typed those.
 
     Then `&amp;` `&lt;` `&gt;` are unescaped. That matters more than it looks:
     this layout's whole argument for where `&` goes is a measured rate, and
@@ -213,7 +294,7 @@ def slack_plain(text):
     README spends a paragraph placing. Unescape `&amp;` last so a literal
     "&amp;lt;" resolves to "&lt;" rather than to "<".
     """
-    text = SLACK_ENTITY.sub("", text)
+    text = SLACK_ENTITY.sub(mention_sigil, text)
     text = SLACK_LINK_LABELLED.sub(r"\1", text)
     text = SLACK_LINK_BARE.sub("", text)
     return text.replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
@@ -341,7 +422,7 @@ def discord_plain(text):
     promoted on a measured rate, so this is not cosmetic.
     """
     text = DISCORD_TIMESTAMP.sub("", text)
-    text = DISCORD_MENTION.sub("", text)
+    text = DISCORD_MENTION.sub(mention_sigil, text)
     text = DISCORD_EMOJI.sub(r":\1:", text)
     # URLs go before emoji restoration, not after: restoration inserts a Tab,
     # and BARE_URL stops at whitespace, so an emoji inside a link would cut it
@@ -442,7 +523,7 @@ def build_corpus():
     print("building corpus:", file=sys.stderr)
     for name, fn in SOURCES.items():
         parts = list(fn())
-        text = "\n".join(parts)
+        text = RECORD_SEP.join(parts)
         (CORPUS_DIR / f"{name}.txt").write_text(text, encoding="utf-8")
         manifest["sources"][name] = {"chars": len(text), "blocks": len(parts)}
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
@@ -499,19 +580,26 @@ def fenced_split(corpus, char):
 
     Backticks especially: a rate driven entirely by fenced code blocks is a
     rate driven by pasting, not by prose typing.
+
+    The fence flag resets at every RECORD_SEP, and that reset is the whole
+    correctness of this function. Prompts are concatenated, a prompt may open
+    a fence and never close it, and read as one string that leaves every later
+    prompt looking fenced. It did: 67% of backticks reported as fenced against
+    a per-record truth of 6%, biased toward calling typed characters pasted --
+    the exact direction that would demote a symbol it should keep.
     """
-    text = corpus.get("prompts", "")
     inside = outside = 0
-    in_fence = False
-    for line in text.split("\n"):
-        if line.lstrip().startswith("```"):
-            in_fence = not in_fence
-            inside += line.count(char)
-            continue
-        if in_fence:
-            inside += line.count(char)
-        else:
-            outside += line.count(char)
+    for record in corpus.get("prompts", "").split(RECORD_SEP):
+        in_fence = False
+        for line in record.split("\n"):
+            if line.lstrip().startswith("```"):
+                in_fence = not in_fence
+                inside += line.count(char)
+                continue
+            if in_fence:
+                inside += line.count(char)
+            else:
+                outside += line.count(char)
     return inside, outside
 
 

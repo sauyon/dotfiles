@@ -1,0 +1,216 @@
+can you find the old sessions and work out why tilde and semicolon were moved, and why comma and parens got moved to horrible positions
+
+---
+
+honestly it might be better to put ring in/out in a tier below chords. they're harder to hit
+
+---
+
+are the least used alphas really less common than = or ,
+
+---
+
+so why were they not put on ring laterals
+
+---
+
+I want the least used alphas on them
+
+---
+
+<task-notification>
+<task-id>b013wvuoc</task-id>
+<tool-use-id>toolu_01GLo9xf91kdEgLdNabQDStA</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/b013wvuoc.output</output-file>
+<status>completed</status>
+<summary>Background command "Search with the four rarest alphas unpinned" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b11evtsfm</task-id>
+<tool-use-id>toolu_01GCu2695vR2HFFL77YubwsJ</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/b11evtsfm.output</output-file>
+<status>completed</status>
+<summary>Background command "Search with corrected costs, q z j x unpinned" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b6vu3xzxz</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/b6vu3xzxz.output</output-file>
+<status>completed</status>
+<summary>Background command "Search with parens chorded and ring outers dead" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b0n5k8h9n</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/b0n5k8h9n.output</output-file>
+<status>completed</status>
+<summary>Background command "Search under ring-lateral bans" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+wait. should they be banned or just the weight adjusted? I don't like these special rules
+
+---
+
+I feel like something is wrong with the corpus if . and , are so undervalued as well
+
+---
+
+maybe just weight discord down a tad. shell should be maybe .1 and code .05 as weff
+
+---
+
+<task-notification>
+<task-id>brjz8gcg1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/brjz8gcg1.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild blended ngrams with the new weights" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bqo2ozcb5</task-id>
+<tool-use-id>toolu_01XgYEPjXv3NCmyXStjsS5Y6</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/bqo2ozcb5.output</output-file>
+<status>completed</status>
+<summary>Background command "Final search: ring laterals 99, no dead cells, rare alphas free" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b8bp3ita6</task-id>
+<tool-use-id>toolu_014qhoY4AA6uZ1vqVGq1GGEB</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/b8bp3ita6.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild ngrams at slack .20 and re-run the search" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+yes, pull as much slack as you can
+
+---
+
+<task-notification>
+<task-id>ad276c1e042cb4240</task-id>
+<tool-use-id>toolu_0184CcdgTZ1oc78GR2b1RADh</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/ad276c1e042cb4240.output</output-file>
+<status>completed</status>
+<summary>Agent "Pull Slack corpus via MCP" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Corpus built. Files are in `~/.local/share/svalboard-freq/slack/` (outside any git repo; nothing was written to the dotfiles checkout and no git commands were run).
+
+| file | messages | chars |
+|---|---|---|
+| from-me-2026-01.json | 285 | 21,512 |
+| from-me-2026-02.json | 298 | 24,235 |
+| from-me-2026-03.json | 300 | 22,449 |
+| from-me-2026-04.json | 299 | 21,679 |
+| from-me-2026-05.json | 299 | 26,175 |
+| from-me-2026-06.json | 300 | 26,929 |
+| from-me-2026-07.json | 300 | 17,792 |
+| from-me-2026-08.json | 300 | 20,521 |
+| **TOTAL** | **2,381** | **181,292** |
+
+Coverage notes:
+
+1. **History starts 2026-01-20.** Every month from 2025-12 back through 2024-01 returns zero results. I probed 2025-12, -11, -10, -09, -08, -07, -06, 2025-01 and 2024-06, 2024-01 — all empty — and the earliest 2026-01 messages are onboarding traffic, so this is the real start of the workspace history, not a search artifact. No files were written for empty months.
+2. **2026-01 is complete** (15 pages, cursor exhausted). **2026-02 through 2026-08 each hit the 15-page cap**, so each covers only the most recent ~300 messages of that month (roughly the last 4–8 days). That was the stated stopping rule.
+3. **Budget note:** I used ~120 tool calls of the 200–250 budget, since 20 months came back empty. If you want deeper coverage of Feb–Aug, there is room for roughly 8–10 more pages per month within the original budget — say the word and I'll extend those files.
+4. **Useful discovery:** the pagination cursor is just `base64("CURRENT_PAGE:N")`, so pages can be requested directly and fetched in parallel rather than serially. That's what made this cheap.
+5. Verified shape: every file is exactly `{"messages":[{"text":...}]}`, written with `ensure_ascii=False` (raw UTF-8 confirmed on disk). Slack wire markup (`&lt;@U…|name&gt;`, `&lt;#C…|chan&gt;`, `&lt;url|label&gt;`, `&amp;amp;`) is preserved verbatim, as are code blocks, box-drawing tables and emoji shortcodes. Non-message rows (channel rename/archive events) and empty-text messages were dropped — that accounts for the 285/298/299 counts.
+
+One thing to flag: transcription was verbatim per your instruction, so a handful of messages carry live-looking secrets and identifiers — API keys and tokens Sauyon pasted to himself, a phone number, and his work email inside an AWS ARN. That's faithful to the source and the cache is local and uncommitted, but if the frequency script or its outputs ever get shared, scrub before then.</result>
+<usage><subagent_tokens>472652</subagent_tokens><tool_uses>166</tool_uses><duration_ms>2699366</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bokbk05f2</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/bokbk05f2.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild ngrams on the full corpus and re-run the search" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+we should put something there. just something rare
+
+---
+
+nothing on the second layer that's lower frequency? I mean worst when I say worst
+
+---
+
+I'm surprised I don't ping people more
+
+---
+
+<task-notification>
+<task-id>bu55b8xw9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/bu55b8xw9.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild ngrams on the audited corpus and run the final search" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bd07bhzvd</task-id>
+<tool-use-id>toolu_011wmRG6G9NLsQi1RmNpzmnc</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/bd07bhzvd.output</output-file>
+<status>completed</status>
+<summary>Background command "Test the corrected top-10 + rarest-3 inventory" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+can you put an extra cost on moving alphas around based on usage (for relearning)
+
+---
+
+<task-notification>
+<task-id>bs7p9ba3y</task-id>
+<tool-use-id>toolu_011WY11X9YA3b5FLCuKoSbrf</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/bs7p9ba3y.output</output-file>
+<status>failed</status>
+<summary>Background command "Search with all alphas free and a relearning cost" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+can you actually add relocation cost to . ' " , as well, I knew how to type those
+
+---
+
+<task-notification>
+<task-id>bbn8o3r1y</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/edb8bee4-c045-4c8b-9ed9-d55c31dac3af/tasks/bbn8o3r1y.output</output-file>
+<status>completed</status>
+<summary>Background command "Sweep the relearning cost scalar" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+I'm a little surprised that it moves so many keys, to be honest
+
+---
+
+I'm curious how much of this is actually related to the svalboard, eg if I still want to use my glove80 at home

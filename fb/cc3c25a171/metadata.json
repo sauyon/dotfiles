@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.10.2",
+  "checkpoint_id": "fbcc3c25a171",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 28,
+  "files_touched": [
+    "keyboards/svalboard/freq.json",
+    "keyboards/svalboard/freq.py",
+    "keyboards/svalboard/optimize.py",
+    "keyboards/svalboard/test_freq.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fb/cc3c25a171/0/metadata.json",
+      "transcript": "/fb/cc3c25a171/0/full.jsonl",
+      "compact_transcript": "/fb/cc3c25a171/0/transcript.jsonl",
+      "content_hash": "/fb/cc3c25a171/0/content_hash.txt",
+      "prompt": "/fb/cc3c25a171/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 422,
+    "cache_creation_tokens": 1557026,
+    "cache_read_tokens": 56184197,
+    "output_tokens": 293991,
+    "api_call_count": 211,
+    "subagent_tokens": {
+      "input_tokens": 104,
+      "cache_creation_tokens": 470265,
+      "cache_read_tokens": 11492281,
+      "output_tokens": 231180,
+      "api_call_count": 52
+    }
+  }
+}

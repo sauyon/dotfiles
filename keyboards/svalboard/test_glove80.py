@@ -75,14 +75,34 @@ ROWS = (("top", build.N), ("home", build.C), ("bottom", build.S))
 # change that did not consider the other board.
 #
 # All five arrived in 475c84f, which argued entirely from Svalboard geometry and
-# does not mention the Glove80:
-#   - `f`/`v` and `l`/`f` are two thirds of the f/v/l rotation. It was justified
-#     as taking Character Constraints to zero, but the dominant term it removes
-#     is the `pl` vertical scissor -- and `pl` is a scissor on the Glove80 too,
-#     so this buys comfort on one board by diverging from a property of Hands
-#     Down Neu itself.
-#   - `.`, `"` and `'` are punctuation the symbol search moved. Sauyon knows
-#     these positions; they were relocated on frequency grounds alone.
+# does not mention the Glove80. Both groups were re-examined on 2026-09-06 and
+# both are being kept, deliberately:
+#
+#   - `f`/`v` and `l`/`f` are two thirds of the f/v/l rotation. Isolated on the
+#     corrected corpus -- same board, same symbols, only those three keys swapped
+#     back -- it is worth 250 points: Character Constraints 0.00 against 146.38
+#     (all of it `f`) and FSB 104.27 against 208.71. Both of the commit's stated
+#     reasons hold; it is not one term dressed up as another.
+#
+#     It is NOT applied to the Glove80, and that is the deliberate part. The
+#     rotation parks `l` on the Svalboard's middle-finger East lateral. The
+#     Glove80 has no middle lateral, so `l` would have to take the inner column,
+#     which is the INDEX finger there -- turning the `pl` scissor into a
+#     same-finger bigram, loading a finger that already carries `t` `p` `d` `b`
+#     `g`, and putting `l` on a different finger on each board, which this test
+#     could not even see because the inner column is outside the core. Sauyon's
+#     call: he does not mind the scissor, and the Svalboard is optimised on its
+#     own terms.
+#
+#   - `.`, `"` and `'` are punctuation the symbol search moved on frequency
+#     grounds alone. Sauyon knew those positions and nothing priced that.
+#
+# The standing rule is that the Svalboard leads and the Glove80 follows wherever
+# it structurally can. A divergence has to be earned by something the Glove80
+# cannot express -- a missing cell, a different finger -- and never by "the
+# Svalboard scored better", which is true of every Svalboard-tuned change by
+# construction. This list is that boundary, and the test's job is to stop it
+# growing by accident.
 EXPECTED_DIVERGENCE = {
     ("L", "ring",   "top"):    ("F",       "KC_V"),
     ("L", "middle", "bottom"): ("L",       "KC_F"),

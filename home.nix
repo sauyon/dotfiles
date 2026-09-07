@@ -3343,6 +3343,38 @@ in
       source = "${withHostNss pkgs.xdg-desktop-portal-hyprland}/share/systemd/user/xdg-desktop-portal-hyprland.service";
     };
 
+    # gvfs falls into the exact same "unknown unit" trap as the portals above.
+    # Its D-Bus service files activate via SystemdService=, not Exec=, so
+    # putting gvfs on PATH and pointing GIO_EXTRA_MODULES at it (both done, see
+    # home.packages and env.nix) gets you only as far as NameHasNoOwner: the
+    # broker resolves the name, then hands activation to systemd, which has
+    # never heard of the unit. GIO then falls back to GUnixVolumeMonitor, which
+    # reads just fstab and /proc/mounts, so a plugged-but-unmounted USB stick
+    # is invisible in every GTK file picker and there is nothing to click.
+    #
+    # All six units, not only udisks2: GIO probes every monitor that has a
+    # .monitor file in the package, so linking one and omitting the rest trades
+    # a missing drive for four "IsSupported() failed" lines on every
+    # enumeration. They are D-Bus activated and idle until something asks.
+    configFile."systemd/user/gvfs-udisks2-volume-monitor.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${withHostNss pkgs.gvfs}/share/systemd/user/gvfs-udisks2-volume-monitor.service";
+    };
+    configFile."systemd/user/gvfs-daemon.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${withHostNss pkgs.gvfs}/share/systemd/user/gvfs-daemon.service";
+    };
+    configFile."systemd/user/gvfs-metadata.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${withHostNss pkgs.gvfs}/share/systemd/user/gvfs-metadata.service";
+    };
+    configFile."systemd/user/gvfs-mtp-volume-monitor.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${withHostNss pkgs.gvfs}/share/systemd/user/gvfs-mtp-volume-monitor.service";
+    };
+    configFile."systemd/user/gvfs-gphoto2-volume-monitor.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${withHostNss pkgs.gvfs}/share/systemd/user/gvfs-gphoto2-volume-monitor.service";
+    };
+    configFile."systemd/user/gvfs-afc-volume-monitor.service" = lib.mkIf (!isDarwin && isDesktop) {
+      source = "${withHostNss pkgs.gvfs}/share/systemd/user/gvfs-afc-volume-monitor.service";
+    };
+
     configFile."explore-mcp/config.json".text = builtins.toJSON {
       explorers = { cursor = { }; codex = { }; gemini = { }; opencode = { }; };
       summarizer = { backend = "claude"; maxChars = 4000; };

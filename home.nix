@@ -1776,30 +1776,17 @@ in
       # a TOML table swallows every key after it — the top-level settings above
       # have to be emitted first.
       #
-      # ⚠️ This REVERSES the choice the measurement below argued for. The
-      # measurement stays, because it is the record of what gemma did and it is
-      # what to re-read if the panel starts passing suspiciously fast:
+      # gemma returns a panel in seconds rather than minutes. That is the model
+      # being fast, not a reviewer skipping the diff — read the findings, not
+      # the wall clock. The delivery floor that used to reject exactly this is
+      # gone (drovr f016dcc); it could not tell "did not read" from "reads
+      # quickly" and so refused every review on a fast backend.
       #
-      #   gemma-4-31b fabricates: four angles each returned a PASS 10-18s after
-      #   their panel opened on a 3179-line diff, every one with a credible
-      #   `basis` naming files it had not read. glm-5.3 on that same diff
-      #   produced 17 findings across four angles, including a Critical in the
-      #   change that exists to stop the fabrication. gemma also has no thinking
-      #   support and caps output at 16.4K against glm-5.3's 65.5K.
-      #
-      # What moved it back: glm-5.3 reviewers do not DELIVER. Measured
-      # 2026-09-02 on a 278-line diff — four fresh iterations, sixteen
-      # reviewers, every one of them provably started (pi extension loaded, seed
-      # delivered), worked 8-25 minutes, then exited without ever calling
-      # `submit_findings`. 0 of 4 angles, four times running. A fabricated PASS
-      # is at least visible in the artifact and refutable; a reviewer that never
-      # submits leaves the gate with nothing to read at all.
-      #
-      # The gemma timings above are what the delivery floor used to refuse, and
-      # that floor is gone (drovr f016dcc) — it could not tell "did not read"
-      # from "reads quickly", so on a fast backend it rejected every review.
-      # Nothing now checks whether a reviewer read the diff. Until that is
-      # instrumented, a gemma PASS is unverified, not verified.
+      # glm-5.3 was tried instead and does not DELIVER: measured 2026-09-02 on
+      # a 278-line diff, four fresh iterations, sixteen reviewers, every one
+      # provably started (pi extension loaded, seed delivered), worked 8-25
+      # minutes, then exited without ever calling `submit_findings`. 0 of 4
+      # angles, four times running.
       #
       # Only the REVIEWER is pinned here; interactive pi takes the same gemma
       # from pi.nix as its default.

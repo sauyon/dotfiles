@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b5s6qw4o8</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/e255309e-abc2-4db3-81f2-7e13f5d942f7/tasks/b5s6qw4o8.output</output-file>
+<status>completed</status>
+<summary>Background command "Push and switch via hms" completed (exit code 0)</summary>
+</task-notification>

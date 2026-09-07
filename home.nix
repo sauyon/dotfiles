@@ -2119,6 +2119,16 @@ in
     # native messaging (the extension can't unlock with biometrics on its own).
     # Pairs with the polkit action + pam_fprintd wiring in system/.
     pkgs.bitwarden-desktop
+    # gvfs must be *installed*, not just referenced by store path the way most
+    # things here are: GIO reaches its udisks2 volume monitor over D-Bus, and
+    # dbus-broker only activates names whose .service files sit in a directory
+    # it already indexes (~/.nix-profile/share/dbus-1/services). Pointing
+    # XDG_DATA_DIRS at the store path instead fails at runtime with "The name
+    # is not activatable" -- the broker built its index at session start and a
+    # later env var cannot retroactively add to it. Pairs with
+    # GIO_EXTRA_MODULES in env.nix; the module alone finds the four monitors
+    # but cannot start them.
+    pkgs.gvfs
     pkgs.hyprpicker
     pkgs.psi-notify
     pkgs.pwvucontrol

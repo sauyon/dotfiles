@@ -77,4 +77,15 @@ rec {
   # there and let each tool fall back to its own default rather than fail with
   # a bare command-not-found.
   BROWSER = "firefox";
+
+  # GTK's file-chooser sidebar (and Nautilus, and anything else built on GIO)
+  # enumerates drives through GVolumeMonitor. The only implementation that
+  # knows about *unmounted* removable devices is gvfs's udisks2 monitor;
+  # without it GIO falls back to GUnixVolumeMonitor, which reads just fstab and
+  # /proc/mounts, so a USB stick that is plugged in but not yet mounted never
+  # appears and there is nothing to click to mount it. wrapGAppsHook wraps this
+  # var with `--prefix`, so each app's own dconf entry still lands ahead of
+  # this one rather than being clobbered by it. Needs pkgs.gvfs on PATH too --
+  # see the comment on it in home.nix for why a bare store path is not enough.
+  GIO_EXTRA_MODULES = "${pkgs.gvfs}/lib/gio/modules";
 }

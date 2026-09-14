@@ -229,7 +229,7 @@
         "value": "&kp",
         "params": [
           {
-            "value": "F"
+            "value": "V"
           }
         ]
       },
@@ -253,7 +253,7 @@
         "value": "&kp",
         "params": [
           {
-            "value": "V"
+            "value": "L"
           }
         ]
       },
@@ -434,7 +434,7 @@
         "value": "&kp",
         "params": [
           {
-            "value": "L"
+            "value": "F"
           }
         ]
       },

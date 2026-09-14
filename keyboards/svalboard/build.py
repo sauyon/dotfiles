@@ -176,14 +176,20 @@ HDNEU_LEFT = {
 HDNEU_RIGHT = {
     "top":    ["KC_MINUS", "KC_GRAVE", "KC_Q", "KC_SLASH", "LSFT(KC_SCOLON)"],
     "home":   ["KC_DOT", "KC_A", "KC_E", "KC_I", "KC_H"],
-    "bottom": ["KC_COMMA", "KC_U", "KC_O", "KC_Y", "KC_K"],
+    "bottom": ["KC_Z", "KC_U", "KC_O", "KC_Y", "KC_K"],
 }
 
 # The Glove80's outer column (z, j) and its bottom row (grave, backslash,
 # brackets) have no Svalboard equivalent -- those are columns this keyboard
 # doesn't have. They go on the spare laterals, openers left and closers right.
 BASE_LATERALS = {
-    (R_PINKY, W): "KC_Z",    # inner, x=22.0
+    # `,` at 6.1 per 1000 characters was on the right ring's West, which the
+    # cost table scores 99. It trades places with `z` at 0.6: comma to the
+    # pinky's inner lateral, z to the ring. The pinky is the right finger for
+    # it -- comma follows letters constantly, and the ring cup holds `i` and
+    # `y` while the middle holds `e` and `o`, so `e,` on the middle scored
+    # worse than either. 234.81 -> 231.70.
+    (R_PINKY, W): "KC_COMMA",    # inner, x=22.0
     (R_PINKY, E): "KC_J",    # outer, x=24.0
     (L_PINKY, W): "KC_TAB",  # outermost key on the left hand, x=0.0
     (L_INDEX, W): "KC_G",

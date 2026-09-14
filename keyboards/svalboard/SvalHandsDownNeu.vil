@@ -72,7 +72,7 @@
         "LSFT(KC_9)",
         "KC_I",
         "KC_SLASH",
-        "KC_COMMA",
+        "KC_Z",
         -1
       ],
       [
@@ -80,7 +80,7 @@
         "KC_J",
         "KC_H",
         "LSFT(KC_SCOLON)",
-        "KC_Z",
+        "KC_COMMA",
         -1
       ]
     ],

@@ -104,8 +104,6 @@ ROWS = (("top", build.N), ("home", build.C), ("bottom", build.S))
 # construction. This list is that boundary, and the test's job is to stop it
 # growing by accident.
 EXPECTED_DIVERGENCE = {
-    ("L", "ring",   "top"):    ("F",       "KC_V"),
-    ("L", "middle", "bottom"): ("L",       "KC_F"),
     ("R", "index",  "top"):    ("DOT",     "KC_GRAVE"),
     ("R", "ring",   "top"):    ("LS(SQT)", "KC_SLASH"),
     ("R", "pinky",  "top"):    ("SQT",     "LSFT(KC_SCOLON)"),

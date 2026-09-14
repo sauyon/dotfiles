@@ -29,8 +29,8 @@ hands, so West is inward on the right hand and outward on the left.
   L index    g    p     t     d     b
   R index    .    `     a     u     '
   R middle   -    q     e     o     _
-  R ring     ,    /     i     y     (
-  R pinky    z    :     h     k     j
+  R ring     z    /     i     y     (
+  R pinky    ,    :     h     k     j
 ```
 
 The alphas are Hands Down Neu as it sits on the Glove80, with three exceptions
@@ -70,6 +70,14 @@ and every one on it costs one, so the right 13 are simply the 13 most frequent.
 characters**, about 1.5% of everything typed.
 
 `(` and `)` both make the cut, at ranks 12 and 13, so the pair stays together.
+
+`,` and `z` trade laterals against the annealer's placement. At 6.1 per 1000
+characters `,` was on the right ring's West, which `sval.yml` scores **99**,
+while `z` at 0.6 held the pinky's West at 5. The pinky is also the right
+finger for it: comma follows letters constantly, and that cup holds `h` and
+`k` where the ring holds `i`/`y` and the middle holds `e`/`o` -- putting
+comma on the middle made `e,` 29.7% of the board's same-finger bigrams and
+scored worse than leaving it alone. **234.81 to 231.70.**
 
 **Two earlier arguments on this layer have expired**, and both are worth
 recording because they were wrong in instructive ways:

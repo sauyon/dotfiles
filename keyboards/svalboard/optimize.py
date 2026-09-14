@@ -53,6 +53,7 @@ import json
 import pathlib
 import re
 import shutil
+import string
 import subprocess
 import sys
 
@@ -283,6 +284,169 @@ KEY_ENTRY = re.compile(r'\["[^"]*"\]')
 FINGER_BLOCK = re.compile(r"- \[\n.*?\n\s*\]", re.S)
 
 
+# The scoring calibration, set against Sauyon's hands rather than inherited.
+# Every one of these disagrees with the stock config, and each disagreement was
+# measured before it was made:
+#
+#   key_costs 5 -> 500. At 5 a cell the table scores 99 was STILL the best home
+#   for `-`, the most frequent symbol on the board, because the metric only
+#   reached 5.8% of the score. It took weight 100 before a 99 stopped winning.
+#   This is why every search in this directory's history parked something
+#   frequent on a ring lateral: the cost was real and the weight made it
+#   inaudible.
+#
+#   sfb 150 -> 500 and fsb 1000 -> 150. The stock config values a scissor at
+#   seven times a same-finger bigram. Sauyon's ordering is the reverse, and it
+#   is his hands.
+#
+# A weight is NOT a share of the score: it multiplies a raw metric value, and
+# those span 370x. key_costs' raw value is ~2.7 because every keystroke
+# contributes a cell cost of 1-99; sfb's is ~0.57 because same-finger bigrams
+# are about 1.3% of bigrams. Reason in weight x raw, never in weight alone.
+METRIC_WEIGHTS = {
+    "key_costs": 500.0,
+    "sfb": 500.0,
+    "fsb": 150.0,
+}
+
+# Hands Down Neu as ported -- the board Sauyon actually knows, and what a remap
+# is measured against. NOT the currently shipped layout: the point is to price
+# what is still unlearned, and 475c84f's changes have never been on a keyboard.
+REMAP_REFERENCE = "w\u25a1r-xf~s@cm(nvlpgtbd.,a:uq/e)o\";i&y'zhjk"
+
+# Relocated by the port itself -- the Glove80's inner column (`v` `b` `g`), its
+# outer column (`z` `j`), and `-` `/`, which live on its number row and inner
+# column. There is no Hands Down position for these to have moved away from, so
+# there is nothing to relearn and nothing to charge.
+REMAP_FREE = set("vgzj/-")
+
+# Relearning is not one thing. Sliding a key to another position on the SAME
+# finger reuses the finger you already trained; moving it to another finger on
+# the same hand does not; moving it to the other hand also retrains the bigram
+# partners of everything around it. A flat cost charged all three the same and
+# produced a "best" board that swapped `h` and `p` across hands while looking
+# cheap.
+REMAP_TIERS = {"same_finger": 0.5, "same_hand": 1.0, "other_hand": 3.0}
+
+# Tuned so the remap term lands at 10-20% of the score for the amount of churn
+# already on the board: at 5, today's layout spends ~15% of its score on having
+# been remapped. The share is a property of the CANDIDATE, not of this number --
+# a board that moves nothing pays zero.
+REMAP_PRICE = 5.0
+
+# character_constraints is where the remap penalty goes. It is the only
+# per-character, per-position hook the evaluator has, and the metric weights it
+# by the character's own frequency, so a flat cost per cell already scales with
+# how often the key is pressed.
+REMAP_METRIC = "character_constraints"
+
+
+def remap_cell(index):
+    """Matrix [column, row] of a layout-string index, in sval.yml's coordinates.
+
+    Cup centres sit at columns 2, 5, 8 ... 23; the laterals are one either side
+    and the north/south rows are 1 and 3.
+    """
+    cup, pos = divmod(index, len(CUP_ORDER))
+    col = 2 + 3 * cup
+    return {0: [col, 1], 1: [col - 1, 2], 2: [col, 2],
+            3: [col + 1, 2], 4: [col, 3]}[pos]
+
+
+def remap_homes(reference):
+    """glyph -> its [column, row] on the reference board, for everything priced.
+
+    Letters and the four punctuation marks Sauyon says he already knew. Digits
+    and the rest of the symbols are not here: they are not on the reference
+    board in a position he has muscle memory for.
+    """
+    known = set(string.ascii_lowercase) | set(".,\"'")
+    return {ch: remap_cell(i) for i, ch in enumerate(reference)
+            if ch in known and ch not in REMAP_FREE}
+
+
+def _remap_tier(home, cell):
+    cup = lambda c: (c[0] - 1) // 3
+    hand = lambda c: "L" if cup(c) < 4 else "R"
+    if hand(home) != hand(cell):
+        return "other_hand"
+    return "same_finger" if cup(home) == cup(cell) else "same_hand"
+
+
+def evaluation_config(text, reference):
+    """The stock evaluation config with this repo's calibration applied.
+
+    Two edits. The weights in METRIC_WEIGHTS are overridden, and a remap cost is
+    injected into character_constraints for every glyph with a home on the
+    reference board -- every cell except that home, priced by how far it moved.
+
+    Derived at run time for the same reason keyboard_config is: a second copy of
+    someone else's config in this repo is a copy that goes stale silently, and
+    the stock file's own hand-authored rules (the double-consonant table) have
+    to survive underneath ours.
+    """
+    out = text
+    for metric, weight in METRIC_WEIGHTS.items():
+        pattern = re.compile(
+            rf"(\n  {re.escape(metric)}:\n    enabled: true\n    weight: )[\d.]+"
+        )
+        out, n = pattern.subn(lambda m: m.group(1) + str(weight), out, count=1)
+        if not n:
+            raise SystemExit(f"{metric} not found in the evaluation config")
+
+    homes = remap_homes(reference)
+    cells = [remap_cell(i) for i in range(len(reference))]
+    lines = out.splitlines()
+    start = next((i for i, l in enumerate(lines)
+                  if l.startswith(f"  {REMAP_METRIC}:")), None)
+    if start is None:
+        raise SystemExit(f"{REMAP_METRIC} not found in the evaluation config")
+    costs_at = next(i for i in range(start, len(lines))
+                    if lines[i].startswith("      costs:"))
+    end = next((i for i in range(costs_at + 1, len(lines))
+                if lines[i].strip() and not lines[i].startswith("        ")),
+               len(lines))
+
+    # Existing per-character blocks, so a cell the stock table already rules on
+    # keeps ITS cost. Those are the author's double-consonant rules and they are
+    # stricter than anything here; overwriting them would quietly delete the
+    # constraint that keeps `f` off a ring North.
+    heads = [(i, re.match(r"^        (\S+):\s*$", lines[i]).group(1))
+             for i in range(costs_at + 1, end)
+             if re.match(r"^        (\S+):\s*$", lines[i])]
+    blocks = {name: (i, heads[k + 1][0] if k + 1 < len(heads) else end)
+              for k, (i, name) in enumerate(heads)}
+
+    inserts, fresh = {}, []
+    for ch, home in sorted(homes.items()):
+        want = {tuple(c): round(REMAP_PRICE * REMAP_TIERS[_remap_tier(home, c)], 2)
+                for c in cells if c != home}
+        key = next((k for k in (ch, repr(ch), f'"{ch}"') if k in blocks), None)
+        if key:
+            first, last = blocks[key]
+            taken = {(int(a), int(b)) for a, b in
+                     re.findall(r"\[\s*(\d+),\s*(\d+)\]", "\n".join(lines[first:last]))}
+            want = {k: v for k, v in want.items() if k not in taken}
+            if want:
+                inserts.setdefault(last, []).append(f"          # remap {ch!r}")
+                inserts[last] += [f"          [{a}, {b}]: {v}"
+                                  for (a, b), v in sorted(want.items())]
+        else:
+            fresh += [f"        {ch!r}:", f"          # remap {ch!r}"]
+            fresh += [f"          [{a}, {b}]: {v}" for (a, b), v in sorted(want.items())]
+
+    rebuilt, pending = [], list(fresh)
+    for i, line in enumerate(lines):
+        if i in inserts:
+            rebuilt += inserts[i]
+        if i == end and pending:
+            rebuilt += pending
+            pending = []
+        rebuilt.append(line)
+    rebuilt += pending
+    return "\n".join(rebuilt) + "\n"
+
+
 def keyboard_config(text, layout):
     """sval.yml rewritten to carry this layout's glyph inventory.
 
@@ -462,6 +626,21 @@ def main():
     kb = str(derived.relative_to(opt))
     print(f"keyboard config: {kb} (glyphs from build.py, costs from sval.yml)")
 
+    # Same treatment for the evaluation config, and for a sharper reason: the
+    # stock weights are not merely unsuited, they are actively wrong for these
+    # hands -- key_costs at 5 made a 99-cost cell the best home for `-`, and
+    # scissors outrank same-finger bigrams seven to one. Deriving it here is
+    # what stops a run silently scoring against those.
+    stock_eval = opt / "config" / "evaluation" / "sval.yml"
+    derived_eval = opt / "config" / "evaluation" / f"{corpus_name}_sval.yml"
+    derived_eval.write_text(
+        evaluation_config(stock_eval.read_text(encoding="utf-8"), REMAP_REFERENCE),
+        encoding="utf-8",
+    )
+    ev = str(derived_eval.relative_to(opt))
+    print(f"evaluation config: {ev} "
+          f"(weights {METRIC_WEIGHTS}, remap {REMAP_PRICE} vs Hands Down)")
+
     if not args.evaluate_only:
         print("building ngrams per corpus:")
         components = []
@@ -493,7 +672,7 @@ def main():
     if not args.evaluate_only:
         run(opt, ["cargo", "run", "--release", "--bin", "optimize_sa", "--",
                   "--layout-config", kb,
-                  "--eval-parameters", "config/evaluation/sval.yml",
+                  "--eval-parameters", ev,
                   "--ngrams", f"ngrams/{corpus_name}",
                   "--start-layouts", current,
                   # Omitted rather than passed empty: `--fix ''` is a request to
@@ -511,7 +690,7 @@ def main():
     scored.write_text("\n".join(lines) + "\n", encoding="utf-8")
     run(opt, ["cargo", "run", "--release", "--bin", "evaluate", "--",
               "--layout-config", kb,
-              "--eval-parameters", "config/evaluation/sval.yml",
+              "--eval-parameters", ev,
               "--ngrams", f"ngrams/{corpus_name}",
               "--from-file", str(scored), "--sort"])
 

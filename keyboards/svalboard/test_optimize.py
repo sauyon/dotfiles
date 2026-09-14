@@ -18,6 +18,7 @@ that is a finding, not a broken test.
 
 from __future__ import annotations
 
+import re
 import string
 import unittest
 import unittest.mock
@@ -464,6 +465,61 @@ class BuildNgramsTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         _argv, written = calls[0]
         self.assertEqual(written, "real code")
+
+
+
+class EvaluationConfigTests(unittest.TestCase):
+    """The scoring calibration lives here, not in a scratch checkout.
+
+    Every weight in this file was set by Sauyon against his own hands, and the
+    stock values disagree with all of them: the shipped config weights scissors
+    seven times a same-finger bigram, prices key costs at 5 -- low enough that a
+    99-cost cell was still the best home for `-`, the most frequent symbol on the
+    board -- and has no notion of relearning at all. Deriving the file at run
+    time is what stops the next run silently reverting to that.
+    """
+
+    STOCK = (
+        "metrics:\n"
+        "  key_costs:\n    enabled: true\n    weight: 5.0\n"
+        "  sfb:\n    enabled: true\n    weight: 150.0\n"
+        "  fsb:\n    enabled: true\n    weight: 1000.0\n"
+        "  character_constraints:\n    enabled: true\n    weight: 1000.0\n"
+        "    params:\n      costs:\n"
+        "        l:\n          [3, 2]: 10\n"
+    )
+
+    def test_weights_are_overridden(self):
+        out = optimize.evaluation_config(self.STOCK, optimize.REMAP_REFERENCE)
+        for metric, weight in optimize.METRIC_WEIGHTS.items():
+            self.assertRegex(
+                out, rf"{metric}:\n    enabled: true\n    weight: {weight}",
+                f"{metric} not set to {weight}",
+            )
+
+    def test_a_letter_pays_more_to_cross_hands_than_to_slide_one_cup(self):
+        # The flat cost this replaces charged the same for both, which produced
+        # a "best" board that swapped `h` and `p` across hands and looked cheap.
+        out = optimize.evaluation_config(self.STOCK, optimize.REMAP_REFERENCE)
+        block = re.search(r"\n        'm':\n(.*?)(?=\n        \S+?:\n|\Z)",
+                          out, re.S).group(1)
+        costs = sorted({float(c) for c in re.findall(r"\]: ([\d.]+)", block)})
+        self.assertEqual(
+            costs,
+            sorted(optimize.REMAP_PRICE * t for t in optimize.REMAP_TIERS.values()),
+        )
+
+    def test_keys_with_no_muscle_memory_are_not_priced(self):
+        # `v b g z j` and `-` `/` were relocated by the port itself; there is no
+        # Hands Down position for them to have been moved away from.
+        out = optimize.evaluation_config(self.STOCK, optimize.REMAP_REFERENCE)
+        for ch in optimize.REMAP_FREE:
+            self.assertNotIn(f"\n        {ch!r}:\n          # remap", out, f"{ch!r} priced")
+
+    def test_the_reference_layout_itself_costs_nothing(self):
+        out = optimize.evaluation_config(self.STOCK, optimize.REMAP_REFERENCE)
+        for ch, home in optimize.remap_homes(optimize.REMAP_REFERENCE).items():
+            self.assertNotIn(f"[{home[0]}, {home[1]}]: ", out.split(f"        {ch!r}:")[-1][:400])
 
 
 if __name__ == "__main__":

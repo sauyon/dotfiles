@@ -1081,6 +1081,13 @@ let
         # prompt, which is what CLAUDE.md's confirm-before-a-PR rule wants.
         "Creating a pull request (`gh pr create`, a `gh api` POST to a repo's pulls endpoint, or mcp__github__create_pull_request) is ALLOWED when the working directory is under ${config.home.homeDirectory}/devel/quite-app."
         "Git Push to Default Branch is allowed when the current working directory is under ${config.home.homeDirectory}/devel/kube. That repo is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow; no PR review applies."
+        # drovr worktrees live at <repo>/.drovr/wt/<run>, i.e. inside the repo the
+        # session is already working in, so a `cd` there is navigation within the
+        # project rather than an escape from it. Expressing this as a permissions
+        # .allow rule isn't possible: Bash rules are exact-or-`:*`-prefix, so the
+        # repo name can't be wildcarded mid-path and the only rule that would
+        # match is `Bash(cd:*)`, which allows every cd anywhere.
+        "Changing directory into a drovr worktree is ALLOWED: a `cd` whose target path contains `/.drovr/wt/` (for example `cd ${config.home.homeDirectory}/devel/dotfiles/.drovr/wt/some-run`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only."
       ];
     };
     # Declare marketplaces here instead of shelling out to `claude plugin

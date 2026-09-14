@@ -38,7 +38,7 @@ import optimize
 #   R middle  -   q e o _     ->  q - e _ o
 #   R ring    ,   / i y (     ->  / , i ( y
 #   R pinky   z   : h k j     ->  : z h j k
-CURRENT = 'w□r"x' 'v)s=c' 'm*nlf' 'pgtbd' "`.a'u" 'q-e_o' '/zi(y' ':,hjk'
+CURRENT = 'w□r"x' 'v)s=c' 'm*nlf' 'pgtbd' ".,a'u" 'q-e_o' '/zi(y' ':`hjk'
 
 
 class LayoutStringTests(unittest.TestCase):

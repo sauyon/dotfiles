@@ -94,8 +94,10 @@ ROWS = (("top", build.N), ("home", build.C), ("bottom", build.S))
 #     call: he does not mind the scissor, and the Svalboard is optimised on its
 #     own terms.
 #
-#   - `.`, `"` and `'` are punctuation the symbol search moved on frequency
-#     grounds alone. Sauyon knew those positions and nothing priced that.
+#   - `"` and `'` are punctuation the symbol search moved on frequency grounds
+#     alone. `.` was in this list too and is not any more: once the evaluation
+#     config priced remapping against Hands Down, restoring `.` and `,` to the
+#     positions Sauyon already knew beat leaving them where 475c84f put them.
 #
 # The standing rule is that the Svalboard leads and the Glove80 follows wherever
 # it structurally can. A divergence has to be earned by something the Glove80
@@ -104,7 +106,6 @@ ROWS = (("top", build.N), ("home", build.C), ("bottom", build.S))
 # construction. This list is that boundary, and the test's job is to stop it
 # growing by accident.
 EXPECTED_DIVERGENCE = {
-    ("R", "index",  "top"):    ("DOT",     "KC_GRAVE"),
     ("R", "ring",   "top"):    ("LS(SQT)", "KC_SLASH"),
     ("R", "pinky",  "top"):    ("SQT",     "LSFT(KC_SCOLON)"),
 }

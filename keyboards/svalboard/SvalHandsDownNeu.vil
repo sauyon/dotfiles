@@ -55,8 +55,8 @@
         "KC_U",
         "KC_QUOTE",
         "KC_A",
-        "KC_GRAVE",
         "KC_DOT",
+        "KC_COMMA",
         -1
       ],
       [
@@ -80,7 +80,7 @@
         "KC_J",
         "KC_H",
         "LSFT(KC_SCOLON)",
-        "KC_COMMA",
+        "KC_GRAVE",
         -1
       ]
     ],

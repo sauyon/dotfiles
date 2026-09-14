@@ -174,8 +174,8 @@ HDNEU_LEFT = {
 # restarts moved `-` to the right hand, and so did all four of the earlier
 # unconstrained ones; it is the most reproducible result in the whole exercise.
 HDNEU_RIGHT = {
-    "top":    ["KC_MINUS", "KC_GRAVE", "KC_Q", "KC_SLASH", "LSFT(KC_SCOLON)"],
-    "home":   ["KC_DOT", "KC_A", "KC_E", "KC_I", "KC_H"],
+    "top":    ["KC_MINUS", "KC_DOT", "KC_Q", "KC_SLASH", "LSFT(KC_SCOLON)"],
+    "home":   ["KC_COMMA", "KC_A", "KC_E", "KC_I", "KC_H"],
     "bottom": ["KC_Z", "KC_U", "KC_O", "KC_Y", "KC_K"],
 }
 
@@ -189,7 +189,7 @@ BASE_LATERALS = {
     # it -- comma follows letters constantly, and the ring cup holds `i` and
     # `y` while the middle holds `e` and `o`, so `e,` on the middle scored
     # worse than either. 234.81 -> 231.70.
-    (R_PINKY, W): "KC_COMMA",    # inner, x=22.0
+    (R_PINKY, W): "KC_GRAVE",    # inner, x=22.0
     (R_PINKY, E): "KC_J",    # outer, x=24.0
     (L_PINKY, W): "KC_TAB",  # outermost key on the left hand, x=0.0
     (L_INDEX, W): "KC_G",

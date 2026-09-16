@@ -1281,7 +1281,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ];
 
   home.stateVersion = "26.05";
 
@@ -2056,6 +2056,7 @@ in
     entire  # git-hook layer checkpointing AI agent sessions alongside commits
     jq
     jujutsu
+    kimi-code  # Moonshot's Kimi Code CLI (binary: kimi); see kimi-code.nix
     lnav
     mise
     mosh

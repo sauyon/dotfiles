@@ -13,7 +13,7 @@
 #
 # Upstream ships a Node SEA (single executable application): one self-contained
 # file with the Node runtime baked in, not an npm tree. So there is no lockfile
-# to vendor and no `buildNpmPackage` — just fetch, patchelf, install. The npm
+# to vendor and no `buildNpmPackage` — just fetch, patchelf, wrap, install. The npm
 # route (`@moonshot-ai/kimi-code`) exists too, but its `postinstall` mutates
 # $PATH looking for legacy shims, which is exactly the kind of thing that does
 # not belong in a nix build.
@@ -79,7 +79,9 @@ in
           # A single file, not an archive.
           dontUnpack = true;
 
-          nativeBuildInputs = lib.optionals prev.stdenv.hostPlatform.isLinux [
+          nativeBuildInputs = [
+            prev.makeWrapper
+          ] ++ lib.optionals prev.stdenv.hostPlatform.isLinux [
             prev.autoPatchelfHook
           ];
 
@@ -92,7 +94,18 @@ in
 
           installPhase = ''
             runHook preInstall
-            install -Dm755 $src $out/bin/kimi
+
+            install -Dm755 $src $out/libexec/kimi-code/kimi
+
+            # `fd` is a runtime dependency, so it belongs in this closure rather
+            # than in anyone's profile: CI then builds it, and a rollback takes
+            # it with them. --prefix, per nixpkgs convention for a pinned
+            # runtime tool — upstream pins fd 10.4.2 and we are already
+            # substituting nixpkgs' build, so leaving the version to whatever
+            # happens to be on PATH trades one surprise for another.
+            makeWrapper $out/libexec/kimi-code/kimi $out/bin/kimi \
+              --prefix PATH : ${lib.makeBinPath [ prev.fd ]}
+
             runHook postInstall
           '';
 
@@ -110,6 +123,14 @@ in
           doInstallCheck = true;
           installCheckPhase = ''
             $out/bin/kimi --version
+
+            # kimi shells out to `fd` for file search, and resolves it off PATH
+            # (`resolveCommandPath` reads env.PATH; there is no override
+            # variable). Miss it and `downloadFd()` fetches a 4 MiB fd tarball
+            # from Moonshot's CDN into ~/.kimi-code/bin at first launch — a
+            # runtime dependency outside the closure, invisible to CI and to
+            # rollback. Assert the wrapper carries fd from the store instead.
+            grep -q '${prev.fd}/bin' $out/bin/kimi
           '';
 
           meta = {

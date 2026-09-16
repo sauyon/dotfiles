@@ -1,0 +1,35 @@
+why aren't you running hms yourself?
+
+---
+
+why aren't you running hms yourself?
+
+---
+
+hms is a thin client anyway, just restart it
+
+---
+
+<task-notification>
+<task-id>bn2y3l7qe</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/1617cca6-8746-4970-9f7d-c55140a15311/tasks/bn2y3l7qe.output</output-file>
+<status>completed</status>
+<summary>Background command "Push and switch home-manager config via CI" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+it's auth'd. can you pull the token or is it a proper offline oauth key
+
+---
+
+why the fuck did it download fd? what?
+
+---
+
+shouldn't it be a dependency then
+
+---
+
+shouldn't it be a dependency of the flake

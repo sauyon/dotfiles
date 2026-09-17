@@ -2989,6 +2989,19 @@ in
           "performable:super+v=paste_from_clipboard"
           "super+t=new_tab"
           "ctrl+comma=unbind"
+
+          # Ghostty ships `ctrl++` for increase_font_size and it is unreachable
+          # on a US layout. Triggers match the *unmodified* codepoint against the
+          # full modifier set, so `+` -- which is shift+`=` -- arrives as
+          # ctrl+shift+`=`, and ctrl+shift+= != ctrl++ because the modifiers do
+          # not match. Ghostty's own docs name the identical trap for `ctrl+_`.
+          # Nothing matches, so the key is forwarded to the app and the terminal
+          # types a bare `=`.
+          #
+          # ctrl+`-` and ctrl+`0` need no shift and were never affected; only
+          # increase is. The shipped `ctrl+=` also still works, and this adds the
+          # shifted spelling beside it rather than replacing it.
+          "ctrl+shift+equal=increase_font_size:1"
         ];
       } // lib.optionalAttrs hidpi.enabled {
         font-size = hidpi.ghosttyFontSize;

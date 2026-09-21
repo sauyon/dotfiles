@@ -3215,13 +3215,13 @@ in
           ConnectTimeout = "0";
           StrictHostKeyChecking = "no";
           LogLevel = "ERROR";
-          ProxyCommand = "${pkgs.coder}/bin/coder --global-config /home/sauyon/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
+          ProxyCommand = "${pkgs.coder}/bin/coder --global-config ${config.home.homeDirectory}/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
         };
         # `header` is the escape hatch for a block header carrying Nix string
         # context (the store path), which can't live in an attr name.
         "*.coder-proxy" = {
           header = "Match host *.coder !exec \"${pkgs.coder}/bin/coder connect exists %h\"";
-          ProxyCommand = "${pkgs.coder}/bin/coder --global-config /home/sauyon/.config/coderv2 ssh --stdio --hostname-suffix coder %h";
+          ProxyCommand = "${pkgs.coder}/bin/coder --global-config ${config.home.homeDirectory}/.config/coderv2 ssh --stdio --hostname-suffix coder %h";
         };
         "*.coder" = {
           UserKnownHostsFile = "/dev/null";

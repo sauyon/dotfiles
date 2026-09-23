@@ -2871,27 +2871,9 @@ in
       # settings.json lives under ~/.config/claude-<name>/ (rendered by home.file
       # below).
       settings = claudeProfileSettings.work;
-      #
-      # Pin a newer CLI than nixpkgs ships (it lags the upstream native-binary
-      # releases). Override version + prebuilt src; the checksum is the sha256 hex
-      # from https://downloads.claude.ai/claude-code-releases/<version>/manifest.json
-      # (same source nixpkgs uses). Bump both when updating.
-      package =
-        let
-          claudeVersion = "2.1.220";
-          platformKey = "${pkgs.stdenv.hostPlatform.node.platform}-${pkgs.stdenv.hostPlatform.node.arch}";
-          checksums = {
-            linux-x64 = "674f61f20ff306f3100cf9200e4c36c4b70278b5bef2884549819b942a89c863";
-            darwin-arm64 = "8addc857f3fe64d5a0368af9ee50321b50afb4a6918ba3ef018ab84f5dbbe081";
-          };
-        in
-        pkgs.claude-code.overrideAttrs (_: {
-          version = claudeVersion;
-          src = pkgs.fetchurl {
-            url = "https://downloads.claude.ai/claude-code-releases/${claudeVersion}/${platformKey}/claude";
-            sha256 = checksums.${platformKey};
-          };
-        });
+      # No version/src override: nixpkgs now leads upstream's native-binary
+      # releases, and its installPhase unzstds a `claude.zst` src that the old
+      # uncompressed-binary pin could not satisfy.
     };
 
     home-manager.enable = true;

@@ -32,7 +32,8 @@ let
   # assumes exactly that). Only the graphical *frame* needs a GUI, so pick the
   # build by isDesktop rather than dropping emacs on headless hosts — dropping it
   # takes $EDITOR, git core.editor and the edit/sedit helpers down with it.
-  emacsPkg = if isDesktop then pkgs.emacs30-pgtk else pkgs.emacs30-nox;
+  # Unversioned: nixpkgs retired the emacs30-* aliases in August 2026.
+  emacsPkg = if isDesktop then pkgs.emacs-pgtk else pkgs.emacs-nox;
 
   btopPkg =
     if gpu == "amd" then pkgs.btop-rocm

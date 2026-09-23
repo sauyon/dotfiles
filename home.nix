@@ -93,33 +93,6 @@ let
     ldflags = [ "-X github.com/FogDong/kcs/cmd.version=${version}" ];
   };
 
-  # herdr — pinned to my fork's rev with both focus-steal fixes (pane/workspace
-  # close 1df7636a + API-close f044ae8e, refs upstream #1621), rebased onto
-  # upstream master dc2506ea 2026-07-26. Being ahead of v0.7.4 bumped
-  # Cargo.lock/zig deps/version to 0.7.5, hence the fresh hashes and version bump
-  # (for versionCheckHook). Drop for `pkgs.herdr` once the fixes ship in nixpkgs.
-  herdr-pkg = pkgs.herdr.overrideAttrs (old: rec {
-    version = "0.7.5";
-    src = pkgs.fetchFromGitHub {
-      owner = "sauyon";
-      repo = "herdr";
-      rev = "f044ae8ecde271b099b3444b6bb0a2dfb23e088b";
-      hash = "sha256-iYVk3xWKCgVcSS1qr5Ewuu2YBHCQO9T60G6BaeUHGfs=";
-    };
-    cargoDeps = pkgs.rustPlatform.fetchCargoVendor {
-      inherit src;
-      name = "herdr-${version}-vendor";
-      hash = "sha256-Ja7fKsLWwCi6oy6zANltlFncbDVK+kgOhpr+bJtZyzg=";
-    };
-    zigDeps = pkgs.zig_0_15.fetchDeps {
-      pname = "herdr";
-      inherit version;
-      src = "${src}/vendor/libghostty-vt";
-      fetchAll = true;
-      hash = "sha256-PnM+hZIlLyQwK8vJgd/Bhjt1lNIz06T8FahwliRmMrY=";
-    };
-  });
-
   # denoland's security firewall for agents. Not in nixpkgs and its `make` build
   # pulls Go/Node/Swift, so fetch the prebuilt linux-amd64 binary (sha from the
   # release SHA256SUMS). Only referenced under the fujiwara gate, never forced
@@ -2014,7 +1987,9 @@ in
 
   home.packages = [
     claude-prof
-    herdr-pkg
+    # Unpinned: the fork's focus-steal fixes are not in v0.9.1, but upstream
+    # #1621 closed COMPLETED and the pin no longer builds under zig 0.16.
+    pkgs.herdr
     hms
     kcs
   ]

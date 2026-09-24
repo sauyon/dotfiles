@@ -1,3 +1,7 @@
+# Declared here because herdr persists this by rewriting config.toml in place,
+# which fails on the read-only home-manager symlink.
+onboarding = false
+
 [keys]
 prefix = "ctrl+z"
 

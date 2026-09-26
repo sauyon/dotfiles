@@ -70,23 +70,25 @@ Pull the stick and reboot; it asks for the disk passphrase at boot.
 ## 4. Bootstrap
 
 The base install already cloned this repo to `~/devel/dotfiles` and put a
-`bootstrap` command in `/usr/local/bin`. It needs the sops GCP key first; copy
-it from another host, or make one with `mise run gcp-setup` (see *Secrets* in
-the README):
+`bootstrap` command in `/usr/local/bin`. Log in and run it:
 
 ```bash
-mkdir -p ~/.config/sops && scp <other-host>:.config/sops/gcp-key.json ~/.config/sops/
 bootstrap
 ```
 
 On a machine that was not installed this way, `curl -fsSL ko.ag/bootstrap | bash`
-clones the repo first and does the same. `bootstrap` pulls the repo and runs `mise run bootstrap` through the committed
-`bin/mise` (from `mise generate bootstrap`: a pinned, checksummed mise), so
-nothing else needs to be installed first.
+clones the repo first and does the same. Either way it runs `mise run bootstrap`
+through the committed `bin/mise` (from `mise generate bootstrap`: a pinned,
+checksummed mise), so nothing else needs to be installed first.
+
+For sops it signs you in to Google instead of needing a key file copied over:
+it prints a URL and a QR code, you sign in on your phone and paste the code
+back. Your account needs KMS access for that, granted once from any machine
+where you're logged in to gcloud: `mise run gcp-grant-user`.
 
 `bootstrap` is idempotent; rerun it if a step fails. In order it:
 
-1. installs Determinate Nix if it's missing;
+1. installs Determinate Nix if it's missing, then the sops sign-in above;
 2. runs `system/deploy` — oomd, polkit, the attic netrc, the remote-builder
    key, patched tailscaled — so the next step downloads CI's build;
 3. does the Home Manager switch for `<host>` (via `nix run` the first time);

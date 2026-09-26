@@ -125,11 +125,11 @@ EOF
 useradd -m -G wheel,video,input,tss -s /bin/zsh ${USERNAME}
 echo '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/10-wheel
 chmod 440 /etc/sudoers.d/10-wheel
-# Passwordless sudo only until post-install.sh finishes; it deletes this file.
+# Passwordless sudo only until "mise run bootstrap" finishes; it deletes this.
 echo '${USERNAME} ALL=(ALL:ALL) NOPASSWD: ALL' > /etc/sudoers.d/99-bootstrap
 chmod 440 /etc/sudoers.d/99-bootstrap
 
-# Key-only SSH for sauyon so the Nix/Home Manager stage can run remotely.
+# Key-only SSH for sauyon, for running bootstrap from another machine.
 install -d -m700 -o ${USERNAME} -g ${USERNAME} /home/${USERNAME}/.ssh
 printf 'PermitRootLogin no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\n' > /etc/ssh/sshd_config.d/00-keys-only.conf
 

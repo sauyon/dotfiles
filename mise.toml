@@ -89,9 +89,10 @@ description = "Install system-level files (/etc, polkit) and provision nix cache
 run = 'exec system/deploy "$@"'
 
 # ── New host bootstrap (docs/new-host.md) ─────────────────────────────────────
-# These run on the machine you're driving the install from. The scripts they
-# ship to the new host live in install/, since neither the live ISO nor a fresh
-# install has mise.
+# host:* run on the machine you're driving the install from and ship scripts
+# from install/ to the live ISO, which has no mise. bootstrap runs on the new
+# host itself, via the committed bin/mise (`mise generate bootstrap`) until
+# home-manager provides mise.
 
 [tasks."host:iso"]
 description = "Build the Arch install ISO (auto Wi-Fi, key-only root SSH) into ~/Downloads"
@@ -124,17 +125,45 @@ ssh -t "${ssh_opts[@]}" "root@${usage_ip}" \
   "HOST='${usage_host}' DISK='${usage_disk}' bash /root/install-base.sh"
 '''
 
-[tasks."host:setup"]
-description = "On a freshly installed host: Determinate Nix, clone dotfiles, first home-manager switch"
-dir = "{{config_root}}/install"
-usage = '''
-arg "<ip>" help="Address of the installed host"
-flag "--user <user>" default="sauyon"
-'''
+[tasks.bootstrap]
+description = "Set up this host: Determinate Nix, system:deploy, home-manager switch, tailscale. On a fresh box: bin/mise run bootstrap"
+tools = { sops = "latest" }
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-ssh -o StrictHostKeyChecking=accept-new "${usage_user}@${usage_ip}" 'bash -s' < post-install.sh
+host="$(uname -n)"; host="${host%%.*}"
+repo="{{config_root}}"
+# install-base.sh leaves passwordless sudo for this; drop it however we exit.
+trap 'sudo -n rm -f /etc/sudoers.d/99-bootstrap 2>/dev/null || true' EXIT
+
+key="$HOME/.config/sops/gcp-key.json"
+if [ ! -s "$key" ]; then
+  echo "bootstrap: $key is missing. Copy it from another host" >&2
+  echo "  mkdir -p ~/.config/sops && scp <host>:.config/sops/gcp-key.json ~/.config/sops/" >&2
+  echo "or make one for this host with 'mise run gcp-setup'." >&2
+  exit 1
+fi
+
+if [ ! -d /nix/var/nix/profiles/default ]; then
+  curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+    | sudo sh -s -- install --no-confirm
+fi
+# shellcheck disable=SC1091
+. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+
+# system/deploy first: it installs the attic netrc, so the switch below pulls
+# CI's build of this host instead of compiling it.
+"$repo/system/deploy"
+
+if command -v home-manager >/dev/null 2>&1; then
+  home-manager switch --flake "$repo#$host"
+else
+  nix run github:nix-community/home-manager -- switch -b pre-hm --flake "$repo#$host"
+fi
+
+sudo tailscale status >/dev/null 2>&1 || sudo tailscale up
+
+echo "bootstrap: done. Log in again (or exec zsh -l) to pick up the new profile."
 '''
 
 [tasks.hms]

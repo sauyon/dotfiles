@@ -352,7 +352,8 @@
         "nixpkgs": "nixpkgs_2",
         "sops-nix": "sops-nix",
         "ssh-oidc": "ssh-oidc",
-        "walker": "walker"
+        "walker": "walker",
+        "zen-browser": "zen-browser"
       }
     },
     "sops-nix": {
@@ -492,6 +493,29 @@
       "original": {
         "owner": "abenz1267",
         "repo": "walker",
+        "type": "github"
+      }
+    },
+    "zen-browser": {
+      "inputs": {
+        "home-manager": [
+          "home-manager"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790402100,
+        "narHash": "sha256-f/tmhFat/UHra627JbVg6calQ3/ZkEydQZJR71BBX0M=",
+        "owner": "0xc000022070",
+        "repo": "zen-browser-flake",
+        "rev": "b851b56b787a61b900751aca2f17e4a5ca6c394a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "0xc000022070",
+        "repo": "zen-browser-flake",
         "type": "github"
       }
     }

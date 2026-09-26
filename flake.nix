@@ -33,14 +33,23 @@
     mattpocock-skills.flake = false;
     # Seamless OIDC SSH gate (gate binary + nixos/darwin modules).
     ssh-oidc.url = "git+https://codeberg.org/sauyon/ssh-oidc";
+    # Zen browser. Not in nixpkgs (checked against this lock), so it comes from
+    # the community flake, which ships the `zen-beta` package plus a
+    # home-manager module built on home-manager's own mkFirefoxModule — so
+    # `programs.zen-browser` takes the same policies/profiles/extensions/
+    # nativeMessagingHosts options `programs.firefox` did. home-manager follows
+    # ours so that module generator is the one our lock pins, not a second copy.
+    zen-browser.url = "github:0xc000022070/zen-browser-flake";
+    zen-browser.inputs.nixpkgs.follows = "nixpkgs";
+    zen-browser.inputs.home-manager.follows = "home-manager";
   };
 
-  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, explore-mcp, drovr, hunk, mattpocock-skills, ssh-oidc, ... }:
+  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, explore-mcp, drovr, hunk, mattpocock-skills, zen-browser, ssh-oidc, ... }:
   let
     mkHome = system: machine: home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.${system};
       extraSpecialArgs = {
-        inherit sops-nix walker nixgl explore-mcp drovr hunk mattpocock-skills machine;
+        inherit sops-nix walker nixgl explore-mcp drovr hunk mattpocock-skills zen-browser machine;
         inherit system;
       };
       modules = [ ./home.nix ];

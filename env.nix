@@ -21,7 +21,7 @@ rec {
 
   # Prepend the home-manager profile bin so it lands in environment.d too. Login
   # shells get it from hm-session-vars.sh, but the systemd user manager (and thus
-  # services like walker that spawn `firefox` by name) only sees this PATH; its
+  # services like walker that spawn `zen-beta` by name) only sees this PATH; its
   # PAM-inherited $PATH is just /usr/local/bin:/usr/bin.
   PATH = "${home}/.nix-profile/bin:$PATH:/snap/bin:$GOPATH/bin:${xdg.dataHome}/cargo/bin:${home}/.local/bin:${home}/.krew/bin";
 
@@ -40,6 +40,10 @@ rec {
   QT_WAYLAND_DISABLE_WINDOWDECORATION = "1";
 
   MOZ_ENABLE_WAYLAND = "1";
+  # Kept after the move off firefox: home-manager's thunderbird profile lives
+  # in ~/.thunderbird, the legacy layout this selects, and so does any
+  # Arch-packaged gecko app. Zen is unaffected either way — it reads
+  # ~/.config/zen with this set (see programs.zen-browser in home.nix).
   MOZ_LEGACY_PROFILES = "1";
 
   WARP_ENABLE_WAYLAND = "1";
@@ -72,11 +76,15 @@ rec {
   TERMINFO_DIRS = "${home}/.nix-profile/share/terminfo:/usr/share/terminfo";
 }
 // lib.optionalAttrs (!pkgs.stdenv.hostPlatform.isDarwin && isDesktop) {
-  # Desktop-only: programs.firefox.enable is isDesktop-gated, so on a headless
-  # host this would name a binary that isn't installed. Leave BROWSER unset
-  # there and let each tool fall back to its own default rather than fail with
-  # a bare command-not-found.
-  BROWSER = "firefox";
+  # Desktop-only: programs.zen-browser.enable is isDesktop-gated, so on a
+  # headless host this would name a binary that isn't installed. Leave BROWSER
+  # unset there and let each tool fall back to its own default rather than fail
+  # with a bare command-not-found.
+  #
+  # zen-beta, not zen: upstream's stable channel is called "beta" and the flake
+  # names the wrapper after the channel. Set here rather than via the module's
+  # setAsDefaultBrowser, which would collide with this same option.
+  BROWSER = "zen-beta";
 
   # GTK's file-chooser sidebar (and Nautilus, and anything else built on GIO)
   # enumerates drives through GVolumeMonitor. The only implementation that

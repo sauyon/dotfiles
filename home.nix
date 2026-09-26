@@ -9,6 +9,7 @@
   drovr,
   hunk,
   mattpocock-skills,
+  zen-browser,
   machine,
 
   system,
@@ -1265,7 +1266,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ];
 
   home.stateVersion = "26.05";
 
@@ -1506,14 +1507,16 @@ in
     done
   '';
 
-  # Firefox 67+ keys profile-per-install via [Install<HASH>] sections in
+  # Gecko 67+ keys profile-per-install via [Install<HASH>] sections in
   # profiles.ini (gated by `Version=2`), overriding `Default=1`. Every nix
-  # firefox bump makes a new install hash, so Firefox creates a fresh
+  # zen bump makes a new install hash, so Zen creates a fresh
   # *.default-release profile and pins it, ignoring the home-manager one.
-  # Dropping Version= makes Firefox honor Default=1 (like Darwin); rm the legacy
+  # Dropping Version= makes Zen honor Default=1 (like Darwin); rm the legacy
   # installs.ini backup so it can't re-seed the Install section on next launch.
-  home.activation.firefoxInstallsIni = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    $DRY_RUN_CMD rm -f "$HOME/${config.programs.firefox.configPath}/installs.ini"
+  # Unprefixed path: zen-browser's configPath is absolute (firefox's was
+  # home-relative), so do not put $HOME in front of it.
+  home.activation.zenInstallsIni = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    $DRY_RUN_CMD rm -f "${config.programs.zen-browser.configPath}/installs.ini"
   '';
 
   xdg.userDirs.setSessionVariables = true;
@@ -2095,8 +2098,13 @@ in
     nixGL
 
     pkgs.bitwarden-cli
-    # Desktop app is the biometric backend the Firefox extension talks to over
+    # Desktop app is the biometric backend the browser extension talks to over
     # native messaging (the extension can't unlock with biometrics on its own).
+    # Unaffected by the move off firefox: gecko takes native manifests from
+    # XREUserNativeManifests + /native-messaging-hosts, and on Linux that base
+    # is a hardcoded ~/.mozilla for every gecko app — so the manifest
+    # bitwarden-desktop writes there is the one Zen loads, and the zen wrapper
+    # symlinks tridactyl's in beside it at launch.
     # Pairs with the polkit action + pam_fprintd wiring in system/.
     pkgs.bitwarden-desktop
     # gvfs must be *installed*, not just referenced by store path the way most
@@ -2893,15 +2901,22 @@ in
         # display = "inline";
       };
     };
-    firefox = {
+    # Zen, not firefox: same gecko underneath (1.22.3b is gecko 156), so the
+    # policies/prefs/extensions below are the ones the firefox block carried,
+    # moved over unchanged except where noted.
+    zen-browser = {
       enable = isDesktop;
-      # Linux: env.nix sets MOZ_LEGACY_PROFILES=1 (and system Arch firefox uses
-      # legacy unconditionally), so use .mozilla/firefox. macOS reads from
-      # ~/Library/Application Support/Firefox.
-      configPath = if isDarwin then "Library/Application Support/Firefox" else ".mozilla/firefox";
-      # Drop Version= so Firefox uses non-dedicated profile mode and honors
-      # Default=1 — else Firefox 67+ pins profile-per-install via [Install<HASH>]
-      # sections in profiles.ini and ignores Default=.
+      # No configPath here, unlike the firefox block: Zen's application.ini
+      # carries `Profile=zen`, and the wrapped binary lands on ~/.config/zen —
+      # the module default — even with env.nix's MOZ_LEGACY_PROFILES=1 in
+      # scope. Checked 2026-09-26 by running zen-beta 1.22.3b under a throwaway
+      # $HOME with the var set: it created ~/.config/zen, not ~/.zen. macOS gets
+      # ~/Library/Application Support/Zen, also the module default.
+      #
+      # Drop Version= so Zen uses non-dedicated profile mode and honors
+      # Default=1 — else gecko 67+ pins profile-per-install via [Install<HASH>]
+      # sections in profiles.ini and ignores Default=. Paired with the
+      # zenInstallsIni activation above.
       profileVersion = null;
       policies = {
         Homepage = {
@@ -2913,12 +2928,19 @@ in
         pkgs.tridactyl-native
       ];
       profiles.default = {
+        # rycee's firefox-addons install as-is — same extension IDs, same
+        # gecko. Still skipped on macOS, as under firefox; that path has never
+        # been exercised and mari keeps darwin.packageMode = "signed" (the
+        # module default: upstream .app untouched, so its Team ID integrations
+        # — 1Password, Touch ID — keep working).
         extensions.packages = lib.optionals (!isDarwin) (with pkgs.nur.repos.rycee.firefox-addons; [
           bitwarden
           tridactyl
         ]);
         settings = {
-          "sidebar.verticalTabs" = true;
+          # sidebar.verticalTabs is gone from this list on purpose: it toggles
+          # Firefox's own vertical tab strip, which Zen replaces outright with
+          # its sidebar. Zen's knobs are the zen.* prefs.
           "ui.key.accelKey" = 91;
           "ui.key.textcontrol.prefer_native_key_bindings_over_builtin_shortcut_key_definitions" = true;
           "signon.rememberSignons" = false;
@@ -2926,7 +2948,7 @@ in
           "browser.ml.chat.enabled" = false;
           # WebTransport workaround: this profile reports hasThirdPartyRoots=1
           # for every QUIC connection (even public sites chaining to built-in
-          # roots), so Firefox's third-party-roots policy kills H3. HTTPS falls
+          # roots), so gecko's third-party-roots policy kills H3. HTTPS falls
           # back to H2; WebTransport has no fallback and fails with "WebTransport
           # connection rejected". See netwerk/protocol/http/Http3Session.cpp
           # Authenticated() and bugzilla 1929093.
@@ -3330,9 +3352,11 @@ in
       enable = !isDarwin && isDesktop;
 
       defaultApplications = {
-        "text/html" = "firefox.desktop";
-        "x-scheme-handler/http" = "firefox.desktop";
-        "x-scheme-handler/https" = "firefox.desktop";
+        # zen-beta: upstream calls the stable channel "beta", and the flake
+        # names the binary and desktop entry after the channel.
+        "text/html" = "zen-beta.desktop";
+        "x-scheme-handler/http" = "zen-beta.desktop";
+        "x-scheme-handler/https" = "zen-beta.desktop";
         "x-scheme-handler/mailto" = "thunderbird.desktop";
         "message/rfc822" = "thunderbird.desktop";
       };

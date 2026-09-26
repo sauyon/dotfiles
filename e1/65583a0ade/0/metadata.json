@@ -1,0 +1,118 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "e165583a0ade",
+  "session_id": "23a3d918-fe01-4251-8432-769199a0ce51",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-26T17:46:53.066704615Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "home.nix"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "e65d1ddb318f",
+  "checkpoint_transcript_start": 292,
+  "transcript_lines_at_start": 292,
+  "compact_transcript_start": 43,
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 10218,
+    "cache_read_tokens": 750260,
+    "output_tokens": 4859,
+    "api_call_count": 6
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_018xP9Ba21MzHu6cysVGL8m2",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "306e6cfcaac6",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 30,
+        "end": 31,
+        "entry_ids": [
+          "b543285c-0448-4d79-b0e5-c831d8ef07ca"
+        ],
+        "tool_use_id": "toolu_018xP9Ba21MzHu6cysVGL8m2"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_018xP9Ba21MzHu6cysVGL8m2"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_0149eRwpupXFHkTc5jWBeB2e",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "e65d1ddb318f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 314,
+        "end": 315,
+        "entry_ids": [
+          "19cf5d44-4915-46fd-b0b6-0afc097bdda6"
+        ],
+        "tool_use_id": "toolu_0149eRwpupXFHkTc5jWBeB2e"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_0149eRwpupXFHkTc5jWBeB2e"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-26T17:46:53.023916377Z",
+    "agent_lines": 36,
+    "agent_removed": 12,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 36,
+    "total_lines_changed": 48,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 48,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/edp1-scale-2x-review-1/001-hyprland.nix.diff": 21,
+        ".drovr/review/edp1-scale-2x-review-1/index.md": 27
+      }
+    }
+  ]
+}

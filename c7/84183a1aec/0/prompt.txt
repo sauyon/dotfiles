@@ -49,3 +49,7 @@ ok good enoug
 <status>completed</status>
 <summary>Background command "Map touch coverage across the screen for 50 seconds" completed (exit code 0)</summary>
 </task-notification>
+
+---
+
+oh. is it herdr / ghostty issues with 2x scale?

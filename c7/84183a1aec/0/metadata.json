@@ -1,0 +1,141 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "c784183a1aec",
+  "session_id": "ca9412bc-097d-4862-b35b-7577ee1a65c4",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-26T20:54:03.266608012Z",
+  "branch": "master",
+  "checkpoints_count": 6,
+  "save_step_count": 1,
+  "files_touched": [
+    "zsh.nix"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "25e12db491a6",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 50,
+    "cache_creation_tokens": 52291,
+    "cache_read_tokens": 1517699,
+    "output_tokens": 21335,
+    "api_call_count": 25
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01A1LjJj4HNosoYGjhggzvLB",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "25e12db491a6",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 64,
+        "end": 65,
+        "entry_ids": [
+          "685f019d-884d-4709-b2d2-f12113d72605"
+        ],
+        "tool_use_id": "toolu_01A1LjJj4HNosoYGjhggzvLB"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01A1LjJj4HNosoYGjhggzvLB"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 6
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-26T20:54:03.21686756Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 12,
+    "human_removed": 0,
+    "total_committed": 0,
+    "total_lines_changed": 12,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 688,
+      "user_lines_removed": 16,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/edp1-scale-2x-review-1/001-hyprland.nix.diff": 21,
+        ".drovr/review/edp1-scale-2x-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-1/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-2/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-2/index.md": 27,
+        ".drovr/review/ghostty-p10k-osc133-review-1/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-1/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-1/index.md": 29,
+        ".drovr/review/ghostty-p10k-osc133-review-2/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-2/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-2/index.md": 29,
+        ".drovr/review/zen-instead-of-firefox-review-1/001-env.nix.diff": 45,
+        ".drovr/review/zen-instead-of-firefox-review-1/002-flake.lock.diff": 44,
+        ".drovr/review/zen-instead-of-firefox-review-1/003-flake.nix.diff": 30,
+        ".drovr/review/zen-instead-of-firefox-review-1/004-home.nix.diff": 134,
+        ".drovr/review/zen-instead-of-firefox-review-1/index.md": 33,
+        "home.nix": 1,
+        "zsh.nix": 25
+      },
+      "user_removed_per_file": {
+        "home.nix": 11,
+        "home/p10k.zsh": 5
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 766,
+      "user_lines_removed": 27,
+      "agent_lines_added": 30,
+      "agent_lines_removed": 16,
+      "user_added_per_file": {
+        ".drovr/review/edp1-scale-2x-review-1/001-hyprland.nix.diff": 21,
+        ".drovr/review/edp1-scale-2x-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-1/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-2/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-2/index.md": 27,
+        ".drovr/review/ghostty-p10k-osc133-review-1/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-1/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-1/index.md": 29,
+        ".drovr/review/ghostty-p10k-osc133-review-2/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-2/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-2/index.md": 29,
+        ".drovr/review/zen-instead-of-firefox-review-1/001-env.nix.diff": 45,
+        ".drovr/review/zen-instead-of-firefox-review-1/002-flake.lock.diff": 44,
+        ".drovr/review/zen-instead-of-firefox-review-1/003-flake.nix.diff": 30,
+        ".drovr/review/zen-instead-of-firefox-review-1/004-home.nix.diff": 134,
+        ".drovr/review/zen-instead-of-firefox-review-1/index.md": 33,
+        "env.nix": 16,
+        "home.nix": 82,
+        "zsh.nix": 6
+      },
+      "user_removed_per_file": {
+        "env.nix": 7,
+        "home.nix": 14,
+        "zsh.nix": 6
+      }
+    }
+  ]
+}

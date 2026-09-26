@@ -1,0 +1,71 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "23e836e65bb7",
+  "session_id": "23a3d918-fe01-4251-8432-769199a0ce51",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-26T17:12:18.090262982Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "hyprland.nix"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "306e6cfcaac6",
+  "checkpoint_transcript_start": 169,
+  "transcript_lines_at_start": 169,
+  "compact_transcript_start": 25,
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 892,
+    "cache_read_tokens": 90050,
+    "output_tokens": 663,
+    "api_call_count": 1
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_018xP9Ba21MzHu6cysVGL8m2",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "306e6cfcaac6",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 30,
+        "end": 31,
+        "entry_ids": [
+          "b543285c-0448-4d79-b0e5-c831d8ef07ca"
+        ],
+        "tool_use_id": "toolu_018xP9Ba21MzHu6cysVGL8m2"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_018xP9Ba21MzHu6cysVGL8m2"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-26T17:12:18.042703619Z",
+    "agent_lines": 7,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 7,
+    "total_lines_changed": 7,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}

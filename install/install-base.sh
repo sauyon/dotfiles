@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Base Arch install for a new host, run as root on the archiso live system:
 #   HOST=<name> DISK=/dev/nvme0n1 bash install-base.sh
+# Normally invoked via `mise run host:install <ip> <host>`.
 # Full-disk LUKS2 -> btrfs, systemd-boot, NetworkManager, user sauyon.
 # Prompts for the disk passphrase and the user's password first, then runs
 # unattended.

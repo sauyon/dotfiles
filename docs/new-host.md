@@ -28,15 +28,13 @@ SSH, advertised over mDNS as `archiso.local`. Needs Docker (Docker Desktop is
 fine; the build runs in a privileged `archlinux` container).
 
 ```bash
-cd install
-cp wifi.env.example wifi.env         # set WIFI_SSID / WIFI_PASSPHRASE
-cp ~/.ssh/id_ed25519.pub authorized_keys
-docker run --rm --privileged -v "$PWD:/src:ro" -v "$HOME/Downloads:/out" \
-  archlinux:latest bash /src/build-iso.sh
+cp install/wifi.env.example install/wifi.env   # set WIFI_SSID / WIFI_PASSPHRASE
+mise run host:iso                               # --out <dir>, default ~/Downloads
 ```
 
-`wifi.env` and `authorized_keys` are gitignored. The Wi-Fi passphrase ends up
-in plain text inside the ISO — treat the ISO file accordingly.
+It uses `~/.ssh/id_ed25519.pub` as the root key unless `install/authorized_keys`
+already exists. Both files are gitignored. The Wi-Fi passphrase ends up in
+plain text inside the ISO — treat the ISO file accordingly.
 
 ## 2. Write it to a stick and boot
 
@@ -54,12 +52,11 @@ off its screen.
 
 ## 3. Base install
 
-Check the target disk first (`lsblk`) � the script refuses a disk that
+Check the target disk first (`lsblk`) — the script refuses a disk that
 already has partitions, so wipe it by hand (`sgdisk -Z`) only when you mean it.
 
 ```bash
-scp install/install-base.sh root@<ip>:
-ssh -t root@<ip> 'HOST=<host> DISK=/dev/nvme0n1 bash install-base.sh'
+mise run host:install <ip> <host>     # --disk <dev>, default /dev/nvme0n1
 ```
 
 It asks for the disk passphrase and `sauyon`'s password up front, then runs
@@ -75,12 +72,17 @@ Pull the stick and reboot; it asks for the disk passphrase at boot.
 The host rejoins Wi-Fi via NetworkManager and accepts your key:
 
 ```bash
-ssh sauyon@<ip> 'bash -s' < install/post-install.sh
+mise run host:setup <ip>
 ```
 
 That installs Determinate Nix, clones this repo to `~/devel/dotfiles`, runs the
 first `home-manager switch --flake ...#<host>` (local build: the attic pull
 token isn't on the host yet), and deletes the `99-bootstrap` sudoers drop-in.
+`sops-nix.service` failing at the end of that switch is expected until step 5.
+
+If you were logged in on the console before this ran, log in again
+(`exec zsh -l`): that session predates the Home Manager profile and has none
+of its PATH or zsh config.
 
 ## 5. Secrets and system config (needs you)
 
@@ -89,7 +91,7 @@ These need credentials that should not be copied around by a script:
 1. Put the sops GCP key at `~/.config/sops/gcp-key.json` (see *Secrets* in the
    README; for an age identity, add the host's key with
    `mise run sops -- updatekeys secrets.yaml`).
-2. `system/deploy` — oomd, polkit, the attic netrc, the remote-builder key and
+2. `mise run system:deploy` — oomd, polkit, the attic netrc, the remote-builder key and
    patched tailscaled. After this, `hms` pulls from attic instead of building.
 3. `sudo tailscale up`.
 4. Turn Secure Boot back on only if you also set up signing (sbctl); the base

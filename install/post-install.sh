@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Second stage, run as the user (not root) on the freshly booted host, e.g.
-#   ssh sauyon@<ip> 'bash -s' < install/post-install.sh
+#   mise run host:setup <ip>   (pipes this over ssh)
 # Installs Determinate Nix, clones the dotfiles, does the first Home Manager
 # switch, then drops the temporary passwordless sudo from install-base.sh.
 set -euo pipefail

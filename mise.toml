@@ -88,6 +88,55 @@ depends = ["sops-fix"]
 description = "Install system-level files (/etc, polkit) and provision nix cache/builder secrets"
 run = 'exec system/deploy "$@"'
 
+# ── New host bootstrap (docs/new-host.md) ─────────────────────────────────────
+# These run on the machine you're driving the install from. The scripts they
+# ship to the new host live in install/, since neither the live ISO nor a fresh
+# install has mise.
+
+[tasks."host:iso"]
+description = "Build the Arch install ISO (auto Wi-Fi, key-only root SSH) into ~/Downloads"
+dir = "{{config_root}}/install"
+usage = 'flag "--out <dir>" help="Where to put the ISO" default="~/Downloads"'
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+[ -f wifi.env ] || { echo "host:iso: copy install/wifi.env.example to install/wifi.env and fill it in" >&2; exit 1; }
+[ -f authorized_keys ] || cp ~/.ssh/id_ed25519.pub authorized_keys
+out="${usage_out/#\~/$HOME}"
+mkdir -p "$out"
+docker run --rm --privileged -v "$PWD:/src:ro" -v "$out:/out" archlinux:latest bash /src/build-iso.sh
+'''
+
+[tasks."host:install"]
+description = "Install base Arch on a host booted from the ISO (prompts for disk passphrase and password)"
+dir = "{{config_root}}/install"
+usage = '''
+arg "<ip>" help="Address of the host running the live ISO"
+arg "<host>" help="Hostname; must match a homeConfigurations entry in flake.nix"
+flag "--disk <disk>" help="Target disk; must have no partitions" default="/dev/nvme0n1"
+'''
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+ssh_opts=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR)
+scp "${ssh_opts[@]}" install-base.sh "root@${usage_ip}:/root/"
+ssh -t "${ssh_opts[@]}" "root@${usage_ip}" \
+  "HOST='${usage_host}' DISK='${usage_disk}' bash /root/install-base.sh"
+'''
+
+[tasks."host:setup"]
+description = "On a freshly installed host: Determinate Nix, clone dotfiles, first home-manager switch"
+dir = "{{config_root}}/install"
+usage = '''
+arg "<ip>" help="Address of the installed host"
+flag "--user <user>" default="sauyon"
+'''
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+ssh -o StrictHostKeyChecking=accept-new "${usage_user}@${usage_ip}" 'bash -s' < post-install.sh
+'''
+
 [tasks.hms]
 description = "Apply home-manager configuration from this flake"
 run = '''

@@ -1,8 +1,7 @@
 # New host runbook
 
 From a blank machine to an Arch box running this flake. Everything after
-booting the stick happens over SSH, so it can be driven from another machine
-(or by an agent) with only two stops at the new host's keyboard.
+booting the stick happens over SSH, so it can be driven from another machine.
 
 The result: full-disk LUKS2 → btrfs (`@`, `@home`, `@nix`, `@log`, `@cache`,
 zstd), systemd-boot, NetworkManager, user `sauyon` in `wheel`, Determinate Nix,
@@ -55,41 +54,23 @@ off its screen.
 
 ## 3. Base install
 
-Check the target disk first (`lsblk`) — the script refuses a disk that
+Check the target disk first (`lsblk`) � the script refuses a disk that
 already has partitions, so wipe it by hand (`sgdisk -Z`) only when you mean it.
 
 ```bash
 scp install/install-base.sh root@<ip>:
-ssh root@<ip> 'HOST=<host> DISK=/dev/nvme0n1 nohup bash install-base.sh > install.log 2>&1 &'
-ssh root@<ip> 'tail -f install.log'      # ends with BASE INSTALL DONE
+ssh -t root@<ip> 'HOST=<host> DISK=/dev/nvme0n1 bash install-base.sh'
 ```
 
-It formats LUKS with a **random key in `/root/luks.key`**, which lives only in
-the live system's RAM — no passphrase is chosen by the script. It also copies
-the live system's Wi-Fi into a NetworkManager connection, installs your SSH key
-for `sauyon` (key-only sshd, no root login), and leaves a temporary
-`NOPASSWD` sudoers drop-in (`99-bootstrap`) for step 5.
+It asks for the disk passphrase and `sauyon`'s password up front, then runs
+unattended and ends with `BASE INSTALL DONE`. Along the way it copies the live
+system's Wi-Fi into a NetworkManager connection, installs your SSH key for
+`sauyon` (key-only sshd, no root login), and leaves a temporary `NOPASSWD`
+sudoers drop-in (`99-bootstrap`) for step 4.
 
-## 4. At the keyboard: passphrase and password
+Pull the stick and reboot; it asks for the disk passphrase at boot.
 
-Do not reboot before this — the random key is the only key on the disk.
-
-```bash
-cryptsetup luksAddKey --key-file /root/luks.key /dev/nvme0n1p2   # disk passphrase
-arch-chroot /mnt passwd sauyon                                   # login password
-```
-
-Then, from anywhere, confirm two keyslots exist and drop the random one:
-
-```bash
-cryptsetup luksDump /dev/nvme0n1p2 | grep -A1 '^Keyslots'
-cryptsetup luksRemoveKey /dev/nvme0n1p2 /root/luks.key
-umount -R /mnt && cryptsetup close root && reboot
-```
-
-Pull the stick. It will ask for the disk passphrase at boot.
-
-## 5. Nix and Home Manager
+## 4. Nix and Home Manager
 
 The host rejoins Wi-Fi via NetworkManager and accepts your key:
 
@@ -101,7 +82,7 @@ That installs Determinate Nix, clones this repo to `~/devel/dotfiles`, runs the
 first `home-manager switch --flake ...#<host>` (local build: the attic pull
 token isn't on the host yet), and deletes the `99-bootstrap` sudoers drop-in.
 
-## 6. Secrets and system config (needs you)
+## 5. Secrets and system config (needs you)
 
 These need credentials that should not be copied around by a script:
 

@@ -2,8 +2,8 @@
 # Base Arch install for a new host, run as root on the archiso live system:
 #   HOST=<name> DISK=/dev/nvme0n1 bash install-base.sh
 # Full-disk LUKS2 -> btrfs, systemd-boot, NetworkManager, user sauyon.
-# LUKS is formatted with a random key in /root/luks.key (live RAM only); the
-# real passphrase is added at the console afterwards, then that key is removed.
+# Prompts for the disk passphrase and the user's password first, then runs
+# unattended.
 set -euo pipefail
 
 DISK=${DISK:?set DISK, e.g. /dev/nvme0n1}
@@ -20,16 +20,27 @@ TZ_NAME=${TZ_NAME:-America/Los_Angeles}
 [[ $(lsblk -no NAME "$DISK" | wc -l) -eq 1 ]] || { echo "$DISK already has partitions" >&2; exit 1; }
 lsblk -dno NAME,SIZE,MODEL "$DISK"
 
+ask() {
+  local a b
+  while :; do
+    read -rsp "$1: " a; echo >&2
+    read -rsp "$1 (again): " b; echo >&2
+    [[ -n $a && $a == "$b" ]] && break
+    echo "empty or didn't match, try again" >&2
+  done
+  printf '%s' "$a"
+}
+luks_pass=$(ask "Disk passphrase")
+user_pass=$(ask "Password for $USERNAME")
+
 timedatectl set-ntp true
 
 sgdisk -Z "$DISK"
 sgdisk -n1:0:+1G -t1:EF00 -c1:EFI -n2:0:0 -t2:8309 -c2:cryptroot "$DISK"
 partprobe "$DISK"; udevadm settle
 
-dd if=/dev/urandom of=/root/luks.key bs=512 count=8 status=none
-chmod 600 /root/luks.key
-cryptsetup luksFormat --batch-mode --type luks2 --key-file /root/luks.key "$CRYPT"
-cryptsetup open --key-file /root/luks.key --allow-discards \
+printf '%s' "$luks_pass" | cryptsetup luksFormat --batch-mode --type luks2 --key-file - "$CRYPT"
+printf '%s' "$luks_pass" | cryptsetup open --key-file - --allow-discards \
   --perf-no_read_workqueue --perf-no_write_workqueue --persistent "$CRYPT" root
 
 mkfs.fat -F32 -n EFI "$ESP"
@@ -124,7 +135,11 @@ printf 'PermitRootLogin no\nPasswordAuthentication no\nKbdInteractiveAuthenticat
 systemctl enable NetworkManager sshd systemd-timesyncd fstrim.timer bluetooth power-profiles-daemon systemd-oomd
 CHROOT
 
+printf '%s:%s\n' "$USERNAME" "$user_pass" | arch-chroot /mnt chpasswd
+
 # authorized_keys lives on the live system, not inside the chroot.
 install -m600 -o 1000 -g 1000 /root/.ssh/authorized_keys /mnt/home/${USERNAME}/.ssh/authorized_keys
 
-echo "BASE INSTALL DONE"
+umount -R /mnt
+cryptsetup close root
+echo "BASE INSTALL DONE - pull the stick and reboot"

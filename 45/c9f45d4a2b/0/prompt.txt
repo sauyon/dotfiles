@@ -1,0 +1,9 @@
+could we bias it a bit towards a general solution for friction-free signing / encryption?
+
+---
+
+maybe somehow oidc-based so users can integrate with google or keycloak tec
+
+---
+
+maybe somehow oidc-based so users can integrate with google or keycloak etc

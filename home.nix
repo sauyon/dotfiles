@@ -2942,11 +2942,52 @@ in
       # installBatSyntax = true;
 
       settings = {
-        # Default is `auto`, which picks io_uring on Linux. Don't: ghostty's
-        # libxev loop parks one thread per ring in io_cqring_wait(), which
-        # sleeps via io_schedule() and so sets current->in_iowait. The kernel
-        # counts that as blocked-on-IO -- it lands in procs_blocked and is
-        # flagged TSK_IOWAIT for PSI -- even though the ring only holds idle
+        # Anything but `epoll`, which this was from 2026-08-28 to 2026-09-26
+        # and which segfaults ghostty outright. Pinned rather than left at the
+        # default `auto` to state the intent: never epoll by choice. Note that
+        # neither spelling is a guarantee -- ghostty falls back to another
+        # backend when the requested one is unavailable, and on Linux the only
+        # other backend IS epoll, so a host with io_uring disabled (hardened
+        # kernel, `kernel.io_uring_disabled=1|2`, a restricted container) lands
+        # back on the crashing path with no signal. shiori reads 0 today; the
+        # other hosts sharing this file were not checked.
+        #
+        # Untested in the direction that matters: the crash below has not been
+        # observed even once under io_uring, because it was never reproduced on
+        # demand at all. The mechanism says io_uring cannot reach this path --
+        # it is epoll-backend-only -- but the diagnosis rests on the crash
+        # signature, not on a reproduction, so this is a move away from a
+        # known-bad backend rather than a verified fix.
+        #
+        # libxev's epoll backend runs a completion's callback for every epoll
+        # event it receives without checking the completion is still
+        # outstanding. When stream.WriteQueue has drained q_inner on an earlier
+        # event in the same batch, a later callback finds q_inner.head == null
+        # and the `.?` unwrap in ReleaseFast yields NULL, which is then
+        # dereferenced at field offset 0x108. That kills ghostty's `io` thread,
+        # so the whole process dies and every window goes with it.
+        #
+        # Any burst of reply-generating queries can hit it. `herdr` attaching
+        # sends 258 of them in its first frame -- OSC 10/11 plus OSC 4;0..255 --
+        # and took ghostty 1.3.1 down 3/3 times on 2026-09-26, each crash 30ms,
+        # 5ms and 4ms after the client handshake in herdr-server.log -- the
+        # preamble's own replies, nothing later. (`journalctl -k -o
+        # short-precise` against the connect lines; the herdr-side detach is
+        # 0.5-0.8s behind, but that is the server noticing the socket close.)
+        # Each a null
+        # deref at 0x108 in a thread named `io`. Same signature, same code
+        # offset, all three. The race is batch-timing dependent, so it does not
+        # reproduce on demand (0 hits in 24 local runs of the upstream flood).
+        #
+        # mitchellh/libxev#239 is the fix and is unmerged, so no ghostty release
+        # carries it yet. Re-test `epoll` once it lands; see also
+        # omacom/omarchy#12917, which names herdr as the trigger.
+        #
+        # Why epoll was tempting, and what io_uring costs: ghostty's libxev loop
+        # parks one thread per ring in io_cqring_wait(), which sleeps via
+        # io_schedule() and so sets current->in_iowait. The kernel counts that
+        # as blocked-on-IO -- it lands in procs_blocked and is flagged
+        # TSK_IOWAIT for PSI -- even though the ring only holds idle
         # IORING_OP_POLL_ADD watches on the pty fds and no disk IO happens.
         #
         # Because every other thread in the cgroup is idle-sleeping, PSI's
@@ -2958,16 +2999,15 @@ in
         # while Slack and Firefox read 0.00 (they use epoll).
         #
         # This is ghostty-org/ghostty#3246 / discussion#3224, whose accepted
-        # answer is exactly this setting. Kernel commit 7b72d661f1f2 (6.5) gated
-        # iowait on having pending requests, which does NOT help here: the armed
-        # pty polls *are* pending requests. The real upstream fix is
+        # answer was exactly the epoll setting. Kernel commit 7b72d661f1f2 (6.5)
+        # gated iowait on having pending requests, which does NOT help here: the
+        # armed pty polls *are* pending requests. The real upstream fix is
         # IORING_ENTER_NO_IOWAIT (kernel 6.15+, probed via IORING_FEAT_NO_IOWAIT),
         # which Zig's IoUring does not expose yet -- ziglang/zig#25566.
         #
-        # mitchellh measured no benchmark difference between the backends, and
-        # in_iowait also blocks deeper CPU idle states, so epoll is not a
-        # trade-off here. Revert to `auto` once libxev passes NO_IOWAIT.
-        async-backend = "epoll";
+        # So the accounting noise stays until libxev passes NO_IOWAIT. It is
+        # cosmetic; the epoll crash was not.
+        async-backend = "io_uring";
 
         keybind = [
           "ctrl+enter=text:\\r"

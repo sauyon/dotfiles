@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b2gu7lkrb</task-id>
+<tool-use-id>toolu_01G2FRRgVmx6GXWjgKmj6ZPh</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/dbab3ae6-2fc0-42a0-b4a9-0e61950510a5/tasks/b2gu7lkrb.output</output-file>
+<status>completed</status>
+<summary>Background command "Build shiori home-manager generation" completed (exit code 0)</summary>
+</task-notification>

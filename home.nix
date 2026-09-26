@@ -40,6 +40,8 @@ let
     else if gpu == "nvidia" then pkgs.btop-cuda
     else pkgs.btop;
 
+  # App-level scaling. Multiplies with laptopScale below, which is the
+  # compositor's; a host wanting both would get the product.
   hidpi = let
     scale = if hostname == "setsuna" || hostname == "fujiwara" then 1.25 else 1.0;
     enabled = scale != 1.0;
@@ -53,6 +55,14 @@ let
   };
 
   edgeGap = if hostname == "fujiwara" then 20 else 0;
+  # Compositor scale for the internal panel, consumed by hyprland.nix's eDP-1
+  # rule. Per-host because the panels differ: shiori's is 2880x1920 in 280x190mm
+  # (~260dpi), which wants 2x; utsuho's and setsuna's are the ones described in
+  # the kanshi output blocks below. 1 means "no eDP-1 rule at all" — the panel
+  # falls through to Hyprland's catch-all monitor rule, as it always has.
+  # This multiplies with hidpi.scale, so keep at most one of the two off 1 per
+  # host: setsuna/fujiwara scale apps, shiori scales the compositor.
+  laptopScale = if hostname == "shiori" then 2 else 1;
   noDpmsOutputs = [
     "HDMI-A-1"
   ];
@@ -2475,7 +2485,7 @@ in
   targets.genericLinux.enable = !isDarwin;
   targets.genericLinux.nixGL.packages = lib.mkIf (!isDarwin && isDesktop) nixgl.packages.${system};
 
-  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config edgeGap hyprDpmsPhysical; });
+  wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config edgeGap laptopScale hyprDpmsPhysical; });
 
   # Replaces the hyprland module's reload hook. With no compositor running,
   # hyprctl 0.56 prints "\n]\n" (no opening bracket) for `instances -j`, and the

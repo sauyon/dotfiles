@@ -2,6 +2,7 @@
   pkgs,
   config,
   edgeGap,
+  laptopScale,
   hyprDpmsPhysical,
   ...
 }:
@@ -126,6 +127,18 @@ in
         position = "auto-left";
         scale = 1;
       }
+    ]
+    # The internal panel, only on hosts whose own panel wants scaling. This file
+    # is imported for every gui host, and their panels differ (see the kanshi
+    # output blocks in home.nix), so the scale is decided there, not here.
+    # Identical to the catch-all below apart from the scale.
+    ++ lib.optional (laptopScale != 1) {
+      output = "eDP-1";
+      mode = "preferred";
+      position = "auto";
+      scale = laptopScale;
+    }
+    ++ [
       {
         output = "";
         mode = "preferred";

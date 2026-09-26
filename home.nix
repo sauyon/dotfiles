@@ -2477,6 +2477,20 @@ in
 
   wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config edgeGap hyprDpmsPhysical; });
 
+  # Replaces the hyprland module's reload hook. With no compositor running,
+  # hyprctl 0.56 prints "\n]\n" (no opening bracket) for `instances -j`, and the
+  # module pipes that straight into jq — a parse error on every switch that
+  # follows a crashed or killed session, since its $XDG_RUNTIME_DIR/hypr stays.
+  xdg.configFile."hypr/hyprland.lua".onChange = lib.mkIf (!isDarwin && isDesktop) (lib.mkForce (
+    let hyprctl = "${config.wayland.windowManager.hyprland.finalPackage}/bin/hyprctl"; in ''
+      XDG_RUNTIME_DIR=''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+      if [[ -d /tmp/hypr || -d "$XDG_RUNTIME_DIR/hypr" ]]; then
+        for i in $(${hyprctl} instances -j 2>/dev/null | ${pkgs.jq}/bin/jq -r '.[].instance' 2>/dev/null); do
+          ${hyprctl} -i "$i" reload config-only
+        done
+      fi
+    ''));
+
   dconf = {
     enable = hostname == "setsuna";
     settings = lib.optionalAttrs (hostname == "setsuna") {

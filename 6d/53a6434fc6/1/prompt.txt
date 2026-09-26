@@ -1,0 +1,21 @@
+install zen instead of ff
+
+---
+
+<task-notification>
+<task-id>bhm2f6z0n</task-id>
+<tool-use-id>toolu_01Y6hcarwfXxzEaGYWYRu41T</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/dbab3ae6-2fc0-42a0-b4a9-0e61950510a5/tasks/bhm2f6z0n.output</output-file>
+<status>completed</status>
+<summary>Background command "Build zen-browser package" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bt4yto9b5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/dbab3ae6-2fc0-42a0-b4a9-0e61950510a5/tasks/bt4yto9b5.output</output-file>
+<status>completed</status>
+<summary>Background command "Eval every host config" completed (exit code 0)</summary>
+</task-notification>

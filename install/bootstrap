@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Second stage of docs/new-host.md: `bootstrap`, run as the user.
+set -euo pipefail
+cd "$HOME/devel/dotfiles"
+git pull -q --ff-only || true
+bin/mise trust -q .
+exec bin/mise run bootstrap "$@"

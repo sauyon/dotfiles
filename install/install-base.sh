@@ -141,6 +141,11 @@ printf '%s:%s\n' "$USERNAME" "$user_pass" | arch-chroot /mnt chpasswd
 # authorized_keys lives on the live system, not inside the chroot.
 install -m600 -o 1000 -g 1000 /root/.ssh/authorized_keys /mnt/home/${USERNAME}/.ssh/authorized_keys
 
+# Clone the dotfiles and add a `bootstrap` command, so after reboot the whole
+# second stage is: log in, type bootstrap.
+arch-chroot /mnt sudo -u "${USERNAME}" git clone -q https://forge.ko.ag/sauyon/dotfiles.git "/home/${USERNAME}/devel/dotfiles"
+install -m755 /mnt/home/${USERNAME}/devel/dotfiles/install/bootstrap /mnt/usr/local/bin/bootstrap
+
 umount -R /mnt
 cryptsetup close root
 echo "BASE INSTALL DONE - pull the stick and reboot"

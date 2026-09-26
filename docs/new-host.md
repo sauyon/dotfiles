@@ -79,7 +79,8 @@ mkdir -p ~/.config/sops && scp <other-host>:.config/sops/gcp-key.json ~/.config/
 bootstrap
 ```
 
-`bootstrap` pulls the repo and runs `mise run bootstrap` through the committed
+On a machine that was not installed this way, `curl -fsSL ko.ag/bootstrap | bash`
+clones the repo first and does the same. `bootstrap` pulls the repo and runs `mise run bootstrap` through the committed
 `bin/mise` (from `mise generate bootstrap`: a pinned, checksummed mise), so
 nothing else needs to be installed first.
 

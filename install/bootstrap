@@ -1,7 +1,20 @@
 #!/usr/bin/env bash
-# Second stage of docs/new-host.md: `bootstrap`, run as the user.
+# Second stage of docs/new-host.md, run as the user. Either:
+#   bootstrap                          (installed by install-base.sh)
+#   curl -fsSL ko.ag/bootstrap | bash  (anywhere else)
 set -euo pipefail
-cd "$HOME/devel/dotfiles"
-git pull -q --ff-only || true
+
+# Piped into bash, stdin is the script; give prompts (sudo, tailscale) the tty.
+[ -t 0 ] || exec </dev/tty
+
+repo="$HOME/devel/dotfiles"
+if [ -d "$repo/.git" ]; then
+  git -C "$repo" pull -q --ff-only || true
+else
+  mkdir -p "$(dirname "$repo")"
+  git clone -q https://forge.ko.ag/sauyon/dotfiles.git "$repo"
+fi
+
+cd "$repo"
 bin/mise trust -q .
 exec bin/mise run bootstrap "$@"

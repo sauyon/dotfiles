@@ -2491,15 +2491,20 @@ in
   # hyprctl 0.56 prints "\n]\n" (no opening bracket) for `instances -j`, and the
   # module pipes that straight into jq — a parse error on every switch that
   # follows a crashed or killed session, since its $XDG_RUNTIME_DIR/hypr stays.
-  xdg.configFile."hypr/hyprland.lua".onChange = lib.mkIf (!isDarwin && isDesktop) (lib.mkForce (
-    let hyprctl = "${config.wayland.windowManager.hyprland.finalPackage}/bin/hyprctl"; in ''
-      XDG_RUNTIME_DIR=''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
-      if [[ -d /tmp/hypr || -d "$XDG_RUNTIME_DIR/hypr" ]]; then
-        for i in $(${hyprctl} instances -j 2>/dev/null | ${pkgs.jq}/bin/jq -r '.[].instance' 2>/dev/null); do
-          ${hyprctl} -i "$i" reload config-only
-        done
-      fi
-    ''));
+  # mkIf wraps the whole entry, not just onChange: guarding the leaf still creates
+  # the "hypr/hyprland.lua" key on hosts without a compositor, where nothing
+  # defines its source, and home-manager's file module then fails to evaluate.
+  xdg.configFile."hypr/hyprland.lua" = lib.mkIf (!isDarwin && isDesktop) {
+    onChange = lib.mkForce (
+      let hyprctl = "${config.wayland.windowManager.hyprland.finalPackage}/bin/hyprctl"; in ''
+        XDG_RUNTIME_DIR=''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+        if [[ -d /tmp/hypr || -d "$XDG_RUNTIME_DIR/hypr" ]]; then
+          for i in $(${hyprctl} instances -j 2>/dev/null | ${pkgs.jq}/bin/jq -r '.[].instance' 2>/dev/null); do
+            ${hyprctl} -i "$i" reload config-only
+          done
+        fi
+      '');
+  };
 
   dconf = {
     enable = hostname == "setsuna";

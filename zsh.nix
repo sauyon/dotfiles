@@ -279,6 +279,35 @@
       eval "$(kcs init)"
     fi
 
+    # Opt out of ghostty's newline-marking pass, which would print a literal `}}`
+    # before the prompt char on the first prompt of every shell.
+    #
+    # Ghostty's zsh integration marks continuation lines by rewriting PS1 as
+    # text: it replaces every newline in PS1 with that newline followed by
+    # mark2, `%{\e]133;A;k=s\a%}`. Under PROMPT_SUBST a prompt is code, not
+    # text -- powerlevel10k's PROMPT is one nested parameter expansion that
+    # holds newlines as data inside `''${...}` -- so the `}` in the spliced mark
+    # closes an expansion a level early and the braces after it fall out as
+    # literal text.
+    #
+    # The integration already skips that pass when it sees PS1 has been changed
+    # out from under it (its ps1_changed guard, added for the Pure prompt), but
+    # the guard reads _ghostty_saved_ps1, which is unset on the first precmd --
+    # so it never fires on the one render that breaks. Priming the two variables
+    # it reads makes it fire there too. mark1/markB and every other integration
+    # feature still apply: over a 6-command session the cursor-shape sequences
+    # (18), OSC 2 title writes (24) and OSC 133 A/B/C/D counts (6/6/6/5) are
+    # exactly what they are without this. POWERLEVEL9K_TERM_SHELL_INTEGRATION is
+    # NOT a substitute -- going that way costs the cursor sequences outright and
+    # half the title writes, because dropping the integration is what it takes
+    # to stop the rewrite.
+    #
+    # Upstream has the same root cause open for other prompts:
+    # ghostty-org/ghostty#11407 (Pure), #11712 (oh-my-zsh jreese). Drop this
+    # once one of them lands. It leans on ghostty-private names, so if they are
+    # renamed the priming silently stops working and the `}}` comes back.
+    typeset -g _ghostty_saved_ps1="" _ghostty_saved_ps2=""
+
     # The greeting. Yeah, yeah, I'm unimaginative. :'(
     echo "Hello, $(${pkgs.inetutils}/bin/hostname -s)"'!'
   '';

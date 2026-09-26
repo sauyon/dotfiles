@@ -1,0 +1,13 @@
+why is }} getting printed every shell start
+
+---
+
+ok
+
+---
+
+wait. is this a ghostty bug?
+
+---
+
+let's do 1, and see if it's filed. don't draft anything yet

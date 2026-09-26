@@ -7,6 +7,8 @@ set -euo pipefail
 
 host="$(uname -n)"; host="${host%%.*}"
 repo="$HOME/devel/dotfiles"
+# Drop the temporary NOPASSWD sudo from install-base.sh however this exits.
+trap 'sudo rm -f /etc/sudoers.d/99-bootstrap' EXIT
 
 if [ ! -d /nix/var/nix/profiles/default ]; then
   curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
@@ -19,8 +21,8 @@ mkdir -p "$HOME/devel"
 [ -d "$repo" ] || git clone https://forge.ko.ag/sauyon/dotfiles.git "$repo"
 
 # First switch builds locally: the attic pull token only arrives with
-# system/deploy, which needs the sops key that isn't on the host yet.
-nix run github:nix-community/home-manager -- switch -b pre-hm --flake "$repo#$host"
-
-sudo rm -f /etc/sudoers.d/99-bootstrap
+# system/deploy, which needs the sops key that isn't on the host yet. For the
+# same reason sops-nix.service fails at the end of activation; everything
+# else is in place, and a later `hms` fixes it once the key is there.
+nix run github:nix-community/home-manager -- switch -b pre-hm --flake "$repo#$host"   || echo "post-install: switch exited non-zero (expected: sops-nix without a key)" >&2
 echo "POST-INSTALL DONE ($host)"

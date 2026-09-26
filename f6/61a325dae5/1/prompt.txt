@@ -1,0 +1,22 @@
+it's not connected to wireguard?
+
+---
+
+what about fujiwara
+
+---
+
+why is it dow
+
+---
+
+I mean turn it on. but the wireguard connects me to my home net which I am currently on
+
+---
+
+why is ssh fujiwara not working
+
+---
+
+❯ ssh 10.0.7.100
+sauyon@10.0.7.100: Permission denied (publickey).

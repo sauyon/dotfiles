@@ -98,6 +98,20 @@ in
         blur.enabled = false;
       };
 
+      # Let XWayland clients render at the output's real scale instead of at 1x
+      # and being bitmap-upscaled. Matters wherever a monitor runs scaled (see
+      # laptopScale in home.nix); a genuine no-op where every monitor is scale 1,
+      # since Hyprland takes the XWayland scale from the largest monitor scale.
+      #
+      # Deliberate trade, and the cost is the whole of XWayland, not a badly
+      # behaved subset: nothing here sets GDK_SCALE/Xft.dpi/QT_FONT_DPI on a
+      # laptopScale host (hidpi.enabled is false there), so X11 clients get no
+      # scaling hint and draw at half physical size on a 2x output. Crisp and
+      # small is preferred over blurry and correctly sized. The X11 cursor goes
+      # the same way -- XCURSOR_SIZE is home.pointerCursor.size, which also
+      # feeds HYPRCURSOR_SIZE, so it cannot be raised for X11 alone.
+      xwayland.force_zero_scaling = true;
+
       misc = {
         disable_hyprland_logo = true;
         disable_splash_rendering = true;

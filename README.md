@@ -4,6 +4,10 @@ Home Manager configuration for `sauyon`.
 
 ## New machine setup
 
+For a blank machine (ISO, disk, base Arch install), see
+[docs/new-host.md](docs/new-host.md). The steps below assume Arch is already
+running.
+
 ```bash
 # 1. Clone into ~/devel/dotfiles
 mkdir -p ~/devel

@@ -542,9 +542,9 @@ let
       exec home-manager switch --flake "$repo#$host" ''${hm_args[@]+"''${hm_args[@]}"}
     }
 
-    # mari (darwin) has no Linux CI job; nix-home.yml builds only these three.
+    # mari (darwin) has no Linux CI job; nix-home.yml builds only these.
     case "$host" in
-      utsuho|setsuna|fujiwara) ;;
+      utsuho|setsuna|fujiwara|shiori) ;;
       *) echo "hms: $host has no CI job — switching locally" >&2; switch_now ;;
     esac
 
@@ -1562,7 +1562,6 @@ in
 
   # ── Scripts ────────────────────────────────────────────────────────────────
   # On darwin, .local/bin symlinks to the dotfiles repo; skip HM management.
-  home.file.".local/bin/bootstrap.sh" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/bootstrap.sh; };
   home.file.".local/bin/mprisinfo" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/mprisinfo; };
   home.file.".local/bin/reyubikey" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/reyubikey; };
   home.file.".local/bin/upload" = lib.mkIf (!isDarwin) { executable = true; source = ./home/scripts/upload; };

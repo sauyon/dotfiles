@@ -58,6 +58,10 @@
       hostname = "setsuna";
       gui = true;
     };
+    homeConfigurations.shiori = linuxHome {
+      hostname = "shiori";
+      gui = true;
+    };
     homeConfigurations.fujiwara = linuxHome {
       hostname = "fujiwara";
       # Headless: the box has an HDMI display wired up, but no graphical session

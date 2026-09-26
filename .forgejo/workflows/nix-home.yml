@@ -116,6 +116,7 @@ jobs:
             .#homeConfigurations.utsuho.activationPackage \
             .#homeConfigurations.setsuna.activationPackage \
             .#homeConfigurations.fujiwara.activationPackage \
+            .#homeConfigurations.shiori.activationPackage \
             | tee /tmp/out-paths
 
       # The image has no attic-client; run it from a pinned nixpkgs rev.

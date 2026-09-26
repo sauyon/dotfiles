@@ -15,6 +15,9 @@
     };
     walker.url = "github:abenz1267/walker";
     nixgl.url = "github:guibou/nixGL";
+    # Follow our nixpkgs: nixGL pins its own, whose mesa (25.0) predates
+    # Panther Lake / Xe3 and deadlocked Hyprland on shiori at startup.
+    nixgl.inputs.nixpkgs.follows = "nixpkgs";
     explore-mcp.url = "github:sauyon/explore-mcp";
     explore-mcp.inputs.nixpkgs.follows = "nixpkgs";
     # drovr — CLI for single-writer/compressed-handoff agent phases; ships the

@@ -81,10 +81,17 @@ clones the repo first and does the same. Either way it runs `mise run bootstrap`
 through the committed `bin/mise` (from `mise generate bootstrap`: a pinned,
 checksummed mise), so nothing else needs to be installed first.
 
-For sops it signs you in to Google instead of needing a key file copied over:
-it prints a URL and a QR code, you sign in on your phone and paste the code
-back. Your account needs KMS access for that, granted once from any machine
-where you're logged in to gcloud: `mise run gcp-grant-user`.
+For sops it needs the GCP key other hosts use, and fetches it from the cluster
+rather than having you copy it: it shows a URL and a QR code for a Keycloak
+sign-in, you approve on your phone (nothing to type), and it reads the key from
+Secret `bootstrap/sops-gcp-key`. Put the key there once, from any host that has
+it and a working `kubectl`:
+
+```bash
+kubectl create namespace bootstrap
+kubectl -n bootstrap create secret generic sops-gcp-key \
+  --from-file=gcp-key.json=$HOME/.config/sops/gcp-key.json
+```
 
 `bootstrap` is idempotent; rerun it if a step fails. In order it:
 

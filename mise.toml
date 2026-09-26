@@ -44,18 +44,6 @@ gcloud iam service-accounts keys create "$KEY_PATH" \
     --iam-account="$SA_EMAIL" --project="$PROJECT"
 '''
 
-[tasks.gcp-grant-user]
-description = "Give the gcloud account you're logged in as access to the sops KMS key (once; bootstrap signs in as it)"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-account="$(gcloud config get-value account 2>/dev/null)"
-[ -n "$account" ] || { echo "gcp-grant-user: run 'gcloud auth login' first" >&2; exit 1; }
-gcloud kms keys add-iam-policy-binding nix-key \
-  --keyring=nix-keyring --location=global --project=sauyon-dotfiles \
-  --member="user:$account" --role=roles/cloudkms.cryptoKeyEncrypterDecrypter
-'''
-
 [tasks.sops]
 description = "Run sops with GCP credentials"
 run = 'GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/sops/gcp-key.json" sops "$@"'
@@ -138,7 +126,7 @@ ssh -t "${ssh_opts[@]}" "root@${usage_ip}" \
 '''
 
 [tasks.bootstrap]
-description = "Set up this host: Determinate Nix, sops sign-in (URL + QR), system:deploy, home-manager switch, tailscale. Fresh box: bootstrap or curl -fsSL ko.ag/bootstrap | bash"
+description = "Set up this host: Determinate Nix, sops key via Keycloak sign-in (URL + QR), system:deploy, home-manager switch, tailscale. Fresh box: bootstrap or curl -fsSL ko.ag/bootstrap | bash"
 tools = { sops = "latest" }
 run = '''
 #!/usr/bin/env bash
@@ -155,28 +143,48 @@ fi
 # shellcheck disable=SC1091
 . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
 
-# sops credentials. ~/.config/sops/gcp-key.json is what sops-nix, system/deploy
-# and `mise run sops` read. Older hosts have a service-account key there; a new
-# host signs in as you instead, from a phone (URL + QR below), and the path
-# becomes a link to gcloud's application-default credentials, which sops also
-# accepts. The account needs KMS access once: mise run gcp-grant-user.
+# sops key. sops-nix, system/deploy and `mise run sops` read
+# ~/.config/sops/gcp-key.json. A new host fetches it from the cluster: a
+# Keycloak device-code sign-in (URL + QR, approve on your phone, nothing to
+# type), then the resulting token reads Secret bootstrap/sops-gcp-key from the
+# apiserver. The Secret is put there once, from a host that has the key:
+#   kubectl create namespace bootstrap
+#   kubectl -n bootstrap create secret generic sops-gcp-key --from-file=gcp-key.json=$HOME/.config/sops/gcp-key.json
 key="$HOME/.config/sops/gcp-key.json"
-adc="$HOME/.config/gcloud/application_default_credentials.json"
 if [ ! -s "$key" ]; then
-  if [ ! -s "$adc" ]; then
-    qrencode="$(nix build --no-link --print-out-paths --inputs-from "$repo" 'nixpkgs#qrencode^bin')/bin/qrencode"
-    # gcloud prints the sign-in URL, then waits for the code on stdin. Pass its
-    # stderr through untouched and draw a QR of the URL as it goes by.
-    gcloud auth application-default login --no-launch-browser \
-      2> >(tee /dev/stderr \
-        | grep --line-buffered -oE 'https://accounts\.google\.com/[^[:space:]]+' \
-        | while read -r url; do
-            echo; "$qrencode" -t ansiutf8 "$url"
-            echo "Scan it, sign in, and paste the code at the prompt above."
-          done >&2)
-  fi
+  nixbin() { echo "$(nix build --no-link --print-out-paths --inputs-from "$repo" "nixpkgs#$1^bin")/bin/$1"; }
+  jq="$(nixbin jq)"; qrencode="$(nixbin qrencode)"
+  issuer="https://keycloak.ko.ag/realms/ko"
+  dev="$(curl -fsS -d client_id=kubectl -d 'scope=openid email profile' "$issuer/protocol/openid-connect/auth/device")"
+  url="$("$jq" -r .verification_uri_complete <<<"$dev")"
+  device_code="$("$jq" -r .device_code <<<"$dev")"
+  interval="$("$jq" -r '.interval // 5' <<<"$dev")"
+  echo
+  echo "Sign in to fetch the sops key: $url"
+  "$qrencode" -t ansiutf8 "$url"
+  echo "Waiting for approval..."
+  while :; do
+    sleep "$interval"
+    tok="$(curl -sS -d client_id=kubectl -d "device_code=$device_code" \
+      -d grant_type=urn:ietf:params:oauth:grant-type:device_code \
+      "$issuer/protocol/openid-connect/token")"
+    case "$("$jq" -r '.error // empty' <<<"$tok")" in
+      "") break ;;
+      authorization_pending) ;;
+      slow_down) interval=$((interval + 5)) ;;
+      *) echo "bootstrap: sign-in failed: $("$jq" -r '.error_description // .error' <<<"$tok")" >&2; exit 1 ;;
+    esac
+  done
+  id_token="$("$jq" -r .id_token <<<"$tok")"
   mkdir -p "$(dirname "$key")"
-  ln -sfn "$adc" "$key"
+  (
+    umask 077
+    curl -fsS -H "Authorization: Bearer $id_token" \
+      https://k8s.ko.ag/api/v1/namespaces/bootstrap/secrets/sops-gcp-key \
+      | "$jq" -er '.data["gcp-key.json"]' | base64 -d > "$key.tmp"
+  )
+  mv "$key.tmp" "$key"
+  echo "bootstrap: sops key fetched."
 fi
 
 # system/deploy first: it installs the attic netrc, so the switch below pulls

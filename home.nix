@@ -262,6 +262,92 @@ let
       -- ${config.programs.hyprlock.package}/bin/hyprlock
   '';
 
+  # Tell the lock screen when pam_faillock has the account locked out. hyprlock
+  # forwards a PAM message only when it contains "left to unlock"
+  # (src/auth/Pam.cpp), so PAM's own "The account is locked due to N failed
+  # logins." is dropped, and the countdown that does survive shows up only after a
+  # password has been submitted -- typing the right one and being rejected anyway
+  # is how you find out. This reads the tally instead, so a label can say it up
+  # front. No root needed: /run/faillock/$USER is mode 0660 owned by the user.
+  hyprlock-faillock = pkgs.writeShellScriptBin "hyprlock-faillock" ''
+    set -u
+
+    CONF="''${FAILLOCK_CONF:-/etc/security/faillock.conf}"
+    # The host's faillock on purpose: the tally under /run/faillock is written by
+    # the host's pam_faillock, so the host's reader is the one that matches it.
+    BIN="''${FAILLOCK_BIN:-/usr/bin/faillock}"
+    [ -x "$BIN" ] || exit 0
+
+    # The host's id first, for the same reason hyprlock itself needs withHostNss: on
+    # a systemd-homed host the user has no /etc/passwd entry and only the host's NSS
+    # resolves the name. Nix's id is the fallback, and works wherever passwd does.
+    WHO=$(/usr/bin/id -un 2>/dev/null || ${pkgs.coreutils}/bin/id -un 2>/dev/null || true)
+    [ -n "$WHO" ] || exit 0
+
+    # Arch ships faillock.conf with every option commented out, so an option that is
+    # not set means pam's built-in default, not zero.
+    optval() {
+      v=$(${pkgs.gnused}/bin/sed -nE \
+        "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*([^[:space:]#]+).*/\1/p" "$CONF" 2>/dev/null \
+        | ${pkgs.coreutils}/bin/tail -1)
+      # faillock.conf spells unlock_time's "no automatic unlock" as `never`, which
+      # pam_faillock(8) documents as equivalent to 0.
+      [ "$v" = never ] && v=0
+      case "$v" in
+        "" | *[!0-9]*) printf '%s' "$2" ;;
+        *) printf '%s' "$v" ;;
+      esac
+    }
+    DENY=$(optval deny 3)
+    UNLOCK=$(optval unlock_time 600)
+    INTERVAL=$(optval fail_interval 900)
+    [ "$DENY" -gt 0 ] || exit 0
+
+    OUT=$("$BIN" --user "$WHO" 2>/dev/null) || exit 0
+
+    printf '%s\n' "$OUT" | ${pkgs.gawk}/bin/awk \
+      -v deny="$DENY" -v unlock="$UNLOCK" -v interval="$INTERVAL" \
+      -v now="$(${pkgs.coreutils}/bin/date +%s)" '
+      # Skip the "user:" line and the column header.
+      NR <= 2 { next }
+      # Fixed-width columns: "<date> <time> <type> <source> V|I".
+      $NF == "V" {
+        ts = $1 " " $2
+        gsub(/[-:]/, " ", ts)
+        t = mktime(ts)
+        if (t < 0) next
+        times[++n] = t
+        if (t > latest) latest = t
+      }
+      END {
+        if (!n) exit 0
+        # Same rule as pam_faillock check_tally(): the valid records within
+        # fail_interval of the NEWEST one are the ones that count, and the lock
+        # holds until unlock_time past that newest failure.
+        for (i = 1; i <= n; i++)
+          if (latest - times[i] < interval) fails++
+        if (fails >= deny) {
+          if (unlock == 0) {
+            print "Locked out — no automatic unlock"
+            exit 0
+          }
+          left = latest + unlock - now
+          if (left > 0) {
+            printf "Locked out — %d min left\n", int((left + 59) / 60)
+            exit 0
+          }
+          # unlock_time has elapsed, but the tally still stands: fall through, so the
+          # next single mistake does not re-lock without warning.
+        }
+        if (!fails) exit 0
+        # Failures older than fail_interval can never add up to a lockout, since pam
+        # measures the window from the newest one. Nothing useful to say.
+        if (now - latest >= interval) exit 0
+        printf "%d/%d failed attempts\n", fails, deny
+      }
+    '
+  '';
+
   caffeine = pkgs.writeShellScriptBin "caffeine" ''
     set -eu
     PIDFILE="''${XDG_RUNTIME_DIR:-/tmp}/caffeine.pid"
@@ -2095,6 +2181,8 @@ in
     (config.lib.nixGL.wrap cumora)
     hypr-fullscreen-inhibit
     hypr-unstuck-lock
+    # Also on PATH so a lockout can be checked (and waited out) from a TTY.
+    hyprlock-faillock
     nixGL
 
     pkgs.bitwarden-cli
@@ -2612,6 +2700,19 @@ in
             halign = "center";
             valign = "center";
             color = "rgba(255, 255, 255, 0.7)";
+          }
+          {
+            monitor = "";
+            # Prints nothing unless pam_faillock holds failures recent enough
+            # to still count, so an ordinary lock screen looks unchanged. A
+            # faster poll would buy nothing: it renders whole minutes.
+            text = "cmd[update:5000] ${hyprlock-faillock}/bin/hyprlock-faillock";
+            font_size = 16;
+            font_family = "NotoSans Nerd Font";
+            position = "0, -180";
+            halign = "center";
+            valign = "center";
+            color = "rgba(235, 100, 100, 0.95)";
           }
         ];
       };

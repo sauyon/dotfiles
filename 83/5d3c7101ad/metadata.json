@@ -3,7 +3,7 @@
   "checkpoint_id": "835d3c7101ad",
   "strategy": "manual-commit",
   "branch": "drovr/wif-bootstrap",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     ".gitignore",
     ".sops.yaml",
@@ -21,13 +21,20 @@
       "compact_transcript": "/83/5d3c7101ad/0/transcript.jsonl",
       "content_hash": "/83/5d3c7101ad/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/83/5d3c7101ad/1/metadata.json",
+      "transcript": "/83/5d3c7101ad/1/full.jsonl",
+      "compact_transcript": "/83/5d3c7101ad/1/transcript.jsonl",
+      "content_hash": "/83/5d3c7101ad/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 18,
-    "cache_creation_tokens": 43356,
-    "cache_read_tokens": 467639,
-    "output_tokens": 11115,
-    "api_call_count": 9
+    "input_tokens": 316,
+    "cache_creation_tokens": 970669,
+    "cache_read_tokens": 25919759,
+    "output_tokens": 171437,
+    "api_call_count": 158
   }
 }

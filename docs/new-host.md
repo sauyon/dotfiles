@@ -19,6 +19,10 @@ Pick a hostname, then in this repo:
   Pick one — they multiply.
 - `.forgejo/workflows/nix-home.yml`: add
   `.#homeConfigurations.<host>.activationPackage` to the build step.
+- `system/deploy`: add `<host>` to the host case in the *host packages* step.
+  It is an allow-list on purpose — a box we don't own the OS of must not get
+  handed packages — so a host missing from it silently skips that step and says
+  so when you run the deploy.
 
 Commit and push; CI will have the closure in attic by the time you need it.
 
@@ -61,6 +65,19 @@ already has partitions, so wipe it by hand (`sgdisk -Z`) only when you mean it.
 mise run host:install <ip> <host>     # --disk <dev>, default /dev/nvme0n1
 ```
 
+**On an AMD box pass `--hw`**, or it gets Intel microcode and Intel video
+drivers:
+
+```bash
+mise run host:install <ip> <host> --hw 'amd-ucode vulkan-radeon libva-mesa-driver'
+```
+
+The package set is two files plus that flag: `system/packages` (what every host
+must have — `system/deploy` keeps enforcing it afterwards),
+`install/packages-install-only` (base, kernel, and enough shell to reach
+`bootstrap`; never re-enforced), and `--hw` for the parts that would be wrong on
+the other architecture. Both lists are scp'd to the ISO alongside the script.
+
 It asks for the disk passphrase and `sauyon`'s password up front, then runs
 unattended and ends with `BASE INSTALL DONE`. Along the way it copies the live
 system's Wi-Fi into a NetworkManager connection, installs your SSH key for
@@ -98,8 +115,9 @@ kubectl -n bootstrap create secret generic sops-gcp-key \
 `bootstrap` is idempotent; rerun it if a step fails. In order it:
 
 1. installs Determinate Nix if it's missing, then the sops sign-in above;
-2. runs `system/deploy` — oomd, polkit, the attic netrc, the remote-builder
-   key, patched tailscaled — so the next step downloads CI's build;
+2. runs `system/deploy` — any missing packages from `system/packages`, oomd,
+   polkit, the attic netrc, the remote-builder key, patched tailscaled — so the
+   next step downloads CI's build;
 3. does the Home Manager switch for `<host>` (via `nix run` the first time);
 4. runs `tailscale up` if it isn't up;
 5. removes the `99-bootstrap` sudoers drop-in from step 3.
@@ -109,6 +127,20 @@ Then log in again (`exec zsh -l` on a console that predates the switch) and
 
 ## 5. Afterwards
 
+- Enroll a fingerprint if the box has a reader: `fprintd-enroll` (right index
+  only — other fingers need `-f left-index-finger` and so on), then
+  `fprintd-list $USER` to confirm. The enrollment is root state in
+  `/var/lib/fprint`, per host, and nothing in this repo can carry it over. It
+  unlocks hyprlock and the polkit/Bitwarden prompt; `sudo` and TTY login stay
+  password-only on purpose.
+
+  Two things change the moment a finger is enrolled, both of which read as
+  regressions if you don't expect them: every polkit `auth_self` prompt now
+  waits on the reader before offering a password field (including `pkexec` from
+  a TTY, via the text agent), and because `pam_fprintd` is `sufficient` *ahead*
+  of `system-auth` in `system/etc/pam.d/polkit-1`, a fingerprint bypasses
+  `pam_faillock` — a locked account can still authorize polkit actions, and
+  fingerprint attempts neither count toward the lockout nor clear it.
 - Turn Secure Boot back on only if you also set up signing (sbctl); the base
   install doesn't sign anything.
 - Delete the ISO, or keep it private: it has the Wi-Fi passphrase in it.

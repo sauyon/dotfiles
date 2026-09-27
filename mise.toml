@@ -85,7 +85,7 @@ description = "Restart sops-nix, fixing Docker path conflicts first"
 depends = ["sops-fix"]
 
 [tasks."system:deploy"]
-description = "Install system-level files (/etc, polkit) and provision nix cache/builder secrets"
+description = "Install missing host packages (allow-listed hosts only; SKIP_HOST_PACKAGES=1 to skip) and system-level files (/etc, polkit), and provision nix cache/builder secrets"
 run = 'exec system/deploy "$@"'
 
 # ── New host bootstrap (docs/new-host.md) ─────────────────────────────────────
@@ -115,14 +115,35 @@ usage = '''
 arg "<ip>" help="Address of the host running the live ISO"
 arg "<host>" help="Hostname; must match a homeConfigurations entry in flake.nix"
 flag "--disk <disk>" help="Target disk; must have no partitions" default="/dev/nvme0n1"
+flag "--hw <pkgs>" help="Hardware packages (ucode + video); install-base.sh defaults to Intel"
 '''
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 ssh_opts=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR)
-scp "${ssh_opts[@]}" install-base.sh "root@${usage_ip}:/root/"
-ssh -t "${ssh_opts[@]}" "root@${usage_ip}" \
-  "HOST='${usage_host}' DISK='${usage_disk}' bash /root/install-base.sh"
+# Both package lists ride along: install-base.sh reads them from beside itself.
+# system/packages is the same file system/deploy converges allow-listed hosts
+# onto; packages-install-only is fresh-install scaffolding it never re-enforces.
+scp "${ssh_opts[@]}" install-base.sh packages-install-only ../system/packages \
+  "root@${usage_ip}:/root/"
+# printf %q on every value: this string is evaluated by a root shell on the
+# target, and --hw is free text that gets pasted rather than typed. A stray
+# quote in it would otherwise close the quoting and make the remainder remote
+# root commands. HW_PKGS is forwarded only when --hw was given, so
+# install-base.sh's own default stays the single source of truth for it.
+#
+# %q emits bash quoting and root's login shell on the ISO is zsh, which is fine
+# here -- for package names and device paths the output is byte-identical to the
+# input, and zsh reads the $'...' form bash emits for control characters. Feeding
+# the script over stdin would avoid depending on the remote shell at all, but it
+# would then need to reclaim the tty for the passphrase prompts the way
+# install/bootstrap does (`[ -t 0 ] || exec </dev/tty`) -- possible, just not
+# worth it for values that %q leaves unchanged.
+cmd=$(printf 'HOST=%q DISK=%q' "${usage_host}" "${usage_disk}")
+if [ -n "${usage_hw:-}" ]; then
+  cmd+=$(printf ' HW_PKGS=%q' "${usage_hw}")
+fi
+ssh -t "${ssh_opts[@]}" "root@${usage_ip}" "${cmd} bash /root/install-base.sh"
 '''
 
 [tasks.bootstrap]

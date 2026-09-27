@@ -11,6 +11,113 @@ if [ "$(id -u)" -eq 0 ]; then
 fi
 
 cd "$(dirname "$0")"
+
+# ── host packages: converge pacman onto ./packages ───────────────────────────
+# install-base.sh pacstraps the same list, but that only ever runs on the live
+# ISO, so a package added after a host was built never reaches it.
+#
+# The order against the etc/ copy below does not matter, and it is worth saying
+# so rather than inventing a reason: pacman owns NONE of the seven files that
+# copy writes (`pacman -Qo` on each answers "No package owns"). Everything under
+# etc/ is an override path -- /etc/pam.d/polkit-1 shadows the polkit package's
+# /usr/lib/pam.d/polkit-1, /etc/systemd/system/tailscaled.service shadows the
+# packaged unit -- which is the mechanism that makes this whole directory work.
+# Nor does the order spare any pam_fprintd load errors: every existing host has
+# had that state since the polkit-1 stack was committed, and a fresh host
+# pacstraps fprintd before deploy ever runs.
+#
+# An explicit host list, NOT `command -v pacman`: those are different
+# predicates. kyuusaku is a box whose OS we do not own, and an Arch-based one
+# would sail through a capability check and be handed a base metapackage.
+# docs/new-host.md step 0 says to add a new host here. It happens to be the same
+# four hosts as home.nix's `hms` case, but for an unrelated reason (that one
+# means "has a Linux CI job"), so do not treat the two as one list -- kyuusaku
+# is absent from both for different reasons, and a CI job would earn it a place
+# in hms without earning one here.
+#
+# A host that is not listed still gets the etc/ copy below, so it keeps a
+# pam_fprintd line it cannot load -- fail-safe (polkit falls through to the
+# password) at the price of a log line per auth.
+#
+# A failure here WARNS and carries on rather than aborting: nothing later in
+# this script is about packages, and the attic netrc further down is what lets
+# the home-manager switch after it download CI's closure instead of compiling
+# for an hour. Letting a stale mirror take that down would be a worse outcome
+# than a host missing fprintd. SKIP_HOST_PACKAGES to any value skips the step
+# outright -- tested for non-emptiness, so SKIP_HOST_PACKAGES=0 skips too.
+#
+# Without --noconfirm this step can PROMPT (pacman's "Proceed with installation?"),
+# so a deploy driven over ssh wants a tty. Without one, pacman takes its defaults
+# or aborts, and either way the warn-and-continue above keeps the rest running.
+#
+# `uname -n`, not $HOSTNAME and not hostname(1): the kernel owns it where an env
+# var is inheritable, the repo derives the host this way in three other places
+# (home.nix's hms, two mise tasks), and hostname(1) lives in inetutils, which is
+# installed on none of these boxes.
+if [ -n "${SKIP_HOST_PACKAGES:-}" ]; then
+  echo "system/deploy: SKIP_HOST_PACKAGES set -- not touching pacman."
+else
+host=$(uname -n)
+case "${host%%.*}" in
+utsuho | setsuna | shiori | fujiwara)
+  [ -r packages ] || { echo "system/deploy: ./packages is missing or unreadable" >&2; exit 1; }
+  # Strip comments, then split on any whitespace. One package per line is the
+  # documented format; splitting rather than deleting whitespace means a
+  # two-names-on-one-line slip fails as two packages instead of silently
+  # concatenating into one bogus name.
+  mapfile -t want < <(sed 's/#.*//' packages | tr -s '[:space:]' '\n' | sed '/^$/d')
+  # mapfile returns 0 whatever the process substitution did, and neither `set
+  # -e` nor pipefail sees inside one, so an empty parse has to be caught by
+  # hand. Without this a renamed or emptied list makes this step a silent
+  # no-op -- the exact failure the list was added to fix.
+  [ ${#want[@]} -gt 0 ] || { echo "system/deploy: ./packages parsed to nothing" >&2; exit 1; }
+
+  missing=()
+  for p in "${want[@]}"; do
+    # -Qq resolves virtual provides (`pacman -Qq sh` answers bash), so an entry
+    # satisfied by a provider is not reported missing.
+    pacman -Qq -- "$p" >/dev/null 2>&1 || missing+=("$p")
+  done
+
+  if [ ${#missing[@]} -gt 0 ]; then
+    echo "system/deploy: installing missing host packages: ${missing[*]}"
+    # `--` because the list is data: a line starting with a dash would
+    # otherwise be read as a pacman option (--hookdir=, --overwrite=, --root=),
+    # and this runs under sudo.
+    #
+    # No `--noconfirm`, which answers every question with its default -- and the
+    # default to "replace X with Y?" is yes. So a line here that reads as purely
+    # additive could silently REMOVE a package from a running host by pulling in
+    # something that replaces it. (Whether the separate "X conflicts with Y,
+    # remove Y?" question also defaults to yes I did not confirm; it does not
+    # change the conclusion.) Prompting costs a keypress, and only when something
+    # is actually missing.
+    #
+    # No `-y` either: refreshing the db and then installing without upgrading is
+    # the partial-upgrade footgun. `-S` against the db as it stands resolves the
+    # version matching the libraries already installed, which is the safe
+    # direction. It is not a guarantee -- if the db is already newer than the
+    # system because something ran `pacman -Sy` by hand, installing anything
+    # here drags its newer deps in and you get a partial upgrade through the
+    # other door. Nothing this script can do about that; `-Syu` is the cure.
+    #
+    # Failure is a warning, not an abort (see the header): a stale db 404, a
+    # held pacman lock, a refused sudo password, a full /var, an unresolvable
+    # conflict. Any of them, and the rest of the deploy still runs.
+    sudo pacman -S --needed -- "${missing[@]}" || {
+      echo "system/deploy: pacman failed for: ${missing[*]}" >&2
+      echo "  Common causes: a stale sync db (404 on a dropped version -- fix" >&2
+      echo "  with 'sudo pacman -Syu'), another pacman holding the db lock, or" >&2
+      echo "  no network. Continuing; nothing below needs these packages." >&2
+    }
+  fi
+  ;;
+*)
+  echo "system/deploy: ${host%%.*} is not one of our Arch hosts -- skipping host packages."
+  ;;
+esac
+fi
+
 find etc/ -type d | while read -r d; do sudo mkdir -p "/${d}"; done
 find etc/ -type f | while read -r f; do sudo cp -v "${f}" "/${f}"; done
 

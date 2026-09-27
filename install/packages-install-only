@@ -1,0 +1,32 @@
+# Packages a FRESH host needs, pacstrapped once by install-base.sh and never
+# enforced again. The companion to system/packages, which system/deploy does
+# enforce on every run; the split is what keeps that convergence safe.
+#
+# A package belongs here when re-asserting it on a running host would be wrong
+# or pointless:
+#
+#   • the kernel and its headers -- a host may later move to linux-lts or
+#     linux-zen, and a converge step would happily install stock `linux`
+#     alongside it, run the mkinitcpio hook and fill /boot;
+#   • base / base-devel -- install-time scaffolding, not a runtime requirement;
+#   • the tools install-base.sh and bootstrap need before home-manager exists.
+#     home.nix owns the real ones; these are just enough to clone the repo and
+#     run `bootstrap`.
+#
+# zsh is NOT here, though it looks like it belongs: useradd sets the account's
+# login shell to the absolute path /bin/zsh, which a nix profile cannot provide,
+# so it is a must-be-present package and lives in system/packages.
+#
+# Same format as system/packages: one per line, # comments, blanks ignored.
+
+# base system and kernel
+base
+base-devel
+linux
+linux-headers
+
+# enough tooling to clone the repo and run bootstrap
+git
+vim
+man-db
+fzf

@@ -15,6 +15,84 @@ HOST=${HOST:?set HOST}
 USERNAME=${USERNAME:-sauyon}
 TZ_NAME=${TZ_NAME:-America/Los_Angeles}
 
+# Hardware packages, overridable per host. These are the ones that would be
+# wrong rather than merely unused on the other architecture, which is why they
+# are NOT in system/packages -- system/deploy re-enforces that file on every run
+# and must not push Intel drivers at the AMD ones. Two of our hosts are AMD
+# (utsuho, fujiwara; see flake.nix), so this gets overridden about as often as
+# it does not; docs/new-host.md step 0 says so.
+#   HW_PKGS='amd-ucode vulkan-radeon libva-mesa-driver' mise run host:install ...
+# `-` not `:-`, so HW_PKGS='' is honoured as "no hardware packages" (a VM) rather
+# than silently meaning Intel. This default is the only one; the --hw flag in
+# mise.toml deliberately has none.
+HW_PKGS=${HW_PKGS-intel-ucode vulkan-intel intel-media-driver}
+
+# Two package lists, both resolved HERE -- before the passphrase prompts and
+# before anything touches the disk, so a missing or unparseable list fails while
+# the target is still intact.
+#   system/packages            what every host must have; system/deploy enforces
+#                              the same file on every run afterwards.
+#   install/packages-install-only  fresh-install scaffolding, never re-enforced.
+# `mise run host:install` scp's both next to this script; a plain repo checkout
+# finds system/packages one level up.
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Strip comments, then split on whitespace so a two-names-on-one-line slip
+# becomes two packages rather than one fused, nonexistent name.
+#
+# Read through a command substitution, NOT a process substitution: `$(...)` puts
+# the subshell's failure into the assignment's status, where `set -e` sees it, so
+# a read that dies partway through aborts the install. `mapfile < <(...)` would
+# report success with however many lines it managed -- and a truncated list is
+# worse than an absent one, because pacstrap succeeds on the subset and the
+# operator gets BASE INSTALL DONE on a host with no cryptsetup.
+read_pkglist() {
+  local f
+  for f in "$@"; do
+    if [ -r "$f" ]; then
+      sed 's/#.*//' "$f" | tr -s '[:space:]' '\n' | sed '/^$/d'
+      return 0
+    fi
+  done
+  echo "install-base.sh: no readable package list at any of: $*" >&2
+  return 1
+}
+
+# Every name that reaches pacstrap gets checked for a leading dash first.
+# pacstrap's own option parsing stops at /mnt and it hands the rest to pacman
+# inside the chroot, so a `-`-prefixed entry -- from a mangled list or from a
+# pasted --hw -- would be read there as an option (--hookdir= runs arbitrary
+# code as root via an alpm hook, --root= and --overwrite= are no better). A `--`
+# after /mnt would be the usual answer, but whether pacstrap forwards it to
+# pacman rather than choking on it is version-dependent, and this script gets
+# exactly one run per machine. Rejecting the input needs no such assumption, and
+# happens up here where nothing has touched the disk yet.
+check_pkgnames() {
+  local p
+  for p in "$@"; do
+    case $p in
+    -*) echo "install-base.sh: refusing package name starting with '-': $p" >&2; return 1 ;;
+    esac
+  done
+}
+
+# Word-split HW_PKGS with `read -ra` rather than leaving it unquoted: splitting
+# is wanted, globbing against the ISO's cwd is not. Newlines are flattened first
+# because `read` stops at the first one, and a pasted value can arrive wrapped.
+read -ra hw_pkgs <<<"${HW_PKGS//$'\n'/ }"
+
+# The assignments abort on a failed or partial read (see read_pkglist). The
+# emptiness checks catch the other half: a file that is readable and parses to
+# nothing. They test the strings, not the arrays -- `mapfile <<<""` yields one
+# empty element, so a count of zero never happens here.
+pkgs_raw=$(read_pkglist "$here/packages" "$here/../system/packages")
+boot_raw=$(read_pkglist "$here/packages-install-only")
+[ -n "$pkgs_raw" ] || { echo "install-base.sh: system/packages parsed to nothing" >&2; exit 1; }
+[ -n "$boot_raw" ] || { echo "install-base.sh: packages-install-only parsed to nothing" >&2; exit 1; }
+mapfile -t pkgs <<<"$pkgs_raw"
+mapfile -t boot_pkgs <<<"$boot_raw"
+check_pkgnames "${pkgs[@]}" "${boot_pkgs[@]}" "${hw_pkgs[@]}"
+
 # Refuse to touch a disk that already has partitions; wipe it by hand first
 # (sgdisk -Z) if you really mean it.
 [[ -b $DISK ]] || { echo "$DISK is not a block device" >&2; exit 1; }
@@ -59,13 +137,7 @@ mount -o "$opts,subvol=@log" /dev/mapper/root /mnt/var/log
 mount -o "$opts,subvol=@cache" /dev/mapper/root /mnt/var/cache
 mount -o umask=0077 "$ESP" /mnt/boot
 
-pacstrap -K /mnt \
-  base base-devel linux linux-headers linux-firmware intel-ucode sof-firmware \
-  btrfs-progs cryptsetup dosfstools \
-  networkmanager openssh sudo zsh git vim man-db fzf \
-  mesa vulkan-intel intel-media-driver \
-  pipewire pipewire-pulse pipewire-alsa wireplumber \
-  polkit tpm2-tss tpm2-tools bluez bluez-utils fwupd power-profiles-daemon
+pacstrap -K /mnt "${pkgs[@]}" "${boot_pkgs[@]}" "${hw_pkgs[@]}"
 
 genfstab -U /mnt >> /mnt/etc/fstab
 

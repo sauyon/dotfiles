@@ -6,6 +6,16 @@
 # this stack -- adding pam_fprintd as sufficient makes the pkexec/polkit
 # prompt accept the enrolled fingerprint (falling through to system-auth's
 # password on failure). Same trick 1Password's Linux biometrics uses.
+#
+# `sufficient` here, ahead of system-auth, means a successful fingerprint
+# short-circuits the whole chain -- including system-auth's pam_faillock. So a
+# faillock-locked account can still authorize polkit actions by finger, and
+# fingerprint attempts neither count toward the lockout nor reset its tally.
+# Accepted: this stack only gates auth_self (the Bitwarden unlock, pkexec), not
+# login or sudo, and an absent pam_fprintd.so fails safe to the password.
+# Note this line was inert until fprintd was actually installed (system/packages
+# -- before that the module could not be dlopen'd and PAM ignored it in a
+# `sufficient` slot), so the faillock interaction above went live with it.
 auth       sufficient   pam_fprintd.so
 auth       include      system-auth
 account    include      system-auth

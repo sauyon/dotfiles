@@ -1,0 +1,73 @@
+# Host (pacman) packages that must be PRESENT for this config to work.
+# system/deploy converges pacman onto this file on every run, on the hosts its
+# own allow-list names, so a line added here reaches setsuna/utsuho/shiori on
+# their next `mise run system:deploy` -- which is the point. pacstrap's list only
+# ever reached the *next* new box, which is how fprintd stayed uninstalled for
+# months after being wired up in hyprlock and pam.d.
+#
+# What belongs here: things that must be root-side, because a user profile
+# cannot provide them -- a system systemd unit, a system D-Bus service, a module
+# the host's own libraries dlopen by name, firmware, state under /var. Anything
+# a user can own belongs in home.nix.
+#
+# What does NOT belong here, and lives in install/packages-install-only instead:
+# anything only a *fresh install* needs. The kernel especially -- enforcing
+# `linux` would install a second, stock kernel on a host running linux-lts or
+# -zen -- and the shell tools install-base.sh needs before home-manager exists.
+# That file is pacstrapped once and never enforced again.
+#
+# Hardware packages sort by whether being wrong is harmful or merely inert:
+# intel-ucode and the Intel video drivers are picked per host and stay inline in
+# install-base.sh, because pushing them at the AMD boxes would be wrong; fprintd
+# and sof-firmware sit here, because a box without the hardware just never
+# exercises them.
+#
+# Format: one package per line, # comments, blank lines ignored. Package names
+# only -- `pacman -Qq` resolves virtual provides (`sh` answers bash) but NOT
+# groups, so a group line would read as missing on every single deploy.
+
+# disks: the encrypted btrfs root and the ESP
+btrfs-progs
+cryptsetup
+dosfstools
+
+# network and remote access
+networkmanager
+openssh
+sudo
+
+# The account's login shell is the absolute path /bin/zsh (install-base.sh's
+# useradd -s), which no nix profile can provide -- home.nix owns zsh's
+# configuration, not that path. So the binary is a host package.
+zsh
+
+# graphics
+mesa
+
+# audio
+sof-firmware
+pipewire
+pipewire-pulse
+pipewire-alsa
+wireplumber
+
+# firmware blobs for the kernel, whichever kernel that is
+linux-firmware
+
+# system services
+polkit
+tpm2-tss
+tpm2-tools
+bluez
+bluez-utils
+fwupd
+power-profiles-daemon
+
+# Fingerprint reader (Goodix 27c6:609c on shiori). Cannot come from nix: the
+# host's PAM dlopens pam_fprintd.so by bare name out of /usr/lib/security (see
+# etc/pam.d/polkit-1), fprintd itself is a root-run system D-Bus service, and
+# its enrollments are root state in /var/lib/fprint. hyprlock's
+# fingerprint.enabled (home.nix) reaches the daemon over D-Bus rather than PAM,
+# so it silently no-ops when the package is absent.
+# Enrolling stays manual and per-host: `fprintd-enroll`, then `fprintd-list`.
+fprintd

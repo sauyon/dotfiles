@@ -1,0 +1,74 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "7c2143d4fa16",
+  "session_id": "dbab3ae6-2fc0-42a0-b4a9-0e61950510a5",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-27T02:05:00.85590638Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "home.nix"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "d42d9ab170fd",
+  "checkpoint_transcript_start": 1008,
+  "transcript_lines_at_start": 1008,
+  "compact_transcript_start": 168,
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 14561,
+    "cache_read_tokens": 2174521,
+    "output_tokens": 10192,
+    "api_call_count": 7
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01Kmoq234EKmCbUh3U5FZzj3",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "0e00d373ced6",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 343,
+        "end": 344,
+        "entry_ids": [
+          "16b34d7c-bffc-45ec-806d-47ca9acd87b4"
+        ],
+        "tool_use_id": "toolu_01Kmoq234EKmCbUh3U5FZzj3"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Kmoq234EKmCbUh3U5FZzj3"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-27T02:05:00.688445512Z",
+    "agent_lines": 38,
+    "agent_removed": 21,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 38,
+    "total_lines_changed": 59,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}

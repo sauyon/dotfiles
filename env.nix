@@ -40,10 +40,17 @@ rec {
   QT_WAYLAND_DISABLE_WINDOWDECORATION = "1";
 
   MOZ_ENABLE_WAYLAND = "1";
-  # Kept after the move off firefox: home-manager's thunderbird profile lives
-  # in ~/.thunderbird, the legacy layout this selects, and so does any
-  # Arch-packaged gecko app. Zen is unaffected either way — it reads
-  # ~/.config/zen with this set (see programs.zen-browser in home.nix).
+  # Load-bearing for exactly one consumer now that firefox is gone:
+  # thunderbird. What the var does is opt gecko out of dedicated
+  # (profile-per-install) mode — it does NOT select ~/.thunderbird over an XDG
+  # path, which is a separate legacy-home branch — and nixpkgs' thunderbird
+  # wrapper is the one gecko wrapper here that does not set it itself (grep its
+  # launcher: 0 hits, against 1 in zen's). Without it thunderbird can mint an
+  # [Install<HASH>] section and ignore home-manager's Default=1 profile. Zen is
+  # indifferent: its wrapper sets the var regardless, and its profile directory
+  # is decided by MOZ_LEGACY_HOME or an existing ~/.zen instead (the measured
+  # table is on programs.zen-browser in home.nix). No Arch-packaged gecko app
+  # exists on these hosts to care either way.
   MOZ_LEGACY_PROFILES = "1";
 
   WARP_ENABLE_WAYLAND = "1";
@@ -81,9 +88,11 @@ rec {
   # unset there and let each tool fall back to its own default rather than fail
   # with a bare command-not-found.
   #
-  # zen-beta, not zen: upstream's stable channel is called "beta" and the flake
-  # names the wrapper after the channel. Set here rather than via the module's
-  # setAsDefaultBrowser, which would collide with this same option.
+  # zen-beta, not zen: the flake names package, wrapper and desktop entry after
+  # its variant, and `homeModules.default` is the beta one (it tracks upstream's
+  # `<ver>b` release tags), so `zen-beta` is the binary that exists. Set here
+  # rather than via the module's setAsDefaultBrowser, which writes this same
+  # option without mkDefault and would collide.
   BROWSER = "zen-beta";
 
   # GTK's file-chooser sidebar (and Nautilus, and anything else built on GIO)

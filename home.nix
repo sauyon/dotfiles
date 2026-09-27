@@ -2100,11 +2100,14 @@ in
     pkgs.bitwarden-cli
     # Desktop app is the biometric backend the browser extension talks to over
     # native messaging (the extension can't unlock with biometrics on its own).
-    # Unaffected by the move off firefox: gecko takes native manifests from
-    # XREUserNativeManifests + /native-messaging-hosts, and on Linux that base
-    # is a hardcoded ~/.mozilla for every gecko app — so the manifest
-    # bitwarden-desktop writes there is the one Zen loads, and the zen wrapper
-    # symlinks tridactyl's in beside it at launch.
+    # Unaffected by the move off firefox: gecko asks for native manifests under
+    # XREUserNativeManifests, which on Linux is a forced-legacy ~/.mozilla for
+    # every gecko app no matter where its profile lives — so whatever
+    # bitwarden-desktop writes there, once browser integration is switched on in
+    # the app, is visible to Zen too, and the wrapper drops tridactyl's manifest
+    # in beside it. Unverified in the direction that matters: that directory
+    # holds only home-manager's .keep and tridactyl.json today, so no
+    # bitwarden-written manifest has been observed there under either browser.
     # Pairs with the polkit action + pam_fprintd wiring in system/.
     pkgs.bitwarden-desktop
     # gvfs must be *installed*, not just referenced by store path the way most
@@ -2904,18 +2907,68 @@ in
     # Zen, not firefox: same gecko underneath (1.22.3b is gecko 156), so the
     # policies/prefs/extensions below are the ones the firefox block carried,
     # moved over unchanged except where noted.
+    #
+    # Two things the module adds that programs.firefox did not, neither of them
+    # asked for here. policies.DisableAppUpdate and DisableTelemetry, both
+    # mkDefault true in hm-module/package.nix, which is why the built
+    # policies.json has three keys and not one. And a SecurityDevices entry
+    # pointing NSS at p11-kit-trust.so, because Zen ships no libnssckbi.so and
+    # would otherwise see only the roots compiled into libxul: that makes this
+    # host's system trust store a browser trust anchor, which nixpkgs' firefox
+    # never did (its wrapper sets SecurityDevices only under withPCSC), and it
+    # plausibly pins the hasThirdPartyRoots=1 condition behind the H3 workaround
+    # pref below to permanently true.
+    #
+    # DisableAppUpdate is right for a store-managed browser, but it pairs badly
+    # with .forgejo/workflows/vulnix-scan.yml: that scan keys on derivation
+    # names, the closure no longer holds a `firefox-<ver>`, and NVD knows no
+    # `zen-beta`, so the weekly CVE report is blind to the browser it used to
+    # cover. Gecko fixes arrive on `hmu` and nothing prompts it.
+    #
+    # Nothing migrates the old profile either: ~/.mozilla/firefox stays on disk
+    # unmanaged (history, logins, and the containers the tridactyl `gC` picker
+    # further down assumes), and Zen starts empty. Import from inside Zen if it
+    # turns out to be wanted.
     zen-browser = {
       enable = isDesktop;
-      # No configPath here, unlike the firefox block: Zen's application.ini
-      # carries `Profile=zen`, and the wrapped binary lands on ~/.config/zen —
-      # the module default — even with env.nix's MOZ_LEGACY_PROFILES=1 in
-      # scope. Checked 2026-09-26 by running zen-beta 1.22.3b under a throwaway
-      # $HOME with the var set: it created ~/.config/zen, not ~/.zen. macOS gets
-      # ~/Library/Application Support/Zen, also the module default.
+      # No configPath here, unlike the firefox block — and NOT because of
+      # env.nix's MOZ_LEGACY_PROFILES=1. That var only opts gecko out of
+      # dedicated (profile-per-install) mode; it never picks the directory. The
+      # directory is XDG (~/.config/zen) unless gecko takes its legacy-home
+      # branch, which for Zen means MOZ_LEGACY_HOME is set or ~/.zen already
+      # exists. Neither holds on these hosts, so the module default is the path
+      # Zen actually opens. macOS gets ~/Library/Application Support/Zen, also
+      # the module default.
+      #
+      # Measured 2026-09-26 against zen-beta 1.22.3b, a throwaway $HOME each
+      # time, MOZ_LEGACY_PROFILES=1 in scope throughout — the wrapper sets it
+      # itself, so it cannot be taken out of the experiment:
+      #
+      #   bare $HOME                       -> ~/.config/zen
+      #   $HOME/.mozilla/firefox present   -> ~/.config/zen  (full launch, not
+      #                                       just -CreateProfile)
+      #   $HOME/.zen present               -> ~/.zen
+      #   MOZ_LEGACY_HOME=1                -> ~/.zen
+      #
+      # The second line is the one that earns its keep. Two reviewers read gecko
+      # 156's LegacyHomeExists() as "any existing ~/.mozilla flips this to
+      # ~/.zen" — which, since every host here has ~/.mozilla (thunderbird's
+      # native-messaging dir alone guarantees it), would mean every file this
+      # block writes is never read. Zen does not behave that way.
+      #
+      # What the experiment does NOT cover: install a distro-packaged Zen, or
+      # let anything export MOZ_LEGACY_HOME, and the profile moves to ~/.zen
+      # while home-manager keeps writing ~/.config/zen. The symptom is a virgin
+      # profile with none of the prefs below and no extensions; check
+      # about:profiles, and if it reads ~/.zen then set `configPath = ".zen"`
+      # here — which also flips mkFirefoxModule's configureAppDataDir and
+      # passes MOZ_APP_DATA into the wrapper, untested from here.
       #
       # Drop Version= so Zen uses non-dedicated profile mode and honors
       # Default=1 — else gecko 67+ pins profile-per-install via [Install<HASH>]
-      # sections in profiles.ini and ignores Default=. Paired with the
+      # sections in profiles.ini and ignores Default=. Belt-and-braces rather
+      # than load-bearing: MOZ_LEGACY_PROFILES already forces non-dedicated
+      # mode, from env.nix and again from the wrapper. Paired with the
       # zenInstallsIni activation above.
       profileVersion = null;
       policies = {
@@ -2924,9 +2977,22 @@ in
           StartPage = "homepage";
         };
       };
+      # Linux ownership change worth knowing: programs.firefox fed
+      # home-manager's mozilla.firefoxNativeMessagingHosts, so
+      # ~/.mozilla/native-messaging-hosts/tridactyl.json was a managed symlink.
+      # This module only does that on darwin, so on Linux the manifest comes
+      # from the wrapper's launch-time `ln -sfLt` instead — it appears once Zen
+      # has run, and is not cleaned up if this option later goes away.
       nativeMessagingHosts = lib.optionals (!isDarwin) [
         pkgs.tridactyl-native
       ];
+      # Read hm-module/activation.nix before reaching for profiles.<n>.presets.*,
+      # extensionButtons, mods or sine.*: those arm a second activation entry
+      # (zen-browser-default) that rewrites prefs.js and
+      # browser.uiCustomization.state with no $DRY_RUN_CMD, so `switch -n` would
+      # mutate the live profile. Inert today only because every declared set is
+      # empty. mods/sine additionally curl unpinned code from GitHub at
+      # activation and hand it chrome privileges.
       profiles.default = {
         # rycee's firefox-addons install as-is — same extension IDs, same
         # gecko. Still skipped on macOS, as under firefox; that path has never
@@ -3352,8 +3418,10 @@ in
       enable = !isDarwin && isDesktop;
 
       defaultApplications = {
-        # zen-beta: upstream calls the stable channel "beta", and the flake
-        # names the binary and desktop entry after the channel.
+        # zen-beta.desktop: the flake names package, binary and desktop entry
+        # after its variant — `homeModules.default` is the beta one, which
+        # tracks upstream's `<ver>b` release tags — so this is the id that
+        # exists in the profile.
         "text/html" = "zen-beta.desktop";
         "x-scheme-handler/http" = "zen-beta.desktop";
         "x-scheme-handler/https" = "zen-beta.desktop";

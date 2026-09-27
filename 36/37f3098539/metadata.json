@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "3637f3098539",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md",
+    "tests/hyprlock-faillock.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/36/37f3098539/0/metadata.json",
+      "transcript": "/36/37f3098539/0/full.jsonl",
+      "compact_transcript": "/36/37f3098539/0/transcript.jsonl",
+      "content_hash": "/36/37f3098539/0/content_hash.txt",
+      "prompt": "/36/37f3098539/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 216461,
+    "cache_read_tokens": 740854,
+    "output_tokens": 4015,
+    "api_call_count": 4
+  }
+}

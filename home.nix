@@ -272,36 +272,82 @@ let
   hyprlock-faillock = pkgs.writeShellScriptBin "hyprlock-faillock" ''
     set -u
 
-    CONF="''${FAILLOCK_CONF:-/etc/security/faillock.conf}"
-    # The host's faillock on purpose: the tally under /run/faillock is written by
-    # the host's pam_faillock, so the host's reader is the one that matches it.
-    BIN="''${FAILLOCK_BIN:-/usr/bin/faillock}"
+    # The lock screen's lockout is enforced by the pam hyprlock links, not the host's:
+    # nix libpam loads pam_faillock.so from its own lib/security, and that module has
+    # its own faillock.conf path compiled in. So read THAT file -- reading
+    # /etc/security/faillock.conf would report host policy while the lock screen went
+    # on enforcing whatever nix's copy says (both are upstream's all-commented
+    # default today, so the numbers agree, which is exactly why the divergence would
+    # go unnoticed). Module arguments in /etc/pam.d/system-auth would override the
+    # file for either pam and are invisible from here; the host's stack passes none.
+    CONF="''${FAILLOCK_CONF:-${pkgs.pam-host-chkpwd}/etc/security/faillock.conf}"
+    # Unreadable (a nixpkgs that stops installing it): read nothing, which lands on
+    # pam built-in defaults -- the same thing read_config_file() leaves pam with.
+    # Falling back to the host file would reintroduce exactly the divergence above.
+    [ -r "$CONF" ] || CONF=/dev/null
+    # The reader from that same pam, for the same reason: its record layout is
+    # version-locked to the module that writes the tally, and it resolves the `dir`
+    # option from the conf above -- so if either is ever moved off /var/run/faillock,
+    # reader and writer move together. The host's reader would resolve `dir` from the
+    # host's conf and could end up looking in the wrong place entirely. Wrapped in
+    # withHostNss because it calls getpwnam(): on a systemd-homed host only the host's
+    # NSS resolves the name, exactly as for hyprlock itself.
+    BIN="''${FAILLOCK_BIN:-${withHostNss pkgs.pam-host-chkpwd}/bin/faillock}"
+    [ -x "$BIN" ] || BIN=/usr/bin/faillock
     [ -x "$BIN" ] || exit 0
 
-    # The host's id first, for the same reason hyprlock itself needs withHostNss: on
-    # a systemd-homed host the user has no /etc/passwd entry and only the host's NSS
-    # resolves the name. Nix's id is the fallback, and works wherever passwd does.
-    WHO=$(/usr/bin/id -un 2>/dev/null || ${pkgs.coreutils}/bin/id -un 2>/dev/null || true)
+    # SUDO_USER first: under `sudo hyprlock-faillock` the interesting tally is still
+    # the invoking user's, and root's own is empty, which would read as "not locked
+    # out" at the moment someone is checking whether they are. Otherwise the host's
+    # id, for the same reason hyprlock itself needs withHostNss: on a systemd-homed
+    # host the user has no /etc/passwd entry and only the host's NSS resolves the
+    # name. Nix's id is the fallback, and works wherever passwd does.
+    WHO="''${SUDO_USER:-}"
+    [ -n "$WHO" ] || WHO=$(/usr/bin/id -un 2>/dev/null || ${pkgs.coreutils}/bin/id -un 2>/dev/null || true)
     [ -n "$WHO" ] || exit 0
 
     # Arch ships faillock.conf with every option commented out, so an option that is
     # not set means pam's built-in default, not zero.
+    # $3 marks a duration: "time" gets pam's MAX_TIME_INTERVAL clamp, "never-ok" that
+    # plus the `never` spelling, which only the unlock times accept
+    # (pam_faillock(8) documents it as equivalent to 0). deny passes neither: pam
+    # rejects a non-numeric deny and keeps its default, so `deny = never` must not
+    # read as 0 here -- that would silence the label on a screen still locking at 3.
     optval() {
       v=$(${pkgs.gnused}/bin/sed -nE \
         "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*([^[:space:]#]+).*/\1/p" "$CONF" 2>/dev/null \
         | ${pkgs.coreutils}/bin/tail -1)
-      # faillock.conf spells unlock_time's "no automatic unlock" as `never`, which
-      # pam_faillock(8) documents as equivalent to 0.
-      [ "$v" = never ] && v=0
+      [ "''${3:-}" = never-ok ] && [ "$v" = never ] && v=0
       case "$v" in
-        "" | *[!0-9]*) printf '%s' "$2" ;;
-        *) printf '%s' "$v" ;;
+        "" | *[!0-9]*) printf '%s' "$2"; return ;;
       esac
+      # faillock_config.c rejects a duration over MAX_TIME_INTERVAL (7 days) and keeps
+      # its default. The digit-count test first, so the arithmetic cannot overflow.
+      if [ -n "''${3:-}" ] && { [ "''${#v}" -gt 7 ] || [ "$v" -gt 604800 ]; }; then
+        printf '%s' "$2"
+        return
+      fi
+      printf '%s' "$v"
     }
     DENY=$(optval deny 3)
-    UNLOCK=$(optval unlock_time 600)
-    INTERVAL=$(optval fail_interval 900)
+    UNLOCK=$(optval unlock_time 600 never-ok)
+    INTERVAL=$(optval fail_interval 900 time)
     [ "$DENY" -gt 0 ] || exit 0
+
+    if [ "$WHO" = root ]; then
+      # pam never denies root unless the conf opts in: check_tally() returns
+      # PAM_SUCCESS early for an admin with no FAILLOCK_FLAG_DENY_ROOT, while the
+      # authfail path still records the failure -- so root can hold a full tally and
+      # never be locked, and a countdown here would be invented. Only even_deny_root
+      # sets that flag from a conf file: faillock_config.c stores root_unlock_time
+      # without touching the flags, whatever the man page says about implying it.
+      ${pkgs.gnugrep}/bin/grep -qE "^[[:space:]]*even_deny_root([[:space:]]|$)" "$CONF" || exit 0
+      # Unset, it defaults to unlock_time (pam_faillock.c initialises it to
+      # MAX_TIME_INTERVAL+1 and substitutes unlock_time when it is still that).
+      # Not modelled: admin_group, which makes a plain user is_admin too and would
+      # need group resolution; the conf this reads is a store file that cannot set it.
+      UNLOCK=$(optval root_unlock_time "$UNLOCK" never-ok)
+    fi
 
     OUT=$("$BIN" --user "$WHO" 2>/dev/null) || exit 0
 
@@ -321,29 +367,42 @@ let
       }
       END {
         if (!n) exit 0
-        # Same rule as pam_faillock check_tally(): the valid records within
-        # fail_interval of the NEWEST one are the ones that count, and the lock
-        # holds until unlock_time past that newest failure.
-        for (i = 1; i <= n; i++)
+        # Two counts, because pam uses two windows. check_tally() decides the lockout
+        # over the records within fail_interval of the NEWEST failure; write_tally()
+        # then voids every record older than fail_interval measured from NOW, so it is
+        # that second count which says what the next failure will add up to.
+        for (i = 1; i <= n; i++) {
           if (latest - times[i] < interval) fails++
+          if (now - times[i] < interval) live++
+        }
+        # "Password locked out", not "Locked out": the fingerprint path in hyprlock
+        # talks to fprintd over D-Bus and never enters PAM, so pam_faillock does not
+        # gate it -- the reader still opens the screen while this label is up.
+        # (No apostrophes in here: this whole program is single-quoted in the shell.)
         if (fails >= deny) {
           if (unlock == 0) {
-            print "Locked out — no automatic unlock"
+            print "Password locked out — no automatic unlock"
             exit 0
           }
           left = latest + unlock - now
           if (left > 0) {
-            printf "Locked out — %d min left\n", int((left + 59) / 60)
+            printf "Password locked out — %d min left\n", int((left + 59) / 60)
             exit 0
           }
-          # unlock_time has elapsed, but the tally still stands: fall through, so the
-          # next single mistake does not re-lock without warning.
+          # pam denies while latest + unlock_time >= now, and only prints its
+          # countdown when there is a minute left to print.
+          if (left == 0) {
+            print "Password locked out"
+            exit 0
+          }
+          # unlock_time has elapsed. check_tally() takes its expiry branch, which sets
+          # FAILLOCK_FLAG_UNLOCKED, and the next write_tally() voids every record on
+          # that flag -- the whole deny budget is back, so there is nothing to warn
+          # about and a count here would be a lie.
+          exit 0
         }
-        if (!fails) exit 0
-        # Failures older than fail_interval can never add up to a lockout, since pam
-        # measures the window from the newest one. Nothing useful to say.
-        if (now - latest >= interval) exit 0
-        printf "%d/%d failed attempts\n", fails, deny
+        if (!live) exit 0
+        printf "%d/%d failed attempts\n", live, deny
       }
     '
   '';
@@ -2255,13 +2314,17 @@ in
       # (fingerprint still works, masking it) until the symlink is recreated by
       # hand. Build hyprlock against a pam pointing pam_unix at Arch's own setuid
       # helper instead, so password auth survives reboots with no /run/wrappers shim.
+      # Named rather than inlined into the override so hyprlock-faillock can point
+      # at the faillock.conf this pam reads: it is the pam that enforces the lock
+      # screen's lockout, so it is the one whose thresholds the label must report.
+      pam-host-chkpwd = prev.pam.overrideAttrs (old: {
+        postPatch = (old.postPatch or "") + ''
+          substituteInPlace modules/module-meson.build \
+            --replace-fail "'/run/wrappers/bin/unix_chkpwd'" "'/usr/bin/unix_chkpwd'"
+        '';
+      });
       hyprlock = (prev.hyprlock.override {
-        pam = prev.pam.overrideAttrs (old: {
-          postPatch = (old.postPatch or "") + ''
-            substituteInPlace modules/module-meson.build \
-              --replace-fail "'/run/wrappers/bin/unix_chkpwd'" "'/usr/bin/unix_chkpwd'"
-          '';
-        });
+        pam = final.pam-host-chkpwd;
       }).overrideAttrs (old: {
         patches = (old.patches or []) ++ [
           ./patches/hyprlock-skip-dtors-on-early-fail.patch
@@ -3009,13 +3072,14 @@ in
     # policies/prefs/extensions below are the ones the firefox block carried,
     # moved over unchanged except where noted.
     #
-    # Two things the module adds that programs.firefox did not, neither of them
+    # Two things the input adds that programs.firefox did not, neither of them
     # asked for here. policies.DisableAppUpdate and DisableTelemetry, both
     # mkDefault true in hm-module/package.nix, which is why the built
-    # policies.json next to the real binary has four keys where firefox's had
-    # one (the wrapper keeps a three-key copy that gecko never reads — see
-    # hm-module/package.nix on why only the unwrapped one counts). And a
-    # SecurityDevices entry
+    # policies.json next to the real binary carries policies at all while this
+    # config declares none (the wrapper keeps a second copy that gecko never
+    # reads — see hm-module/package.nix on why only the unwrapped one counts).
+    # And, from the flake's own top-level package.nix rather than the
+    # home-manager module, a SecurityDevices entry
     # pointing NSS at p11-kit-trust.so, because Zen ships no libnssckbi.so and
     # would otherwise see only the roots compiled into libxul: that makes this
     # host's system trust store a browser trust anchor, which nixpkgs' firefox
@@ -3092,12 +3156,18 @@ in
       # mode, from env.nix and again from the wrapper. Paired with the
       # zenInstallsIni activation above.
       profileVersion = null;
-      policies = {
-        Homepage = {
-          URL = "https://ko.ag/newtab.html";
-          StartPage = "homepage";
-        };
-      };
+      # No `policies` here any more: the Homepage policy pointed at
+      # https://ko.ag/newtab.html, which is broken, so it is gone and what the
+      # input contributes by itself is all this config wants. Startup, new
+      # windows and the Home button now fall back to Zen's own shipped
+      # browser.startup.homepage = about:home (browser.startup.page = 1); new
+      # tabs never went through this policy at all — that is NewTabPage — and
+      # the deleted StartPage = "homepage" was already Zen's default. So the
+      # whole removal amounts to "the homepage reverts to about:home".
+      #
+      # ~/.config/newtab.html is still written by xdg.configFile below. It has
+      # been unreferenced since tridactyl's `set newtab` went away in 265a018,
+      # months before this browser migration, so nothing here orphaned it.
       # Linux ownership change worth knowing: programs.firefox fed
       # home-manager's mozilla.firefoxNativeMessagingHosts, so
       # ~/.mozilla/native-messaging-hosts/tridactyl.json was a managed symlink.

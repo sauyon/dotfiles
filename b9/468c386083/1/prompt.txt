@@ -1,0 +1,32 @@
+<task-notification>
+<task-id>a0a98d15d75665802</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/fca421de-8072-4c37-a36d-4dcc70aceecc/tasks/a0a98d15d75665802.output</output-file>
+<status>completed</status>
+<summary>Agent "/code-review HEAD high" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>No `ReportFindings` tool is available in this environment, so the findings are below.
+
+## Verification done
+
+I checked the load-bearing claims of the new `hyprlock-faillock` script against reality rather than trusting the comments, and they hold:
+
+- `hyprlock`'s `bin/hyprlock` links `libpam.so.0` from `/nix/store/c7hbl…-linux-pam-1.7.2`, and that is exactly the store path the script's `CONF` default points at, and exactly the `faillock.conf` path compiled into that pam's `pam_faillock.so` and `bin/faillock`. The "read *that* conf" reasoning is correct.
+- `bin/faillock` exists in the `withHostNss` join (nixpkgs normalizes `sbin -&gt; bin`), and running it as the user against `/run/faillock/sauyon` (0660, owner `sauyon`) works without root.
+- The awk arithmetic matches linux-pam 1.7.2 `pam_faillock.c` exactly: `check_tally()` counts VALID records with `latest_time - time &lt; fail_interval`; `write_tally()` invalidates on `now - time &gt;= fail_interval`; unlock is `latest_time + unlock_time &lt; now`; `faillock_message()` uses `(left + 59)/60`. The `fails` / `live` split, the `left &gt; 0` / `left == 0` / `left &lt; 0` branches and the `unlock == 0` (`never`) branch are all right. `faillock_config.c` is last-wins on duplicate keys, matching `tail -1`.
+- hyprlock really does filter `PAM_TEXT_INFO` on `MSG.contains("left to unlock")`, so the motivating problem is real.
+- I exercised the built script (`FAILLOCK_CONF`/`FAILLOCK_BIN` overrides, synthetic `faillock` output) across 10 states — 2 recent fails, 3 recent, unlock elapsed, exactly-at-boundary, mixed `V`/`I`, stale-only, `never`, `deny = 0`, all-commented conf, missing conf. Every output was correct. gawk's `mktime` with no DST field resolves DST correctly (verified across a DST boundary in `America/Los_Angeles`).
+
+No correctness bug found in the logic. Three low-severity issues:
+
+## Findings
+
+- **home.nix:2737 — low.** The label reports only the *password* lockout, but `fingerprint.enabled = true` (line 2674) and hyprlock's fingerprint path goes to fprintd over D-Bus, never through PAM, so `pam_faillock` does not gate it (the repo's own comment at line 2279 notes fingerprint "still works, masking it"). Scenario: three wrong passwords, the screen shows red "Locked out — 10 min left", and the user waits ten minutes when touching the reader would have unlocked immediately. Wording like "Password locked out — 10 min left" would not overstate.
+
+- **home.nix:296 — low.** `WHO=$(/usr/bin/id -un …)` is the *invoking* user, and the comment at 2208 advertises the script for TTY use with the reassurance "No root needed". Anyone who reaches for `sudo hyprlock-faillock` anyway gets root's tally (normally empty), so the script prints nothing and the user concludes they are not locked out while they are. Reading the intended user from `$USER`/`LOGNAME` with an `id -un` fallback, or refusing when `id -u` is 0, would close it.
+
+- **home.nix:305 — low.** `optval` reads `deny`, `unlock_time` and `fail_interval` but not `admin_group` or `root_unlock_time`. `check_tally()` sets `is_admin` for uid 0 *or* membership in `admin_group`, and for such users compares against `root_unlock_time`, not `unlock_time`; `faillock_message()` does the same. If `admin_group` is ever set in the conf this script reads, the countdown for a member is computed from the wrong option and the label's minutes are simply wrong. Latent today (both options are commented out in the nix conf), but it is the one divergence path the script does not account for while it carefully handles `never`, `deny = 0` and all-commented defaults.
+
+The Zen change (removing the `policies.Homepage` block) is clean: nothing else referenced `ko.ag/newtab.html`, `newtabHtml` is still consumed at line 3598, and the module's `mkDefault` policies keep `policies.json` non-empty. The `pam-host-chkpwd` extraction is behavior-preserving — `final.pam-host-chkpwd` resolves to the same `prev.pam.overrideAttrs` derivation the inline version produced, so hyprlock's store path is unchanged.</result>
+<usage><subagent_tokens>128509</subagent_tokens><tool_uses>44</tool_uses><duration_ms>826396</duration_ms></usage>
+</task-notification>

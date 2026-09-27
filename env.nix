@@ -40,8 +40,11 @@ rec {
   QT_WAYLAND_DISABLE_WINDOWDECORATION = "1";
 
   MOZ_ENABLE_WAYLAND = "1";
-  # Load-bearing for exactly one consumer now that firefox is gone:
-  # thunderbird. What the var does is opt gecko out of dedicated
+  # Load-bearing for exactly one consumer: thunderbird, the only gecko app here
+  # that does not set the var itself (firefox's wrapper set it too, so even
+  # before this the var was not what kept firefox in non-dedicated mode). It is
+  # exported session-wide, so any future gecko app inherits it as well.
+  # What the var does is opt gecko out of dedicated
   # (profile-per-install) mode — it does NOT select ~/.thunderbird over an XDG
   # path, which is a separate legacy-home branch — and nixpkgs' thunderbird
   # wrapper is the one gecko wrapper here that does not set it itself (grep its

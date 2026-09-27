@@ -2911,7 +2911,10 @@ in
     # Two things the module adds that programs.firefox did not, neither of them
     # asked for here. policies.DisableAppUpdate and DisableTelemetry, both
     # mkDefault true in hm-module/package.nix, which is why the built
-    # policies.json has three keys and not one. And a SecurityDevices entry
+    # policies.json next to the real binary has four keys where firefox's had
+    # one (the wrapper keeps a three-key copy that gecko never reads — see
+    # hm-module/package.nix on why only the unwrapped one counts). And a
+    # SecurityDevices entry
     # pointing NSS at p11-kit-trust.so, because Zen ships no libnssckbi.so and
     # would otherwise see only the roots compiled into libxul: that makes this
     # host's system trust store a browser trust anchor, which nixpkgs' firefox
@@ -2921,24 +2924,30 @@ in
     #
     # DisableAppUpdate is right for a store-managed browser, but it pairs badly
     # with .forgejo/workflows/vulnix-scan.yml: that scan keys on derivation
-    # names, the closure no longer holds a `firefox-<ver>`, and NVD knows no
-    # `zen-beta`, so the weekly CVE report is blind to the browser it used to
-    # cover. Gecko fixes arrive on `hmu` and nothing prompts it.
+    # names, and the closure no longer holds a `firefox-<ver>` for it to match
+    # — nothing there is named for this browser at all. Whether NVD carries a
+    # `zen-beta` product was not checked; a name-keyed scan cannot match
+    # `zen-beta-1.22.3b` either way. thunderbird-156.0 is still in the closure
+    # and is the same gecko line, so a gecko-CVE week will surface something,
+    # just never attributed to the browser. Fixes arrive on `hmu`.
     #
     # Nothing migrates the old profile either: ~/.mozilla/firefox stays on disk
     # unmanaged (history, logins, and the containers the tridactyl `gC` picker
-    # further down assumes), and Zen starts empty. Import from inside Zen if it
-    # turns out to be wanted.
+    # further down would have listed — it degrades to an empty list, it does not
+    # break), and Zen starts empty. Import from inside Zen if it turns out to be
+    # wanted.
     zen-browser = {
       enable = isDesktop;
       # No configPath here, unlike the firefox block — and NOT because of
       # env.nix's MOZ_LEGACY_PROFILES=1. That var only opts gecko out of
       # dedicated (profile-per-install) mode; it never picks the directory. The
       # directory is XDG (~/.config/zen) unless gecko takes its legacy-home
-      # branch, which for Zen means MOZ_LEGACY_HOME is set or ~/.zen already
-      # exists. Neither holds on these hosts, so the module default is the path
-      # Zen actually opens. macOS gets ~/Library/Application Support/Zen, also
-      # the module default.
+      # branch, which for Zen means MOZ_LEGACY_HOME starts with 1, or ~/.zen
+      # already exists, or an undotted ~/mozilla does (that last one is
+      # LegacyHomeExists' $HOME/MOZ_USER_DIR probe, and MOZ_USER_DIR is
+      # `mozilla`, not `.mozilla`). None holds on these hosts, so the module
+      # default is the path Zen actually opens. macOS gets ~/Library/Application
+      # Support/Zen, also the module default.
       #
       # Measured 2026-09-26 against zen-beta 1.22.3b, a throwaway $HOME each
       # time, MOZ_LEGACY_PROFILES=1 in scope throughout — the wrapper sets it
@@ -2954,15 +2963,26 @@ in
       # 156's LegacyHomeExists() as "any existing ~/.mozilla flips this to
       # ~/.zen" — which, since every host here has ~/.mozilla (thunderbird's
       # native-messaging dir alone guarantees it), would mean every file this
-      # block writes is never read. Zen does not behave that way.
+      # block writes is never read. It does not, for two independent reasons:
+      # the dotted probe is ~/.zen, because Zen patches AppendFromAppData to
+      # append `.` + `Profile=` and drops the vendor component, and the other
+      # probe is $HOME/MOZ_USER_DIR = ~/mozilla, undotted. ~/.mozilla matches
+      # neither. Zen's same patch deletes upstream's MOZ_APP_PROFILE carve-out,
+      # which is why an app with `Profile=` still lands in XDG here.
       #
       # What the experiment does NOT cover: install a distro-packaged Zen, or
       # let anything export MOZ_LEGACY_HOME, and the profile moves to ~/.zen
       # while home-manager keeps writing ~/.config/zen. The symptom is a virgin
       # profile with none of the prefs below and no extensions; check
-      # about:profiles, and if it reads ~/.zen then set `configPath = ".zen"`
-      # here — which also flips mkFirefoxModule's configureAppDataDir and
-      # passes MOZ_APP_DATA into the wrapper, untested from here.
+      # about:profiles, and if it reads ~/.zen then set
+      # `configPath = "${config.home.homeDirectory}/.zen"` here. Absolute, not
+      # the home-relative `.zen` that mkFirefoxModule also accepts: the
+      # zenInstallsIni activation above and the module's own profilesPath both
+      # interpolate this value unprefixed, so a relative one turns them
+      # CWD-relative. That override also flips mkFirefoxModule's
+      # configureAppDataDir, which passes MOZ_APP_DATA into the wrapper — gecko
+      # does take it as the profile root ahead of all this logic, but it is
+      # untested from here.
       #
       # Drop Version= so Zen uses non-dedicated profile mode and honors
       # Default=1 — else gecko 67+ pins profile-per-install via [Install<HASH>]
@@ -2987,12 +3007,15 @@ in
         pkgs.tridactyl-native
       ];
       # Read hm-module/activation.nix before reaching for profiles.<n>.presets.*,
-      # extensionButtons, mods or sine.*: those arm a second activation entry
-      # (zen-browser-default) that rewrites prefs.js and
-      # browser.uiCustomization.state with no $DRY_RUN_CMD, so `switch -n` would
-      # mutate the live profile. Inert today only because every declared set is
-      # empty. mods/sine additionally curl unpinned code from GitHub at
-      # activation and hand it chrome privileges.
+      # extensionButtons, mods or sine.*. The module's second activation entry
+      # (zen-browser-default) is NOT gated on them — it is in every generation
+      # already, running the preset-prefs-cleanup and extension-buttons scripts
+      # under one lsof guard, and they exit early only because every declared set
+      # is empty. What those options arm is the mutation: the scripts rewrite
+      # prefs.js and browser.uiCustomization.state, and carry no $DRY_RUN_CMD
+      # anywhere, so the first non-empty set makes `switch -n` rewrite the live
+      # profile for real. mods/sine go further and curl unpinned `main`-branch
+      # code from GitHub at activation, to be run with chrome privileges.
       profiles.default = {
         # rycee's firefox-addons install as-is — same extension IDs, same
         # gecko. Still skipped on macOS, as under firefox; that path has never

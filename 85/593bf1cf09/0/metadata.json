@@ -1,0 +1,161 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "85593bf1cf09",
+  "session_id": "69b8c513-84e5-4735-ba7c-dccccfba4cba",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-27T01:08:27.424453625Z",
+  "branch": "fprintd-host-packages",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "da409513362c",
+  "checkpoint_transcript_start": 163,
+  "transcript_lines_at_start": 163,
+  "compact_transcript_start": 29,
+  "token_usage": {
+    "input_tokens": 116,
+    "cache_creation_tokens": 98295,
+    "cache_read_tokens": 7665143,
+    "output_tokens": 50484,
+    "api_call_count": 58,
+    "subagent_tokens": {
+      "input_tokens": 8,
+      "cache_creation_tokens": 48342,
+      "cache_read_tokens": 33343,
+      "output_tokens": 8,
+      "api_call_count": 4
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01PeN1FYwnFj16V54ZpfF77Q",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:worktrees"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "da409513362c",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 205,
+        "end": 206,
+        "entry_ids": [
+          "119a1f00-f99c-44ed-a2c2-d30e1fbeba58"
+        ],
+        "tool_use_id": "toolu_01PeN1FYwnFj16V54ZpfF77Q"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01PeN1FYwnFj16V54ZpfF77Q"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:worktrees",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01Sd1fCth2WEL1Xrin1LtZSy",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "da409513362c",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 310,
+        "end": 311,
+        "entry_ids": [
+          "57b11702-67f7-40a7-a79e-ade5ef6f89ee"
+        ],
+        "tool_use_id": "toolu_01Sd1fCth2WEL1Xrin1LtZSy"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Sd1fCth2WEL1Xrin1LtZSy"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 3
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1398,
+      "user_lines_removed": 7,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/edp1-scale-2x-review-1/001-hyprland.nix.diff": 21,
+        ".drovr/review/edp1-scale-2x-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-1/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-2/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-2/index.md": 27,
+        ".drovr/review/ghostty-p10k-osc133-review-1/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-1/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-1/index.md": 29,
+        ".drovr/review/ghostty-p10k-osc133-review-2/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-2/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-2/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-1/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-1/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-1/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-2/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-2/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-2/index.md": 29,
+        ".drovr/review/zen-instead-of-firefox-review-1/001-env.nix.diff": 45,
+        ".drovr/review/zen-instead-of-firefox-review-1/002-flake.lock.diff": 44,
+        ".drovr/review/zen-instead-of-firefox-review-1/003-flake.nix.diff": 30,
+        ".drovr/review/zen-instead-of-firefox-review-1/004-home.nix.diff": 134,
+        ".drovr/review/zen-instead-of-firefox-review-1/index.md": 33,
+        "install/install-base.sh": 17,
+        "system/deploy": 30,
+        "system/packages": 69
+      },
+      "user_removed_per_file": {
+        "install/install-base.sh": 7
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 564,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 30,
+      "user_added_per_file": {
+        ".drovr/review/fprintd-host-packages-review-1/001-docs_new-host.md.diff": 28,
+        ".drovr/review/fprintd-host-packages-review-1/002-install_install-base.sh.diff": 42,
+        ".drovr/review/fprintd-host-packages-review-1/003-mise.toml.diff": 24,
+        ".drovr/review/fprintd-host-packages-review-1/004-system_deploy.diff": 41,
+        ".drovr/review/fprintd-host-packages-review-1/005-system_packages.diff": 75,
+        ".drovr/review/fprintd-host-packages-review-1/index.md": 35,
+        ".drovr/review/fprintd-host-packages-review-2/001-docs_new-host.md.diff": 28,
+        ".drovr/review/fprintd-host-packages-review-2/002-install_install-base.sh.diff": 42,
+        ".drovr/review/fprintd-host-packages-review-2/003-mise.toml.diff": 24,
+        ".drovr/review/fprintd-host-packages-review-2/004-system_deploy.diff": 41,
+        ".drovr/review/fprintd-host-packages-review-2/005-system_packages.diff": 75,
+        ".drovr/review/fprintd-host-packages-review-2/index.md": 35,
+        "system/deploy": 74
+      }
+    }
+  ]
+}

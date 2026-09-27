@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "ad39f4cc15e0",
+  "strategy": "manual-commit",
+  "branch": "drovr/wif-bootstrap",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "home/scripts/ko-wif-token.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ad/39f4cc15e0/0/metadata.json",
+      "transcript": "/ad/39f4cc15e0/0/full.jsonl",
+      "compact_transcript": "/ad/39f4cc15e0/0/transcript.jsonl",
+      "content_hash": "/ad/39f4cc15e0/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 12221,
+    "cache_read_tokens": 294097,
+    "output_tokens": 5508,
+    "api_call_count": 4
+  }
+}

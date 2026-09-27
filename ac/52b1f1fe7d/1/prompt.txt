@@ -1,0 +1,32 @@
+<task-notification>
+<task-id>a70ae5ca92cbd5beb</task-id>
+<tool-use-id>toolu_01WwTQbuY5u8KB89mc4AeouN</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/fca421de-8072-4c37-a36d-4dcc70aceecc/tasks/a70ae5ca92cbd5beb.output</output-file>
+<status>completed</status>
+<summary>Agent "/code-review HEAD high" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>No `ReportFindings` tool is available in this session, so the findings are stated directly below.
+
+## Verification done
+
+Reviewed `git diff @{upstream}...HEAD` (one commit, `aafa44c`, `home.nix` only). I verified the new `hyprlock-faillock` logic against the real thing rather than by reading:
+
+- Confirmed the overlay refactor evaluates: `pkgs.pam-host-chkpwd` → `/nix/store/c7hbl0z5…-linux-pam-1.7.2`, whose compiled-in `FAILLOCK_DEFAULT_CONF` is **its own** store path, so `CONF` is exactly the file `pam_faillock.so` reads. `strings` on `libpam.so` confirms module dir = nix `lib/security/`, config dir = nix `etc/pam.d` then `/etc/pam.d` (no `etc/pam.d` in the store output, so the host's `login` stack is used). The comments' premise holds.
+- `withHostNss pkgs.pam-host-chkpwd/bin/faillock` exists and runs; `/run/faillock/sauyon` is `0660 sauyon:root` as claimed. Darwin (`mari`) and non-desktop hosts still evaluate.
+- Diffed the awk against upstream `pam_faillock.c` v1.7.2: `check_tally()` counts `latest_time - time &lt; fail_interval`, `write_tally()` voids `now - time &gt;= fail_interval`, unlock iff `latest + unlock_time &lt; now`, message minutes `= (left+59)/60`, defaults `deny=3 / 900 / 600`. The two-window `fails`/`live` split, the `left &gt; 0` / `left == 0` / `left &lt; 0` branches and the rounding all match exactly.
+- Built the real script and drove it against synthetic 64-byte tally records through the real `faillock` reader: 2 recent → `2/3 failed attempts`; 3 recent → `10 min left`; 599s → `1 min left`; 600s → `Password locked out`; 601s → silent; `2 old + 1 new` → `1/3`; invalid (`I`) records, empty `Source`, and a full 52-char `Source` all parse correctly; `unlock_time = never`/`0`, `deny = 0`, trailing comments, tabs, last-wins duplicates and bogus values all behave as pam does.
+- Confirmed hyprlock v0.9.6 `Pam.cpp:51` really does gate on `MSG.contains("left to unlock")`, and `general:text_trim` defaults to `1` so the trailing newline is stripped.
+
+No correctness bug found in the core logic. Three genuine but low-severity issues:
+
+## Findings
+
+- **`/home/sauyon/devel/dotfiles/home.nix:314 — low.** `[ "$v" = never ] &amp;&amp; v=0` is applied in `optval` to all three options, but `never` is only meaningful for `unlock_time`. A conf line `deny = never` or `fail_interval = never` (an easy mistake to make, given `unlock_time` accepts it) makes `optval` return `0`, so the script exits silently at line 320 (`[ "$DENY" -gt 0 ]`) or computes `fails == 0` — while `pam_faillock`'s `set_conf_opt` rejects the non-numeric value, logs "Bad number supplied", and keeps `deny = 3` / `fail_interval = 900`. Verified: with `deny = never` the label prints nothing while the lock screen still locks at 3. The `never` rewrite should be scoped to the `unlock_time` call only.
+
+- **`/home/sauyon/devel/dotfiles/home.nix:284 — low.** `[ -r "$CONF" ] || CONF=/etc/security/faillock.conf` (and the sibling `[ -x "$BIN" ] || BIN=/usr/bin/faillock` on line 293) is the exact divergence the comment eight lines above argues against. If a future nixpkgs `pam` stops installing `etc/security/faillock.conf` into `$out`, `read_config_file()` returns `PAM_SUCCESS` for the missing default conf and pam keeps its built-in `deny = 3`, while the script silently switches to Arch's file — so a host that sets `deny = 10` yields a label reading `3/10 failed attempts` on a screen that actually locks at 3, under-warning at precisely the moment the label exists to warn. Falling back to *no* conf (built-in defaults) would match pam; falling back to the host's does not.
+
+- **`/home/sauyon/devel/dotfiles/home.nix:302 — low.** Run as root *without* sudo (`su -`, a root systemd unit — `SUDO_USER` unset, `id -un` → `root`), the script reports root's tally using `unlock_time` and ignores both `even_deny_root` and `root_unlock_time`. `check_tally()` returns `PAM_SUCCESS` early for an admin when `FAILLOCK_FLAG_DENY_ROOT` is unset, and `pam_sm_authenticate`'s `AUTHFAIL` path then still calls `write_tally()` — so root accumulates valid records while never being denied, and the tool would print `Password locked out — N min left` for an account that is not locked. Same class of error if `admin_group` is ever set and the user is a member, since `root_unlock_time` is settable independently of `unlock_time`.
+
+The zen hunks (`policies` removal, comment rewrite at 3048/3128) are consistent: `grep` finds no remaining reference to `https://ko.ag/newtab.html`, and `xdg.configFile."newtab.html"` at line 3606 still renders the local page as the comment says.</result>
+<usage><subagent_tokens>140106</subagent_tokens><tool_uses>76</tool_uses><duration_ms>896135</duration_ms></usage>
+</task-notification>

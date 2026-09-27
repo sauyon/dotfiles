@@ -293,8 +293,10 @@ let
     # withHostNss because it calls getpwnam(): on a systemd-homed host only the host's
     # NSS resolves the name, exactly as for hyprlock itself.
     BIN="''${FAILLOCK_BIN:-${withHostNss pkgs.pam-host-chkpwd}/bin/faillock}"
-    [ -x "$BIN" ] || BIN=/usr/bin/faillock
-    [ -x "$BIN" ] || exit 0
+    # FAILLOCK_FALLBACK, unset, is the host reader; empty is how a test reaches the
+    # no-reader-at-all path, since /usr/bin/faillock exists on this host.
+    [ -x "$BIN" ] || BIN="''${FAILLOCK_FALLBACK-/usr/bin/faillock}"
+    [ -n "$BIN" ] && [ -x "$BIN" ] || exit 0
 
     # Whose tally to report. SUDO_USER, but only when this process really is root:
     # under `sudo hyprlock-faillock` the interesting tally is the invoking user's and

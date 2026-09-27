@@ -12,7 +12,15 @@
 #
 #   ./tests/hyprlock-faillock.sh                 # builds the script, then tests it
 #   ./tests/hyprlock-faillock.sh /path/to/script # tests one you already have
+#
+# Run it as a normal user. As root the script reports root's tally and takes the
+# admin branch, which changes what every case here should expect.
 set -u
+
+if [ "$(id -u)" = 0 ]; then
+  echo "run this as a normal user: as root every expectation below changes" >&2
+  exit 1
+fi
 
 SCRIPT="${1:-}"
 if [ -z "$SCRIPT" ]; then
@@ -46,9 +54,31 @@ rec() { # rec <seconds-ago> <V|I>
 
 conf() { printf '%s\n' "$@" > "$D/faillock.conf"; }
 
+# Every invocation goes through run(), which clears the environment instead of
+# inheriting it. FAILLOCK_USER and SUDO_USER are the script's own seams, so one
+# left exported while debugging silently rewrites every case -- and the dangerous
+# half is not the failures but the cases expecting silence, which would still
+# report ok, having exited early for an entirely different reason. Per-case
+# overrides go in as arguments (later assignment wins): run FAILLOCK_USER=root
+run() { # run [VAR=value ...]
+  env -i PATH="$PATH" FAILLOCK_BIN="$D/faillock" FAILLOCK_CONF="$D/faillock.conf" \
+    "$@" "$SCRIPT"
+}
+
+# Capture stub: records the username the script asked about, and reads nothing.
+capture() {
+  rm -f "$D/got-user"
+  cat > "$D/faillock" <<STUB
+#!/bin/sh
+printf '%s' "\$2" > "$D/got-user"
+exit 1
+STUB
+  chmod +x "$D/faillock"
+}
+
 check() { # check <name> <expected>
   local name=$1 want=$2 got
-  got=$(FAILLOCK_BIN="$D/faillock" FAILLOCK_CONF="$D/faillock.conf" "$SCRIPT" 2>&1)
+  got=$(run 2>&1)
   n=$((n+1))
   if [ "$got" = "$want" ]; then
     printf 'ok %d - %s\n' "$n" "$name"
@@ -97,8 +127,30 @@ conf '# defaults'
 mkstub 1 </dev/null
 check "faillock unreadable -> silent" ""
 
+# No reader at all. FAILLOCK_BIN alone cannot get here: /usr/bin/faillock exists
+# on this host, so the script would fall back to it and read the real tally --
+# which passes or fails depending on whether the person running the tests has
+# failed a login lately. Emptying the fallback reaches the guard itself.
 rm -f "$D/faillock"
-check "faillock missing -> silent" ""
+n=$((n+1))
+got=$(run FAILLOCK_FALLBACK= 2>&1)
+if [ -z "$got" ]; then
+  printf 'ok %d - no reader at all -> silent\n' "$n"
+else
+  printf 'FAIL %d - no reader at all -> silent\n      got: [%s]\n' "$n" "$got"
+  fails=$((fails+1))
+fi
+
+# ... and the fallback really is consulted when FAILLOCK_BIN names nothing.
+{ rec 30 V; rec 60 V; } | mkstub 0
+n=$((n+1))
+got=$(run FAILLOCK_BIN=/nonexistent/faillock FAILLOCK_FALLBACK="$D/faillock" 2>&1)
+if [ "$got" = "2/3 failed attempts" ]; then
+  printf 'ok %d - missing reader falls back\n' "$n"
+else
+  printf 'FAIL %d - missing reader falls back\n      got: [%s]\n' "$n" "$got"
+  fails=$((fails+1))
+fi
 
 # --- review findings (round 1) ---
 
@@ -126,10 +178,12 @@ check "expired lockout -> silent, budget is back" ""
 check "warning counts only what still counts" "1/3 failed attempts"
 
 # The default config path (no FAILLOCK_CONF): nix pam's own faillock.conf, which
-# is upstream's all-commented default, so pam's built-in numbers apply.
+# is upstream's all-commented default, so pam's built-in numbers apply. Spelled
+# out rather than run(), which by definition sets the FAILLOCK_CONF this omits --
+# but still env -i, or an exported seam poisons it like any other case.
 { rec 60 V; rec 90 V; rec 120 V; } | mkstub 0
 n=$((n+1))
-got=$(FAILLOCK_BIN="$D/faillock" "$SCRIPT" 2>&1)
+got=$(env -i PATH="$PATH" FAILLOCK_BIN="$D/faillock" "$SCRIPT" 2>&1)
 if [ "$got" = "Password locked out — 9 min left" ]; then
   printf 'ok %d - default config path resolves\n' "$n"
 else
@@ -138,15 +192,8 @@ else
 fi
 
 # The username must come from a resolver that works for systemd-homed users.
-{ rec 60 V; } | mkstub 0
-cat > "$D/faillock" <<STUB
-#!/bin/sh
-printf '%s' "\$2" > "$D/got-user"
-exit 1
-STUB
-chmod +x "$D/faillock"
-FAILLOCK_BIN="$D/faillock" FAILLOCK_CONF="$D/faillock.conf" env -i \
-  FAILLOCK_BIN="$D/faillock" FAILLOCK_CONF="$D/faillock.conf" "$SCRIPT" >/dev/null 2>&1
+capture
+run >/dev/null 2>&1
 n=$((n+1))
 if [ "$(cat "$D/got-user" 2>/dev/null)" = "$(id -un)" ]; then
   printf 'ok %d - username resolved in an empty environment\n' "$n"
@@ -166,18 +213,12 @@ else
   fails=$((fails+1))
 fi
 
-# Under sudo, report the invoking user's tally, not root's empty one.
-{ rec 60 V; } | mkstub 0
-cat > "$D/faillock" <<STUB
-#!/bin/sh
-printf '%s' "\$2" > "$D/got-user"
-exit 1
-STUB
-chmod +x "$D/faillock"
-# Not running as root, so SUDO_USER names someone else (`sudo -u alice`, or a
-# stale value): it must be ignored in favour of the user actually running this.
-env -i SUDO_USER=somebodyelse FAILLOCK_BIN="$D/faillock" FAILLOCK_CONF="$D/faillock.conf" \
-  "$SCRIPT" >/dev/null 2>&1
+# Not running as root, so SUDO_USER names someone who is not running this
+# (`sudo -u alice`, or a stale value): it must be ignored. The opposite branch --
+# real root honouring SUDO_USER, which is the point of the resolver -- is not
+# reachable from here by design, since this file refuses to run as root.
+capture
+run SUDO_USER=somebodyelse >/dev/null 2>&1
 n=$((n+1))
 if [ "$(cat "$D/got-user" 2>/dev/null)" = "$(id -un)" ]; then
   printf 'ok %d - SUDO_USER ignored when not root\n' "$n"
@@ -195,7 +236,7 @@ check "deny=never falls back to pam default 3" "Password locked out — 9 min le
 # An unreadable conf means pam built-in defaults, never the host file.
 { rec 60 V; rec 90 V; rec 120 V; } | mkstub 0
 n=$((n+1))
-got=$(FAILLOCK_BIN="$D/faillock" FAILLOCK_CONF="$D/no-such-conf" "$SCRIPT" 2>&1)
+got=$(run FAILLOCK_CONF="$D/no-such-conf" 2>&1)
 if [ "$got" = "Password locked out — 9 min left" ]; then
   printf 'ok %d - unreadable conf -> pam built-in defaults\n' "$n"
 else
@@ -203,11 +244,24 @@ else
   fails=$((fails+1))
 fi
 
+# That case cannot tell /dev/null from the host conf: /etc/security/faillock.conf
+# has no active setting either, so both yield pam defaults and the regression it
+# names -- falling back to host policy for a lock screen enforcing nix's -- would
+# stay green. Pin the fallback at the source instead, since it is the file
+# identity that matters, not a number.
+n=$((n+1))
+if grep -q 'CONF=/dev/null' "$SCRIPT" && ! grep -q 'CONF=/etc/security/faillock.conf' "$SCRIPT"; then
+  printf 'ok %d - conf fallback is no-conf, not the host file\n' "$n"
+else
+  printf 'FAIL %d - conf fallback is no-conf, not the host file\n' "$n"
+  fails=$((fails+1))
+fi
+
 # root accumulates records but pam does not deny it unless the conf opts in.
 conf '# defaults'
 { rec 60 V; rec 90 V; rec 120 V; } | mkstub 0
 n=$((n+1))
-got=$(FAILLOCK_USER=root FAILLOCK_BIN="$D/faillock" FAILLOCK_CONF="$D/faillock.conf" "$SCRIPT" 2>&1)
+got=$(run FAILLOCK_USER=root 2>&1)
 if [ -z "$got" ]; then
   printf 'ok %d - root not denied without even_deny_root\n' "$n"
 else
@@ -217,7 +271,7 @@ fi
 
 conf 'even_deny_root' 'root_unlock_time = 1800'
 n=$((n+1))
-got=$(FAILLOCK_USER=root FAILLOCK_BIN="$D/faillock" FAILLOCK_CONF="$D/faillock.conf" "$SCRIPT" 2>&1)
+got=$(run FAILLOCK_USER=root 2>&1)
 if [ "$got" = "Password locked out — 29 min left" ]; then
   printf 'ok %d - root uses root_unlock_time when opted in\n' "$n"
 else
@@ -240,7 +294,7 @@ check "fail_interval over the clamp -> pam default 900" "2/3 failed attempts"
 conf 'root_unlock_time = 900'
 { rec 60 V; rec 90 V; rec 120 V; } | mkstub 0
 n=$((n+1))
-got=$(FAILLOCK_USER=root FAILLOCK_BIN="$D/faillock" FAILLOCK_CONF="$D/faillock.conf" "$SCRIPT" 2>&1)
+got=$(run FAILLOCK_USER=root 2>&1)
 if [ -z "$got" ]; then
   printf 'ok %d - root_unlock_time alone does not lock root\n' "$n"
 else
@@ -252,7 +306,7 @@ fi
 conf 'even_deny_root'
 { rec 60 V; rec 90 V; rec 120 V; } | mkstub 0
 n=$((n+1))
-got=$(FAILLOCK_USER=root FAILLOCK_BIN="$D/faillock" FAILLOCK_CONF="$D/faillock.conf" "$SCRIPT" 2>&1)
+got=$(run FAILLOCK_USER=root 2>&1)
 if [ "$got" = "Password locked out — 9 min left" ]; then
   printf 'ok %d - even_deny_root alone falls back to unlock_time\n' "$n"
 else
@@ -280,7 +334,7 @@ check "leading zero read as decimal" "Password locked out — 14 min left"
 conf 'even_deny_root=1'
 { rec 60 V; rec 90 V; rec 120 V; } | mkstub 0
 n=$((n+1))
-got=$(FAILLOCK_USER=root FAILLOCK_BIN="$D/faillock" FAILLOCK_CONF="$D/faillock.conf" "$SCRIPT" 2>&1)
+got=$(run FAILLOCK_USER=root 2>&1)
 if [ "$got" = "Password locked out — 9 min left" ]; then
   printf 'ok %d - even_deny_root=1 spelling honored\n' "$n"
 else

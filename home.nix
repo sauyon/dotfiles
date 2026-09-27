@@ -28,6 +28,42 @@ let
   # the libsecret consumers (git credential helper, huggingface).
   gnomeKeyringHost = !isDarwin && isDesktop;
 
+  # ── sops trust root (dotfiles domain) ───────────────────────────────────────
+  # Design: ~/devel/reports/Homelab secrets bootstrap trust root.md, Part A.
+  # Hosts listed here decrypt secrets.yaml through a device identity: a local
+  # P-256 key at ~/.config/ko/wif.pem signs a 5-minute JWT, Google STS validates
+  # it against the JWKS in the ko-keys-sauyon bucket, and the federated token
+  # decrypts with KMS host-key. No decryption key on the host. Hosts NOT listed
+  # keep the cluster-domain path (gcp-key.json -> nix-key) until enrolled.
+  wifHosts = [ "shiori" ];
+  useWif = builtins.elem hostname wifHosts;
+  wifIssuer = "https://storage.googleapis.com/ko-keys-sauyon/hosts";
+  wifAudience = "//iam.googleapis.com/projects/484956590837/locations/global/workloadIdentityPools/ko-hosts/providers/bucket";
+  # sops-nix runs sops-install-secrets with PATH="" — every path here is absolute.
+  koWifToken = pkgs.writeShellScriptBin "ko-wif-token" ''
+    export KO_OPENSSL=${pkgs.openssl}/bin/openssl
+    ${lib.optionalString (!isDarwin) "export KO_TIMEDATECTL=/usr/bin/timedatectl"}
+    exec ${pkgs.python3}/bin/python3 ${./home/scripts/ko-wif-token.py} "$@"
+  '';
+  # Non-secret by construction (GCP documents credential configs as safe to commit).
+  wifCredentialConfig = pkgs.writeText "wif-hosts.json" (builtins.toJSON {
+    type = "external_account";
+    audience = wifAudience;
+    subject_token_type = "urn:ietf:params:oauth:token-type:jwt";
+    token_url = "https://sts.googleapis.com/v1/token";
+    credential_source.executable = {
+      command = lib.concatStringsSep " " [
+        "${koWifToken}/bin/ko-wif-token"
+        "--key" "${config.home.homeDirectory}/.config/ko/wif.pem"
+        "--iss" wifIssuer
+        "--sub" "device:${hostname}"
+        "--aud" wifAudience
+        "--adc"
+      ];
+      timeout_millis = 10000;
+    };
+  });
+
   # Emacs is NOT part of the desktop stack: it runs headless as a daemon and is
   # reached over tty/SSH with `emacsclient -t` (zsh.nix's non_gui branch already
   # assumes exactly that). Only the graphical *frame* needs a GUI, so pick the
@@ -1437,7 +1473,15 @@ in
   sops.age.keyFile = "${config.home.homeDirectory}/.config/sops/age-unused.txt";
   sops.age.sshKeyPaths = [];
   sops.gnupg.sshKeyPaths = [];
-  sops.environment.GOOGLE_APPLICATION_CREDENTIALS = "${config.home.homeDirectory}/.config/sops/gcp-key.json";
+  sops.environment =
+    if useWif then {
+      GOOGLE_APPLICATION_CREDENTIALS = "${wifCredentialConfig}";
+      # Required by Google's auth library for executable-sourced credentials. The
+      # config above is a read-only store path, so this is a constraint, not a risk.
+      GOOGLE_EXTERNAL_ACCOUNT_ALLOW_EXECUTABLES = "1";
+    } else {
+      GOOGLE_APPLICATION_CREDENTIALS = "${config.home.homeDirectory}/.config/sops/gcp-key.json";
+    };
 
   # ── Modular API (local auto-mode classifier) ────────────────────────────────
   sops.secrets.modularApiKey = {

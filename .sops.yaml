@@ -1,3 +1,7 @@
 creation_rules:
   - path_regex: secrets.yaml
-    gcp_kms: "projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/nix-key"
+    # Transition: nix-key (cluster SA key, existing hosts) AND host-key (device WIF
+    # identities, see reports/…trust root.md Part A). One key group = either decrypts.
+    # nix-key is removed here once every dotfiles principal is enrolled and the
+    # offline paper recipient for host-key exists (A7 migration gate).
+    gcp_kms: "projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/nix-key,projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/host-key"

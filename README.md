@@ -57,6 +57,21 @@ Why this is worth a wait: see `docs/ci-nix-home.md`. The short version is that
 the runner has far more of everything than these boxes, and its output is
 bit-identical to what a local build would produce.
 
+## Tests
+
+Nothing here has a suite; the exception is anything whose logic is a model of
+someone else's, where a comment claiming the model is right proves nothing.
+
+```bash
+./tests/hyprlock-faillock.sh     # builds the script, then drives 33 cases
+```
+
+`hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows
+to tell the lock screen whether the account is locked out. The cases drive the
+real built script through its `FAILLOCK_BIN` / `FAILLOCK_CONF` / `FAILLOCK_USER`
+seams, so a stub reader supplies synthetic tally records -- no real failed
+logins, no waiting out a real ten-minute lockout.
+
 ## System config
 
 Files under `system/` mirror `/` and require root to deploy:

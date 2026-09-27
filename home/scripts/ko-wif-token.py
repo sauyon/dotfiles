@@ -21,10 +21,15 @@ def b64u(b: bytes) -> str:
     return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
 
 def pub_xy(key):
-    der = subprocess.check_output([OPENSSL, "ec", "-in", key, "-pubout", "-outform", "DER"],
-                                  stderr=subprocess.DEVNULL)
+    try:
+        der = subprocess.check_output([OPENSSL, "ec", "-in", key, "-pubout", "-outform", "DER"],
+                                      stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError as e:
+        raise SystemExit(f"ko-wif-token: {key}: not a readable EC private key (openssl ec exit {e.returncode}); "
+                         "generate one with: openssl ecparam -name prime256v1 -genkey -noout -out wif.pem")
     pt = der[-65:]
-    assert pt[0] == 4 and len(pt) == 65, "expected uncompressed P-256 point"
+    if len(pt) != 65 or pt[0] != 4:
+        raise ValueError(f"{key}: expected an uncompressed P-256 public point (65 bytes, 0x04 prefix); is this a prime256v1 key?")
     return pt[1:33], pt[33:65]
 
 def jwk(key):
@@ -35,17 +40,22 @@ def jwk(key):
     return j
 
 def der_sig_to_raw(der: bytes) -> bytes:
-    # SEQUENCE { INTEGER r, INTEGER s }
-    assert der[0] == 0x30
+    # SEQUENCE { INTEGER r, INTEGER s } -> raw r||s (JWS ES256 form). openssl emits
+    # a well-formed DER signature; anything else here is a broken key or tool.
+    if not der or der[0] != 0x30:
+        raise ValueError("openssl did not return a DER SEQUENCE for the ECDSA signature")
     i = 2 if der[1] < 0x80 else 2 + (der[1] & 0x7f)
     out = b""
-    for _ in range(2):
-        assert der[i] == 0x02; i += 1
+    for name in ("r", "s"):
+        if i >= len(der) or der[i] != 0x02:
+            raise ValueError(f"malformed ECDSA signature: expected INTEGER for {name}")
+        i += 1
         ln = der[i]; i += 1
         v = der[i:i+ln]; i += ln
-        v = v.lstrip(b"\x00").rjust(32, b"\x00")
-        assert len(v) == 32
-        out += v
+        v = v.lstrip(b"\x00")
+        if len(v) > 32:
+            raise ValueError(f"malformed ECDSA signature: {name} longer than 32 bytes")
+        out += v.rjust(32, b"\x00")
     return out
 
 def sign(key, iss, sub, aud, exp_s):

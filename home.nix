@@ -2486,6 +2486,17 @@ in
   programs.walker = lib.optionalAttrs (!isDarwin && isDesktop) {
     enable = true;
     runAsService = true;
+    # avahi-discover, bssh and bvnc, from Arch's avahi: nothing here uses avahi
+    # (transitive dep of passim and pipewire-pulse, daemon and socket disabled),
+    # and "Avahi Zeroconf Browser" fuzzy-matches `zen`. Patterns run against the
+    # basename with .desktop stripped, so spelling out `\.desktop$` matches
+    # nothing. Only the startup walk is filtered; the inotify re-index path
+    # ignores the blacklist until elephant restarts.
+    elephant.provider.desktopapplications.settings.blacklist = [
+      "^avahi-discover$"
+      "^bssh$"
+      "^bvnc$"
+    ];
   };
 
   services = {

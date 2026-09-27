@@ -1,0 +1,72 @@
+<task-notification>
+<task-id>a13c044e7e41cf52a</task-id>
+<tool-use-id>toolu_01RNG9CRJbbJeSsutxeTNPae</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/fca421de-8072-4c37-a36d-4dcc70aceecc/tasks/a13c044e7e41cf52a.output</output-file>
+<status>completed</status>
+<summary>Agent "/code-review HEAD high" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>No `ReportFindings` tool is available in this session (searched; it isn't registered), so the findings are stated directly below.
+
+## Scope
+
+`git diff HEAD~1` = `dcaecea` — `env.nix` (comment only) plus `home.nix`. Only three things are functional: the new `hyprlock-faillock` script (`home.nix:272-349`), adding it to `home.packages` (`home.nix:2185`), and the new hyprlock label (`home.nix:2704-2716`). Everything else is comment rewrites.
+
+I verified the script's model against `pam_faillock.c` v1.7.1 (`check_tally`, `write_tally`, `faillock_message`) and against real `faillock` output, and exercised the awk with synthetic tallies (1 recent fail, 3 recent, 3 post-unlock, 3 stale, 2 spread beyond `fail_interval`). The window arithmetic, `latest`-relative `fail_interval` counting, `failures &gt;= deny`, and the `(left + 59)/60` ceiling all match pam exactly. Two real problems:
+
+## Findings
+
+**1. `/home/sauyon/devel/dotfiles/home.nix:339` — severity: medium. Post-`unlock_time` fall-through prints `3/3 failed attempts`, which is false; the tally is already void.**
+
+The comment says the fall-through exists "so the next single mistake does not re-lock without warning." pam does the opposite. When `check_tally` takes the expiry branch it sets `FAILLOCK_FLAG_UNLOCKED` and returns `PAM_SUCCESS` (`pam_faillock.c:264-265`); `AUTHFAIL` then calls `write_tally`, which invalidates **every** record on that flag (`pam_faillock.c:320-322`) before appending one. So after `unlock_time` elapses the user has a full `deny` budget back, and the next mistake yields 1/3, not a re-lock.
+
+Scenario with the defaults on this host (`deny=3`, `unlock_time=600`, `fail_interval=900`): mistype three times, wait 11 minutes, lock the screen. `left &lt;= 0` so the countdown branch is skipped, `now - latest = 660 &lt; 900` so the stale guard is skipped, and the label shows red `3/3 failed attempts` for ~4 more minutes while nothing is pending. Confirmed by running the extracted script against a synthetic 700s-old 3-record tally: it printed `3/3 failed attempts`. The `fails &gt;= deny` block should suppress output (or reset the count) once `left &lt;= 0`, not fall through.
+
+Same block, minor: pam's expiry test is `latest + unlock &lt; now`, the script's is `left &gt; 0`, so at exactly `left == 0` pam still denies while the label drops the "Locked out" line. One-second window, 5s poll — noted only because it lives in the same branch.
+
+**2. `/home/sauyon/devel/dotfiles/home.nix:275` — severity: medium. `FAILLOCK_CONF` defaults to the host's `/etc/security/faillock.conf`, but hyprlock's lockout is governed by Nix's copy, so the label's thresholds can silently disagree with the policy actually enforced.**
+
+The comment at 276-277 ("the tally under /run/faillock is written by the host's pam_faillock, so the host's reader is the one that matches it") does not hold for the lock screen's own failures. `hyprlock-0.9.6` has `libpam.so.0` with `RUNPATH` into `/nix/store/REDACTED.7.2/lib`; that libpam's only module directory is its own `lib/security/` (verified — no `/usr/lib/security` string), and its `pam_faillock.so` has `/nix/store/c7hbl0…-linux-pam-1.7.2/etc/security/faillock.conf` compiled in, not `/etc/security/faillock.conf`. (Its `/etc/pam.d` fallback *is* the host's, so `/etc/pam.d/login` → `system-auth` → `pam_faillock.so` does run — the stack is fine; only the conf path differs.)
+
+Today both files are the fully-commented upstream default, so both sides resolve to 3/900/600 and the numbers happen to agree. Set `deny = 5` in `/etc/security/faillock.conf` and hyprlock still locks at 3 while the label reads `3/5 failed attempts` and never says "Locked out" — the exact failure the script was written to eliminate. `unlock_time` diverges the same way, turning the countdown into a wrong number. Second mechanism, same line: pam_faillock's `args_parse` lets module arguments in `/etc/pam.d/system-auth` override the conf file entirely, and the script cannot see those either (the host's stack currently passes only `preauth`/`authfail`/`authsucc`, so nothing is wrong yet).
+
+## Checked and clean
+
+`optval`'s sed anchor correctly does not match `root_unlock_time` or commented lines; `never`→0 matches `pam_faillock(8)`; `deny=0`/`fail_interval=0` both reproduce pam's "never locks"; `NR &lt;= 2` matches real `faillock` output (`user:` line + header, confirmed on this host); `$NF == "V"` survives an empty `%-52s` source column; `mktime` failure is guarded; `/run/faillock/sauyon` is `-rw-rw---- sauyon root`, so the "no root needed" claim holds; all binaries are absolute (store paths or `/usr/bin`), so no PATH dependency; `withHostNss` prefixes only `hostNssDir/lib` onto `LD_LIBRARY_PATH`, so the child's Nix `sed`/`awk`/`date` do not get a host glibc; label position `0, -180` does not collide with the fingerprint label at `0, -140`.
+
+The rewritten comments are accurate where I could check them: `zen-browser-default` is indeed unconditional (`hm-module/activation.nix` filters on `activationFragments != []`, and `presets/cleanup.nix` + `extension-buttons.nix` contribute a fragment per profile regardless of config), those scripts carry no `$DRY_RUN_CMD`, and the absolute-`configPath` advice is right — `mkFirefoxModule` line 398 defaults `profilesPath` to `configPath` verbatim and `home.activation.zenInstallsIni` (home.nix:1605) interpolates it into a shell command.</result>
+<usage><subagent_tokens>120638</subagent_tokens><tool_uses>33</tool_uses><duration_ms>661081</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a7cc856b868c13078</task-id>
+<tool-use-id>toolu_01Wg1xbXag1RbJrdto21crAi</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/fca421de-8072-4c37-a36d-4dcc70aceecc/tasks/a7cc856b868c13078.output</output-file>
+<status>completed</status>
+<summary>Agent "/code-review HEAD high" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>No `ReportFindings` tool is exposed in this agent's toolset (searched by name and by keyword), so findings are inline below.
+
+## Findings (1)
+
+**home.nix:285 — medium-low: the justification for `/usr/bin/faillock` contradicts the `CONF` reasoning 3 lines above, and the resulting host/nix split is unguarded.**
+
+The comment says the tally is "written by the host's pam_faillock". For the lock screen it is not: lines 276-282 correctly establish that hyprlock's libpam loads **nix's** `pam_faillock.so` (verified — `strings` on `/nix/store/c7hb…-linux-pam-1.7.2/lib/security/pam_faillock.so` shows its own `etc/security/faillock.conf` and `/var/run/faillock` baked in). So the script reads a tally written by nix's module using the *host's* reader, which resolves both the record layout and the `dir` option from `/etc/security/faillock.conf`.
+
+Concrete failure: set `dir = /var/lib/faillock` in the host conf (the standard CIS hardening for persisting the tally across reboots, since `/run` is tmpfs). Nix's `pam_faillock` keeps writing `/var/run/faillock` (its own conf is untouched), the host CLI now reads `/var/lib/faillock`, and the label silently reports an empty tally — with no diagnostic, because every failure path is `exit 0`. Same class of breakage from a nixpkgs pam bump that changes `struct tally` or `FAILLOCK_DEFAULT_TALLYDIR`; it works today only because host pam and nix pam are both 1.7.2 with byte-identical, all-commented confs (I diffed them).
+
+Fix: `${pkgs.pam-host-chkpwd}/bin/faillock` exists in that same derivation, is version-locked to the module that writes the records, and resolves `dir` from the same conf `optval` already parses. Caveat that may be the real (undocumented) reason for the host binary: nix's `faillock` does `getpwnam()` without host NSS, so on a systemd-homed-only host it would fail where `/usr/bin/faillock` succeeds — if that's the motive, say so in the comment instead. It works on the current host (the user is in `/etc/passwd`; I ran it).
+
+## What I verified as correct (no findings)
+
+- All six `homeConfigurations` still evaluate, including darwin (`pkgs.pam-host-chkpwd` is behind `lib.optionals (!isDarwin &amp;&amp; isDesktop)` and `mkIf`, so the linux-only `pam` is never forced).
+- The `pam-host-chkpwd` extraction is behavior-preserving: hyprlock's closure references exactly `c7hb…-linux-pam-1.7.2`, the same path baked into the script's `CONF`, and its `pam_unix.so` still points at `/usr/bin/unix_chkpwd`.
+- The awk logic matches `pam_faillock` 1.7.2 source exactly: `check_tally()`'s `latest_time - record.time &lt; fail_interval` window, `write_tally()`'s `now - record.time &gt;= fail_interval` voiding, the lock boundary at `latest + unlock_time &lt; now` (so `left == 0` is still locked), the `(left + 59)/60` minute rounding in `faillock_message()`, `deny == 0` and `unlock_time == 0` short-circuits, the 3/900/600 built-in defaults, and last-assignment-wins config parsing. Also proved `live &lt;= fails` always, so `"N/deny"` can never print `N &gt;= deny`.
+- Exercised the built script against synthetic tallies for 13 config/age combinations (including `unlock_time = never`, `deny = 0`, `fail_interval = 0`, malformed values, commented-out options, `root_unlock_time` non-interference): every output agreed with what pam would do.
+- Empty output is safe for hyprlock: pango gives logical extents `0x30`, cairo accepts a 0-width surface with `CAIRO_STATUS_SUCCESS` (tested), so the texture is valid and `renderTexture` draws a degenerate quad — no `TEXTURE_INVALID` path, no redraw loop. `cmd[]` labels get `alwaysUpdate = true`, so the 5s refresh does fire, and the resource ID hashes the text so it can't collide with the other two `cmd[]` labels. The new label at `0, -180` clears the fingerprint label at `0, -140`.
+- `''${...}` escaping, the literal `\1` in the sed replacement, and the `-x`/`-r`/`|| exit 0` guards all survive into the built script. Runtime ~36ms per poll.
+
+Next action (&lt;2 min): decide whether to reword the `BIN` comment to the NSS rationale, or switch to `${pkgs.pam-host-chkpwd}/bin/faillock`.</result>
+<usage><subagent_tokens>125281</subagent_tokens><tool_uses>70</tool_uses><duration_ms>910684</duration_ms></usage>
+</task-notification>

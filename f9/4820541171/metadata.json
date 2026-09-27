@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "f94820541171",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/new-host.md",
+    "home.nix",
+    "install/install-base.sh",
+    "install/packages-install-only",
+    "mise.toml",
+    "system/deploy",
+    "system/etc/pam.d/polkit-1",
+    "system/packages"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f9/4820541171/0/metadata.json",
+      "transcript": "/f9/4820541171/0/full.jsonl",
+      "compact_transcript": "/f9/4820541171/0/transcript.jsonl",
+      "content_hash": "/f9/4820541171/0/content_hash.txt",
+      "prompt": "/f9/4820541171/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 204820,
+    "cache_read_tokens": 709278,
+    "output_tokens": 11709,
+    "api_call_count": 4
+  }
+}

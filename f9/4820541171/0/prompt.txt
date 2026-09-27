@@ -1,0 +1,29 @@
+<task-notification>
+<task-id>ab0b9e833559407dd</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/fca421de-8072-4c37-a36d-4dcc70aceecc/tasks/ab0b9e833559407dd.output</output-file>
+<status>completed</status>
+<summary>Agent "/code-review HEAD high" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>No `ReportFindings` tool exists in this session (searched; only Artifact/LSP/Monitor/WebFetch etc. are available), so findings are inline below.
+
+**Verdict: the diff is correct.** I verified its load-bearing claims against upstream linux-pam v1.7.2 source and against the built derivation, not just by reading. Only 4 low-severity nits.
+
+## Verification performed
+
+1. Built the changed script (`nix build` of `/nix/store/cdl4ick2aw5inq2qr6qpha1s7byyw3q1-hyprlock-faillock`) and confirmed `CONF`/`BIN` resolve to `/nix/store/c7hbl0z5…-linux-pam-1.7.2` — the *patched* pam (`strings … pam_unix.so` → `/usr/bin/unix_chkpwd`), and `nix-store -q --requisites` on `programs.hyprlock.package` shows that same path. So the conf the label reads really is the conf the lock screen's pam enforces.
+2. `strings` on `pam_faillock.so` and `bin/faillock`: the *only* config path compiled in is the store one — no `/etc/security/faillock.conf`, no `VENDOR_SCONFIG_DIR` fallback. Premise confirmed. `bin/faillock` exists (not `sbin`-only), so the `-x` guard passes and the `/usr/bin/faillock` fallback is unreachable dead code.
+3. Fetched upstream `pam_faillock.c` / `faillock_config.c` / `faillock.h` / `main.c` (v1.7.2). All four new claims hold: defaults are `deny=3 / fail_interval=900 / unlock_time=600`; `MAX_TIME_INTERVAL == 604800`; `check_tally` uses `latest_time - time &lt; fail_interval` and unlocks only when `latest_time + unlock_time &lt; now` (so the new `left == 0 → "Password locked out"` branch is right, and the old fall-through was the bug); `write_tally` invalidates on `now - time &gt;= fail_interval` (so `live` is the correct "what the next failure adds to" count); `is_admin &amp;&amp; !FAILLOCK_FLAG_DENY_ROOT` returns early; only `even_deny_root` sets that flag, `root_unlock_time` does not; `root_unlock_time` defaults to `unlock_time`.
+4. Ran the built script against a synthetic `FAILLOCK_BIN` at every boundary: 2 recent → `2/3 failed attempts`; 3 recent → countdown; latest exactly `unlock_time` ago → `Password locked out`; one second past → silent; records past `fail_interval` → silent. All match the comments. Also proved `live &lt;= fails` always (the live window is a subset), so `live/deny` can never print a count at or above `deny`.
+5. `nix-instantiate --parse home.nix` passes and the config evaluates — no `''` escaping mistakes, and the apostrophe-free awk comments are honored.
+
+## Findings
+
+- `home.nix:305` — low — `WHO="${SUDO_USER:-}"` is trusted without checking that the process is actually root. Under `sudo -u alice hyprlock-faillock`, `SUDO_USER` is the *invoking* user, so the script reports the invoker's tally while running as alice; same for any shell that inherited a stale `SUDO_USER`. Harmless on the hyprlock label path (no `SUDO_USER` there). Guarding with `[ "$(id -u)" = 0 ]` would close it.
+- `home.nix:344` — low — the `even_deny_root` grep requires whitespace or end-of-line after the name, but pam's `read_config_file` splits the key at whitespace *or* `=`, so a conf line `even_deny_root=1` sets `FAILLOCK_FLAG_DENY_ROOT` while this grep misses it — root would be locked out with no label. Only reachable via `FAILLOCK_CONF` or a future nixpkgs conf, since the store file is all-commented. Fix: `even_deny_root([[:space:]=]|$)`.
+- `home.nix:326` — low — `[ "$v" -gt 604800 ]` uses bash arithmetic, which reads a leading zero as octal. `unlock_time = 09` makes `[` print `value too great for base` to stderr and return 2, so the clamp silently no-ops; `fail_interval = 0900` is read as octal 576 for the comparison. Results happen to stay correct here (awk re-parses decimally), so the impact is stderr noise, but the same pattern at `[ "$DENY" -gt 0 ]` (line 333, unchanged) would `exit 0` and silence the label outright for `deny = 09`. `${v#"${v%%[!0]*}"}` or `$((10#$v))` avoids it.
+- `home.nix:288` — low — the `optval` sed requires `name = value`; pam also accepts whitespace-separated `unlock_time 900`. A conf using that spelling would be honored by pam and ignored here. Pre-existing, and moot for the all-commented store file.
+
+Nothing to flag in the Zen hunk: it is comment rewording plus removal of the broken `Homepage` policy. Since module-level `mkDefault` policies merge per-attribute, dropping the local `policies` attrset does not disturb `DisableAppUpdate`/`DisableTelemetry`/`SecurityDevices`, and nothing else in the repo references `ko.ag/newtab.html`. `newtabHtml`/`newtabLinks` (lines 1328-1410, written at 3641) are now confirmed dead config — the comment says so deliberately, so not a finding.</result>
+<usage><subagent_tokens>132673</subagent_tokens><tool_uses>48</tool_uses><duration_ms>4217283</duration_ms></usage>
+</task-notification>

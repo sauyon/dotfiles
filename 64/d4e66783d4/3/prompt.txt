@@ -1,0 +1,1 @@
+hyprlock should tell me when I'm locked out

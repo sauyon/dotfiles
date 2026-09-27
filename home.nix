@@ -296,13 +296,19 @@ let
     [ -x "$BIN" ] || BIN=/usr/bin/faillock
     [ -x "$BIN" ] || exit 0
 
-    # SUDO_USER first: under `sudo hyprlock-faillock` the interesting tally is still
-    # the invoking user's, and root's own is empty, which would read as "not locked
-    # out" at the moment someone is checking whether they are. Otherwise the host's
-    # id, for the same reason hyprlock itself needs withHostNss: on a systemd-homed
-    # host the user has no /etc/passwd entry and only the host's NSS resolves the
-    # name. Nix's id is the fallback, and works wherever passwd does.
-    WHO="''${SUDO_USER:-}"
+    # Whose tally to report. SUDO_USER, but only when this process really is root:
+    # under `sudo hyprlock-faillock` the interesting tally is the invoking user's and
+    # root's own is empty, which would read as "not locked out" at the moment someone
+    # is checking whether they are -- while under `sudo -u alice` (or a shell holding
+    # a stale SUDO_USER) it names someone who is not running this. Otherwise the
+    # host's id, for the same reason hyprlock itself needs withHostNss: on a
+    # systemd-homed host the user has no /etc/passwd entry and only the host's NSS
+    # resolves the name. Nix's id is the fallback, and works wherever passwd does; -u
+    # is numeric, so it needs no NSS at all.
+    WHO="''${FAILLOCK_USER:-}"
+    if [ -z "$WHO" ] && [ "$(${pkgs.coreutils}/bin/id -u 2>/dev/null || echo 1)" = 0 ]; then
+      WHO="''${SUDO_USER:-}"
+    fi
     [ -n "$WHO" ] || WHO=$(/usr/bin/id -un 2>/dev/null || ${pkgs.coreutils}/bin/id -un 2>/dev/null || true)
     [ -n "$WHO" ] || exit 0
 
@@ -315,12 +321,16 @@ let
     # read as 0 here -- that would silence the label on a screen still locking at 3.
     optval() {
       v=$(${pkgs.gnused}/bin/sed -nE \
-        "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*([^[:space:]#]+).*/\1/p" "$CONF" 2>/dev/null \
+        "s/^[[:space:]]*$1([[:space:]]*=[[:space:]]*|[[:space:]]+)([^[:space:]#]+).*/\2/p" \
+        "$CONF" 2>/dev/null \
         | ${pkgs.coreutils}/bin/tail -1)
       [ "''${3:-}" = never-ok ] && [ "$v" = never ] && v=0
       case "$v" in
         "" | *[!0-9]*) printf '%s' "$2"; return ;;
       esac
+      # Strip leading zeros before any arithmetic: `[ 09 -gt 1 ]` is an octal error in
+      # the shell (and 0900 would compare as 576), while pam parses decimally.
+      while [ "''${v#0}" != "$v" ] && [ -n "''${v#0}" ]; do v="''${v#0}"; done
       # faillock_config.c rejects a duration over MAX_TIME_INTERVAL (7 days) and keeps
       # its default. The digit-count test first, so the arithmetic cannot overflow.
       if [ -n "''${3:-}" ] && { [ "''${#v}" -gt 7 ] || [ "$v" -gt 604800 ]; }; then
@@ -341,7 +351,7 @@ let
       # never be locked, and a countdown here would be invented. Only even_deny_root
       # sets that flag from a conf file: faillock_config.c stores root_unlock_time
       # without touching the flags, whatever the man page says about implying it.
-      ${pkgs.gnugrep}/bin/grep -qE "^[[:space:]]*even_deny_root([[:space:]]|$)" "$CONF" || exit 0
+      ${pkgs.gnugrep}/bin/grep -qE "^[[:space:]]*even_deny_root([[:space:]=]|$)" "$CONF" || exit 0
       # Unset, it defaults to unlock_time (pam_faillock.c initialises it to
       # MAX_TIME_INTERVAL+1 and substitutes unlock_time when it is still that).
       # Not modelled: admin_group, which makes a plain user is_admin too and would

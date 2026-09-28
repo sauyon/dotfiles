@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "c77c934b1cf9",
+  "strategy": "manual-commit",
+  "branch": "drovr/wif-enroll",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "install/wif/jwks-remove-kid.py",
+    "install/wif/revoke-kid.sh",
+    "tests/wif-jwks.sh",
+    "tests/wif-tpm.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c7/7c934b1cf9/0/metadata.json",
+      "transcript": "/c7/7c934b1cf9/0/full.jsonl",
+      "compact_transcript": "/c7/7c934b1cf9/0/transcript.jsonl",
+      "content_hash": "/c7/7c934b1cf9/0/content_hash.txt",
+      "prompt": "/c7/7c934b1cf9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 19810,
+    "cache_read_tokens": 3282205,
+    "output_tokens": 10786,
+    "api_call_count": 10
+  }
+}

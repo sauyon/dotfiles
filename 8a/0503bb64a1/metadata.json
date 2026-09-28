@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "8a0503bb64a1",
+  "strategy": "manual-commit",
+  "branch": "steam-ui-scale",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md",
+    "home.nix",
+    "tests/steam-ui-scaling.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8a/0503bb64a1/0/metadata.json",
+      "transcript": "/8a/0503bb64a1/0/full.jsonl",
+      "compact_transcript": "/8a/0503bb64a1/0/transcript.jsonl",
+      "content_hash": "/8a/0503bb64a1/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 71813,
+    "cache_read_tokens": 3026443,
+    "output_tokens": 25583,
+    "api_call_count": 40
+  }
+}

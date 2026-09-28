@@ -1,0 +1,104 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "68356547f1f1",
+  "session_id": "8e22cb05-d9d1-4e7a-9ed7-c03c5a1d3138",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-28T08:55:01.232339978Z",
+  "branch": "framework-linux",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "env.nix",
+    "home.nix",
+    "home/warp/keybindings.yaml",
+    "home/warp/tab_configs/startup_config.toml",
+    "home/warp/user_preferences.json",
+    "hyprland.nix"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "55c650a56898",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 36,
+    "cache_creation_tokens": 46253,
+    "cache_read_tokens": 1057171,
+    "output_tokens": 8393,
+    "api_call_count": 18
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01FoRBPYMwS1X3FApGSpd2Nt",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "55c650a56898",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 118,
+        "end": 119,
+        "entry_ids": [
+          "6415e2ed-c3f5-4d9d-bf1a-0a4193e2088c"
+        ],
+        "tool_use_id": "toolu_01FoRBPYMwS1X3FApGSpd2Nt"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01FoRBPYMwS1X3FApGSpd2Nt"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-28T08:55:01.196473991Z",
+    "agent_lines": 1,
+    "agent_removed": 128,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1,
+    "total_lines_changed": 129,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1082,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/framework-linux-review-1/001-README.md.diff": 26,
+        ".drovr/review/framework-linux-review-1/002-home.nix.diff": 24,
+        ".drovr/review/framework-linux-review-1/003-system_deploy.diff": 24,
+        ".drovr/review/framework-linux-review-1/004-system_thermald-setup.diff": 78,
+        ".drovr/review/framework-linux-review-1/005-tests_thermald-setup.sh.diff": 167,
+        ".drovr/review/framework-linux-review-1/index.md": 35,
+        ".drovr/review/framework-linux-review-2/001-README.md.diff": 26,
+        ".drovr/review/framework-linux-review-2/002-home.nix.diff": 24,
+        ".drovr/review/framework-linux-review-2/003-system_deploy.diff": 24,
+        ".drovr/review/framework-linux-review-2/004-system_thermald-setup.diff": 78,
+        ".drovr/review/framework-linux-review-2/005-tests_thermald-setup.sh.diff": 167,
+        ".drovr/review/framework-linux-review-2/index.md": 35,
+        ".drovr/review/framework-linux-review-3/001-README.md.diff": 28,
+        ".drovr/review/framework-linux-review-3/002-home.nix.diff": 24,
+        ".drovr/review/framework-linux-review-3/003-system_deploy.diff": 30,
+        ".drovr/review/framework-linux-review-3/004-system_packages.shiori.diff": 29,
+        ".drovr/review/framework-linux-review-3/005-system_thermald-setup.diff": 62,
+        ".drovr/review/framework-linux-review-3/006-tests_thermald-setup.sh.diff": 164,
+        ".drovr/review/framework-linux-review-3/index.md": 37
+      }
+    }
+  ]
+}

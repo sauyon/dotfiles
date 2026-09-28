@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "68356547f1f1",
+  "strategy": "manual-commit",
+  "branch": "framework-linux",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "env.nix",
+    "home.nix",
+    "home/warp/keybindings.yaml",
+    "home/warp/tab_configs/startup_config.toml",
+    "home/warp/user_preferences.json",
+    "hyprland.nix"
+  ],
+  "sessions": [
+    {
+      "metadata": "/68/356547f1f1/0/metadata.json",
+      "transcript": "/68/356547f1f1/0/full.jsonl",
+      "compact_transcript": "/68/356547f1f1/0/transcript.jsonl",
+      "content_hash": "/68/356547f1f1/0/content_hash.txt",
+      "prompt": "/68/356547f1f1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 36,
+    "cache_creation_tokens": 46253,
+    "cache_read_tokens": 1057171,
+    "output_tokens": 8393,
+    "api_call_count": 18
+  }
+}

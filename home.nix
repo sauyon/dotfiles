@@ -31,18 +31,38 @@ let
   # ── sops trust root (dotfiles domain) ───────────────────────────────────────
   # Design: ~/devel/reports/Homelab secrets bootstrap trust root.md, Part A.
   # Hosts listed here decrypt secrets.yaml through a device identity: a local
-  # P-256 key at ~/.config/ko/wif.pem signs a 5-minute JWT, Google STS validates
+  # P-256 key under ~/.config/ko (see wifKeyFile) signs a 5-minute JWT, Google STS validates
   # it against the JWKS in the ko-keys-sauyon bucket, and the federated token
   # decrypts with KMS host-key. No decryption key on the host. Hosts NOT listed
   # keep the cluster-domain path (gcp-key.json -> nix-key) until enrolled.
   wifHosts = [ "shiori" ];
   useWif = builtins.elem hostname wifHosts;
+  # Hosts whose device key lives in the TPM (install/wif/tpm-keygen.sh) instead
+  # of in a file. A separate list from wifHosts because it is a separate fact:
+  # mari is darwin and has no TPM at all, and a host is enrolled (its JWK is
+  # published) before and independently of where it keeps the private half.
+  # Listing a host here before its TPM key's JWK is in the bucket JWKS gives it
+  # an STS 401 at the next activation — publish first, switch second.
+  wifTpmHosts = [ "shiori" ];
+  useWifTpm = useWif && !isDarwin && builtins.elem hostname wifTpmHosts;
+  wifKeyFile = "${config.home.homeDirectory}/.config/ko/"
+    + (if useWifTpm then "wif-tpm.pem" else "wif.pem");
   wifIssuer = "https://storage.googleapis.com/ko-keys-sauyon/hosts";
   wifAudience = "//iam.googleapis.com/projects/484956590837/locations/global/workloadIdentityPools/ko-hosts/providers/bucket";
   # sops-nix runs sops-install-secrets with PATH="" — every path here is absolute.
   koWifToken = pkgs.writeShellScriptBin "ko-wif-token" ''
     export KO_OPENSSL=${pkgs.openssl}/bin/openssl
     ${lib.optionalString (!isDarwin) "export KO_TIMEDATECTL=/usr/bin/timedatectl"}
+    ${lib.optionalString useWifTpm ''
+      # openssl loads the TPM key only through this provider, and finds providers
+      # by OPENSSL_MODULES — which must be tpm2-openssl built against THIS
+      # openssl, or the module refuses to load and says little about why.
+      export OPENSSL_MODULES=${pkgs.tpm2-openssl}/lib/ossl-modules
+      # Same reason as gnome-keyring-tpm above: the nixpkgs TSS defaults to
+      # tcti-abrmd, a resource-manager daemon this host does not run. /dev/tpmrm0
+      # is the kernel's own resource manager and needs only the tss group.
+      export TPM2OPENSSL_TCTI=device:/dev/tpmrm0
+    ''}
     exec ${pkgs.python3}/bin/python3 ${./home/scripts/ko-wif-token.py} "$@"
   '';
   # Non-secret by construction (GCP documents credential configs as safe to commit).
@@ -54,7 +74,7 @@ let
     credential_source.executable = {
       command = lib.concatStringsSep " " [
         "${koWifToken}/bin/ko-wif-token"
-        "--key" "${config.home.homeDirectory}/.config/ko/wif.pem"
+        "--key" wifKeyFile
         "--iss" wifIssuer
         "--sub" "device:${hostname}"
         "--aud" wifAudience

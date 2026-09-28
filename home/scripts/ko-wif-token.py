@@ -9,6 +9,10 @@ library as an executable-sourced credential from sops-nix's PATH="" unit.
   ko-wif-token --key wif.pem --iss I --sub S --aud A [--exp 300]   -> compact JWT
   ko-wif-token --key wif.pem --iss I --sub S --aud A --adc         -> GCP executable-credential JSON
 
+The key may be a plain P-256 PEM or a TPM-resident "TSS2 PRIVATE KEY" blob from
+install/wif/tpm-keygen.sh; see key_args for how the two are told apart and what
+the TPM one needs in the environment.
+
 Refuses to sign when the clock is not confirmed synced (see clock_ok).
 """
 import argparse, base64, hashlib, json, os, subprocess, sys, time
@@ -20,16 +24,46 @@ TIMEDATECTL = os.environ.get("KO_TIMEDATECTL", "timedatectl")
 def b64u(b: bytes) -> str:
     return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
 
-def pub_xy(key):
+def key_args(key):
+    """Extra openssl arguments this key needs, decided by the file itself.
+
+    A TPM-resident key (install/wif/tpm-keygen.sh) is a "TSS2 PRIVATE KEY": a
+    blob wrapped to one TPM, which openssl can only load through the tpm2
+    provider. Naming any provider on the command line switches OFF the implicit
+    default one, so `default` has to be named again or the digest, the encoders
+    and the verify path all disappear with it.
+
+    Sniffing the PEM header rather than taking a flag keeps the callers honest:
+    the credential config in home.nix, device-test.sh and an interactive run all
+    pass a path and nothing else, and a key that moved into the TPM must not
+    need every one of them edited in the same commit to keep working.
+    """
     try:
-        der = subprocess.check_output([OPENSSL, "ec", "-in", key, "-pubout", "-outform", "DER"],
+        with open(key, "rb") as f:
+            head = f.readline()
+    except OSError as e:
+        raise SystemExit(f"ko-wif-token: {key}: {e.strerror}")
+    # The provider is found via OPENSSL_MODULES, which the home.nix wrapper sets;
+    # a TPM key with no provider fails in openssl, and loudly.
+    return ["-provider", "tpm2", "-provider", "default"] if b"TSS2 PRIVATE KEY" in head else []
+
+def pub_xy(key):
+    args = key_args(key)
+    try:
+        # `pkey`, not `ec`: `ec` is the legacy EC-only command, and the TPM key's
+        # public half comes out of the provider's generic store loader.
+        der = subprocess.check_output([OPENSSL, "pkey", *args, "-in", key, "-pubout", "-outform", "DER"],
                                       stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError as e:
-        raise SystemExit(f"ko-wif-token: {key}: not a readable EC private key (openssl ec exit {e.returncode}); "
-                         "generate one with: openssl ecparam -name prime256v1 -genkey -noout -out wif.pem")
+        hint = ("the tpm2 openssl provider could not load it: check OPENSSL_MODULES points at "
+                "tpm2-openssl's ossl-modules, TPM2OPENSSL_TCTI at this host's TPM, and that you are in the tss group"
+                if args else
+                "generate one with: openssl ecparam -name prime256v1 -genkey -noout -out wif.pem")
+        raise SystemExit(f"ko-wif-token: {key}: not a readable EC private key (openssl pkey exit {e.returncode}); {hint}")
     pt = der[-65:]
     if len(pt) != 65 or pt[0] != 4:
-        raise ValueError(f"{key}: expected an uncompressed P-256 public point (65 bytes, 0x04 prefix); is this a prime256v1 key?")
+        raise SystemExit(f"ko-wif-token: {key}: expected an uncompressed P-256 public point "
+                         "(65 bytes, 0x04 prefix); is this a prime256v1 key?")
     return pt[1:33], pt[33:65]
 
 def jwk(key):
@@ -64,7 +98,8 @@ def sign(key, iss, sub, aud, exp_s):
     pl = {"iss": iss, "sub": sub, "aud": aud, "iat": now - 60, "nbf": now - 60, "exp": now + exp_s}
     msg = b64u(json.dumps(hdr, separators=(",", ":")).encode()) + "." + \
           b64u(json.dumps(pl, separators=(",", ":")).encode())
-    der = subprocess.check_output([OPENSSL, "dgst", "-sha256", "-sign", key], input=msg.encode())
+    der = subprocess.check_output([OPENSSL, "dgst", "-sha256", "-sign", key, *key_args(key)],
+                                  input=msg.encode())
     return msg + "." + b64u(der_sig_to_raw(der)), pl["exp"]
 
 def clock_ok(host="storage.googleapis.com"):

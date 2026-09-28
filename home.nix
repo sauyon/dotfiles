@@ -2415,8 +2415,8 @@ in
     # Discord client. Was dropped while its build pulled pnpm-10.29.2, which
     # nixpkgs marks insecure (CVE-2026-48995, CVE-2026-50014). Under the current
     # flake.lock it is vesktop 1.6.7 built with pnpm-11.27.0, which nixpkgs does
-    # not flag, so it needs no permittedInsecurePackages entry -- verify that
-    # still holds after a lock bump rather than trusting this comment.
+    # not flag, so it needs no permittedInsecurePackages entry --
+    # tests/insecure-packages.sh is what keeps that true across a lock bump.
     pkgs.vesktop
     # Keymap editor for the Svalboard (keyboards/svalboard/). Needs the hidraw
     # udev rule in system/etc/udev/rules.d/92-vial.rules to see the keyboard at
@@ -2442,17 +2442,12 @@ in
     pkgs.framework-tool
   ];
 
+  # No permittedInsecurePackages entry: nothing here needs one, and
+  # tests/insecure-packages.sh holds that rather than a comment a lock bump can
+  # quietly falsify -- which is exactly how the entry this replaces went stale.
   nixpkgs.config = {
     allowUnfree = true;
     sandbox = true;
-    # Held for bitwarden-desktop, which used to pin electron 39.8.10 -- flagged
-    # insecure only because that Electron branch is EOL, with no active CVE
-    # against it. Under the current flake.lock this entry is a no-op:
-    # bitwarden-desktop is 2026.9.0 on electron 43.6.0, and its derivation
-    # evaluates with permittedInsecurePackages = [ ]. Scoped to the exact version
-    # so a bump onto another flagged Electron re-raises it for review; drop the
-    # entry once nothing needs it.
-    permittedInsecurePackages = [ "electron-39.8.10" ];
   };
 
   nixpkgs.overlays = [

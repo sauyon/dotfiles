@@ -70,6 +70,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
 ./tests/polkit-agent.sh          # evaluates 3 hosts, drives 8 cases
+./tests/insecure-packages.sh     # 2 cases per host, plus mari's darwin system
 ```
 
 `hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows
@@ -142,6 +143,28 @@ for the session, which reproduces the very silence the unit removes — and that
 headless and Darwin hosts get no unit at all. An eval that *fails* aborts the run
 rather than being read as "the unit is absent", which is what the two gating cases
 would otherwise have called a pass.
+`insecure-packages` is the odd one out: it models nothing, it holds a claim
+`home.nix` makes by omission. There is no `permittedInsecurePackages` entry in
+`nixpkgs.config` because nothing needs one -- and the entry that used to be there
+is why this is a test rather than a comment. It was scoped to `electron-39.8.10`
+so that a bitwarden-desktop bump onto a different Electron would re-raise the
+flag for review; the bump happened, the comment kept describing the old version,
+and the permit sat on as a dangling exception that read like a live dependency on
+an EOL Electron. nixpkgs raises its insecure error while *evaluating* the flagged
+derivation, so forcing each home configuration's `activationPackage.drvPath` --
+and `mari`'s darwin system, which carries its own `nixpkgs.config` -- is the claim
+rather than a proxy for it. Both host lists are read out of the flake, so a new
+host is covered the day it lands.
+
+Its teeth are a second case per host, because "every host evaluates" is also true
+of a config that has switched the check off, and `allowInsecurePredicate` switches
+it off wholesale -- `check-meta.nix` short-circuits on it before it ever consults
+the permit list. So a package nixpkgs still flags is evaluated through each host's
+*own* `pkgs`, and has to fail with nixpkgs' "marked as insecure" specifically. A
+permit or a predicate reappearing in `home.nix` stops it throwing; a typo or a
+renamed attr fails it for the wrong reason and says so. Not to be confused with
+`.forgejo/workflows/vulnix-scan.yml`, which scans the realised closure for CVEs
+weekly and never fails -- that one is a report, this is a gate.
 
 ## System config
 

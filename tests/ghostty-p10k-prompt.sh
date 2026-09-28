@@ -100,6 +100,18 @@ for v in with without nosrc; do
     sed -i -e "s|^export ZDOTDIR=.*|export ZDOTDIR=\"$D/$v\"|" "$D/$v/.zshenv"
   fi
   sed -i -e "s|~/.config/zsh/.p10k.zsh|$D/$v/.p10k.zsh|g" "$D/$v/.zshrc"
+  # Repointing ZDOTDIR isolates where the config is read from, not where the
+  # config then writes. HISTFILE is a literal absolute path in the generated
+  # .zshrc and SHARE_HISTORY is set, so without this every probe shell appended
+  # its six commands to the real shell history and read the real history back in
+  # -- a plain run of this file left dozens of junk entries behind.
+  #
+  # Only HISTFILE, deliberately. Giving the probe shells a fresh HOME and XDG
+  # dirs is tidier and breaks the suite: with no p10k instant-prompt cache they
+  # render a different PROMPT, the artifact stops reproducing, and the cases that
+  # assert it go quiet. Isolating the writes that persist is the fix; isolating
+  # the reads changes the thing under test.
+  sed -i -e "s|^HISTFILE=.*|HISTFILE=\"$D/$v/history\"|" "$D/$v/.zshrc"
 done
 sed -i -e '/typeset -g _ghostty_saved_ps1/d' "$D/without/.zshrc"
 # shellcheck disable=SC2016 # the $ is literal: it is in the .zshrc being matched
@@ -114,6 +126,12 @@ setup_bug() {
 }
 grep -q 'typeset -g _ghostty_saved_ps1' "$D/with/.zshrc" ||
   setup_bug "priming missing from the 'with' copy"
+# The HISTFILE rewrite is what keeps this suite out of the real shell history, and
+# a silent miss is invisible until the history is already dirty.
+for v in with without nosrc; do
+  grep -q "^HISTFILE=\"$D/$v/history\"" "$D/$v/.zshrc" ||
+    setup_bug "'$v' copy still writes the real shell history"
+done
 ! grep -q 'typeset -g _ghostty_saved_ps1' "$D/without/.zshrc" ||
   setup_bug "priming survived in the 'without' copy"
 # shellcheck disable=SC2016 # the $ is literal: it is in the .zshrc being matched

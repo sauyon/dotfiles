@@ -3,7 +3,7 @@
   "checkpoint_id": "4696b403dee4",
   "strategy": "manual-commit",
   "branch": "add-vesktop",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "home.nix"
   ],
@@ -14,13 +14,20 @@
       "compact_transcript": "/46/96b403dee4/0/transcript.jsonl",
       "content_hash": "/46/96b403dee4/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/46/96b403dee4/1/metadata.json",
+      "transcript": "/46/96b403dee4/1/full.jsonl",
+      "compact_transcript": "/46/96b403dee4/1/transcript.jsonl",
+      "content_hash": "/46/96b403dee4/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 36,
-    "cache_creation_tokens": 41132,
-    "cache_read_tokens": 991753,
-    "output_tokens": 6952,
-    "api_call_count": 18
+    "input_tokens": 56,
+    "cache_creation_tokens": 79849,
+    "cache_read_tokens": 1510572,
+    "output_tokens": 15093,
+    "api_call_count": 28
   }
 }

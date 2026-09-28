@@ -1,0 +1,5 @@
+EnrollStart failed: GDBus.Error:net.reactivated.Fprint.Error.PermissionDenied: Not Authorized: net.reactivated.fprint.device.enroll
+
+---
+
+hypr then

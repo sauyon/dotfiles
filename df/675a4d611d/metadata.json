@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "df675a4d611d",
+  "strategy": "manual-commit",
+  "branch": "add-vesktop",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/df/675a4d611d/0/metadata.json",
+      "transcript": "/df/675a4d611d/0/full.jsonl",
+      "compact_transcript": "/df/675a4d611d/0/transcript.jsonl",
+      "content_hash": "/df/675a4d611d/0/content_hash.txt",
+      "prompt": "/df/675a4d611d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 44,
+    "cache_creation_tokens": 26314,
+    "cache_read_tokens": 4430072,
+    "output_tokens": 12920,
+    "api_call_count": 22
+  }
+}

@@ -93,11 +93,17 @@ head -1 "$tmpd/key" | grep -qx -- '-----BEGIN TSS2 PRIVATE KEY-----' || {
 # Prove the key signs through the TPM before installing it. A blob the chip will
 # not load is worth finding now, not at the next boot in sops-install-secrets.
 printf 'tpm-keygen self test' > "$tmpd/msg"
-"$OSSL" dgst -sha256 -sign "$tmpd/key" -provider tpm2 -provider default \
-  -out "$tmpd/sig" "$tmpd/msg" 2>/dev/null \
-  && "$OSSL" pkey -provider tpm2 -provider default -in "$tmpd/key" -pubout -out "$tmpd/pub.pem" 2>/dev/null \
-  && "$OSSL" dgst -sha256 -verify "$tmpd/pub.pem" -signature "$tmpd/sig" "$tmpd/msg" >/dev/null 2>&1 \
-  || { echo "the new key could not sign-and-verify through the TPM; not installing it" >&2; exit 1; }
+selftest() {
+  "$OSSL" dgst -sha256 -sign "$tmpd/key" -provider tpm2 -provider default \
+    -out "$tmpd/sig" "$tmpd/msg" 2>/dev/null || return 1
+  "$OSSL" pkey -provider tpm2 -provider default -in "$tmpd/key" -pubout \
+    -out "$tmpd/pub.pem" 2>/dev/null || return 1
+  "$OSSL" dgst -sha256 -verify "$tmpd/pub.pem" -signature "$tmpd/sig" "$tmpd/msg" >/dev/null 2>&1
+}
+if ! selftest; then
+  echo "the new key could not sign-and-verify through the TPM; not installing it" >&2
+  exit 1
+fi
 
 chmod 400 "$tmpd/key"
 mv "$tmpd/key" "$out"

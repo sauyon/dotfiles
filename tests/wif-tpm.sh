@@ -35,6 +35,12 @@
 # `needed` marks those, and the exit status counts them. Only genuinely external
 # conditions (no TPM on this host, no network, no nix) stay soft skips.
 #
+# One side effect worth knowing: while the old key file still exists, this suite
+# performs a REAL federated token exchange with it on every run. That writes a
+# Google audit-log entry indistinguishable from the device -- the same signal
+# rationale 1 says is the only evidence of old-key misuse. A forensic read of
+# those logs should expect entries from here.
+#
 #   ./tests/wif-tpm.sh                        # default key path
 #   ./tests/wif-tpm.sh ~/.config/ko/wif-tpm.pem
 #
@@ -290,18 +296,29 @@ else
     ok "the old file key's kid is no longer published in the JWKS"
   fi
 
-  # ...and then ask the only authority that decides: Google. Measured on
-  # 2026-09-28, removal propagates FAR slower than addition -- a new kid was
-  # accepted within ~15s, while a removed one was STILL accepted 32 minutes
-  # later. So "not in the JWKS" and "cannot mint a token" are different facts
-  # for a long time, and the first one alone would have declared this migration
+  # ...and then ask the only authority that decides: Google. Measured once, on
+  # 2026-09-28, against this provider: a removed kid was still accepted 38
+  # minutes after the JWKS write, with no upper bound established -- while a
+  # newly ADDED kid was accepted within ~15s (a single uncontrolled observation).
+  # So "not in the JWKS" and "cannot mint a token" are different facts for at
+  # least that long, and the first alone would have declared this migration
   # finished while the old key was still opening every dotfiles secret.
+  #
+  # Do NOT read this as "revocation is slow but works": no convergence was
+  # observed, only a lower bound. And do not assume some other lever is prompt
+  # instead -- that assumption is exactly what this check exists to catch, and
+  # nothing here has measured IAM binding removal, provider disablement or KMS
+  # key-version destruction. Measure before relying on any of them.
   if [ ! -r "$oldkey" ]; then
-    skip "the old file key can no longer mint an STS token: $oldkey is gone (cannot test)"
+    skip "the old file key can no longer mint an STS token: $oldkey is gone, so this can NEVER"$'\n'"      be checked again -- that is 'unknown', not 'revoked'. Keep the old key until this"$'\n'"      check has gone green at least once, THEN delete it."
   else
     tok="$work/old.jwt"
-    if ! (umask 077; python3 "$signer" --key "$oldkey" --iss "$issuer" \
-            --sub "device:$host" --aud "$audience" > "$tok" 2>/dev/null); then
+    # printf %s like revoke-kid.sh: `--data-urlencode name@file` sends the file
+    # raw, so the signer's trailing newline goes on the wire as %0A. STS tolerates
+    # it today; if that ever tightens, this check would flip from red to a silent
+    # green, which is the worst direction for this particular check.
+    if ! (umask 077; oldtok=$(python3 "$signer" --key "$oldkey" --iss "$issuer" \
+            --sub "device:$host" --aud "$audience" 2>/dev/null) && printf '%s' "$oldtok" > "$tok"); then
       skip "the old file key can no longer mint an STS token: could not sign (clock?)"
     else
       sts_code=$(curl -sS --max-time 20 -o "$work/sts.json" -w '%{http_code}' \
@@ -313,11 +330,25 @@ else
         --data-urlencode subject_token_type=urn:ietf:params:oauth:token-type:jwt \
         --data-urlencode "subject_token@$tok" 2>/dev/null)
       rm -f "$tok"
-      case "$sts_code" in
-        400|401) ok "the old file key can no longer mint an STS token (http $sts_code)" ;;
-        200)     bad "the old file key can no longer mint an STS token"$'\n'"      STS still returns 200 for it. Its kid is out of the JWKS, but Google has not"$'\n'"      caught up -- so the key still decrypts every dotfiles secret. Removal is not"$'\n'"      instant: this stayed true for over 32 minutes in the 2a-removal measurement." ;;
+      # The discriminator matters: a genuine kid-not-found is 400 with
+      # error=invalid_grant ("Unable to verify the ID Token signature"), while a
+      # wrong audience is ALSO 400, with invalid_request. Accepting any 400 would
+      # let a stale KO_WIF_AUDIENCE in someone's shell turn the one check that
+      # declares this migration finished permanently green. Same rule as
+      # revoke-kid.sh's loop: only an auth refusal counts.
+      sts_err=$(python3 -c 'import json,sys
+try: print(json.load(open(sys.argv[1])).get("error",""))
+except Exception: print("")' "$work/sts.json" 2>/dev/null)
+      case "$sts_code:$sts_err" in
+        401:*|400:invalid_grant)
+          ok "the old file key can no longer mint an STS token (http $sts_code $sts_err)" ;;
+        400:*)
+          skip "the old file key can no longer mint an STS token: STS refused the REQUEST, not the key (http 400 $sts_err) -- check KO_WIF_AUDIENCE/KO_WIF_SUB" ;;
+        200:*)   bad "the old file key can no longer mint an STS token"$'\n'"      STS still returns 200 for it. Its kid is out of the JWKS, but Google has not"$'\n'"      caught up -- so the key still decrypts every dotfiles secret. This is expected"$'\n'"      for a while after the removal: it held for 38+ minutes when measured. Re-run." ;;
         *)       skip "the old file key can no longer mint an STS token: STS unreachable (http $sts_code)" ;;
       esac
+      # A live cloud-platform access token sits in here on the 200 path.
+      : > "$work/sts.json"
     fi
   fi
 fi
@@ -375,6 +406,17 @@ else
       ok "$host's credential config signs with $key"
     else
       bad "$host's credential config signs with $key"$'\n'"      it names: $(grep -o -- '--key [^ \"]*' "$cfg" | head -1)"
+    fi
+    # $issuer and $audience drive the JWKS fetch and the STS authority check, and
+    # both are overridable. An override pointing at a different trust root would
+    # make those checks green about something that is not this host's root, so
+    # cross-check them against the credential config the host actually runs.
+    cfg_iss=$(grep -o -- '--iss [^ "]*' "$cfg" | head -1); cfg_iss=${cfg_iss#--iss }
+    cfg_aud=$(grep -o -- '--aud [^ "]*' "$cfg" | head -1); cfg_aud=${cfg_aud#--aud }
+    if [ "$cfg_iss" = "$issuer" ] && [ "$cfg_aud" = "$audience" ]; then
+      ok "the issuer and audience these checks used are the ones $host actually signs for"
+    else
+      bad "the issuer and audience these checks used are the ones $host actually signs for"$'\n'"      tested:  $issuer"$'\n'"               $audience"$'\n'"      config:  $cfg_iss"$'\n'"               $cfg_aud"
     fi
     wrapper=$(grep -o '/nix/store/[^ "]*ko-wif-token[^ "]*/bin/ko-wif-token' "$cfg" | head -1)
     moddir=$(grep -o 'OPENSSL_MODULES=[^ ]*' "${wrapper:-/dev/null}" 2>/dev/null | head -1)

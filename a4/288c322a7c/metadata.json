@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "a4288c322a7c",
+  "strategy": "manual-commit",
+  "branch": "worktree-polkit-agent",
+  "checkpoints_count": 2,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/a4/288c322a7c/0/metadata.json",
+      "transcript": "/a4/288c322a7c/0/full.jsonl",
+      "compact_transcript": "/a4/288c322a7c/0/transcript.jsonl",
+      "content_hash": "/a4/288c322a7c/0/content_hash.txt",
+      "prompt": "/a4/288c322a7c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 170,
+    "cache_creation_tokens": 93159,
+    "cache_read_tokens": 11475448,
+    "output_tokens": 51890,
+    "api_call_count": 85,
+    "subagent_tokens": {
+      "input_tokens": 6,
+      "cache_creation_tokens": 23397,
+      "cache_read_tokens": 45905,
+      "output_tokens": 6,
+      "api_call_count": 3
+    }
+  }
+}

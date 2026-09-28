@@ -1,0 +1,526 @@
+<pasted_content id="7521">
+You are implement **task 2** of a drovr run. You are the single writer this phase. Your
+scope is EXACTLY the one task brief in the `## Context from the driver` section — not the whole
+plan. If that section says none was supplied, your scope is this task's entry in `plan.md`. Do
+not start other
+tasks; later tasks run as their own fresh phases.
+
+## Do
+
+0. **Bind this checklist to tracked task state — before you start step 1.**
+
+   > When a skill or briefing gives you a numbered checklist, create **one tracked item per step**
+   > using whatever task tool this harness exposes — `TodoWrite`, or `TaskCreate`/`TaskUpdate` —
+   > before you start step 1. Mark each in-progress when you start it and complete when its
+   > evidence is in hand. If the harness exposes no task tool, write the checklist to
+   > `~/.local/share/drovr/runs/wif-enroll/checklist.md` when inside a run, or `CHECKLIST.md` at the
+   > repo root otherwise, and tick items there. An untracked checklist decays with the context
+   > window; that decay is the exact failure drovr exists to fight.
+
+1. **Keep the ask channel open — the whole phase, not just at a gate.**
+
+   > **Ask the human when you need to, mid-phase — do not guess and write the guess down.** Two
+   > triggers, either one is enough: **new information is discovered** that the spec or plan did not
+   > anticipate, or **a question is found** that you cannot resolve from the code or the run's
+   > artifacts. Post it and carry on with whatever does not depend on the answer:
+   >
+   >     drovr ask wif-enroll --question "<what you need decided>" \
+   >       [--context <text> | --context-file <path>] \
+   >       [--option <value>=<label>]... [--recommend <value>]
+   >
+   > `ask` returns immediately, printing the ask id and the page to point the human at. Then
+   > background `drovr ask wait wif-enroll [--timeout-ms <ms>]` and end your turn: `0` answered, `2`
+   > timeout — re-arm, the question is still on disk and still on screen — `5` the run was cancelled,
+   > `1` error. On `0` stdout carries the answers as JSON: the asks that wait was armed on, each with
+   > its latest answer, or — when nothing was outstanding — the whole folded interview, which is how
+   > a wait re-armed just after the human answered still hands you the answer. A timeout costs
+   > nothing; a guess costs the run.
+
+   **`ask wait` is the ONE wait you may end your turn on — and step 6 is not it.** The rule there
+   is the same rule, not a different one: never park on something nothing will come to wake you
+   from. A backgrounded review panel is exactly that, which is why step 6 forbids it.
+   An ask is the opposite — it puts a question in front of a human, and their answer is what
+   un-parks you. So: post the ask, do whatever does not depend on the answer, and only then
+   background the wait and end the turn.
+
+2. **Read** the task brief and the accumulated interfaces in the `## Context from the driver`
+   section, then read the real code you
+   will touch (read-only explorers for anything you only need to understand, not change).
+3. **Record the review base — before writing any code.** Run
+   `drovr code-review base wif-enroll task-2` so `HEAD` is captured as this task's pre-task SHA
+   (the automatic review panel diffs `base..HEAD`). Do this first; editing before recording
+   would move the base past your own changes. **Re-entry:** if this message seeds you with a
+   `~/.local/share/drovr/runs/wif-enroll/task-2-review.json` (the driver re-entered you after the
+   panel found changes), do NOT re-record the base — fix **every Critical and every Important**
+   in that file, then run the rest of the steps (verify, self-review, report — steps 5–8). **A
+   nit is advisory:** fix it or not, your call, and record each one you leave with
+   `drovr code-review defer` so the next round does not re-raise it. Fixing one is not free —
+   it is new code the next round reviews, on lines no gate asked anyone to touch.
+4. **Implement test-first — apply `drovr:tdd`.** The test to write first is the one named in
+   this task's verification; keep it scoped to this task's interfaces so the folded-forward
+   contracts stay accurate.
+5. **Verify before claiming done — apply `drovr:verification-before-completion`** on this
+   task's tests and the build/linter.
+6. **Self-review before reporting done — apply `drovr:code-review`** (read-only reviewers,
+   foreground). Do NOT declare the task done off your own judgment. The skill has the how-to
+   and the check order; the one constraint below is repeated here because the whole run
+   depends on it: **run the reviewers in the FOREGROUND (blocking) — do NOT set
+   `run_in_background`, and do NOT yield or schedule a
+   wakeup waiting on them.** A backgrounded reviewer leaves you parked mid-turn, which drovr
+   cannot distinguish from completion and which stalls the run until a human nudges the pane;
+   blocking keeps you working straight through to your final step. This is IN ADDITION to the
+   pipeline's final review phase — catch it here, cheaply, before it cascades.
+
+   **Two roles, one gate.** Anyone may RUN the panel, as often as they like —
+   it is a test suite. Only the **driver's** run is the **gate**: a clean
+   verdict on a panel you ran yourself is evidence, never permission to
+   report done.
+
+   So `drovr code-review run wif-enroll task-2` is yours to use, freely — but a clean verdict
+   from a panel *you* invoked buys you a fix list, not a finish. You are done when this task's
+   own verification passes (step 5) and you have resolved what review found; never *because* a
+   panel came back clean, and never with a panel standing in for step 5. Record each one in your
+   report's `## Author-run panels` table (step 7). The driver runs its own panel after you
+   report, and that verdict is the one that decides whether the task advances — it has already
+   caught an Important on the identical commit an author-run panel called clean.
+
+   Two mechanics if you do run it. **Commit first, and keep committing:** the panel's committed
+   scope is `git diff base..HEAD`. Commit nothing and that range contains nothing —
+   `drovr code-review run` now refuses that outright (exit 1), because it used to return a clean
+   verdict on it (see `forge.ko.ag/drovr/drovr/issues`). Committing *once* is not enough either: whatever
+   you leave uncommitted after that is outside `base..HEAD`, and while the reviewer's brief does
+   put the working tree in scope alongside the diff, it does not reliably reach it — untracked
+   files never appear in a `git diff` at all. What you have not committed may not be reviewed.
+   **Keep it in the foreground and loop on exit 2:** re-running the
+   same command resumes the panel in flight, so a slow one costs you a loop, not a stall. Do not
+   background it and do not yield waiting on it — the driver may background its waits because it
+   can end its turn; you cannot.
+7. **Write a task report** to `~/.local/share/drovr/runs/wif-enroll/task2-report.md`:
+   - what changed (files + the interfaces you actually implemented, verbatim),
+   - test/verification output proving it works,
+   - the self-review: what the reviewers found and how you resolved each Critical/
+     Important finding (and any you deferred, with why),
+   - **an `## Author-run panels` section**, one table row per `drovr code-review run` you
+     invoked yourself, including the ones that came back clean. Three columns, so the claim can
+     be checked against the artifacts rather than taken on trust:
+
+     | Iteration `<i>` | Head SHA, from `<run_dir>/task-2-review-<i>.head` | Verdict |
+
+     The iteration is the panel's own number, not your round count — read it off the
+     `task-2-review-<i>-<angle>.json` files it wrote. **Verdict is exactly one of five
+     words**, matching how the run actually ended (drovr's `ReviewOutcome`, exit code in
+     brackets):
+
+     - `clean` [0] — a real range was reviewed, nothing blocking. Derive it the way drovr
+       does, not from memory: `changes` if any finding in that iteration's per-angle files
+       has severity `critical` or `important`, else `clean`. (`<task>-review.json` is
+       overwritten each pass and is NOT evidence about iteration `<i>`; the per-angle files
+       are.)
+     - `changes` [3] — at least one blocking finding.
+     - `timeout` [2] — reviewers had not all finished. Not a verdict about the code.
+     - `empty-range` [1] — refused: `base..head` contained nothing. Not a verdict either,
+       and the one most easily mistaken for a pass.
+     - `error` [1] — setup failure; the panel never ran.
+
+     A row you cannot classify is a row you should not summarise — say which and why.
+     Write "none" if you ran no panel; an absent section is indistinguishable from an
+     undisclosed one,
+   - any interface that drifted from the plan, and why (the next task binds to reality, not
+     the plan's guess),
+   - anything the final review phase should still scrutinize.
+8. **Author your handoff, then signal completion — your FINAL actions, in order.**
+   a. **Author the handoff.** Compress your own context — you hold the whole session — into the
+      fixed 7-section handoff (see `drovr:handoff` / the handoff template) and write it to
+      `~/.local/share/drovr/runs/wif-enroll/implement-task-2-HANDOFF.md`, **git pointers
+      mandatory**. This folds your real interfaces forward to the next task; nothing compresses
+      it for you. Record exact signatures; report your dead-ends honestly.
+   b. **Signal completion.** Run:
+      ```
+      drovr phase done wif-enroll implement-task-2
+      ```
+      This **refuses until the handoff in (a) exists** — the handoff and this marker are one
+      atomic step. The marker is the ONLY signal the driver uses to detect that this phase
+      finished — herdr "idle" does not count (it also fires while you are merely waiting on a
+      reviewer). Run it last, once, after everything else; do not run it if you are stopping
+      blocked.
+## The run's task
+
+Dotfiles trust root Part A, remaining items after slice 1: (1) paper age recipient for KMS host-key; (2) shiori wif key into the TPM; (3) enroll utsuho, setsuna, kyuusaku, fujiwara-user and mari (system + user) as device WIF identities; (4) migration gate: drop nix-key from dotfiles .sops.yaml only when all enrolled and the human confirms the paper key is printed. Spec: /home/sauyon/devel/reports/Homelab secrets bootstrap trust root.md Part A. Context file has the verified state, decisions and interfaces.
+
+That is the whole run, for orientation only. **Your scope is the task brief in the context section below**, not this run-level statement.
+
+## Context from the driver
+
+# TASK 2 SCOPE
+This phase does Part A item 2 ONLY: move shiori's `wif` key into the TPM — a NEW TPM-resident
+P-256 key; publish its JWK alongside the current file key's JWK; verify decryption with it
+using the sops-install-secrets temp-manifest pattern from the task-1 handoff (no activation
+side effects); then remove the OLD kid from the JWKS and time until STS rejects the old key
+(that is experiment 2a-removal; record the number). Keep the file-key path working for
+macOS/mari. Do NOT start item 3 or 4. Choose the openssl TPM mechanism yourself
+(nixpkgs tpm2-openssl provider or tpm2-pkcs11); use `drovr ask` only if both are viable and
+the choice changes home.nix in a way the human should see. Do not touch or shred
+~/.config/ko/paper-host-key.txt. Bucket JWKS writes happen from fujiwara via
+`gcloud storage cp` (not a permission grant); if the classifier refuses, post a `drovr ask`
+with the exact command instead of working around it.
+
+## Objective
+This phase delivered Part A **item 1 only**: the offline paper recipient for the
+dotfiles secrets (report A7 step 1). The next phase does **item 2** — move
+shiori's `wif` key into the TPM — then item 3 (enroll the remaining principals),
+then re-check the item 4 migration gate.
+
+## State
+Done, verified, committed on `drovr/wif-enroll`. Nothing pushed.
+
+- `install/wif/paper-keygen.sh` (new) — generates the age identity and writes one
+  file that is **both** the printable sheet and a working `SOPS_AGE_KEY_FILE`
+  (age ignores `#` lines). Mode 400, `umask 077`, `mktemp -d` beside the target,
+  refuses a path resolving inside the repo, refuses to overwrite, prints only the
+  public recipient.
+- `tests/sops-recipients.sh` (new) — 8 checks, the task's verification. Watched
+  RED twice before the code existed (no `age:` in `.sops.yaml`; then
+  `updatekeys` not yet run), green now.
+- `.sops.yaml` — one `age:` recipient added **inside the existing creation rule**
+  (same key group as `gcp_kms`, so OR). Gate comment corrected.
+- `secrets.yaml` — `sops updatekeys -y` run on fujiwara. `mac` unchanged and no
+  `ENC[]` payload line in the diff, so the data key was re-wrapped, not
+  re-encrypted.
+- The private half is at `shiori:~/.config/ko/paper-host-key.txt`, **mode 400,
+  not yet printed and not yet shredded.** `nix-key` therefore stays in
+  `.sops.yaml`.
+
+Verified (all at HEAD `5f671bb`, clean tree; full output in `task1-report.md`):
+`tests/sops-recipients.sh <identity>` 8/8; the four CI home closures build
+(`.forgejo/workflows/nix-home.yml:115`'s exact command); `shellcheck` clean; and
+**four decrypt paths** against this exact `secrets.yaml` — paper identity alone
+with every Google credential stripped, shiori device WIF → `host-key`, the real
+`sops-install-secrets` binary from shiori's unit, and the cluster SA key →
+`nix-key` (run on fujiwara, i.e. the path the other five principals boot on).
+
+Self-review: 4 author-run panels, all four angles every round, **zero Critical,
+zero Important**, one nit deferred. Two consecutive cleans over unchanged HEAD
+`5f671bb` (iterations 3 and 4).
+
+Dead ends, honestly:
+- `age-keygen -o <file>` **refuses a path that already exists**, so the first
+  version — `tmp=$(mktemp "$out.XXXXXX")` — failed silently under
+  `set -euo pipefail` with no output at all. Fixed with `mktemp -d`. Do not
+  reintroduce `mktemp <file>` around `age-keygen -o`.
+- Running `sops -e`/`-d` on a scratch file **from inside the repo** fails with
+  `error loading config: no matching creation rules found`, because sops walks up
+  to this repo's `.sops.yaml`. `cd` out, or pass `--config`.
+- A first pass of the test compared the KMS list with a suffix glob against the
+  whole sorted blob; `nix-key` sorts after `host-key`, so it passed or failed by
+  accident. Now a `grep -qx` membership test.
+
+## Decisions + rationale
+
+- `[human]` (answered `ask-0`, 2026-09-28) The identity sheet goes to
+  `shiori:~/.config/ko/paper-host-key.txt`. Rationale offered and accepted:
+  shiori already materialises every dotfiles secret in plaintext via sops-nix, so
+  the identity grants it nothing new, and nothing expires before the human
+  reaches a printer. Rejected: `/tmp` (tmpfs — lost at reboot) and fujiwara
+  (already a recovery root; would concentrate rather than separate the two
+  independent recovery paths A6.3 wants).
+- `[agent]` The `age:` recipient goes in the **same creation rule** as `gcp_kms`,
+  never in `key_groups`. `key_groups` is a Shamir AND; a paper key needing a
+  second share is not a recovery path. This is written as a comment in
+  `.sops.yaml` and asserted by test check 2, because the shape is invisible once
+  the file is encrypted.
+- `[agent]` The sheet and the key file are **one file**, not two. age key files
+  ignore `#` lines, so the recovery procedure travels on the paper beside the key
+  and a sheet retyped verbatim needs no editing before sops accepts it. Proven
+  with a throwaway key before the real one was generated (encrypt to the
+  recipient → decrypt with the sheet as `SOPS_AGE_KEY_FILE` → shred).
+- `[agent]` `sops updatekeys` ran **on fujiwara**, never on shiori, matching the
+  prior handoff. It is structural, not preference: shiori's device identity holds
+  `cryptoKeyDecrypter` on `host-key` and nothing on `nix-key`, so it cannot
+  re-wrap. Mechanics that worked: `ssh mktemp -d`, scp `.sops.yaml` + `secrets.yaml`
+  up (sops finds the config by walking up from the file), run, scp `secrets.yaml`
+  back, `rm -rf` the remote dir.
+- `[agent]` shiori's live home-manager generation was **not** re-activated.
+  `sops.defaultSopsFile` bakes `secrets.yaml` into a store path, so a bare
+  `systemctl --user restart sops-nix.service` would have tested the *old* file and
+  proved nothing; activating a locally-built generation is a real side effect and
+  `CLAUDE.md` reserves that for `hms`. Instead the unit's own
+  `sops-install-secrets` binary was driven against the new file with a temp
+  manifest into a temp dir — same evidence, no side effect. **Reuse this pattern
+  for item 2**: it is the cheapest honest test of a `secrets.yaml`/credential
+  change on shiori.
+- `[agent]` One review nit deferred (`task-1-deferrals.jsonl`): the claim that
+  `realpath -m` might miss a symlink into the repo. Premise inverted and tested —
+  `realpath -m` *does* resolve symlinks (`-s` disables that) and the script
+  exits 1 on a symlink to `<repo>/experiments`. Do not re-fix.
+
+## Actions requiring approval
+- **Pushing this branch: never asked for, not granted.** Commits `4d46d1c`,
+  `cdb6ee0`, `5f671bb` are local to the worktree. shiori has no forge
+  credentials; the route used for slice 1 was a fast-forward on
+  `fujiwara:~/devel/dotfiles` then `git push origin master` from there. Per the
+  memory rule, pushing this repo means `hms`, not a bare `git push` — and `hms`
+  blocks ~10 min on CI and then **switches the live generation**. Ask before
+  either.
+- **Printing and shredding the sheet: the human's act, not the next agent's.**
+  Do not shred `~/.config/ko/paper-host-key.txt`; test check 8 is unrunnable
+  afterwards, by design.
+- **Dropping `nix-key` (item 4): not authorised.** It needs every principal
+  enrolled *and* the human's confirmation that the paper is printed and stored.
+  Neither holds.
+- Already taken, non-outward-facing: `sops updatekeys` on fujiwara under the
+  human's existing ADC (no grant, no IAM change, no new credential). The prior
+  handoff pre-authorised this exact command; the classifier did not refuse it.
+
+## Interfaces / contracts
+
+    ./install/wif/paper-keygen.sh [path]     # default ~/.config/ko/paper-host-key.txt
+        # stdout: "wrote <path> (mode 400) …", then the public recipient, then next steps.
+        # exit 1: path resolves inside the repo · path exists · age-keygen failed.
+
+    ./tests/sops-recipients.sh [identity-file]        # or $SOPS_AGE_KEY_FILE
+        # 8 checks, "ok N - …" / "FAIL N - …" / "skip N - …", exit 0 iff all pass.
+        # Checks 1-6 need no secret; 7-8 need the identity and are skipped without it.
+        # Resolves yq/sops/age-keygen from PATH, else `nix build nixpkgs#{yq-go,sops,age}`.
+
+`.sops.yaml`, the whole creation rule (one rule, one key group, OR):
+
+    creation_rules:
+      - path_regex: secrets.yaml
+        gcp_kms: "projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/nix-key,projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/host-key"
+        age: "REDACTED"
+
+The `updatekeys` trip, verbatim (fujiwara = 10.0.7.100, ssh BatchMode works):
+
+    RD=$(ssh 10.0.7.100 'mktemp -d ~/.sops-rekey.XXXXXX')
+    scp .sops.yaml secrets.yaml "10.0.7.100:$RD/"
+    ssh 10.0.7.100 "export PATH=/nix/var/nix/profiles/default/bin:\$PATH
+      cd '$RD' && env -u GOOGLE_APPLICATION_CREDENTIALS -u GOOGLE_CREDENTIALS \
+        -u GOOGLE_OAUTH_ACCESS_TOKEN nix shell nixpkgs#sops -c sops updatekeys -y secrets.yaml"
+    scp "10.0.7.100:$RD/secrets.yaml" ./secrets.yaml
+    ssh 10.0.7.100 "rm -rf '$RD'"
+
+Verifying a `secrets.yaml`/credential change on shiori without activating
+anything — shiori's live credential config and unit binary:
+
+    CFG=$(systemctl --user show -p Environment --value sops-nix.service \
+          | tr ' ' '\n' | sed -n 's/^GOOGLE_APPLICATION_CREDENTIALS=//p')
+    # currently /nix/store/REDACTED.json
+    env -u GOOGLE_CREDENTIALS -u SOPS_AGE_KEY_FILE GOOGLE_APPLICATION_CREDENTIALS="$CFG" \
+      GOOGLE_EXTERNAL_ACCOUNT_ALLOW_EXECUTABLES=1 sops -d secrets.yaml
+    # and the real binary, via a temp manifest (device-test.sh case 1d(iii) shape):
+    BIN=$(grep -o '/nix/store/[^ ]*sops-install-secrets[^ ]*/bin/sops-install-secrets' \
+      "$(systemctl --user cat sops-nix.service | grep -o '/nix/store/[^ ]*sops-nix-user' | head -1)" | head -1)
+
+The nix-key path, checked from fujiwara (`~/.config/sops/gcp-key.json` is
+readable there as the user; `/var/lib/sops/gcp-key.json` does not exist):
+
+    GOOGLE_APPLICATION_CREDENTIALS=$HOME/.config/sops/gcp-key.json sops -d secrets.yaml
+
+Build + lint gates:
+
+    nix build --fallback --no-link --print-out-paths \
+      .#homeConfigurations.{utsuho,setsuna,fujiwara,shiori}.activationPackage   # CI's exact set
+    shellcheck -s bash install/wif/*.sh tests/*.sh
+
+Everything in the prior handoff's §4 (JWKS object shape, JWT claims, `wifHosts` /
+`koWifToken` / `wifCredentialConfig` knobs, mari's two identities) still holds
+unchanged — this phase touched none of it.
+
+**One interface drift, carry it forward:** the prior handoff and the A7 table call
+this "the paper recipient **for `host-key`**". It is not bound to `host-key` or any
+KMS key — it is a third independent recipient of `secrets.yaml`, peer to both KMS
+keys in one OR group. That matters at the gate: dropping `nix-key` does not touch
+it, and revoking the device tier's IAM on `host-key` (the A6.5 break-glass lever)
+leaves it working, which is the point.
+
+## Open questions
+- **Not yet asked, and item 2 needs it:** which openssl-side TPM mechanism to
+  commit to — nixpkgs `tpm2-openssl` provider vs `tpm2-pkcs11` — such that
+  `openssl dgst -sha256 -sign <tpm key ref>` works under `PATH=""` with absolute
+  paths, while the file-key path keeps working for macOS/mari. The prior handoff
+  says "pick whichever works"; that is an agent call, but it changes `home.nix`
+  and is worth a `drovr ask` if both turn out viable.
+- Still open from the prior handoff, untouched here: which of
+  utsuho/setsuna/kyuusaku/mari are reachable and how (only fujiwara at 10.0.7.100
+  is confirmed reachable from shiori); and the item 4 gate confirmation.
+- **Not a question, a standing fact:** the sheet is not printed yet. Anything that
+  reads "the paper recipient exists" as "the paper key is stored" is wrong.
+
+## Next step
+Start item 2: move shiori's `wif` key into the TPM. Read `home.nix:340-420` for
+the existing TPM idiom (`TPM2TOOLS_TCTI=device:/dev/tpmrm0`, `tss` group) and
+`home/scripts/ko-wif-token.py` for the signer, then decide the openssl TPM
+mechanism. Remember a TPM key is a **new** key: publish its JWK alongside the
+current one, verify decryption with it, and only then remove the old kid from the
+JWKS (that removal is experiment 2a-removal — time it).
+
+## Artifact pointers
+- Branch `drovr/wif-enroll` in the worktree
+  `/home/sauyon/devel/dotfiles/.drovr/wt/wif-enroll`. Base `935c194`
+  (= forge `master`), HEAD `5f671bb`, tree clean, **nothing pushed**.
+  `git log --oneline 935c194..HEAD` → `4d46d1c` (red test + generator),
+  `cdb6ee0` (the recipient + updatekeys), `5f671bb` (SC2020 lint fix). The commit
+  messages carry the per-change rationale; `git diff 935c194..HEAD` is 4 files.
+- This phase's report: `~/.local/share/drovr/runs/wif-enroll/task1-report.md`
+  (verification output, the four decrypt paths, the panel table).
+- Review artifacts: `~/.local/share/drovr/runs/wif-enroll/task-1-review-{1,2,3,4}-<angle>.json`,
+  `task-1-review-{1,2,3,4}.head`, deferrals in `task-1-deferrals.jsonl`, base in
+  `task-1-base.sha`.
+- This phase's step checklist: `~/.local/share/drovr/runs/wif-enroll/task-1-checklist.md`
+  (separate file because the harness exposes no TodoWrite/TaskCreate and
+  `checklist.md` in that directory is the driver's own).
+- The answered ask: `~/.local/share/drovr/runs/wif-enroll/interview.jsonl` (`ask-0`).
+- Spec: `/home/sauyon/devel/reports/Homelab secrets bootstrap trust root.md`,
+  Part A — A6.4 (paper key weaknesses), A7 (plan table + the migration gate row),
+  A8 (pending experiments 2a-removal, 2c, 3 TPM).
+- Repo files this phase touched or read: `.sops.yaml`, `secrets.yaml`,
+  `tests/sops-recipients.sh`, `install/wif/paper-keygen.sh`,
+  `install/wif/{admin-setup,device-keygen,device-test}.sh`,
+  `home.nix` (sops block at ~1467-1485; TPM idiom at 340-420),
+  `.forgejo/workflows/nix-home.yml:115`.
+- Known stale, left alone deliberately: `install/wif/device-keygen.sh` still
+  writes `~/.config/ko/experiment/wif.pem` while the real key is
+  `~/.config/ko/wif.pem`. It belongs to item 3; fixing it here would have put
+  unreviewed enrollment changes in this task's review range.
+- Prior admin-side state: `fujiwara:~/wif-experiment/{admin-setup.sh,out/}`
+  (`out/env.sh` has the GCP identifiers). Previous run's notes:
+  `~/.local/share/drovr/runs/wif-bootstrap/checklist.md`.
+# Handoff: dotfiles trust root, Part A — remaining items after slice 1
+
+## 1. Objective
+Finish Part A of the dotfiles trust-root migration for the dotfiles domain ONLY (the
+RKE2 cluster is a separate trust domain and keeps gcp-key.json + nix-key — do not touch
+the kube repo except where stated). Design of record:
+`/home/sauyon/devel/reports/Homelab secrets bootstrap trust root.md` — read Part A
+(A0–A10) first; it is the spec. Items, in order:
+  1. Offline paper recipient for KMS `host-key` (report A6.4, A7 step 1).
+  2. Move shiori's `wif` key into the TPM (report A1 #1, A6.5 upgrade path).
+  3. Enroll the other dotfiles principals: utsuho, setsuna, kyuusaku, fujiwara (user),
+     mari (TWO identities: nix-darwin system at flake.nix:128 and user at home.nix:1283).
+  4. Migration gate (report A7): drop `nix-key` from dotfiles `.sops.yaml` and rotate
+     `secrets.yaml` ONLY when every principal in (3) is enrolled AND the human confirms the
+     paper key from (1) is printed and stored. Otherwise leave nix-key in place and report.
+Item 5 (the enroller service + `ko-keys` CLI) is NOT in scope; it is a later pipeline run.
+
+## 2. State (verified 2026-09-28)
+- shiori (this machine, Arch, TPM at /dev/tpmrm0, user in `tss`) decrypts secrets.yaml via
+  device WIF identity → Google STS → KMS host-key. Merged to forge master `935c194`.
+  Key: `~/.config/ko/wif.pem` (P-256, file, 0600). JWK kid
+  `REDACTED` is in the bucket JWKS.
+- GCP (project sauyon-dotfiles, number 484956590837): bucket `ko-keys-sauyon`, issuer
+  `https://storage.googleapis.com/ko-keys-sauyon/hosts` (objects
+  `hosts/.well-known/openid-configuration`, `hosts/.well-known/jwks.json`; public read;
+  versioned), pool `ko-hosts`, provider `bucket` (attribute condition
+  `assertion.sub.startsWith("device:")`), KMS key `host-key` in `nix-keyring`
+  (pool has cryptoKeyDecrypter; user sauyon@gmail.com has EncrypterDecrypter on host-key
+  and nix-key). New JWKS keys are accepted by STS within ~30 s of upload (measured).
+  A forged `sub` is accepted (tier-only identity; do not rely on sub for authz).
+- dotfiles `.sops.yaml`: one creation rule, gcp_kms = "nix-key,host-key" (one key group).
+  `secrets.yaml` encrypted to both. Other hosts still use gcp-key.json → nix-key via
+  home.nix `sops.environment` (the `wifHosts` list in home.nix gates the WIF path; only
+  "shiori" is in it).
+- home.nix: `ko-wif-token` = pkgs.writeShellScriptBin wrapper around
+  `home/scripts/ko-wif-token.py` (ES256 signer, python3 stdlib + openssl, honours
+  KO_OPENSSL / KO_TIMEDATECTL env vars because sops-nix runs the unit with PATH="").
+  Credential config `wif-hosts.json` in the store (executable-sourced external_account).
+- Manual enrollment kit: `install/wif/admin-setup.sh` (GCP side; idempotent; takes one or
+  more JWK files and REPLACES the hosts JWKS with exactly those keys — so to add a host,
+  pass ALL current JWKs), `install/wif/device-keygen.sh` (device side: generates
+  ~/.config/ko/experiment/wif.pem — NOTE slice 1 moved the real key to ~/.config/ko/wif.pem;
+  fix the script path to ~/.config/ko/wif.pem as part of item 3), `install/wif/device-test.sh`.
+- Admin machine: fujiwara at 10.0.7.100 (ssh works from shiori, BatchMode). It is Arch (not
+  NixOS), has nix at /nix/var/nix/profiles/default/bin/nix (NOT on PATH for non-interactive
+  ssh; export PATH first), gcloud via `nix shell nixpkgs#google-cloud-sdk`, logged in as
+  sauyon@gmail.com, ADC file present (authorized_user), git-credential-fj for forge.ko.ag
+  (this is how master was pushed: fast-forward on fujiwara's ~/devel/dotfiles then
+  `git push origin master`). Previous admin runs live in fujiwara:~/wif-experiment/.
+- Reachability from shiori: only fujiwara is known reachable. utsuho/setsuna/kyuusaku/mari
+  were NOT probed; ~/.ssh/config on shiori has no entries for them. kyuusaku's home is
+  /local/mnt/workspace/kyuusaku (a work box; may be unreachable). Report unreachables.
+- Report A8 lists pending experiments (2a-removal latency, 2c fail-open/closed, 3 TPM).
+  Doing 2c and the removal half of 2a while touching the JWKS is welcome but optional.
+
+## 3. Decisions + rationale (do not re-litigate)
+- Cluster and dotfiles are separate trust domains (user decision). Nodes keep
+  gcp-key.json. The device pool must NEVER be granted anything on nix-key, and the SA key
+  nix-secret-manager@ must NEVER be granted host-key.
+- Keys are generated ON the device and never copied between hosts (C1/C2). Enrolling a
+  host means: run keygen on that host, carry only the PUBLIC JWK to fujiwara, re-publish
+  the JWKS with all current keys, then that host runs `hms` (or a local switch) after
+  home.nix `wifHosts` includes it. Never generate a host's key elsewhere "for convenience".
+- Never put Google credentials (gcloud login, ADC, gcp-key.json) on shiori or any newly
+  enrolled host. GCP-side work happens on fujiwara.
+- Secrets never pass through `drovr ask` (the review page has no auth). The paper key's
+  private half stays in a 0600 file for the human to print and then shred; only the
+  public recipient goes into .sops.yaml.
+- Paper key is text, not QR; one paper recipient per KMS key (host-key only here; the
+  infra-key one is the cluster workstream's).
+- The previous auto-mode classifier refused to run admin-setup.sh remotely because it
+  grants IAM roles; the human ran it with a `!` prefix. If a permission grant is refused,
+  do NOT work around it: post a `drovr ask` naming the exact command for the human.
+  Plain `gcloud storage cp` (JWKS re-publish) is not a grant and should be fine.
+- home.nix edits go through the worktree (the main-checkout hook blocks Edit on master).
+- The `ko-wif-token` script keeps stdlib + openssl only; for TPM use openssl's tpm2
+  provider (nixpkgs `tpm2-openssl`) or tpm2-pkcs11 — pick whichever lets
+  `openssl dgst -sha256 -sign <tpm key ref>` work under PATH="" with absolute paths, and
+  keep the file-key path working for macOS/mari. Follow the existing home.nix:340-420 TPM
+  idiom (TPM2TOOLS_TCTI=device:/dev/tpmrm0, tss group). A TPM key is a NEW key: publish
+  its JWK, verify decryption with it, then remove the old file key's kid from the JWKS
+  (and measure how long until STS rejects the old key — that is experiment 2a-removal).
+- Review discipline: every change gets `drovr code-review run <run> <task>` (foreground
+  from inside your pane, never backgrounded), Critical/Important fixed or deferred with
+  `drovr code-review defer`, before `drovr phase done`. Commit on the run branch; do not
+  push from shiori (no forge creds); push via fujiwara as described, or leave the branch
+  and say so in the handoff.
+
+## 4. Interfaces / contracts
+- JWKS object: `{"keys":[<jwk>, ...]}`; each JWK from `ko-wif-token --key <pem> --jwk`
+  (fields crv,kty,x,y,kid,alg,use). Upload with
+  `gcloud storage cp --content-type=application/json --cache-control='public, max-age=60' jwks.json gs://ko-keys-sauyon/hosts/.well-known/jwks.json`.
+- JWT claims: iss=`https://storage.googleapis.com/ko-keys-sauyon/hosts`, sub=`device:<host>`,
+  aud=`//iam.googleapis.com/projects/484956590837/locations/global/workloadIdentityPools/ko-hosts/providers/bucket`,
+  exp=+5m, iat/nbf=now-60s (deliberate; deferred nit).
+- home.nix knobs: `wifHosts` (list of hostnames), `koWifToken`, `wifCredentialConfig`,
+  `sops.environment` conditional on `useWif`. mari is darwin: `isDarwin` true; its system
+  sops env is in flake.nix (darwinConfigurations.mari) and must get the same treatment
+  with a second device name (e.g. device:mari-system) and key path under /etc or
+  /var/root; user side uses home.nix like Linux.
+- .sops.yaml key group: add the paper recipient as `age:` in the SAME creation rule as
+  gcp_kms (OR semantics), then on fujiwara:
+  `env -u GOOGLE_APPLICATION_CREDENTIALS -u GOOGLE_CREDENTIALS nix shell nixpkgs#sops -c sops updatekeys -y secrets.yaml`
+  (ADC as the human has both KMS keys). Copy the file back; never run updatekeys on shiori.
+- Verification per host: `systemctl --user restart sops-nix.service` succeeds and
+  `~/.config/sops-nix/secrets/` is populated; `journalctl --user -u sops-nix` clean.
+  After ANY home.nix change on shiori: build with
+  `nix build .#homeConfigurations.shiori.activationPackage`, then `<gen>/activate`,
+  then `systemctl --user daemon-reload && systemctl --user restart sops-nix.service`
+  (home-manager did not daemon-reload before starting the unit last time).
+
+## 5. Open questions (ask the human via `drovr ask`, do not guess)
+- Which of utsuho/setsuna/kyuusaku/mari are reachable from shiori, and how (IP/ssh)?
+- Where should the paper key's private half be left for printing (file path is fine)?
+- Migration gate confirmation (paper key printed + stored) before dropping nix-key.
+
+## 6. Next step for you
+Start with item 1 (cheap, unblocks the gate), then item 2 on shiori, then item 3 for
+fujiwara-user (reachable) and any others the human names, then re-check the gate.
+
+## 7. Artifact pointers
+- Report: /home/sauyon/devel/reports/Homelab secrets bootstrap trust root.md (Part A).
+- dotfiles master 935c194 (commits 77bccae, 935c194 are slice 1); files: .sops.yaml,
+  secrets.yaml, home.nix (search "sops trust root"), home/scripts/ko-wif-token.py,
+  install/wif/*.sh. Previous run notes: ~/.local/share/drovr/runs/wif-bootstrap/checklist.md.
+- fujiwara:~/wif-experiment/{admin-setup.sh,out/} (out/env.sh has all GCP identifiers).
+- GCP audit of what exists: `gcloud iam workload-identity-pools providers describe bucket --location=global --workload-identity-pool=ko-hosts --project=sauyon-dotfiles`.
+
+## Done when
+
+The task's tests pass, you have run read-only reviewers (in the foreground) and
+addressed their Critical/Important findings, `task2-report.md` is written, you have authored
+`implement-task-2-HANDOFF.md`, and you have run `drovr phase done wif-enroll implement-task-2` as
+your final action. Reference source by path; do not paste large diffs into the report or handoff.
+
+If you cannot complete the task (blocked, or the plan contradicts reality), STOP and say so
+plainly in the report — a failed task halts the loop rather than cascading a broken interface
+forward.
+</pasted_content id="7521">

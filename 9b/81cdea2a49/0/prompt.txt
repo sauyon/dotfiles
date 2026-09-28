@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b6j23w5qm</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/0e631102-f85e-4fe4-84f6-0e8ccea45aa8/tasks/b6j23w5qm.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the read-only review panel" completed (exit code 0)</summary>
+</task-notification>

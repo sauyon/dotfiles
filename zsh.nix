@@ -296,11 +296,17 @@
     # so it never fires on the one render that breaks. Priming the two variables
     # it reads makes it fire there too.
     #
-    # What that costs, exactly: the marks the skipped pass would have spliced. In
-    # a 6-command session that is one continuation-line mark (`133;A;k=s`, 1 ->
-    # 0), on the first prompt. Everything else is untouched -- mark1 (6), OSC 133
-    # B/C/D (6/6/5), cursor-shape sequences (18), OSC 2 title writes (24) and OSC
-    # 7 cwd reports (6) are identical with and without this.
+    # Which shells this is actually for: the ones that load the integration from
+    # the `source` line home-manager writes into .zshrc, i.e. AFTER p10k. Its
+    # precmd is last there, so it takes the PS1-rewriting branch and the `}}`
+    # appears. When ghostty instead hands the shell over via ZDOTDIR, the
+    # integration loads at .zshenv time, before p10k, its precmd is not last, it
+    # prints its marks directly and never rewrites PS1 -- no artifact, and this
+    # line is inert. Measured on both paths, 6-command session.
+    #
+    # It costs nothing on either path. mark1 (6), OSC 133 B/C/D (6/6/5),
+    # cursor-shape sequences (18), OSC 2 title writes (24) and ghostty's OSC 7
+    # cwd reports (9) are identical with and without it.
     # POWERLEVEL9K_TERM_SHELL_INTEGRATION is NOT a cheaper substitute: going that
     # way means dropping the sourced integration, which is what stops the
     # rewrite, and that costs the cursor sequences outright (18 -> 0) and half
@@ -315,7 +321,9 @@
     # ghostty version bump. tests/ghostty-p10k-prompt.sh is what decides: it
     # asserts the `}}` is gone with this line AND still returns without it, so it
     # fails loudly if upstream ever makes the workaround unnecessary or renames
-    # the private variables it leans on out from under it.
+    # the private variables it leans on out from under it. It also checks that
+    # its own two shell paths are still distinct, because conflating them is how
+    # the first cut of it came to assert something false about the injected one.
     typeset -g _ghostty_saved_ps1="" _ghostty_saved_ps2=""
 
     # The greeting. Yeah, yeah, I'm unimaginative. :'(

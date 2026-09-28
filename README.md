@@ -66,7 +66,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/hyprlock-faillock.sh     # builds the script, then drives 33 cases
 ./tests/system-packages.sh       # sources system/pacman.sh, drives 21 cases
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
-./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live generated zsh config
+./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live zsh config
 ./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
 ./tests/polkit-agent.sh          # evaluates 3 hosts, drives 8 cases
@@ -103,9 +103,17 @@ The `_ghostty_saved_ps1` priming in `zsh.nix` is a model of ghostty's
 rewrite that corrupts powerlevel10k's `PROMPT` into a literal `}}`. Rename those
 variables upstream and nix still builds, `hms` still succeeds, and the only
 symptom is the artifact coming back. The cases render the *live generated* config
-in a pty -- both the injected and plain startup paths -- and assert the `}}` is
-gone with the line and still returns without it, so a workaround that has quietly
-stopped working fails out loud, and so does one that has become unnecessary.
+in a pty and assert the `}}` is gone with the line and still returns without it,
+so a workaround that has quietly stopped working fails out loud, and so does one
+that has become unnecessary.
+
+Which of the two shell startup paths is involved is the subtle part, and the
+cases pin it down rather than assuming: the artifact only appears when the
+integration is sourced from `.zshrc`, after p10k, and never when ghostty hands
+the shell over via `ZDOTDIR` before it. Driving that second path takes
+`SHELL=/bin/sh`, because `script -c` otherwise runs the command through zsh and
+that outer shell quietly eats the handoff -- so two cases check the paths are
+still distinct before the rest trusts them.
 
 `STEAM_FORCE_DESKTOPUI_SCALING` (in `home.nix`) models Steam's side of a bargain
 Hyprland can't enforce: `xwayland.force_zero_scaling` hands X11 clients real

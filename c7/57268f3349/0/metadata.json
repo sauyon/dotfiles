@@ -1,0 +1,196 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "c757268f3349",
+  "session_id": "4e777609-87db-4d8b-bcd5-8d279ae59f5e",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-28T10:25:02.144555043Z",
+  "branch": "drovr/wif-enroll",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "install/wif/jwks-remove-kid.py",
+    "install/wif/revoke-kid.sh",
+    "tests/wif-jwks.sh",
+    "tests/wif-tpm.sh"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "ab730c9310c1",
+  "checkpoint_transcript_start": 839,
+  "transcript_lines_at_start": 839,
+  "compact_transcript_start": 141,
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 26222,
+    "cache_read_tokens": 3352920,
+    "output_tokens": 13565,
+    "api_call_count": 11
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01EEB63ef8aVZbQ3VQAsykt4",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:using-drovr"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "1921eacea309",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 29,
+        "end": 30,
+        "entry_ids": [
+          "e1505976-14bb-40ab-8592-c9c1ebfe7619"
+        ],
+        "tool_use_id": "toolu_01EEB63ef8aVZbQ3VQAsykt4"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01EEB63ef8aVZbQ3VQAsykt4"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:using-drovr",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01NjpamYc8xMe6dEZxAjUaur",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:tdd"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "1921eacea309",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 117,
+        "end": 118,
+        "entry_ids": [
+          "9ce91b16-39e0-4aed-a654-bd5fd155db1e"
+        ],
+        "tool_use_id": "toolu_01NjpamYc8xMe6dEZxAjUaur"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01NjpamYc8xMe6dEZxAjUaur"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:tdd",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_011C4747JxAA4f3L1nACwqZr",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "50de46dfe21c",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 357,
+        "end": 358,
+        "entry_ids": [
+          "020ce035-2e40-4e36-af7f-865191d34ebf"
+        ],
+        "tool_use_id": "toolu_011C4747JxAA4f3L1nACwqZr"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_011C4747JxAA4f3L1nACwqZr"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-28T10:25:02.008080301Z",
+    "agent_lines": 108,
+    "agent_removed": 27,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 108,
+    "total_lines_changed": 135,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 4579,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/task-1-review-1/001-.sops.yaml.diff": 22,
+        ".drovr/review/task-1-review-1/002-install_wif_paper-keygen.sh.diff": 114,
+        ".drovr/review/task-1-review-1/003-secrets.yaml.diff": 31,
+        ".drovr/review/task-1-review-1/004-tests_sops-recipients.sh.diff": 135,
+        ".drovr/review/task-1-review-1/index.md": 33,
+        ".drovr/review/task-1-review-2/001-.sops.yaml.diff": 22,
+        ".drovr/review/task-1-review-2/002-install_wif_paper-keygen.sh.diff": 114,
+        ".drovr/review/task-1-review-2/003-secrets.yaml.diff": 31,
+        ".drovr/review/task-1-review-2/004-tests_sops-recipients.sh.diff": 135,
+        ".drovr/review/task-1-review-2/index.md": 33,
+        ".drovr/review/task-1-review-3/001-.sops.yaml.diff": 22,
+        ".drovr/review/task-1-review-3/002-install_wif_paper-keygen.sh.diff": 114,
+        ".drovr/review/task-1-review-3/003-secrets.yaml.diff": 31,
+        ".drovr/review/task-1-review-3/004-tests_sops-recipients.sh.diff": 137,
+        ".drovr/review/task-1-review-3/index.md": 33,
+        ".drovr/review/task-1-review-4/001-.sops.yaml.diff": 22,
+        ".drovr/review/task-1-review-4/002-install_wif_paper-keygen.sh.diff": 114,
+        ".drovr/review/task-1-review-4/003-secrets.yaml.diff": 31,
+        ".drovr/review/task-1-review-4/004-tests_sops-recipients.sh.diff": 137,
+        ".drovr/review/task-1-review-4/index.md": 33,
+        ".drovr/review/task-1-review-5/001-.sops.yaml.diff": 22,
+        ".drovr/review/task-1-review-5/002-install_wif_paper-keygen.sh.diff": 114,
+        ".drovr/review/task-1-review-5/003-secrets.yaml.diff": 31,
+        ".drovr/review/task-1-review-5/004-tests_sops-recipients.sh.diff": 137,
+        ".drovr/review/task-1-review-5/index.md": 33,
+        ".drovr/review/task-2-review-1/001-home.nix.diff": 53,
+        ".drovr/review/task-2-review-1/002-home_scripts_ko-wif-token.py.diff": 77,
+        ".drovr/review/task-2-review-1/003-install_wif_tpm-keygen.sh.diff": 132,
+        ".drovr/review/task-2-review-1/004-tests_wif-tpm.sh.diff": 226,
+        ".drovr/review/task-2-review-1/index.md": 33,
+        ".drovr/review/task-2-review-2/001-home.nix.diff": 53,
+        ".drovr/review/task-2-review-2/002-home_scripts_ko-wif-token.py.diff": 77,
+        ".drovr/review/task-2-review-2/003-install_wif_tpm-keygen.sh.diff": 132,
+        ".drovr/review/task-2-review-2/004-tests_wif-tpm.sh.diff": 226,
+        ".drovr/review/task-2-review-2/index.md": 33,
+        ".drovr/review/task-2-review-3/001-home.nix.diff": 56,
+        ".drovr/review/task-2-review-3/002-home_scripts_ko-wif-token.py.diff": 85,
+        ".drovr/review/task-2-review-3/003-install_wif_revoke-kid.sh.diff": 119,
+        ".drovr/review/task-2-review-3/004-install_wif_tpm-keygen.sh.diff": 177,
+        ".drovr/review/task-2-review-3/005-tests_wif-tpm.sh.diff": 342,
+        ".drovr/review/task-2-review-3/index.md": 35,
+        ".drovr/review/task-2-review-4/001-home.nix.diff": 56,
+        ".drovr/review/task-2-review-4/002-home_scripts_ko-wif-token.py.diff": 85,
+        ".drovr/review/task-2-review-4/003-install_wif_jwks-remove-kid.py.diff": 67,
+        ".drovr/review/task-2-review-4/004-install_wif_revoke-kid.sh.diff": 156,
+        ".drovr/review/task-2-review-4/005-install_wif_tpm-keygen.sh.diff": 178,
+        ".drovr/review/task-2-review-4/006-tests_wif-jwks.sh.diff": 107,
+        ".drovr/review/task-2-review-4/007-tests_wif-tpm.sh.diff": 354,
+        ".drovr/review/task-2-review-4/index.md": 39
+      }
+    }
+  ]
+}

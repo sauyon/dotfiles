@@ -38,7 +38,8 @@ def reduce_jwks(doc, kid):
     # completely as an empty one, and Google will not distinguish the cases for
     # you. admin-setup.sh (`jq -s '{keys: .}' "$@"`) will happily build any of
     # them from a mistyped filename.
-    if not any(isinstance(k, dict) and k.get("kid") for k in remaining):
+    if not any(isinstance(k, dict) and k.get("kid") and k.get("x") and k.get("y")
+               for k in remaining):
         raise ValueError(
             f"refusing: removing {kid} would leave no usable key in the JWKS "
             f"(survivors: {[k.get('kid') if isinstance(k, dict) else type(k).__name__ for k in remaining]}), "

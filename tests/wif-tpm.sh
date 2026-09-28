@@ -82,6 +82,9 @@ fetch_jwks() { # fetch_jwks -> kid list on stdout, non-zero if it is not a JWKS
 d = json.load(sys.stdin)
 ks = d["keys"]
 assert isinstance(ks, list) and ks, "empty or non-list keys"
+# Same predicate jwks-remove-kid.py uses. Without it, {"keys":["x","y"]} parses,
+# yields an empty kid list, and "the old kid is absent" reads as revoked.
+assert any(isinstance(k, dict) and k.get("kid") for k in ks), "no usable key in keys"
 print("\n".join(str(k.get("kid")) for k in ks if isinstance(k, dict)))' 2>/dev/null
 }
 
@@ -250,7 +253,7 @@ assert len(j["kid"]) == 43 and len(j["x"]) == 43 and len(j["y"]) == 43, j' 2>/de
       needed "JWKS membership: no kid to look for (the JWK check above failed)"
     elif ! jwks=$(fetch_jwks); then
       skip "JWKS membership: $issuer is unreachable or did not answer with a JWKS"
-    elif printf '%s\n' "$jwks" | grep -qxF "$kid"; then
+    elif printf '%s\n' "$jwks" | grep -qxF -- "$kid"; then
       ok "the TPM key's kid is published in the live JWKS"
     else
       bad "the TPM key's kid is published in the live JWKS"$'\n'"      $kid is not in $issuer/.well-known/jwks.json"$'\n'"      publish it from the admin host (install/wif/admin-setup.sh)"
@@ -279,7 +282,7 @@ elif ! jwks=$(fetch_jwks); then
   # the migration gets called done while the old identity still works.
   skip "the old file key is no longer authorised: $issuer is unreachable or did not answer with a JWKS"
 else
-  if printf '%s\n' "$jwks" | grep -qxF "$oldkid"; then
+  if printf '%s\n' "$jwks" | grep -qxF -- "$oldkid"; then
     bad "the old file key is no longer authorised"$'\n'"      kid $oldkid is STILL in the live JWKS, so whoever holds that key -- the plaintext"$'\n'"      file at $oldkey, or any copy made of it -- still mints device tokens."$'\n'"      The TPM key is an addition, not yet a migration. Once the new generation is live:"$'\n'"        ./install/wif/revoke-kid.sh $oldkid $oldkey"
   else
     ok "the old file key's kid is no longer in the live JWKS"

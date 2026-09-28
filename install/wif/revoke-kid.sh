@@ -44,13 +44,42 @@ if [ -z "$kid" ]; then
   exit 1
 fi
 
+work=$(mktemp -d); rd=""; trap 'rm -rf "$work"' EXIT
+
+mint() { # mint -> writes a fresh JWT to $work/tok.jwt, or fails with the reason
+  local tok
+  # stderr to a FILE, never merged into the token. ko-wif-token's sign() does not
+  # silence openssl (pub_xy does), and the TSS stack writes WARNING:/ERROR: lines
+  # at this layer -- one folded into the token makes a two-line "JWT" while the
+  # exit status stays 0, STS answers 400, and that reads as a revocation.
+  tok=$(python3 "$signer" --key "$1" --iss "$issuer" --sub "$subject" --aud "$audience" 2>"$work/signerr") \
+    || { echo "could not sign with $1: $(tail -1 "$work/signerr" 2>/dev/null)" >&2; return 1; }
+  # printf %s, not the signer's trailing newline: `--data-urlencode name@file`
+  # sends the file RAW, so a newline goes on the wire as %0A and STS may reject
+  # the token for that rather than for the revocation.
+  (umask 077; printf '%s' "$tok" > "$work/tok.jwt")
+}
+
+sts() { # sts -> prints http code for $work/tok.jwt; body in $work/sts.json
+  : > "$work/sts.json"   # never let a previous round's body be read as this one's
+  curl -sS --max-time 20 -o "$work/sts.json" -w '%{http_code}' https://sts.googleapis.com/v1/token \
+    --data-urlencode grant_type=urn:ietf:params:oauth:grant-type:token-exchange \
+    --data-urlencode "audience=$audience" \
+    --data-urlencode scope=https://www.googleapis.com/auth/cloud-platform \
+    --data-urlencode requested_token_type=urn:ietf:params:oauth:token-type:access_token \
+    --data-urlencode subject_token_type=urn:ietf:params:oauth:token-type:jwt \
+    --data-urlencode "subject_token@$work/tok.jwt"
+}
+
 # Everything checkable is checked BEFORE the irreversible act. Discovering the
 # key path was mistyped after the upload costs the experiment outright: the kid
 # you needed to time is already gone and cannot be put back to try again.
 if [ -n "$testkey" ]; then
   [ -r "$testkey" ] || { echo "cannot read the test key: $testkey" >&2; exit 1; }
   if ! python3 "$signer" --key "$testkey" --jwk >/dev/null 2>&1; then
-    if head -1 "$testkey" 2>/dev/null | grep -q 'TSS2 PRIVATE KEY'; then
+    # No pipe: pipefail can turn grep's early exit into a 141 and downgrade this
+    # to the generic message below.
+    if grep -q 'TSS2 PRIVATE KEY' < <(head -1 "$testkey" 2>/dev/null); then
       echo "$testkey is a TPM key and this shell has no tpm2 provider environment." >&2
       echo "Set KO_OPENSSL, OPENSSL_MODULES and TPM2OPENSSL_TCTI (see install/wif/tpm-keygen.sh)" >&2
       echo "and re-run: nothing has been changed." >&2
@@ -59,9 +88,24 @@ if [ -n "$testkey" ]; then
     fi
     exit 1
   fi
+  # And prove STS accepts it RIGHT NOW. Without this a first-round 400 prints
+  # "REJECTED after 0s" and that is indistinguishable from "this key was never
+  # going to be accepted" -- a kid that was never published, a stale audience, a
+  # subject the provider condition does not like. The experiment runs once and
+  # cannot be repeated once the kid is gone, so the baseline is worth one call.
+  mint "$testkey" || exit 1
+  code=$(sts)
+  if [ "$code" != 200 ]; then
+    echo "STS does not accept $testkey right now (http $code), so there is nothing to time." >&2
+    python3 -c 'import json,sys
+try:
+    d = json.load(open(sys.argv[1])); print("  ", d.get("error"), "-", str(d.get("error_description"))[:160], file=sys.stderr)
+except Exception: pass' "$work/sts.json" 2>/dev/null
+    echo "Nothing has been changed. Check the kid is published, and KO_WIF_SUB/KO_WIF_AUDIENCE." >&2
+    exit 1
+  fi
+  echo "baseline: STS accepts $testkey (http 200) before the removal"
 fi
-
-work=$(mktemp -d); rd=""; trap 'rm -rf "$work"' EXIT
 
 curl -fsS --max-time 20 "$issuer/.well-known/jwks.json" -o "$work/before.json" \
   || { echo "could not fetch the current JWKS from $issuer" >&2; exit 1; }
@@ -121,37 +165,16 @@ echo "(pre-change JWKS saved at $saved; the bucket is versioned as well)"
 
 [ -n "$testkey" ] || { echo "no test key given, so nothing to time. Done."; exit 0; }
 
-sts() { # sts <token file> -> prints http code; body in $work/sts.json
-  : > "$work/sts.json"   # never let a previous round's body be read as this one's
-  curl -sS --max-time 20 -o "$work/sts.json" -w '%{http_code}' https://sts.googleapis.com/v1/token \
-    --data-urlencode grant_type=urn:ietf:params:oauth:grant-type:token-exchange \
-    --data-urlencode "audience=$audience" \
-    --data-urlencode scope=https://www.googleapis.com/auth/cloud-platform \
-    --data-urlencode requested_token_type=urn:ietf:params:oauth:token-type:access_token \
-    --data-urlencode subject_token_type=urn:ietf:params:oauth:token-type:jwt \
-    --data-urlencode "subject_token@$1"
-}
-
 echo "timing how long STS keeps accepting a JWT signed by $testkey ..."
 accepted_any=0
 for _ in $(seq 1 180); do
   # A fresh token each round: a cached one expires on its own and would read as
-  # a revocation that never happened. printf %s, not the signer's trailing
-  # newline -- `--data-urlencode name@file` sends the file RAW, so a newline goes
-  # on the wire as %0A and STS may reject the token for that instead of for the
-  # revocation, turning round 1 into a bogus "revoked after 0s".
-  # stderr to a FILE, never merged into $tok. ko-wif-token's sign() does not
-  # silence openssl (pub_xy does), and the TSS stack writes WARNING:/ERROR: lines
-  # to stderr at this layer -- one of them folded into the token makes a
-  # two-line "JWT", STS answers 400, and round 1 reports a revocation that has
-  # not happened. That is the one number this script exists to produce.
-  if ! tok=$(python3 "$signer" --key "$testkey" --iss "$issuer" --sub "$subject" --aud "$audience" 2>"$work/signerr"); then
-    echo "could not sign with $testkey: $(tail -1 "$work/signerr" 2>/dev/null)" >&2
+  # a revocation that never happened.
+  if ! mint "$testkey"; then
     echo "the removal itself succeeded; the timing is unknown, not zero." >&2
     exit 2
   fi
-  (umask 077; printf '%s' "$tok" > "$work/tok.jwt")
-  code=$(sts "$work/tok.jwt")
+  code=$(sts)
   t=$(( $(date +%s) - start ))
   case "$code" in
     200) accepted_any=1; echo "  t+${t}s: still accepted" ;;

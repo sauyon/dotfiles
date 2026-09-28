@@ -103,6 +103,9 @@ run "refuses when the only survivor is not an object at all" \
 run "refuses when the only survivor is an object with no kid" \
     "{\"keys\":[$(jwk AAA),{\"kty\":\"EC\"}]}" AAA refuse
 
+run "refuses when the only survivor has a kid but no public point" \
+    "{\"keys\":[$(jwk AAA),{\"kty\":\"EC\",\"kid\":\"BBB\"}]}" AAA refuse
+
 # ...but a kid-less or junk entry alongside a REAL surviving key is fine: it is
 # someone else's business and must pass through untouched.
 run "keeps junk alongside a usable survivor" \

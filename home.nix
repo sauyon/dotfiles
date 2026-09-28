@@ -2412,14 +2412,17 @@ in
     pkgs.psi-notify
     pkgs.pwvucontrol
     pkgs.slack
+    # Discord client. Was dropped while its build pulled pnpm-10.29.2, which
+    # nixpkgs marks insecure (CVE-2026-48995, CVE-2026-50014). Under the current
+    # flake.lock it is vesktop 1.6.7 built with pnpm-11.27.0, which nixpkgs does
+    # not flag, so it needs no permittedInsecurePackages entry -- verify that
+    # still holds after a lock bump rather than trusting this comment.
+    pkgs.vesktop
     # Keymap editor for the Svalboard (keyboards/svalboard/). Needs the hidraw
     # udev rule in system/etc/udev/rules.d/92-vial.rules to see the keyboard at
     # all -- deployed separately, this package alone is not enough.
     pkgs.vial
     zoom # wayland wrapper bypassing Zoom's xcb-forcing launcher; see above
-    # Dropped: vesktop's build pulls pnpm-10.29.2, marked insecure in nixpkgs
-    # (CVE-2026-48995, CVE-2026-50014). Re-add once nixpkgs ships a patched pnpm.
-    # pkgs.vesktop
     pkgs.xauth
     pkgs.xdg-utils
   ] ++ lib.optionals (hostname == "fujiwara") [
@@ -2442,10 +2445,13 @@ in
   nixpkgs.config = {
     allowUnfree = true;
     sandbox = true;
-    # bitwarden-desktop 2026.6.1 pins electron 39.8.10, flagged insecure only
-    # because that Electron branch is EOL (no active CVE, unlike vesktop/pnpm
-    # above). Scoped to the exact version so a future bitwarden-desktop bump onto
-    # a newer Electron re-raises the flag for review.
+    # Held for bitwarden-desktop, which used to pin electron 39.8.10 -- flagged
+    # insecure only because that Electron branch is EOL, with no active CVE
+    # against it. Under the current flake.lock this entry is a no-op:
+    # bitwarden-desktop is 2026.9.0 on electron 43.6.0, and its derivation
+    # evaluates with permittedInsecurePackages = [ ]. Scoped to the exact version
+    # so a bump onto another flagged Electron re-raises it for review; drop the
+    # entry once nothing needs it.
     permittedInsecurePackages = [ "electron-39.8.10" ];
   };
 

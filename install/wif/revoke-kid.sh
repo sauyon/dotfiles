@@ -50,12 +50,18 @@ fi
 if [ -n "$testkey" ]; then
   [ -r "$testkey" ] || { echo "cannot read the test key: $testkey" >&2; exit 1; }
   if ! python3 "$signer" --key "$testkey" --jwk >/dev/null 2>&1; then
-    echo "$testkey is not a key ko-wif-token can read; fix that before revoking anything" >&2
+    if head -1 "$testkey" 2>/dev/null | grep -q 'TSS2 PRIVATE KEY'; then
+      echo "$testkey is a TPM key and this shell has no tpm2 provider environment." >&2
+      echo "Set KO_OPENSSL, OPENSSL_MODULES and TPM2OPENSSL_TCTI (see install/wif/tpm-keygen.sh)" >&2
+      echo "and re-run: nothing has been changed." >&2
+    else
+      echo "$testkey is not a key ko-wif-token can read; fix that before revoking anything" >&2
+    fi
     exit 1
   fi
 fi
 
-work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
+work=$(mktemp -d); rd=""; trap 'rm -rf "$work"' EXIT
 
 curl -fsS --max-time 20 "$issuer/.well-known/jwks.json" -o "$work/before.json" \
   || { echo "could not fetch the current JWKS from $issuer" >&2; exit 1; }
@@ -70,7 +76,12 @@ cp "$work/before.json" "$saved"
 python3 "$here/jwks-remove-kid.py" "$kid" "$work/before.json" "$work/after.json" || exit 1
 
 published() { # what the bucket actually serves right now, as a kid list
-  curl -fsS --max-time 20 "$issuer/.well-known/jwks.json" 2>/dev/null \
+  # Cache-busted: the object is uploaded with `cache-control: public, max-age=60`
+  # and this is called seconds after the upload. Reading the plain URL would very
+  # likely be served the PRE-change copy -- and the path that matters most here is
+  # "gcloud reported failure but the object landed", where a stale read tells the
+  # operator nothing changed and they stop.
+  curl -fsS --max-time 20 "$issuer/.well-known/jwks.json?_=$(date +%s%N)" 2>/dev/null \
     | python3 -c 'import json,sys
 try: print(" ".join(str(k.get("kid")) for k in json.load(sys.stdin)["keys"]))
 except Exception as e: print(f"(unreadable: {e})")' 2>/dev/null \
@@ -80,11 +91,18 @@ except Exception as e: print(f"(unreadable: {e})")' 2>/dev/null \
 echo "publishing the reduced JWKS via $admin ..."
 rd=$("${SSH[@]}" "$admin" 'mktemp -d ~/.jwks-publish.XXXXXX') \
   || { echo "could not reach the admin host $admin" >&2; exit 1; }
-# %q the remote path into the trap: it is interpolated now (it must be, to
-# survive the variable going out of scope) and then run through a remote shell.
-printf -v rdq '%q' "$rd"
-# shellcheck disable=SC2064  # deliberate: expand $work and $rdq at trap-set time
-trap "rm -rf '$work'; ${SSH[*]} '$admin' \"rm -rf $rdq\" >/dev/null 2>&1" EXIT
+# A function, not an interpolated trap string: a bash EXIT trap runs in this same
+# shell, so $rd is still in scope and needs no quoting at all. The interpolated
+# form had to %q the remote path into a double-quoted word inside a double-quoted
+# trap -- and bash would then eat the escapes before ssh saw them, so a $ or a
+# backtick in the admin's $HOME became remote shell injection.
+# shellcheck disable=SC2329  # invoked by the EXIT trap below
+cleanup() {
+  rm -rf "$work"
+  [ -n "${rd:-}" ] && "${SSH[@]}" "$admin" "rm -rf ${rd@Q}" >/dev/null 2>&1
+  return 0
+}
+trap cleanup EXIT
 scp -q -o BatchMode=yes -o ConnectTimeout=10 "$work/after.json" "$admin:$rd/jwks.json" \
   || { echo "scp to $admin failed; the JWKS is unchanged" >&2; exit 1; }
 if ! "${SSH[@]}" "$admin" "export PATH=/nix/var/nix/profiles/default/bin:\$PATH
@@ -115,14 +133,20 @@ sts() { # sts <token file> -> prints http code; body in $work/sts.json
 }
 
 echo "timing how long STS keeps accepting a JWT signed by $testkey ..."
+accepted_any=0
 for _ in $(seq 1 180); do
   # A fresh token each round: a cached one expires on its own and would read as
   # a revocation that never happened. printf %s, not the signer's trailing
   # newline -- `--data-urlencode name@file` sends the file RAW, so a newline goes
   # on the wire as %0A and STS may reject the token for that instead of for the
   # revocation, turning round 1 into a bogus "revoked after 0s".
-  if ! tok=$(python3 "$signer" --key "$testkey" --iss "$issuer" --sub "$subject" --aud "$audience" 2>&1); then
-    echo "could not sign with $testkey: $(printf '%s' "$tok" | tail -1)" >&2
+  # stderr to a FILE, never merged into $tok. ko-wif-token's sign() does not
+  # silence openssl (pub_xy does), and the TSS stack writes WARNING:/ERROR: lines
+  # to stderr at this layer -- one of them folded into the token makes a
+  # two-line "JWT", STS answers 400, and round 1 reports a revocation that has
+  # not happened. That is the one number this script exists to produce.
+  if ! tok=$(python3 "$signer" --key "$testkey" --iss "$issuer" --sub "$subject" --aud "$audience" 2>"$work/signerr"); then
+    echo "could not sign with $testkey: $(tail -1 "$work/signerr" 2>/dev/null)" >&2
     echo "the removal itself succeeded; the timing is unknown, not zero." >&2
     exit 2
   fi
@@ -130,7 +154,7 @@ for _ in $(seq 1 180); do
   code=$(sts "$work/tok.jwt")
   t=$(( $(date +%s) - start ))
   case "$code" in
-    200) echo "  t+${t}s: still accepted" ;;
+    200) accepted_any=1; echo "  t+${t}s: still accepted" ;;
     400|401)
       # Only an auth refusal is the revocation landing. Anything else that is
       # not 200 is the network or Google having a bad minute, and reporting it
@@ -146,5 +170,14 @@ except Exception: print("(no JSON body)")' "$work/sts.json" 2>/dev/null)
   esac
   sleep 10
 done
-echo "still accepted after $(( $(date +%s) - start ))s -- longer than this script waits." >&2
-exit 1
+t=$(( $(date +%s) - start ))
+if [ "$accepted_any" = 1 ]; then
+  echo "still accepted after ${t}s -- longer than this script waits." >&2
+  exit 1
+fi
+# Every round took the retry branch. Nothing was ever accepted, so "still
+# accepted" would be a fabricated result -- the same defect as the sign-failure
+# path, just reached through the timeout instead of a break.
+echo "no round was ever accepted in ${t}s (persistent non-200: pool disabled, proxy, sustained 5xx?)." >&2
+echo "the removal itself succeeded; the timing is unknown, not zero." >&2
+exit 2

@@ -32,10 +32,16 @@ def reduce_jwks(doc, kid):
     # can produce, since it is `jq -s '{keys: .}'` over whatever files it is handed
     # and deduplicates nothing -- and then publishes {"keys":[]}, which 401s every
     # enrolled host at its next activation and at boot.
-    if not remaining:
+    # "Non-empty" is not the invariant -- "still contains a key something can
+    # authenticate with" is. A JWKS whose only survivor is a nested JWKS object,
+    # a bare string, or a dict with no kid locks the fleet out exactly as
+    # completely as an empty one, and Google will not distinguish the cases for
+    # you. admin-setup.sh (`jq -s '{keys: .}' "$@"`) will happily build any of
+    # them from a mistyped filename.
+    if not any(isinstance(k, dict) and k.get("kid") for k in remaining):
         raise ValueError(
-            f"refusing: removing {kid} would publish an empty JWKS "
-            f"({kids.count(kid)} of the {len(kids)} published keys carry that kid), "
+            f"refusing: removing {kid} would leave no usable key in the JWKS "
+            f"(survivors: {[k.get('kid') if isinstance(k, dict) else type(k).__name__ for k in remaining]}), "
             "which locks out every enrolled host at once")
     out = dict(doc)
     out["keys"] = remaining
@@ -44,7 +50,7 @@ def reduce_jwks(doc, kid):
 
 if __name__ == "__main__":
     if len(sys.argv) != 4:
-        raise SystemExit(__doc__.strip().splitlines()[-4].strip())
+        raise SystemExit(f"usage: {sys.argv[0]} <kid> <in.json> <out.json>")
     kid, src, dst = sys.argv[1:4]
     try:
         with open(src) as f:
@@ -55,7 +61,8 @@ if __name__ == "__main__":
         out = reduce_jwks(doc, kid)
     except ValueError as e:
         raise SystemExit(str(e))
-    print("before:", [k.get("kid") if isinstance(k, dict) else None for k in doc["keys"]])
-    print("after: ", [k.get("kid") for k in out["keys"]])
+    show = lambda ks: [k.get("kid") if isinstance(k, dict) else None for k in ks]
+    print("before:", show(doc["keys"]))
+    print("after: ", show(out["keys"]))
     with open(dst, "w") as f:
         json.dump(out, f, separators=(",", ":"))

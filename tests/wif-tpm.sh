@@ -56,7 +56,7 @@ oldkey="${KO_WIF_FILE_KEY:-$HOME/.config/ko/wif.pem}"
 # Override for another host; empty disables the check deliberately.
 oldkid_pinned="${KO_WIF_OLD_KID-01HB4BTt8_vvHx6QA2OY2lhRkDsZcO6XaYGIOtd5sZs}"
 tcti="${TPM2OPENSSL_TCTI:-device:/dev/tpmrm0}"
-issuer="https://storage.googleapis.com/ko-keys-sauyon/hosts"
+issuer="${KO_WIF_ISSUER:-https://storage.googleapis.com/ko-keys-sauyon/hosts}"
 
 fails=0; n=0; skipped=0
 ok()   { n=$((n+1)); printf 'ok %d - %s\n' "$n" "$1"; }
@@ -68,6 +68,22 @@ needed() { bad "$1"$'\n'"      (${2:-this host has a TPM and a device key}, so t
 is()   { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1"$'\n'"      want: $3"$'\n'"      got:  $2"; fi; }
 
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
+
+# Fetch the JWKS and PROVE it is one before anyone draws a conclusion from it.
+# `curl -f` only rejects HTTP >= 400, so a captive portal or an intercepting
+# proxy answering 200 with HTML gets through it. That matters asymmetrically: a
+# check that the kid is PRESENT fails safe on such a body, but the check that the
+# kid is ABSENT would read it as "revoked" and go green with the old identity
+# still live -- a green suite on hotel wifi.
+fetch_jwks() { # fetch_jwks -> kid list on stdout, non-zero if it is not a JWKS
+  local body
+  body=$(curl -fsS --max-time 15 "$issuer/.well-known/jwks.json" 2>/dev/null) || return 1
+  printf '%s' "$body" | python3 -c 'import json, sys
+d = json.load(sys.stdin)
+ks = d["keys"]
+assert isinstance(ks, list) and ks, "empty or non-list keys"
+print("\n".join(str(k.get("kid")) for k in ks if isinstance(k, dict)))' 2>/dev/null
+}
 
 # openssl and the tpm2 provider have to come from ONE source: a provider built
 # against a different OpenSSL than the binary loading it may refuse to load, and
@@ -232,9 +248,9 @@ assert len(j["kid"]) == 43 and len(j["x"]) == 43 and len(j["y"]) == 43, j' 2>/de
     kid=$(printf '%s' "$j" | python3 -c 'import json, sys; print(json.load(sys.stdin)["kid"])' 2>/dev/null)
     if [ -z "$kid" ]; then
       needed "JWKS membership: no kid to look for (the JWK check above failed)"
-    elif ! jwks=$(curl -fsS --max-time 15 "$issuer/.well-known/jwks.json" 2>/dev/null); then
-      skip "JWKS membership: $issuer is unreachable"
-    elif printf '%s' "$jwks" | grep -qF "$kid"; then
+    elif ! jwks=$(fetch_jwks); then
+      skip "JWKS membership: $issuer is unreachable or did not answer with a JWKS"
+    elif printf '%s\n' "$jwks" | grep -qxF "$kid"; then
       ok "the TPM key's kid is published in the live JWKS"
     else
       bad "the TPM key's kid is published in the live JWKS"$'\n'"      $kid is not in $issuer/.well-known/jwks.json"$'\n'"      publish it from the admin host (install/wif/admin-setup.sh)"
@@ -257,10 +273,13 @@ if [ -z "$oldkid" ] && [ -r "$oldkey" ]; then
 fi
 if [ -z "$oldkid" ]; then
   skip "the old file key is no longer authorised: no kid pinned (KO_WIF_OLD_KID) and $oldkey unreadable"
-elif ! jwks=$(curl -fsS --max-time 15 "$issuer/.well-known/jwks.json" 2>/dev/null); then
-  skip "the old file key is no longer authorised: $issuer is unreachable"
+elif ! jwks=$(fetch_jwks); then
+  # Deliberately a skip and not an ok: "I could not read the JWKS" is not
+  # "the key is revoked", and this is the check where confusing the two is how
+  # the migration gets called done while the old identity still works.
+  skip "the old file key is no longer authorised: $issuer is unreachable or did not answer with a JWKS"
 else
-  if printf '%s' "$jwks" | grep -qF "$oldkid"; then
+  if printf '%s\n' "$jwks" | grep -qxF "$oldkid"; then
     bad "the old file key is no longer authorised"$'\n'"      kid $oldkid is STILL in the live JWKS, so whoever holds that key -- the plaintext"$'\n'"      file at $oldkey, or any copy made of it -- still mints device tokens."$'\n'"      The TPM key is an addition, not yet a migration. Once the new generation is live:"$'\n'"        ./install/wif/revoke-kid.sh $oldkid $oldkey"
   else
     ok "the old file key's kid is no longer in the live JWKS"

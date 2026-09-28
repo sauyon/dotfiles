@@ -49,7 +49,7 @@ run() {
   fi
   # .get, not ["kid"]: a kid-less entry is a case below, and indexing here would
   # report the tool as having dropped it when it kept it.
-  got=$(python3 -c 'import json,sys; print(" ".join(k.get("kid") or "-" for k in json.load(open(sys.argv[1]))["keys"]))' "$work/out.json" 2>/dev/null)
+  got=$(python3 -c 'import json,sys; print(" ".join((k.get("kid") if isinstance(k, dict) else None) or "-" for k in json.load(open(sys.argv[1]))["keys"]))' "$work/out.json" 2>/dev/null)
   if [ "$got" = "$want" ]; then ok "$name: kept [$got]"
   else bad "$name"$'\n'"      want keys: [$want]"$'\n'"      got keys:  [$got]"; fi
 }
@@ -85,6 +85,28 @@ run "refuses a body that is not JSON at all" '<html>Sign in to continue</html>' 
 # must not crash the tool on the way past.
 run "keeps a kid-less entry rather than crashing on it" \
     "{\"keys\":[{\"kty\":\"EC\"},$(jwk AAA),$(jwk BBB)]}" AAA ok "- BBB"
+
+# Surviving entries must be USABLE keys, not merely present. Counting entries is
+# not the invariant: a JWKS whose only survivor is not a JWK is as complete a
+# lockout as an empty one, and Google will not tell you which it was.
+#
+# This exact shape is one operator slip away. admin-setup.sh is
+# `jq -s '{keys: .}' "$@"`, the operator is told to name "EVERY current key", and
+# out/jwks.json -- a nested JWKS, written by that same script -- sits in the same
+# directory as out/<host>.jwk.json.
+run "refuses when the only survivor is a nested JWKS, not a key" \
+    "{\"keys\":[$(jwk AAA),{\"keys\":[$(jwk BBB)]}]}" AAA refuse
+
+run "refuses when the only survivor is not an object at all" \
+    "{\"keys\":[$(jwk AAA),\"junk\"]}" AAA refuse
+
+run "refuses when the only survivor is an object with no kid" \
+    "{\"keys\":[$(jwk AAA),{\"kty\":\"EC\"}]}" AAA refuse
+
+# ...but a kid-less or junk entry alongside a REAL surviving key is fine: it is
+# someone else's business and must pass through untouched.
+run "keeps junk alongside a usable survivor" \
+    "{\"keys\":[$(jwk AAA),\"junk\",$(jwk BBB)]}" AAA ok "- BBB"
 
 # Fields outside "keys" are not ours to drop: the JWKS may grow siblings.
 printf '{"keys":[%s,%s],"extra":"keep me"}' "$(jwk AAA)" "$(jwk BBB)" > "$work/in.json"

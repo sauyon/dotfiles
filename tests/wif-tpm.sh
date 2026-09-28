@@ -55,6 +55,8 @@ oldkey="${KO_WIF_FILE_KEY:-$HOME/.config/ko/wif.pem}"
 # lives in the JWKS, and whoever copied the file first keeps a working identity.
 # Override for another host; empty disables the check deliberately.
 oldkid_pinned="${KO_WIF_OLD_KID-01HB4BTt8_vvHx6QA2OY2lhRkDsZcO6XaYGIOtd5sZs}"
+# Pinned like the kid, for the same reason, and used by the authority check below.
+audience="${KO_WIF_AUDIENCE:-//iam.googleapis.com/projects/484956590837/locations/global/workloadIdentityPools/ko-hosts/providers/bucket}"
 tcti="${TPM2OPENSSL_TCTI:-device:/dev/tpmrm0}"
 issuer="${KO_WIF_ISSUER:-https://storage.googleapis.com/ko-keys-sauyon/hosts}"
 
@@ -285,7 +287,38 @@ else
   if printf '%s\n' "$jwks" | grep -qxF -- "$oldkid"; then
     bad "the old file key is no longer authorised"$'\n'"      kid $oldkid is STILL in the live JWKS, so whoever holds that key -- the plaintext"$'\n'"      file at $oldkey, or any copy made of it -- still mints device tokens."$'\n'"      The TPM key is an addition, not yet a migration. Once the new generation is live:"$'\n'"        ./install/wif/revoke-kid.sh $oldkid $oldkey"
   else
-    ok "the old file key's kid is no longer in the live JWKS"
+    ok "the old file key's kid is no longer published in the JWKS"
+  fi
+
+  # ...and then ask the only authority that decides: Google. Measured on
+  # 2026-09-28, removal propagates FAR slower than addition -- a new kid was
+  # accepted within ~15s, while a removed one was STILL accepted 32 minutes
+  # later. So "not in the JWKS" and "cannot mint a token" are different facts
+  # for a long time, and the first one alone would have declared this migration
+  # finished while the old key was still opening every dotfiles secret.
+  if [ ! -r "$oldkey" ]; then
+    skip "the old file key can no longer mint an STS token: $oldkey is gone (cannot test)"
+  else
+    tok="$work/old.jwt"
+    if ! (umask 077; python3 "$signer" --key "$oldkey" --iss "$issuer" \
+            --sub "device:$host" --aud "$audience" > "$tok" 2>/dev/null); then
+      skip "the old file key can no longer mint an STS token: could not sign (clock?)"
+    else
+      sts_code=$(curl -sS --max-time 20 -o "$work/sts.json" -w '%{http_code}' \
+        https://sts.googleapis.com/v1/token \
+        --data-urlencode grant_type=urn:ietf:params:oauth:grant-type:token-exchange \
+        --data-urlencode "audience=$audience" \
+        --data-urlencode scope=https://www.googleapis.com/auth/cloud-platform \
+        --data-urlencode requested_token_type=urn:ietf:params:oauth:token-type:access_token \
+        --data-urlencode subject_token_type=urn:ietf:params:oauth:token-type:jwt \
+        --data-urlencode "subject_token@$tok" 2>/dev/null)
+      rm -f "$tok"
+      case "$sts_code" in
+        400|401) ok "the old file key can no longer mint an STS token (http $sts_code)" ;;
+        200)     bad "the old file key can no longer mint an STS token"$'\n'"      STS still returns 200 for it. Its kid is out of the JWKS, but Google has not"$'\n'"      caught up -- so the key still decrypts every dotfiles secret. Removal is not"$'\n'"      instant: this stayed true for over 32 minutes in the 2a-removal measurement." ;;
+        *)       skip "the old file key can no longer mint an STS token: STS unreachable (http $sts_code)" ;;
+      esac
+    fi
   fi
 fi
 

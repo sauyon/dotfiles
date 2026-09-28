@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bgpwykl30</task-id>
+<tool-use-id>toolu_01KGCbaMUywKpeVsCGGn2p3d</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles--drovr-wt-wif-enroll/6dec18e9-823d-42b9-934f-8e8c5e80b700/tasks/bgpwykl30.output</output-file>
+<status>completed</status>
+<summary>Background command "Background wait for the ask answer" completed (exit code 0)</summary>
+</task-notification>

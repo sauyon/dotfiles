@@ -28,8 +28,24 @@ set -uo pipefail
 kid="${1:-}"
 testkey="${2:-}"
 admin="${KO_ADMIN_HOST:-10.0.7.100}"
-bucket="${KO_JWKS_URI:-gs://ko-keys-sauyon/hosts/.well-known/jwks.json}"
 issuer="${KO_WIF_ISSUER:-https://storage.googleapis.com/ko-keys-sauyon/hosts}"
+# The bucket object is DERIVED from the issuer, not configured beside it. This
+# script reads the JWKS from $issuer, reduces it, and writes the result to
+# $bucket -- so two independent knobs mean one command can read a staging JWKS
+# and overwrite the production object with it, revoking every production kid that
+# staging lacks. Nothing downstream can see that: the reduced staging document is
+# valid on its own, so every refusal passes, and the post-upload check reads
+# $issuer and reports a healthy staging key set while production is clobbered.
+bucket_derived="gs://${issuer#https://storage.googleapis.com/}/.well-known/jwks.json"
+bucket="${KO_JWKS_URI:-$bucket_derived}"
+if [ "$bucket" != "$bucket_derived" ]; then
+  echo "KO_JWKS_URI and KO_WIF_ISSUER disagree about which object to write:" >&2
+  echo "  issuer implies: $bucket_derived" >&2
+  echo "  KO_JWKS_URI:    $bucket" >&2
+  echo "Reading one JWKS and overwriting a different one is how a whole environment" >&2
+  echo "gets revoked in a single command. Set both consistently, or only the issuer." >&2
+  exit 1
+fi
 audience="${KO_WIF_AUDIENCE:-//iam.googleapis.com/projects/484956590837/locations/global/workloadIdentityPools/ko-hosts/providers/bucket}"
 subject="${KO_WIF_SUB:-device:$(uname -n | cut -d. -f1)}"
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -95,6 +111,14 @@ if [ -n "$testkey" ]; then
   # cannot be repeated once the kid is gone, so the baseline is worth one call.
   mint "$testkey" || exit 1
   code=$(sts)
+  case "$code" in
+    200) : ;;
+    000|5??)
+      # Not a verdict about the key: nothing was reached. Sending the operator
+      # after KO_WIF_SUB for a dropped link wastes the one calm minute they have.
+      echo "could not reach STS (http $code); nothing has been changed, try again." >&2
+      exit 1 ;;
+  esac
   if [ "$code" != 200 ]; then
     echo "STS does not accept $testkey right now (http $code), so there is nothing to time." >&2
     python3 -c 'import json,sys
@@ -104,6 +128,7 @@ except Exception: pass' "$work/sts.json" 2>/dev/null
     echo "Nothing has been changed. Check the kid is published, and KO_WIF_SUB/KO_WIF_AUDIENCE." >&2
     exit 1
   fi
+  baseline_at=$(date +%s)
   echo "baseline: STS accepts $testkey (http 200) before the removal"
 fi
 
@@ -159,6 +184,7 @@ if ! "${SSH[@]}" "$admin" "export PATH=/nix/var/nix/profiles/default/bin:\$PATH
   exit 1
 fi
 start=$(date +%s)
+[ -n "${baseline_at:-}" ] && echo "(baseline was $(( start - baseline_at ))s before this removal)"
 echo "removed $kid at $(date -u '+%H:%M:%SZ'); the bucket now serves:"
 echo "  $(published)"
 echo "(pre-change JWKS saved at $saved; the bucket is versioned as well)"
@@ -175,6 +201,7 @@ for _ in $(seq 1 180); do
     exit 2
   fi
   code=$(sts)
+  prev_t=${t:-0}
   t=$(( $(date +%s) - start ))
   case "$code" in
     200) accepted_any=1; echo "  t+${t}s: still accepted" ;;
@@ -186,7 +213,9 @@ for _ in $(seq 1 180); do
 try:
     d = json.load(open(sys.argv[1])); print(d.get("error"), "-", str(d.get("error_description"))[:120])
 except Exception: print("(no JSON body)")' "$work/sts.json" 2>/dev/null)
-      echo "REJECTED after ${t}s (http $code): $why"
+      # A bracket, not a point: the previous round was accepted at t=$prev_t and
+      # this one was refused at t=$t, so the change landed somewhere between.
+      echo "REJECTED between t+${prev_t}s and t+${t}s (http $code): $why"
       exit 0 ;;
     *)
       echo "  t+${t}s: http $code -- transport or server error, not a revocation; retrying" >&2 ;;

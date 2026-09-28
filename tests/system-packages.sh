@@ -149,6 +149,21 @@ check "a no-op says nothing" 0 \
 # that pacman expands a glob in Include, and that a [multilib] section in an
 # included file registers as a repo.
 #
+# Measured as a DELTA, not as an absolute count, because the host's own
+# pacman.conf may already register multilib and the copy inherits whatever it
+# does. Two ways that happens, and this case met the first one: after a single
+# `system/deploy`, /etc/pacman.conf carries the real `Include =
+# /etc/pacman.d/conf.d/*.conf`, which resolves to the real drop-in -- so the
+# copy registers multilib once before the temp Include is appended, and the
+# appended one makes two. An absolute `1` therefore passed only until the very
+# deploy this case exists to justify had run, and failed on every host
+# afterwards. (The second way is a host with the stock `[multilib]` section
+# uncommented, which a fix that only stripped the Include line would still miss.)
+#
+# The delta says the thing the design actually rests on, and says it on any
+# host: appending one glob Include that matches the repo's drop-in adds exactly
+# one multilib registration. Converged or fresh, it is 1.
+#
 # Skipped where pacman-conf or /etc/pacman.conf is absent (mari), where there is
 # nobody to ask.
 if command -v pacman-conf >/dev/null && [ -r /etc/pacman.conf ]; then
@@ -156,9 +171,11 @@ if command -v pacman-conf >/dev/null && [ -r /etc/pacman.conf ]; then
   mkdir -p "$D/conf.d"
   cp /etc/pacman.conf "$D/real.conf"
   cp "$DROPIN" "$D/conf.d/multilib.conf"
+  before=$(pacman-conf --config "$D/real.conf" --repo-list | grep -cx multilib)
   pacman_ensure_include "$D/real.conf" "Include = $D/conf.d/*.conf" >/dev/null
+  after=$(pacman-conf --config "$D/real.conf" --repo-list | grep -cx multilib)
   check "pacman reads the drop-in and registers multilib" \
-    1 "$(pacman-conf --config "$D/real.conf" --repo-list | grep -cx multilib)"
+    1 "$((after - before))"
   # A repo with no mirrors is enabled in name only; the drop-in's own Include
   # of the mirrorlist has to resolve too.
   check "multilib resolves to real mirrors" \

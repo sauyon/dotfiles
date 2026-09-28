@@ -67,6 +67,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/system-packages.sh       # sources system/pacman.sh, drives 21 cases
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live generated zsh config
+./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
 ```
 
 `hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows
@@ -103,6 +104,16 @@ symptom is the artifact coming back. The cases render the *live generated* confi
 in a pty -- both the injected and plain startup paths -- and assert the `}}` is
 gone with the line and still returns without it, so a workaround that has quietly
 stopped working fails out loud, and so does one that has become unnecessary.
+
+`STEAM_FORCE_DESKTOPUI_SCALING` (in `home.nix`) models Steam's side of a bargain
+Hyprland can't enforce: `xwayland.force_zero_scaling` hands X11 clients real
+pixels and no DPI hint, and Steam's CEF UI reads neither `Xft.dpi` nor
+`GDK_DPI_SCALE`, so on a scaled panel it draws tiny until told its own factor.
+The cases evaluate three hosts and derive every expectation from the config
+itself — the var must equal the scale that host's eDP-1 monitor rule asks for,
+and be unset where there is no such rule — so the pair can't drift apart
+silently, which is the only way this fails. A fourth case asserts a scaled host
+still exists, since otherwise all three would pass vacuously.
 
 ## System config
 

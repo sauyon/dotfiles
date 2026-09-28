@@ -1748,6 +1748,20 @@ in
     # no dconf D-Bus service, so use GDK_DPI_SCALE instead.
     // (lib.optionalAttrs (hidpi.enabled && hostname != "setsuna") {
       GDK_DPI_SCALE = toString hidpi.scale;
+    })
+    # Steam's desktop UI is CEF, and X11. force_zero_scaling hands it the panel's
+    # real pixels with no DPI hint, and it reads neither Xft.dpi nor GDK_DPI_SCALE,
+    # so on a laptopScale host it draws at 1/laptopScale of physical size. This is
+    # the one factor it does read, and CEF re-lays-out at it instead of upscaling a
+    # bitmap -- so the client comes back to size and stays crisp, rather than
+    # trading the force_zero_scaling win away for the whole of XWayland.
+    #
+    # An env var and not -forcedesktopscaling on the .desktop Exec: the tray's
+    # "restart Steam" re-execs, and steam:// handler launches never see that argv.
+    # Gated on laptopScale for the same reason as the rest of this block -- a host
+    # that scales apps instead would multiply the two.
+    // (lib.optionalAttrs (laptopScale != 1) {
+      STEAM_FORCE_DESKTOPUI_SCALING = toString laptopScale;
     });
 
   # TERMINFO_DIRS is already set under systemd by home-manager's generic-linux

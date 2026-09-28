@@ -294,18 +294,28 @@
     # out from under it (its ps1_changed guard, added for the Pure prompt), but
     # the guard reads _ghostty_saved_ps1, which is unset on the first precmd --
     # so it never fires on the one render that breaks. Priming the two variables
-    # it reads makes it fire there too. mark1/markB and every other integration
-    # feature still apply: over a 6-command session the cursor-shape sequences
-    # (18), OSC 2 title writes (24) and OSC 133 A/B/C/D counts (6/6/6/5) are
-    # exactly what they are without this. POWERLEVEL9K_TERM_SHELL_INTEGRATION is
-    # NOT a substitute -- going that way costs the cursor sequences outright and
-    # half the title writes, because dropping the integration is what it takes
-    # to stop the rewrite.
+    # it reads makes it fire there too.
     #
-    # Upstream has the same root cause open for other prompts:
-    # ghostty-org/ghostty#11407 (Pure), #11712 (oh-my-zsh jreese). Drop this
-    # once one of them lands. It leans on ghostty-private names, so if they are
-    # renamed the priming silently stops working and the `}}` comes back.
+    # What that costs, exactly: the marks the skipped pass would have spliced. In
+    # a 6-command session that is one continuation-line mark (`133;A;k=s`, 1 ->
+    # 0), on the first prompt. Everything else is untouched -- mark1 (6), OSC 133
+    # B/C/D (6/6/5), cursor-shape sequences (18), OSC 2 title writes (24) and OSC
+    # 7 cwd reports (6) are identical with and without this.
+    # POWERLEVEL9K_TERM_SHELL_INTEGRATION is NOT a cheaper substitute: going that
+    # way means dropping the sourced integration, which is what stops the
+    # rewrite, and that costs the cursor sequences outright (18 -> 0) and half
+    # the title writes (24 -> 12).
+    #
+    # Upstream status, which is a trap worth spelling out. #11407 (Pure) is open.
+    # #11712 (oh-my-zsh jreese) is CLOSED, answered "fixed by #11596", and #11596
+    # is merged -- but it does not fix this: it renames the mark from
+    # `133;A;k=s` to `133;P;k=s` and keeps both the PS1 substitution and the
+    # ps1_changed guard (checked against the integration script on `main`). So do
+    # NOT drop this line on the strength of that discussion being closed, or on a
+    # ghostty version bump. tests/ghostty-p10k-prompt.sh is what decides: it
+    # asserts the `}}` is gone with this line AND still returns without it, so it
+    # fails loudly if upstream ever makes the workaround unnecessary or renames
+    # the private variables it leans on out from under it.
     typeset -g _ghostty_saved_ps1="" _ghostty_saved_ps2=""
 
     # The greeting. Yeah, yeah, I'm unimaginative. :'(

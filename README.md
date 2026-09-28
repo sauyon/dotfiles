@@ -66,6 +66,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/hyprlock-faillock.sh     # builds the script, then drives 33 cases
 ./tests/system-packages.sh       # sources system/pacman.sh, drives 21 cases
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
+./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live generated zsh config
 ```
 
 `hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows
@@ -92,6 +93,16 @@ and a host whose list never asked for it is one it never touches. The cases driv
 the real script with stub `pacman`/`sudo`/`systemctl` on `PATH`, asserting both
 halves: a host without the package does nothing at all, and a converged host
 escalates zero times.
+
+The `_ghostty_saved_ps1` priming in `zsh.nix` is a model of ghostty's
+`ghostty-integration`: it pre-sets variables private to that script so its own
+`ps1_changed` guard fires on the first precmd, which is what stops the PS1
+rewrite that corrupts powerlevel10k's `PROMPT` into a literal `}}`. Rename those
+variables upstream and nix still builds, `hms` still succeeds, and the only
+symptom is the artifact coming back. The cases render the *live generated* config
+in a pty -- both the injected and plain startup paths -- and assert the `}}` is
+gone with the line and still returns without it, so a workaround that has quietly
+stopped working fails out loud, and so does one that has become unnecessary.
 
 ## System config
 

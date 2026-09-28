@@ -1,0 +1,9 @@
+what's a good way to make steam not tiny without making it look horrible
+
+---
+
+1.5 is good. is that bad for the reasons the hypr / sway folks say it's bad?
+
+---
+
+set it to 2 then

@@ -3,5 +3,16 @@ creation_rules:
     # Transition: nix-key (cluster SA key, existing hosts) AND host-key (device WIF
     # identities, see reports/…trust root.md Part A). One key group = either decrypts.
     # nix-key is removed here once every dotfiles principal is enrolled and the
-    # offline paper recipient for host-key exists (A7 migration gate).
+    # human confirms the paper recipient below is printed and stored (A7
+    # migration gate). The recipient now exists; the printing is not yet
+    # confirmed, so nix-key stays.
     gcp_kms: "projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/nix-key,projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/host-key"
+    # Offline paper recovery (report A6.4, A7 step 1). Same creation rule as
+    # gcp_kms, so it is the same key group: this recipient ALONE decrypts, with
+    # no Google account and no network. Do not move it into `key_groups` -- that
+    # is a Shamir AND, and a paper key that needs a second share is not a
+    # recovery path. The private half lives only on paper: unrevocable, its use
+    # unlogged, so replacing it also means rotating the secrets, because the old
+    # ciphertext stays in git history where the old key still opens it.
+    # Generator: install/wif/paper-keygen.sh. Cases: tests/sops-recipients.sh.
+    age: "age1yz709y8yjpa6e20w5xsgg62hv73ejuelldrg290fn95nzdzhhpws7jqrsf"

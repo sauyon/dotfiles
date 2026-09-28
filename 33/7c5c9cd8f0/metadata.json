@@ -15,17 +15,10 @@
     }
   ],
   "token_usage": {
-    "input_tokens": 144,
-    "cache_creation_tokens": 264839,
-    "cache_read_tokens": 17125787,
-    "output_tokens": 53004,
-    "api_call_count": 72,
-    "subagent_tokens": {
-      "input_tokens": 4,
-      "cache_creation_tokens": 22188,
-      "cache_read_tokens": 17395,
-      "output_tokens": 6,
-      "api_call_count": 2
-    }
+    "input_tokens": 10,
+    "cache_creation_tokens": 5351,
+    "cache_read_tokens": 1415149,
+    "output_tokens": 1558,
+    "api_call_count": 5
   }
 }

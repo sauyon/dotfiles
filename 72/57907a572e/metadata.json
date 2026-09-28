@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "7257907a572e",
+  "strategy": "manual-commit",
+  "branch": "framework-linux",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md",
+    "home.nix",
+    "system/deploy",
+    "system/thermald-setup",
+    "tests/thermald-setup.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/72/57907a572e/0/metadata.json",
+      "transcript": "/72/57907a572e/0/full.jsonl",
+      "compact_transcript": "/72/57907a572e/0/transcript.jsonl",
+      "content_hash": "/72/57907a572e/0/content_hash.txt",
+      "prompt": "/72/57907a572e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 23786,
+    "cache_read_tokens": 221531,
+    "output_tokens": 2836,
+    "api_call_count": 5
+  }
+}

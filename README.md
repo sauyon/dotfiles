@@ -64,6 +64,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 
 ```bash
 ./tests/hyprlock-faillock.sh     # builds the script, then drives 33 cases
+./tests/system-packages.sh       # sources system/pacman.sh, drives 21 cases
 ```
 
 `hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows
@@ -72,6 +73,16 @@ real built script through its `FAILLOCK_BIN` / `FAILLOCK_CONF` / `FAILLOCK_USER`
 seams, so a stub reader supplies synthetic tally records -- no real failed
 logins, no waiting out a real ten-minute lockout.
 
+`system/pacman.sh` holds the parts of `system/deploy`'s package convergence that
+model someone else's rules: the list format plus the per-host overlay, and the
+single `Include` line appended to `/etc/pacman.conf` (whole-line matched, so the
+stock config's commented-out examples don't read as "already enabled"). The
+cases source it and run against a temp tree through its `SUDO` seam, then hand a
+copy of this host's real `pacman.conf` to `pacman-conf` to confirm pacman does
+glob an `Include` and does register a `[multilib]` section reached through one --
+the assumption the whole drop-in design rests on. Nothing writes to `/etc`, and
+no case needs root.
+
 ## System config
 
 Files under `system/` mirror `/` and require root to deploy:
@@ -79,6 +90,14 @@ Files under `system/` mirror `/` and require root to deploy:
 ```bash
 system/deploy
 ```
+
+`system/packages` is the pacman list every Arch host must satisfy;
+`system/packages.<hostname>` is layered on it for one box (shiori's `steam` and
+its 32-bit drivers). Deploy converges pacman onto both on every run, and enables
+multilib via `system/etc/pacman.d/conf.d/multilib.conf` plus one `Include` in
+`/etc/pacman.conf`. A newly enabled repo has no sync db, so the first deploy
+after this asks for a `sudo pacman -Syu` rather than refreshing behind your back
+(`-Sy` without the `-u` is the partial-upgrade footgun).
 
 ## Storage tuning
 

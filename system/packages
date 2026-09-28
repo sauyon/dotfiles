@@ -10,6 +10,10 @@
 # the host's own libraries dlopen by name, firmware, state under /var. Anything
 # a user can own belongs in home.nix.
 #
+# What belongs in ./packages.<host> instead: anything only one box wants. That
+# file is layered on this one by deploy and enforced the same way, and it is
+# what keeps steam's 32-bit stack on shiori rather than on all four hosts.
+#
 # What does NOT belong here, and lives in install/packages-install-only instead:
 # anything only a *fresh install* needs. The kernel especially -- enforcing
 # `linux` would install a second, stock kernel on a host running linux-lts or

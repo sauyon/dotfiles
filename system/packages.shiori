@@ -1,0 +1,31 @@
+# Host (pacman) packages for shiori only, layered on ./packages by ./deploy.
+# Same format and the same enforcement: one package per line, # comments, and
+# every deploy converges pacman onto it.
+#
+# The shared list is "must be present for this config to work" on all four Arch
+# hosts. This one is for things a single box wants, which is what keeps steam
+# and a gigabyte of 32-bit graphics stack off headless fujiwara and off boxes
+# that never asked for it. A new per-host file needs nothing but its name:
+# ./packages.<hostname>, picked up by pacman_wants in ./pacman.sh.
+#
+# Not pacstrapped. install-base.sh reads ./packages and nothing else, and that
+# is deliberate rather than an oversight: multilib is not enabled in the live
+# ISO's config for the target root, so a pacstrap of steam would fail the whole
+# install. A rebuilt shiori simply picks this up on its first `system/deploy`.
+#
+# Everything here still owes the same justification as the shared list -- a user
+# profile cannot provide it. For steam that is the 32-bit stack: it is a 32-bit
+# bootstrap that dlopens the host's own libGL/Vulkan ICDs, so it needs multilib
+# drivers built against the host's mesa. nixpkgs' steam is an FHS env that
+# resolves those against NixOS paths, which on Arch means nixGL, whose 32-bit
+# support is the part that does not hold up.
+
+# Steam, and the 32-bit halves of the drivers already installed 64-bit in
+# ./packages (mesa) and by hand (vulkan-intel). Listed explicitly rather than
+# left to steam's dependencies: this file is the desired state, and a driver
+# that arrives only as somebody else's dep silently leaves when they do.
+steam
+lib32-mesa
+# Panther Lake / Arc B390 is mesa's ANV, same as the 64-bit vulkan-intel.
+lib32-vulkan-intel
+lib32-vulkan-icd-loader

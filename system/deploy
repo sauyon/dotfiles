@@ -12,13 +12,22 @@ fi
 
 cd "$(dirname "$0")"
 
-# ── host packages: converge pacman onto ./packages ───────────────────────────
+# The list format, the per-host overlay and the one line we append to
+# /etc/pacman.conf live in ./pacman.sh, so ../tests/system-packages.sh can drive
+# them against a temp tree. Sourced for its functions; it does nothing on its own.
+# shellcheck source=pacman.sh
+. ./pacman.sh
+
+# ── host packages: converge pacman onto ./packages[.<host>] ──────────────────
 # install-base.sh pacstraps the same list, but that only ever runs on the live
 # ISO, so a package added after a host was built never reaches it.
 #
-# The order against the etc/ copy below does not matter, and it is worth saying
-# so rather than inventing a reason: pacman owns NONE of the seven files that
-# copy writes (`pacman -Qo` on each answers "No package owns"). Everything under
+# The order against the etc/ copy below does not matter for any file the copy
+# writes, and it is worth saying so rather than inventing a reason: pacman owns
+# NONE of the eight files that copy writes (`pacman -Qo` on each answers "No
+# package owns"). The one exception is etc/pacman.d/conf.d/multilib.conf, which
+# pacman must be able to read before this step runs `pacman -S`, so the multilib
+# block below installs that single file itself rather than waiting. Everything under
 # etc/ is an override path -- /etc/pam.d/polkit-1 shadows the polkit package's
 # /usr/lib/pam.d/polkit-1, /etc/systemd/system/tailscaled.service shadows the
 # packaged unit -- which is the mechanism that makes this whole directory work.
@@ -57,15 +66,35 @@ cd "$(dirname "$0")"
 if [ -n "${SKIP_HOST_PACKAGES:-}" ]; then
   echo "system/deploy: SKIP_HOST_PACKAGES set -- not touching pacman."
 else
-host=$(uname -n)
-case "${host%%.*}" in
+host=$(uname -n); host=${host%%.*}
+case "$host" in
 utsuho | setsuna | shiori | fujiwara)
+  # ── multilib: Arch's 32-bit repo, off by default ──────────────────────────
+  # Needed by anything with a lib32- dependency; today that is steam, in
+  # ./packages.shiori. Enabling a repo installs nothing on its own, so this
+  # runs on every host here and the per-host list stays the only thing that
+  # decides what a box actually gets.
+  #
+  # Why a drop-in instead of the obvious edit: /etc/pacman.conf is pacman's own
+  # backup file. Copying it into etc/ would make this repo the owner of a file
+  # pacman ships, and pacman's changes to it would start arriving as .pacnew
+  # that nobody reads. So the repo owns the [multilib] section as a file of its
+  # own under etc/pacman.d/conf.d/, and /etc/pacman.conf gets exactly one glob
+  # Include -- appended once, whole-line matched, never rewritten. pacman
+  # processes Include inline, so the section lands after [extra], which is
+  # where Arch's own stock config puts multilib.
+  #
+  # The drop-in is installed here, not left to the etc/ copy further down: that
+  # loop runs after `pacman -S`, and an Include whose glob matches nothing is
+  # silently empty -- indistinguishable from multilib being off.
+  sudo install -Dvm644 etc/pacman.d/conf.d/multilib.conf \
+    /etc/pacman.d/conf.d/multilib.conf
+  pacman_ensure_include /etc/pacman.conf 'Include = /etc/pacman.d/conf.d/*.conf'
+
   [ -r packages ] || { echo "system/deploy: ./packages is missing or unreadable" >&2; exit 1; }
-  # Strip comments, then split on any whitespace. One package per line is the
-  # documented format; splitting rather than deleting whitespace means a
-  # two-names-on-one-line slip fails as two packages instead of silently
-  # concatenating into one bogus name.
-  mapfile -t want < <(sed 's/#.*//' packages | tr -s '[:space:]' '\n' | sed '/^$/d')
+  # The shared list plus this host's own ./packages.<host>, if it has one. See
+  # ./pacman.sh for the format and why the split is on whitespace.
+  mapfile -t want < <(pacman_wants . "$host")
   # mapfile returns 0 whatever the process substitution did, and neither `set
   # -e` nor pipefail sees inside one, so an empty parse has to be caught by
   # hand. Without this a renamed or emptied list makes this step a silent
@@ -80,6 +109,16 @@ utsuho | setsuna | shiori | fujiwara)
   done
 
   if [ ${#missing[@]} -gt 0 ]; then
+    # Enabling multilib above does not fetch its db, and `pacman -S` against a
+    # repo it has no db for says "target not found" -- which reads as a typo in
+    # the list rather than as "you have never synced this repo". Say the real
+    # thing. Not fixed here on purpose: the fix is `-Sy`, and refreshing without
+    # upgrading is the partial-upgrade footgun the -S below is careful to avoid.
+    if ! pacman_repo_synced /var/lib/pacman/sync multilib; then
+      echo "system/deploy: multilib is enabled but has no sync db yet." >&2
+      echo "  Run 'sudo pacman -Syu' first; until then nothing from it (steam," >&2
+      echo "  any lib32-*) can resolve and pacman will call it a bad target." >&2
+    fi
     echo "system/deploy: installing missing host packages: ${missing[*]}"
     # `--` because the list is data: a line starting with a dash would
     # otherwise be read as a pacman option (--hookdir=, --overwrite=, --root=),
@@ -113,7 +152,7 @@ utsuho | setsuna | shiori | fujiwara)
   fi
   ;;
 *)
-  echo "system/deploy: ${host%%.*} is not one of our Arch hosts -- skipping host packages."
+  echo "system/deploy: ${host} is not one of our Arch hosts -- skipping host packages."
   ;;
 esac
 fi

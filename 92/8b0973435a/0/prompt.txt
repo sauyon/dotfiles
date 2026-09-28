@@ -1,1 +1,19 @@
 research the framework pro linux support and make sure we're following the recommendations
+
+---
+
+do it yoursefl?
+
+---
+
+<task-notification>
+<task-id>b6jeunhuk</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/e154b7dc-0aea-4890-aeb0-35b4b24f2b71/tasks/b6jeunhuk.output</output-file>
+<status>completed</status>
+<summary>Background command "Push and switch via hms" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+do it

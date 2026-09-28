@@ -55,6 +55,99 @@
         "label": "Skill: drovr:using-drovr",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-toolu_01R6sMiaVWDjq2guRpK6PJXL",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "5a8dff4beedd",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 285,
+        "end": 286,
+        "entry_ids": [
+          "d90ba52b-e137-4540-8c91-ff88ee5d7e4b"
+        ],
+        "tool_use_id": "toolu_01R6sMiaVWDjq2guRpK6PJXL"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01R6sMiaVWDjq2guRpK6PJXL"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01KnZGyuDscpv3HefguUKRNx",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:verification-before-completion"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "5a8dff4beedd",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 342,
+        "end": 343,
+        "entry_ids": [
+          "f2265a0a-e915-4852-9282-02c31c6f52d6"
+        ],
+        "tool_use_id": "toolu_01KnZGyuDscpv3HefguUKRNx"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01KnZGyuDscpv3HefguUKRNx"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:verification-before-completion",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01MnNubzWAyHkKnG5mTs8iR7",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:handoff"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "5a8dff4beedd",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 428,
+        "end": 429,
+        "entry_ids": [
+          "79f8ed2e-7ca5-427e-9d04-dd26cea85685"
+        ],
+        "tool_use_id": "toolu_01MnNubzWAyHkKnG5mTs8iR7"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01MnNubzWAyHkKnG5mTs8iR7"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:handoff",
+        "default_collapsed": true
+      }
     }
   ],
   "session_metrics": {

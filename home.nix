@@ -127,9 +127,16 @@ let
     "HDMI-A-1"
   ];
 
+  # `throw`, not `null`: every consumer either interpolates this into a string or
+  # puts it in a list behind the same `!isDarwin && isDesktop` guard, and nothing
+  # compares it to null -- so the sentinel is only ever reached by a *mistake*.
+  # As null that mistake surfaces as "cannot coerce null to a string" with no
+  # attribute, file or hint; naming itself costs nothing and is equally lazy. It
+  # matters more since hyprpolkitagent's ExecStart started depending on it, because
+  # that unit's failure mode is silent.
   nixGL =
     if isDarwin || !isDesktop then
-      null
+      throw "nixGL is desktop-Linux only (hostname=${hostname}); guard the reference with (!isDarwin && isDesktop)"
     else
       pkgs.writeShellScriptBin "nixGL" ''
         exec ${nixgl.packages.${system}.nixGLIntel}/bin/nixGLIntel "$@"
@@ -2102,9 +2109,48 @@ in
       # reads identically to having no agent at all, so inactive-not-failed is the
       # tell when auth_self prompts go missing again.
       ConditionEnvironment = "WAYLAND_DISPLAY";
+      # RestartSec below fights the start limiter, and without this it wins.
+      # systemd's defaults here are burst 5 over a 10s window; a 5s delay fits
+      # only three attempts into 10s, so the limiter never trips and a
+      # *permanently* broken agent restarts every five seconds forever while
+      # `systemctl --user status` reads `active (running)` for most of any sample.
+      # That is the same false-healthy reading that let the EGL crash below ship
+      # in the first place, so widen the window until five failures (~25s at
+      # RestartSec=5) do stick and the unit lands in `failed` where it is visible.
+      # The three values are one decision: change one and redo the arithmetic.
+      StartLimitIntervalSec = "60s";
+      StartLimitBurst = 5;
     };
     Service = {
-      ExecStart = "${withHostNss pkgs.hyprpolkitagent}/libexec/hyprpolkitagent";
+      # nixGL is as load-bearing as withHostNss, and fails later and more
+      # confusingly. The agent builds its Qt Quick dialog only once a challenge
+      # arrives, and nix-built Qt resolves libEGL/GBM/DRI out of the store, which
+      # carries no driver for this GPU. Unwrapped, the unit starts clean and stays
+      # up until the first prompt, then logs "EGL not available" / "Failed to
+      # initialize graphics backend for OpenGL" and SIGABRTs; polkitd records the
+      # operator as having FAILED to authenticate, so the caller gets the same
+      # bare PermissionDenied as with no agent at all, and RestartSec brings it
+      # back looking healthy. That is how this was shipped once already, so when
+      # prompts go missing the check is `coredumpctl list hyprpolkitagent`, not
+      # `systemctl --user status`, which reads `active (running)` either way.
+      # Note that `active` here only ever means bash fork+exec'd -- a polkit agent
+      # owns no bus name, so there is no Type=dbus or sd_notify to make it mean
+      # "registered with polkitd".
+      #
+      # config.lib.nixGL.wrap (hyprlock, ghostty, hyprpaper) only rewrites bin/,
+      # and this package ships its binary in libexec/, so the chain is spelled out
+      # here instead. Nesting order does *not* matter: nixGL assigns
+      # LD_LIBRARY_PATH while preserving what it finds, the inner wrapper --prefixes
+      # onto it, and neither set of dirs ships the other's libraries -- so both
+      # reach the real binary either way. nixGL is outermost only because something
+      # has to be the ExecStart binary. (The hyprlock comment below states the
+      # opposite order as though it were required; it is not, and neither is this.)
+      #
+      # One string, not a list, deliberately: systemd splits an ExecStart string on
+      # whitespace into argv, whereas `[ a b ]` would emit two ExecStart= lines and
+      # run them in sequence. The test pins this by rejecting a second entry.
+      ExecStart =
+        "${nixGL}/bin/nixGL ${withHostNss pkgs.hyprpolkitagent}/libexec/hyprpolkitagent";
       Slice = "session.slice";
       TimeoutStopSec = "5sec";
       Restart = "on-failure";

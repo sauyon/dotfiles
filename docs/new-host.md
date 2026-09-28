@@ -146,6 +146,15 @@ Then log in again (`exec zsh -l` on a console that predates the switch) and
   net.reactivated.fprint.device.enroll --allow-user-interaction` says outright
   when no agent is available.
 
+  That check only distinguishes *no* agent from a *broken* one by the absence of
+  a message, so when it stays quiet and enrollment still fails, the next command
+  is `coredumpctl list hyprpolkitagent`. An agent that dies mid-challenge is
+  reported by polkitd as the operator failing to authenticate, which reaches you
+  as the identical `PermissionDenied`, and `RestartSec` has the unit back to
+  `active (running)` five seconds later — so `systemctl --user status` will lie
+  to you here and the core dump will not. `journalctl --user -u
+  hyprpolkitagent` around the attempt names the reason.
+
   Two things change the moment a finger is enrolled, both of which read as
   regressions if you don't expect them: every polkit `auth_self` prompt now
   waits on the reader before offering a password field (including `pkexec` from

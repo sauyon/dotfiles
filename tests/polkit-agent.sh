@@ -139,10 +139,42 @@ if isinstance(v,list):
     v = v[0] if len(v)==1 else "<%d ExecStart entries>" % len(v)
 print(v if v else "<unset>")
 ' "$unit")
-if [[ $exec_start =~ ^/nix/store/[a-z0-9]{32}-hyprpolkitagent-[0-9.]+-host-nss/libexec/hyprpolkitagent$ ]]; then
-  ok "shiori's ExecStart runs the host-nss wrapped binary"
+#    It must also go through nixGL, and that half is not cosmetic: the agent only
+#    builds its Qt Quick dialog when a challenge actually arrives, and a nix-built
+#    Qt on this non-NixOS host resolves libEGL/GBM/DRI out of the store, where
+#    there is no driver for this GPU. Without nixGL the agent runs happily until
+#    the first prompt, then logs "EGL not available" / "Failed to initialize
+#    graphics backend for OpenGL" and SIGABRTs -- polkitd records that as the
+#    operator FAILING to authenticate, and the caller sees the same bare
+#    PermissionDenied as having no agent at all. RestartSec then revives it, so
+#    the unit reads healthy afterwards and the crash is easy to miss entirely.
+#    Order: nixGL outside, host-nss inside. nixGL sets
+#    LD_LIBRARY_PATH=<mesa>${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}, so it preserves
+#    whatever is already there, and the inner wrapper's --prefix then prepends
+#    host-nss onto it -- both survive. (config.lib.nixGL.wrap, used for hyprlock
+#    and ghostty, is not usable here: it only rewrites bin/, and this package
+#    ships its binary in libexec/.)
+nixgl_re='^/nix/store/[a-z0-9]{32}-nixGL/bin/nixGL '
+hostnss_re='/nix/store/[a-z0-9]{32}-hyprpolkitagent-[0-9.]+-host-nss/libexec/hyprpolkitagent$'
+if [[ $exec_start =~ $nixgl_re$hostnss_re ]]; then
+  ok "shiori's ExecStart runs the host-nss wrapped binary through nixGL"
 else
-  no "shiori's ExecStart runs the host-nss wrapped binary" "got: $exec_start"
+  no "shiori's ExecStart runs the host-nss wrapped binary through nixGL" "got: $exec_start"
+fi
+
+# 2b. The shape above pins a *name this repo chooses itself* -- `nixGL` comes from
+#     our own writeShellScriptBin, so the test and the code agree by construction.
+#     Every mutant that matters keeps the name: replace the shim body with
+#     `exec "$@"`, or point it at a different vendor wrapper, and the path still
+#     matches while the SIGABRT comes straight back. So read the shim and check it
+#     actually hands off to a nixGL vendor wrapper. Still eval-only -- the file is
+#     already in the store because the unit references it.
+shim=${exec_start%% *}
+if [ -r "$shim" ] && grep -qE '/nix/store/[a-z0-9]{32}-nixGL[A-Za-z]+/bin/nixGL[A-Za-z]+' "$shim"; then
+  ok "shiori's nixGL shim actually dispatches to a nixGL vendor wrapper"
+else
+  no "shiori's nixGL shim actually dispatches to a nixGL vendor wrapper" \
+    "$shim does not exec a nixGL* vendor wrapper"
 fi
 
 # 3. Install.WantedBy is what puts the .wants symlink in place. A unit file with
@@ -167,8 +199,36 @@ want "shiori's unit restarts on failure" Service Restart "on-failure"
 want "shiori's unit spaces restarts out rather than taking systemd's 100ms" \
   Service RestartSec "5"
 
-# 7/8. Gating: no agent on hosts with no graphical session, and none on Darwin,
-#      which has no polkit at all.
+# 7/8. The start limit has to stay *reachable*, which RestartSec fights. systemd's
+#      defaults here are burst 5 over a 10s window, and a 5s delay fits only three
+#      attempts into 10s -- so the limiter never trips, and an agent that is
+#      permanently broken (a mesa regression, a GC'd exec target, a permanent
+#      RegisterAuthenticationAgent collision) restarts every five seconds forever
+#      while `systemctl --user status` reads `active (running)` for most of any
+#      sample. That is the same false-healthy reading that let the EGL crash ship.
+#      Widening the window to 60s means five failures inside ~25s do stick, and the
+#      unit lands in `failed` where it can be seen. Pinned as a trio with the two
+#      above: change any one and the arithmetic stops working.
+want "shiori's unit widens the start-limit window so repeated crashes stick" \
+  Unit StartLimitIntervalSec "60s"
+want "shiori's unit pins the start-limit burst the window is sized against" \
+  Unit StartLimitBurst "5"
+
+# The unit is generated identically for every desktop host, so checking only
+# shiori leaves the other gui hosts unmeasured -- and the nixGL shim is hardcoded
+# to one vendor wrapper regardless of machine.gpu. This does not catch a wrong
+# vendor, but it does catch a gui host that silently loses the unit.
+echo "evaluating setsuna (gui = true)"
+present=$(has_unit setsuna) ||
+  die "could not evaluate systemd.user.services for setsuna (see the nix error above)"
+if [ "$present" = true ]; then
+  ok "setsuna, the other gui host, defines the unit too"
+else
+  no "setsuna, the other gui host, defines the unit too" "no unit on a gui = true host"
+fi
+
+# Gating: no agent on hosts with no graphical session, and none on Darwin,
+# which has no polkit at all.
 for host in fujiwara mari; do
   echo "evaluating $host (no graphical session)"
   present=$(has_unit "$host") ||

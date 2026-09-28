@@ -69,7 +69,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live zsh config
 ./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
-./tests/polkit-agent.sh          # evaluates 3 hosts, drives 8 cases
+./tests/polkit-agent.sh          # evaluates 4 hosts, drives 12 cases
 ./tests/insecure-packages.sh     # 2 cases per host, plus mari's darwin system
 ```
 
@@ -135,14 +135,17 @@ system authentication" fail the same way, which in turn means
 broken when it is only unreachable. `pkexec` hid this for a long time by carrying
 its own text agent. The cases evaluate the flake's home configs rather than the
 running host: that the unit exists on a `gui = true` host, that its `ExecStart`
-is the `withHostNss` join (the agent calls `getpwuid` on a homed-only user with no
-`/etc/passwd` entry), that `Install.WantedBy` is set so a `.wants` link actually
-gets made, that `Restart`/`RestartSec` are pinned as a pair — systemd's 100ms
-default burns this host's five-attempt budget in half a second and then gives up
-for the session, which reproduces the very silence the unit removes — and that
-headless and Darwin hosts get no unit at all. An eval that *fails* aborts the run
-rather than being read as "the unit is absent", which is what the two gating cases
-would otherwise have called a pass.
+goes through both `nixGL` and the `withHostNss` join, that `Install.WantedBy` is
+set so a `.wants` link actually gets made, that `Restart`/`RestartSec`/
+`StartLimitIntervalSec` are pinned as one trio, and that headless and Darwin hosts
+get no unit at all. The trio is arithmetic, not taste: systemd's 100ms default
+burns this host's five-attempt budget in half a second and gives up for the
+session, while a 5s delay overcorrects so far that the limiter becomes
+*unreachable* and a permanently broken agent restarts forever reading
+`active (running)`. Both ends of that reproduce the very silence the unit removes,
+so the window is widened until five failures stick. An eval that *fails* aborts
+the run rather than being read as "the unit is absent", which is what the gating
+cases would otherwise have called a pass.
 `insecure-packages` is the odd one out: it models nothing, it holds a claim
 `home.nix` makes by omission. There is no `permittedInsecurePackages` entry in
 `nixpkgs.config` because nothing needs one -- and the entry that used to be there
@@ -165,6 +168,16 @@ permit or a predicate reappearing in `home.nix` stops it throwing; a typo or a
 renamed attr fails it for the wrong reason and says so. Not to be confused with
 `.forgejo/workflows/vulnix-scan.yml`, which scans the realised closure for CVEs
 weekly and never fails -- that one is a report, this is a gate.
+
+The `nixGL` half of that `ExecStart` is why this shipped broken once. The agent
+builds its Qt Quick dialog only when a challenge arrives, and nix-built Qt
+resolves libEGL/GBM/DRI out of the store, which has no driver for this GPU. So the
+unit started clean, stayed `active` for hours, and then SIGABRTed on the first
+prompt with "EGL not available" — which polkitd records as the operator *failing
+to authenticate*, so the caller sees the identical bare `PermissionDenied` it sees
+with no agent at all, and `RestartSec` brings the unit back looking healthy. A
+green eval says the unit is shaped right, not that a prompt can be drawn; the
+check that answers that is `coredumpctl list hyprpolkitagent` after trying one.
 
 ## System config
 

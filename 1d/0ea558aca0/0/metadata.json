@@ -116,6 +116,37 @@
         "label": "Skill: drovr:verification-before-completion",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-toolu_01MnNubzWAyHkKnG5mTs8iR7",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:handoff"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "5a8dff4beedd",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 428,
+        "end": 429,
+        "entry_ids": [
+          "79f8ed2e-7ca5-427e-9d04-dd26cea85685"
+        ],
+        "tool_use_id": "toolu_01MnNubzWAyHkKnG5mTs8iR7"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01MnNubzWAyHkKnG5mTs8iR7"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:handoff",
+        "default_collapsed": true
+      }
     }
   ],
   "session_metrics": {

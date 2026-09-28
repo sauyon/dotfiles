@@ -10,6 +10,7 @@
   "sessions": [
     {
       "metadata": "/16/38ee9dbb33/0/metadata.json",
+      "compact_transcript": "/16/38ee9dbb33/0/transcript.jsonl",
       "prompt": ""
     }
   ],

@@ -60,8 +60,15 @@ def pub_xy(key):
                 if args else
                 "generate one with: openssl ecparam -name prime256v1 -genkey -noout -out wif.pem")
         raise SystemExit(f"ko-wif-token: {key}: not a readable EC private key (openssl pkey exit {e.returncode}); {hint}")
+    # Length first, then the point. `pkey` accepts any key type, so a P-384 key
+    # reaches here with a longer SPKI whose last 65 bytes start with 0x04 about
+    # one time in 256 -- and would then be split 32/32 into a silently wrong JWK
+    # whose kid nothing local disagrees with. P-256 SPKI is exactly 91 bytes.
+    if len(der) != 91:
+        raise SystemExit(f"ko-wif-token: {key}: expected a 91-byte P-256 SubjectPublicKeyInfo, "
+                         f"got {len(der)} bytes; is this a prime256v1 key?")
     pt = der[-65:]
-    if len(pt) != 65 or pt[0] != 4:
+    if pt[0] != 4:
         raise SystemExit(f"ko-wif-token: {key}: expected an uncompressed P-256 public point "
                          "(65 bytes, 0x04 prefix); is this a prime256v1 key?")
     return pt[1:33], pt[33:65]

@@ -1,56 +1,78 @@
 #!/usr/bin/env bash
 # Cases for the TPM-resident device WIF key (report A1 #1, A6.5, Part A item 2).
 #
-# Moving the device key into the TPM changes one thing that matters and must not
-# change another:
+# Moving the device key into the TPM changes three things that matter and must
+# not change a fourth:
 #
-#   1. The private half stops being a file. `~/.config/ko/wif.pem` is a P-256
-#      private key in plaintext on disk -- anyone who reads it once can mint
-#      device JWTs forever, from anywhere, and the only evidence is a KMS access
-#      log entry that looks exactly like shiori. The TPM key is a wrapped blob:
-#      the file is useless without this machine's TPM. One check proves that
-#      rather than asserting it, by pointing the TCTI at a device that is not a
-#      TPM and requiring the signature to FAIL. A key that still signs there was
-#      never in the TPM.
-#   2. The JWK the signer publishes still describes the key that signs. The kid
-#      is an RFC 7638 thumbprint over x/y, so a mismatch means the JWKS entry
-#      authorises a key nobody holds and STS rejects every token -- a failure
-#      that only shows up against Google, minutes later, as a 401.
-#   3. The file-key path keeps working untouched. mari is darwin and has no TPM,
+#   1. The private half stops being a file THAT STILL WORKS. `~/.config/ko/wif.pem`
+#      is a P-256 private key in plaintext on disk -- anyone who reads it once can
+#      mint device JWTs forever, from anywhere, and the only evidence is a KMS
+#      access log entry that looks exactly like shiori. Generating a TPM key does
+#      not fix that; only removing the old key's kid from the published JWKS does,
+#      because the JWKS is what grants authority. So the last check here computes
+#      the old file key's kid and requires it to be ABSENT from the live JWKS. It
+#      is meant to stay red through the migration and go green when the old
+#      identity is revoked -- the step it would otherwise be easy to call done.
+#   2. The new key cannot sign without a working TPM connection. Pointing the TCTI
+#      at a device that is not a TPM must make signing fail. Read that check for
+#      exactly what it proves: it fails inside provider initialisation, so it
+#      shows the TPM key's signing path goes through the chip, NOT that this blob
+#      is bound to THIS chip specifically -- a blob wrapped to a different TPM
+#      would fail here identically. Proving the latter needs a second TPM.
+#   3. The JWK the signer publishes still describes the key that signs. The kid is
+#      an RFC 7638 thumbprint over x/y, so a mismatch means the JWKS entry
+#      authorises a key nobody holds and STS rejects every token -- a failure that
+#      only shows up against Google, minutes later, as a 401. Both halves are
+#      recomputed here independently of the signer: the point from openssl, the
+#      thumbprint from hashlib.
+#   4. The file-key path keeps working untouched. mari is darwin and has no TPM,
 #      and the other four hosts are not enrolled yet, so the file path is still
-#      the one most of the fleet boots on. It is exercised here with no provider
+#      the one most of the fleet boots on. It is exercised with no provider
 #      environment at all, which is how those hosts run it.
+#
+# A skip is NOT a pass. On a host that has a TPM and a key, anything that stops
+# this file from checking the TPM is a failure of the test, not an exemption:
+# `needed` marks those, and the exit status counts them. Only genuinely external
+# conditions (no TPM on this host, no network, no nix) stay soft skips.
 #
 #   ./tests/wif-tpm.sh                        # default key path
 #   ./tests/wif-tpm.sh ~/.config/ko/wif-tpm.pem
 #
-# Run it from anywhere; paths are resolved against the repo this file lives in.
+# Run it from anywhere; every nix invocation below runs with the cwd inside the
+# repo this file lives in, so `.#` resolves to THIS flake and not to whatever
+# flake the caller happened to be standing in.
 set -u
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 signer="$repo/home/scripts/ko-wif-token.py"
 host="$(uname -n)"; host="${host%%.*}"
 key="${1:-${KO_WIF_TPM_KEY:-$HOME/.config/ko/wif-tpm.pem}}"
+oldkey="${KO_WIF_FILE_KEY:-$HOME/.config/ko/wif.pem}"
 tcti="${TPM2OPENSSL_TCTI:-device:/dev/tpmrm0}"
 issuer="https://storage.googleapis.com/ko-keys-sauyon/hosts"
 
-fails=0; n=0
+fails=0; n=0; skipped=0
 ok()   { n=$((n+1)); printf 'ok %d - %s\n' "$n" "$1"; }
 bad()  { n=$((n+1)); fails=$((fails+1)); printf 'FAIL %d - %s\n' "$n" "$1"; }
-skip() { n=$((n+1)); printf 'skip %d - %s\n' "$n" "$1"; }
+skip() { n=$((n+1)); skipped=$((skipped+1)); printf 'skip %d - %s\n' "$n" "$1"; }
+# A condition that should be impossible on a host this file is meant to run on.
+# Skipping here would mean reporting "all good" for a run that checked nothing.
+needed() { bad "$1"$'\n'"      (this host has a TPM and a device key, so this is a broken test run, not a skip)"; }
 is()   { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1"$'\n'"      want: $3"$'\n'"      got:  $2"; fi; }
 
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
 
 # openssl and the tpm2 provider have to come from ONE source: a provider built
-# against a different OpenSSL than the binary loading it either refuses to load
-# or -- worse -- loads and misbehaves. Prefer this flake's own pkgs, because that
-# is the pair home.nix wires into ko-wif-token; fall back to plain nixpkgs for a
-# host with no homeConfiguration (or a checkout that cannot evaluate).
+# against a different OpenSSL than the binary loading it may refuse to load, and
+# the error names neither. Prefer this flake's own pkgs, because that is the pair
+# home.nix wires into ko-wif-token; fall back to plain nixpkgs for a host with no
+# homeConfiguration. The `cd "$repo"` is load-bearing -- `.#` is resolved against
+# the CWD, so without it a run from outside the repo silently takes the registry's
+# nixpkgs for one of the two and this flake's for the other.
 pick() { # pick <relative path> <flake attr>... -> first out path that contains it
   local p attr
   for attr in "${@:2}"; do
-    for p in $(nix build --no-link --print-out-paths "$attr" 2>/dev/null); do
+    for p in $(cd "$repo" && nix build --no-link --print-out-paths "$attr" 2>/dev/null); do
       [ -e "$p/$1" ] && { printf '%s\n' "$p"; return 0; }
     done
   done
@@ -88,11 +110,32 @@ sys.stdout.buffer.write(b"\x30" + bytes([len(body)]) + body)
 PY
 }
 
+# The kid of <key>, recomputed from scratch: RFC 7638 is sha256 over the compact,
+# key-sorted JSON of exactly {crv,kty,x,y}. Deriving it here from the PUBLIC POINT
+# rather than from the signer's own JWK is what makes it evidence -- reusing
+# jwk()["kid"] would only prove the signer agrees with itself.
+kid_of_point() { # kid_of_point <64-byte x||y, base64 std> -> kid
+  python3 - "$1" <<'PY'
+import sys, base64, hashlib, json
+pt = base64.b64decode(sys.argv[1])
+if len(pt) != 64:
+    sys.exit(f"expected a 64-byte public point, got {len(pt)}")
+u = lambda b: base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+j = {"crv": "P-256", "kty": "EC", "x": u(pt[:32]), "y": u(pt[32:])}
+print(u(hashlib.sha256(json.dumps(j, separators=(",", ":"), sort_keys=True).encode()).digest()))
+PY
+}
+
+point_of() { # point_of <key> [openssl provider args...] -> 64-byte x||y, base64 std
+  # SubjectPublicKeyInfo for P-256 is 91 bytes ending in the x||y point.
+  "$OSSL" pkey "${@:2}" -in "$1" -pubout -outform DER 2>/dev/null | tail -c 64 | base64 | tr -d '\n'
+}
+
 # Sign a JWT with <key>, then check it against the public half the signer itself
 # published as a JWK. Silent on success; prints the reason and returns non-zero
 # otherwise.
 roundtrip() { # roundtrip <key> [openssl provider args...]
-  local k="$1" jwt sig msg point jwkpoint
+  local k="$1" jwt sig msg point jwkpoint jwkjson
   jwt=$(python3 "$signer" --key "$k" --iss "$issuer" --sub "device:$host" \
           --aud test-aud --skip-clock-check 2>&1) || { echo "sign failed: $jwt"; return 1; }
   msg=${jwt%.*}; sig=${jwt##*.}
@@ -103,29 +146,36 @@ roundtrip() { # roundtrip <key> [openssl provider args...]
   printf '%s' "$msg" > "$work/msg"
   "$OSSL" dgst -sha256 -verify "$work/pub.pem" -signature "$work/sig.der" "$work/msg" \
     >/dev/null 2>&1 || { echo "the signature did not verify against the key's own public half"; return 1; }
-  # SubjectPublicKeyInfo for P-256 is 91 bytes ending in the 64-byte x||y point.
-  point=$("$OSSL" pkey "${@:2}" -in "$k" -pubout -outform DER 2>/dev/null | tail -c 64 | base64 | tr -d '\n')
-  jwkpoint=$(python3 "$signer" --key "$k" --jwk | python3 -c 'import json, sys, base64
+  point=$(point_of "$k" "${@:2}")
+  # Error-check the JWK separately: folded into the comparison below, a signer
+  # that died here would be reported as a point mismatch, which is a different bug.
+  jwkjson=$(python3 "$signer" --key "$k" --jwk 2>&1) || { echo "--jwk failed: $(printf '%s' "$jwkjson" | tail -1)"; return 1; }
+  jwkpoint=$(printf '%s' "$jwkjson" | python3 -c 'import json, sys, base64
 j = json.load(sys.stdin)
 u = lambda s: base64.urlsafe_b64decode(s + "==")
-sys.stdout.write(base64.b64encode(u(j["x"]) + u(j["y"])).decode())')
+sys.stdout.write(base64.b64encode(u(j["x"]) + u(j["y"])).decode())') || { echo "unparseable JWK"; return 1; }
   [ "$jwkpoint" = "$point" ] || { echo "the JWK x||y is not this key's public point"; return 1; }
   return 0
 }
 
+have_tpm=0; [ -e "${tcti#device:}" ] && have_tpm=1
+have_key=0; [ -r "$key" ] && have_key=1
+
 # ── the TPM key ─────────────────────────────────────────────────────────────
-if [ ! -e "${tcti#device:}" ]; then
+if [ "$have_tpm" = 0 ]; then
   skip "TPM key checks: no TPM at ${tcti#device:} (this host has none, or set TPM2OPENSSL_TCTI)"
-elif [ ! -r "$key" ]; then
+elif [ "$have_key" = 0 ]; then
   bad "the device key exists and is TPM-resident"$'\n'"      $key is missing or unreadable; generate it with ./install/wif/tpm-keygen.sh"
 else
   # A TSS2 PRIVATE KEY is the wrapped-blob format tpm2-openssl writes. A plain
   # "EC PRIVATE KEY" here would mean the key never left the filesystem.
   is "the device key is a TSS2 (TPM-wrapped) private key, not an EC file key" \
-     "$(head -1 "$key")" "-----BEGIN TSS2 PRIVATE KEY-----"
+     "$(head -1 "$key" | tr -d '\r')" "-----BEGIN TSS2 PRIVATE KEY-----"
 
   if [ -z "${OPENSSL_MODULES:-}" ]; then
-    skip "TPM JWK/signature checks: no tpm2 provider available (nixpkgs#tpm2-openssl)"
+    # Not a skip: this is the very thing check "ko-wif-token exports ..." asserts
+    # the wrapper provides, so quietly passing without it would be circular.
+    needed "the tpm2 openssl provider is available (nixpkgs#tpm2-openssl)"
   else
     j=$(python3 "$signer" --key "$key" --jwk 2>&1)
     if printf '%s' "$j" | python3 -c 'import json, sys
@@ -143,15 +193,30 @@ assert len(j["kid"]) == 43 and len(j["x"]) == 43 and len(j["y"]) == 43, j' 2>/de
       bad "a JWT signed by the TPM key verifies against the JWK ko-wif-token publishes"$'\n'"      $err"
     fi
 
-    # The claim the whole item rests on. /dev/null is a character device that is
-    # not a TPM, so the TCTI layer opens it and the command reaches nothing --
-    # while a key whose private half were still in the file would not care.
-    if TPM2OPENSSL_TCTI="device:/dev/null" python3 "$signer" --key "$key" \
-         --iss "$issuer" --sub "device:$host" --aud test-aud --skip-clock-check \
-         >/dev/null 2>&1; then
-      bad "the TPM key cannot sign without the TPM"$'\n'"      it signed with TPM2OPENSSL_TCTI=device:/dev/null: the private half is not TPM-bound"
+    # The kid, recomputed from the public point. Without this, nothing in the
+    # suite would notice jwk() hashing the wrong field set or dropping
+    # sort_keys -- the JWT header and --jwk both come from that one function, so
+    # they agree with each other however wrong they are, and the only other
+    # witness (the live JWKS) is network-gated.
+    want_kid=$(printf '%s' "$j" | python3 -c 'import json,sys; print(json.load(sys.stdin)["kid"])' 2>/dev/null)
+    got_kid=$(kid_of_point "$(point_of "$key" -provider tpm2 -provider default)" 2>/dev/null)
+    if [ -n "$got_kid" ]; then
+      is "the kid is the RFC 7638 thumbprint of {crv,kty,x,y}" "$want_kid" "$got_kid"
     else
-      ok "the TPM key cannot sign without the TPM (TCTI=device:/dev/null is refused)"
+      needed "the kid is the RFC 7638 thumbprint of {crv,kty,x,y} (could not recompute it)"
+    fi
+
+    # See rationale 2 at the top for what this does and does not prove. The
+    # failure text is asserted because "any non-zero exit" would also be
+    # satisfied by a typo in $signer or an unreadable key -- a pass for the
+    # wrong reason, in the one check whose whole job is to be a negative.
+    if out=$(TPM2OPENSSL_TCTI="device:/dev/null" python3 "$signer" --key "$key" \
+               --iss "$issuer" --sub "device:$host" --aud test-aud --skip-clock-check 2>&1); then
+      bad "the TPM key's signing path goes through the TPM"$'\n'"      it signed with TPM2OPENSSL_TCTI=device:/dev/null"
+    elif printf '%s' "$out" | grep -qiE 'provider|tcti|tpm'; then
+      ok "the TPM key's signing path goes through the TPM (a dead TCTI refuses it)"
+    else
+      bad "the TPM key's signing path goes through the TPM"$'\n'"      it failed, but for an unrelated reason:"$'\n'"$(printf '%s' "$out" | tail -2 | sed 's/^/      /')"
     fi
 
     # `.sops.yaml` has an equivalent check for the paper key; this is the same
@@ -159,7 +224,7 @@ assert len(j["kid"]) == 43 and len(j["x"]) == 43 and len(j["y"]) == 43, j' 2>/de
     # boots to an STS 401, and nothing local can tell you that.
     kid=$(printf '%s' "$j" | python3 -c 'import json, sys; print(json.load(sys.stdin)["kid"])' 2>/dev/null)
     if [ -z "$kid" ]; then
-      skip "JWKS membership: no kid to look for (the JWK check above failed)"
+      needed "JWKS membership: no kid to look for (the JWK check above failed)"
     elif ! jwks=$(curl -fsS --max-time 15 "$issuer/.well-known/jwks.json" 2>/dev/null); then
       skip "JWKS membership: $issuer is unreachable"
     elif printf '%s' "$jwks" | grep -qF "$kid"; then
@@ -167,6 +232,28 @@ assert len(j["kid"]) == 43 and len(j["x"]) == 43 and len(j["y"]) == 43, j' 2>/de
     else
       bad "the TPM key's kid is published in the live JWKS"$'\n'"      $kid is not in $issuer/.well-known/jwks.json"$'\n'"      publish it from the admin host (install/wif/admin-setup.sh)"
     fi
+  fi
+fi
+
+# ── the old file key must no longer be authorised ───────────────────────────
+# Rationale 1. Generating a TPM key removes nothing by itself: authority lives in
+# the JWKS, so while the old kid is published the plaintext key on disk still
+# decrypts every dotfiles secret and this migration is not finished. Keyed on the
+# old key file because that is the only way to know its kid; if the file is gone
+# there is nothing to assert and nothing at risk from it.
+if [ ! -r "$oldkey" ]; then
+  skip "the old file key is no longer authorised: $oldkey does not exist (nothing to revoke)"
+elif ! jwks=$(curl -fsS --max-time 15 "$issuer/.well-known/jwks.json" 2>/dev/null); then
+  skip "the old file key is no longer authorised: $issuer is unreachable"
+else
+  oldkid=$(python3 "$signer" --key "$oldkey" --jwk 2>/dev/null \
+           | python3 -c 'import json,sys; print(json.load(sys.stdin)["kid"])' 2>/dev/null)
+  if [ -z "$oldkid" ]; then
+    skip "the old file key is no longer authorised: could not read a kid from $oldkey"
+  elif printf '%s' "$jwks" | grep -qF "$oldkid"; then
+    bad "the old file key is no longer authorised"$'\n'"      $oldkey is plaintext on disk and its kid $oldkid is STILL in the live JWKS,"$'\n'"      so it still mints device tokens: the TPM key is an addition, not yet a migration."$'\n'"      Republish the JWKS without that kid once the new generation is live."
+  else
+    ok "the old file key's kid is no longer in the live JWKS"
   fi
 fi
 
@@ -197,24 +284,53 @@ else
   # contains it. That is the derivation CI builds, so it is normally warm.
   [ -n "$cfg" ] && [ ! -e "$cfg" ] && \
     (cd "$repo" && nix build --no-link ".#homeConfigurations.$host.activationPackage" 2>/dev/null)
-  if [ -z "$cfg" ] || [ ! -e "$cfg" ]; then
-    skip "home.nix wiring: no realisable credential config for $host (unenrolled host?)"
-  else
+  case "${cfg:-}" in
+    "")
+      skip "home.nix wiring: $host has no homeConfiguration in this flake" ;;
+    /nix/store/*)
+      : ;;
+    *)
+      # A non-store path means sops.environment took the gcp-key.json branch, i.e.
+      # this host is not in wifHosts. On a host holding a TSS2 device key that is
+      # the regression these checks exist for, not a reason to skip them.
+      if [ "$have_key" = 1 ]; then
+        needed "home.nix wiring: $host has a TPM device key but its credential config is $cfg (not in wifHosts?)"
+      else
+        skip "home.nix wiring: $host is not a WIF host (credential config is $cfg)"
+      fi
+      cfg="" ;;
+  esac
+  if [ -n "${cfg:-}" ] && [ ! -e "$cfg" ]; then
+    needed "home.nix wiring: could not realise $cfg"
+    cfg=""
+  fi
+  if [ -n "${cfg:-}" ]; then
     if grep -qF -- "--key $key " "$cfg"; then
       ok "$host's credential config signs with $key"
     else
       bad "$host's credential config signs with $key"$'\n'"      it names: $(grep -o -- '--key [^ \"]*' "$cfg" | head -1)"
     fi
     wrapper=$(grep -o '/nix/store/[^ "]*ko-wif-token[^ "]*/bin/ko-wif-token' "$cfg" | head -1)
-    if [ -n "$wrapper" ] && [ -e "$wrapper" ] \
-       && grep -q 'OPENSSL_MODULES=' "$wrapper" && grep -q 'TPM2OPENSSL_TCTI=' "$wrapper"; then
-      ok "ko-wif-token exports OPENSSL_MODULES and TPM2OPENSSL_TCTI on $host"
+    moddir=$(grep -o 'OPENSSL_MODULES=[^ ]*' "${wrapper:-/dev/null}" 2>/dev/null | head -1)
+    moddir=${moddir#OPENSSL_MODULES=}
+    # Grepping the wrapper for the two names is not enough: the exports could
+    # point at a derivation with no provider in it and every token would still
+    # fail at runtime. Check the module is actually there.
+    if [ -n "$wrapper" ] && [ -e "$wrapper" ] && grep -q 'TPM2OPENSSL_TCTI=' "$wrapper" \
+       && [ -n "$moddir" ] && [ -e "$moddir/tpm2.so" ]; then
+      ok "ko-wif-token exports TPM2OPENSSL_TCTI and an OPENSSL_MODULES dir holding tpm2.so"
     else
-      bad "ko-wif-token exports OPENSSL_MODULES and TPM2OPENSSL_TCTI on $host"$'\n'"      wrapper: ${wrapper:-none referenced by $cfg}"
+      bad "ko-wif-token exports TPM2OPENSSL_TCTI and an OPENSSL_MODULES dir holding tpm2.so"$'\n'"      wrapper: ${wrapper:-none referenced by $cfg}"$'\n'"      OPENSSL_MODULES: ${moddir:-unset}${moddir:+ (tpm2.so present: $([ -e "$moddir/tpm2.so" ] && echo yes || echo NO))}"
     fi
   fi
 fi
 
 echo
-if [ "$fails" = 0 ]; then echo "$n checks, all good"; else echo "$n checks, $fails failed"; fi
+note=""
+[ "$skipped" -gt 0 ] && note=", $skipped skipped"
+if [ "$fails" = 0 ]; then
+  echo "$n checks, all good$note"
+else
+  echo "$n checks, $fails failed$note"
+fi
 [ "$fails" = 0 ]

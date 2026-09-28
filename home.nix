@@ -55,8 +55,11 @@ let
     ${lib.optionalString (!isDarwin) "export KO_TIMEDATECTL=/usr/bin/timedatectl"}
     ${lib.optionalString useWifTpm ''
       # openssl loads the TPM key only through this provider, and finds providers
-      # by OPENSSL_MODULES — which must be tpm2-openssl built against THIS
-      # openssl, or the module refuses to load and says little about why.
+      # by OPENSSL_MODULES. Both come from the same `pkgs`, which is the point —
+      # but note nothing enforces that at runtime: tpm2.so's RUNPATH holds no
+      # openssl at all, so it resolves libcrypto from the loading process and any
+      # ABI-compatible OpenSSL 3.x would load it. The pairing is a build-time
+      # header dependency, kept honest here by both names coming from one pkgs.
       export OPENSSL_MODULES=${pkgs.tpm2-openssl}/lib/ossl-modules
       # Same reason as gnome-keyring-tpm above: the nixpkgs TSS defaults to
       # tcti-abrmd, a resource-manager daemon this host does not run. /dev/tpmrm0

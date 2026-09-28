@@ -31,16 +31,35 @@ tcti="${TPM2OPENSSL_TCTI:-device:/dev/tpmrm0}"
 
 # The repo is public, and a TPM blob is still a credential in the sense that
 # matters here: committing one advertises the host's enrolment.
-case "$(realpath -m "$out")" in
-  "$repo"/*) echo "refusing to write the device key inside the repo: $out" >&2; exit 1 ;;
+# Both sides through realpath: $repo comes from a logical cd+pwd, so with the
+# repo reached via a symlinked prefix (~/dotfiles -> ~/devel/dotfiles) the two
+# spellings never share a prefix and the guard silently passes.
+real_out="$(realpath -m "$out")"; real_repo="$(realpath -m "$repo")"
+case "$real_out" in
+  "$real_repo"/*) echo "refusing to write the device key inside the repo: $out" >&2; exit 1 ;;
 esac
 if [ -e "$out" ]; then
   # Overwriting is how a host silently stops matching its published JWK: the old
   # kid stays in the JWKS, the new key signs, and STS returns 401 with nothing
   # local to explain it.
   echo "exists, refusing to overwrite: $out" >&2
-  echo "to rotate, move it aside, run this again, and republish the JWKS with the new JWK" >&2
+  # The common reason for landing here is a re-run after the JWK print failed,
+  # not a rotation. Say how to get the JWK back out of a key that is already
+  # installed, or the advice above reads as "throw away a working TPM key".
+  echo "if you only need its public JWK again:" >&2
+  echo "  python3 $repo/home/scripts/ko-wif-token.py --key $out --jwk" >&2
+  echo "  (with KO_OPENSSL, OPENSSL_MODULES and TPM2OPENSSL_TCTI set as this script sets them)" >&2
+  echo "to rotate instead, move it aside, run this again, and republish the JWKS with the new JWK" >&2
   exit 1
+fi
+
+# home.nix builds the credential config's --key from "${homeDirectory}/.config/ko"
+# literally; it does not consult XDG_CONFIG_HOME. Writing the key somewhere this
+# generator thinks is right and sops-nix will never look at fails at activation
+# with a bare "No such file or directory", so say it here instead.
+if [ "$real_out" != "$(realpath -m "$HOME/.config/ko/wif-tpm.pem")" ]; then
+  echo "note: home.nix looks for the device key at \$HOME/.config/ko/wif-tpm.pem," >&2
+  echo "      not at $out. Point wifKeyFile at it, or the unit will not find it." >&2
 fi
 
 dev="${tcti#device:}"
@@ -56,10 +75,13 @@ fi
 # error names neither. This flake's pkgs first, because that is the pair home.nix
 # wires into ko-wif-token, so a key made here is made by the tools that will use
 # it; nixpkgs as the fallback for a checkout that cannot evaluate.
+# The `cd "$repo"` is load-bearing: `.#` resolves against the CWD, so without it
+# a run from outside the repo takes the registry's nixpkgs for one of the two and
+# this flake's for the other -- the mixed pair this comment exists to prevent.
 pick() { # pick <relative path> <flake attr>... -> first out path that contains it
   local p attr
   for attr in "${@:2}"; do
-    for p in $(nix build --no-link --print-out-paths "$attr" 2>/dev/null); do
+    for p in $(cd "$repo" && nix build --no-link --print-out-paths "$attr" 2>/dev/null); do
       [ -e "$p/$1" ] && { printf '%s\n' "$p"; return 0; }
     done
   done
@@ -69,6 +91,12 @@ ossl_root=$(pick bin/openssl ".#homeConfigurations.$host.pkgs.openssl" "nixpkgs#
   || { echo "need openssl (nixpkgs#openssl)" >&2; exit 1; }
 prov_root=$(pick lib/ossl-modules/tpm2.so ".#homeConfigurations.$host.pkgs.tpm2-openssl" "nixpkgs#tpm2-openssl") \
   || { echo "need the tpm2 openssl provider (nixpkgs#tpm2-openssl)" >&2; exit 1; }
+# Absolute, like openssl: this script's audience is a freshly-installed host,
+# where `python3` may not be on PATH at all -- and the JWK print is the one step
+# whose failure used to strand a key that is already installed.
+py_root=$(pick bin/python3 ".#homeConfigurations.$host.pkgs.python3" "nixpkgs#python3") \
+  || { echo "need python3 (nixpkgs#python3)" >&2; exit 1; }
+PY="$py_root/bin/python3"
 OSSL="$ossl_root/bin/openssl"
 export OPENSSL_MODULES="$prov_root/lib/ossl-modules"
 export TPM2OPENSSL_TCTI="$tcti"
@@ -85,10 +113,12 @@ if ! err="$("$OSSL" genpkey -provider tpm2 -provider default \
               -algorithm EC -pkeyopt group:P-256 -out "$tmpd/key" 2>&1)"; then
   printf '%s\n' "openssl genpkey (tpm2) failed: $err" >&2; exit 1
 fi
-head -1 "$tmpd/key" | grep -qx -- '-----BEGIN TSS2 PRIVATE KEY-----' || {
+# No pipe: under `set -o pipefail`, grep exiting early on a match can SIGPIPE
+# head and turn a successful check into 141.
+if ! grep -qx -- '-----BEGIN TSS2 PRIVATE KEY-----' < <(head -1 "$tmpd/key"); then
   echo "openssl wrote $(head -1 "$tmpd/key") -- that is not a TPM key blob; refusing it" >&2
   exit 1
-}
+fi
 
 # Prove the key signs through the TPM before installing it. A blob the chip will
 # not load is worth finding now, not at the next boot in sops-install-secrets.
@@ -105,12 +135,21 @@ if ! selftest; then
   exit 1
 fi
 
-chmod 400 "$tmpd/key"
-mv "$tmpd/key" "$out"
-
+# Print the JWK BEFORE installing the key. A failure here after the mv leaves a
+# host holding a TPM key nobody has the public half of, and a re-run that refuses
+# to overwrite it -- so do the step that can fail while the key is still
+# discardable, and install only once its public half is in hand.
 mkdir -p "$here/out"
 jwk="$here/out/$host-tpm.jwk.json"
-KO_OPENSSL="$OSSL" python3 "$repo/home/scripts/ko-wif-token.py" --key "$out" --jwk | tee "$jwk"
+if ! KO_OPENSSL="$OSSL" "$PY" "$repo/home/scripts/ko-wif-token.py" --key "$tmpd/key" --jwk > "$tmpd/jwk.json"; then
+  echo "could not derive the public JWK from the new key; not installing it" >&2
+  exit 1
+fi
+cp "$tmpd/jwk.json" "$jwk"
+
+chmod 400 "$tmpd/key"
+mv "$tmpd/key" "$out"
+cat "$jwk"
 
 echo
 echo "wrote $out (mode 400, TPM-wrapped) and $jwk"
@@ -121,6 +160,11 @@ echo "  2. republish the JWKS with EVERY current key, this one included --"
 echo "     admin-setup.sh replaces the JWKS with exactly the JWKs you pass it"
 echo "  3. add $host to wifTpmHosts in home.nix, then build and switch (hms)"
 echo "  4. ./tests/wif-tpm.sh $out"
+echo "  5. ONLY NOW, and this is the step that makes it a migration rather than an"
+echo "     addition: republish the JWKS WITHOUT the old file key's kid, then remove"
+echo "     the old key file. Until you do, the plaintext key still mints device"
+echo "     tokens and nothing about this host has actually got safer."
+echo "     tests/wif-tpm.sh stays red on exactly that until it is done."
 echo
-echo "Keep the old key published until the new generation is live: removing its"
-echo "kid revokes the identity the RUNNING generation still signs with."
+echo "Steps 3 and 5 are in that order for a reason: the kid you remove in 5 is the"
+echo "one the RUNNING generation signs with until 3 has switched it."

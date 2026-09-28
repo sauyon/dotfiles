@@ -3,7 +3,7 @@
   "checkpoint_id": "4db55c85f2d3",
   "strategy": "manual-commit",
   "branch": "steam",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "README.md",
     "system/deploy",
@@ -20,13 +20,20 @@
       "compact_transcript": "/4d/b55c85f2d3/0/transcript.jsonl",
       "content_hash": "/4d/b55c85f2d3/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/4d/b55c85f2d3/1/metadata.json",
+      "transcript": "/4d/b55c85f2d3/1/full.jsonl",
+      "compact_transcript": "/4d/b55c85f2d3/1/transcript.jsonl",
+      "content_hash": "/4d/b55c85f2d3/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 16,
-    "cache_creation_tokens": 9283,
-    "cache_read_tokens": 579652,
-    "output_tokens": 2664,
-    "api_call_count": 8
+    "input_tokens": 106,
+    "cache_creation_tokens": 267169,
+    "cache_read_tokens": 3728248,
+    "output_tokens": 39302,
+    "api_call_count": 53
   }
 }

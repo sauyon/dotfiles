@@ -72,6 +72,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
 ./tests/polkit-agent.sh          # evaluates 5 hosts + a synthetic one, 17 cases
 ./tests/insecure-packages.sh     # 2 cases per host, plus mari's darwin system
+./tests/steam-env.sh             # builds the steam wrapper, drives 46 cases
 ```
 
 `hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows
@@ -204,6 +205,31 @@ to authenticate*, so the caller sees the identical bare `PermissionDenied` it se
 with no agent at all, and `RestartSec` brings the unit back looking healthy. A
 green eval says the unit is shaped right, not that a prompt can be drawn; the
 check that answers that is `coredumpctl list hyprpolkitagent` after trying one.
+
+The `steam` wrapper (in `home.nix`) and `home/steam-desktop-override` model the two
+places nix's profile and a pacman-installed app collide. Steam shells out to
+`xdg-user-dir`, `~/.nix-profile/bin` precedes `/usr/bin`, and nix's loader can't
+satisfy what Arch's `libc.so.6` leaves undefined — `__pointer_chk_guard`; and
+`GIO_EXTRA_MODULES` points Steam's steamrt3c runtime (`steamrt64/pv-runtime`, glib
+2.66.8) at a gvfs module its older glib can't load. The wrapper prepends the host's
+directories rather than sanitising nix away, because `xdg-open` exists *only* in the
+profile here and is how Steam opens a link — though only CEF resolves it through
+`PATH`; `steamclient.so` hardcodes an absolute `/usr/bin/xdg-open` that isn't
+installed. So the cases assert both directions: a fix that satisfies one and breaks
+the other looks correct from either side alone. Five of them are there because the
+obvious assertion passes with the bug still in place — the `xdg-user-dir` case reads
+through `readlink` (profile entries are symlinks, so the unresolved name is never a
+store path); the `xdg-open` case *executes* it under a Steam-shaped
+`LD_LIBRARY_PATH` rather than resolving it (a `command -v` check can only fail when
+the case above it already has); a first case asserts the `/usr/bin`-vs-profile
+collision still exists at all, without which the rest can pass having measured
+nothing; the wiring case compares argument *order*, since checking that each path
+merely appears somewhere passes a src/dst transposition; and the fixture's wrapper
+path deliberately does not end in `-steam`, so the cleanup marker can't be satisfied
+by luck. The `nix eval` cases cover the wiring, since
+the wrapper and the script can both be correct while the activation entry passes the
+wrong paths — including that the entry keeps its `|| warnEcho`, because activation
+runs under `set -eu` and a bare failure here would abort the entries after it.
 
 ## System config
 

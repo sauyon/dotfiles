@@ -565,6 +565,116 @@ let
     exec /opt/zoom/zoom "$@"
   '';
 
+  # Steam is the pacman package (system/packages.shiori), but it inherits a PATH
+  # whose first entry is ~/.nix-profile/bin, and that breaks it in one measured
+  # way. Steam shells out to `xdg-user-dir <key>` (the string in steamclient.so is
+  # the format `xdg-user-dir %s`) to locate a user directory;
+  # xdg.userDirs.setSessionVariables below already exports XDG_DOWNLOAD_DIR, but
+  # Steam asks the binary anyway, and xdg.userDirs.enable puts nix's xdg-user-dirs
+  # in the profile, so the call lands on the nix copy. Measured on shiori
+  # 2026-09-28, once per launch:
+  #
+  #   xdg-user-dir: symbol lookup error: /usr/lib/libc.so.6: undefined symbol:
+  #   __pointer_chk_guard, version GLIBC_PRIVATE
+  #
+  # The mechanism is a mismatched loader/libc pair, and it runs the opposite way to
+  # what the message suggests at a glance. Measured with `nm -D` on this box:
+  # Arch's ld.so *defines* __pointer_chk_guard@@GLIBC_PRIVATE and Arch's
+  # libc.so.6 leaves it *undefined*, expecting its own loader to supply it. nix's
+  # glibc 2.42 defines it in neither. The nix binary keeps nix's hardcoded ELF
+  # interpreter, Steam's runtime puts Arch's /usr/lib/libc.so.6 in its library
+  # path, and nix's older loader cannot satisfy that newer libc's reference --
+  # which is why the error names /usr/lib/libc.so.6 as the referrer, not the binary.
+  #
+  # The fix is to put the host's directories FIRST, and deliberately not to
+  # sanitise nix out of PATH: `xdg-open` exists ONLY in the profile here (Arch's
+  # xdg-utils is not installed) and is how Steam opens a link in a browser.
+  #
+  # One caveat that belongs next to that argument rather than left out of it: only
+  # libcef.so invokes a bare `xdg-open` resolved through PATH. linux64/steamclient.so
+  # and ubuntu12_64/steamwebhelper hardcode the absolute /usr/bin/xdg-open, which does
+  # not exist on this box -- so those link-opening paths are already broken, whatever
+  # PATH says, and the profile copy is reachable only via CEF. The prepend is still
+  # the right call, but it preserves one codepath, not all of them.
+  #
+  # Whether the handler also gets a repaired *library* path is a separate question,
+  # and the honest answer is that it is inferred. steam.sh saves this wrapper's
+  # environment as SYSTEM_PATH/SYSTEM_LD_LIBRARY_PATH (:135-136), and steamclient.so
+  # references both names in `LD_LIBRARY_PATH=... PATH=... <cmd>` prefixes -- but the
+  # commands identifiable in `strings` are SteamOS power/branch helpers, not the URL
+  # handler. It matters because nix's xdg-open is a bash script whose *interpreter* is
+  # a nix-glibc binary, so it dies the same way xdg-user-dir did if a Steam-runtime
+  # library path is in force.
+  #
+  # Not steam.sh:1015: that restore is on the restart path ("Restore paths before
+  # restarting if we need to", feeding the MAGIC_RESTART_EXITCODE re-exec), which an
+  # earlier draft of this comment miscited as the handler path. And that re-exec is
+  # `exec "$0"` where $0 is ~/.local/share/Steam/steam.sh -- bin_steam.sh:313 exec's
+  # the bootstrap directly -- so the tray's restart re-runs steam.sh and NOT this
+  # wrapper. The fix survives anyway, and the restore is precisely why: PATH comes
+  # back from SYSTEM_PATH, which is this wrapper's already-prepended PATH, and the
+  # GIO_EXTRA_MODULES unset is inherited rather than re-applied.
+  #
+  # The cost, stated plainly because it is larger than the fix: this reorders name
+  # resolution for Steam's whole descendant tree, not just Steam. Games, Proton
+  # helpers and anything a launch option invokes now get the host's copy of any name
+  # the host also provides -- and via SYSTEM_PATH, so do external handlers. Nothing
+  # is removed (nix-only names like xdg-open stay reachable, and container launches
+  # get pressure-vessel's own PATH), and the reordering runs toward root-owned
+  # directories, since /usr/local/bin and /usr/bin are root:root here while
+  # ~/.nix-profile/bin is under $HOME. A shim directory holding only xdg-user-dir
+  # would scope this tighter; prepending is preferred because it needs no list of
+  # which helpers to redirect, and that list is the thing that would silently rot.
+  #
+  # GIO_EXTRA_MODULES (env.nix) goes for a related reason -- the journal carries this
+  # in pairs, eight records over four launches, tagged steamwebhelper for the first
+  # pair and steam for the rest:
+  #
+  #   libgvfscommon.so: undefined symbol: g_task_set_static_name
+  #
+  # Only the glib *inside Steam's own runtime* is too old for it, and the host is not
+  # part of this: Arch's glib2 is 2.88.3, the same version nix's gvfs is built
+  # against, and it exports the symbol. g_task_set_static_name landed in glib 2.76,
+  # while the runtime that logged this ships 2.66.8 and the scout runtime the 32-bit
+  # client runs under ships 2.58.3. The journal names that runtime by path --
+  # steamrt64/pv-runtime -- and `steamrt3c` is what steam.sh and the platform
+  # directory call it; `journalctl -g steamrt3c` finds nothing, so an earlier draft
+  # attributing the name to the journal was wrong. (An earlier draft also said
+  # "sniper"; this install has none, steam.sh rm -fr's it as "now replaced by
+  # steamrt3c".)
+  # Steam's client UI is CEF, not GTK, so the
+  # removable-drive volume monitor that variable exists for buys Steam nothing. It
+  # is unset by name rather than by a GIO_* sweep, so GIO_MODULE_DIR survives --
+  # though note the unset is inherited too, so a browser first started from a Steam
+  # link comes up without gvfs's GIO module. Small blast radius here because the
+  # GTK file chooser goes through xdg-desktop-portal-gtk, a separate user unit with
+  # its own environment.
+  #
+  # `set -u` with a $PATH reference is safe: bash supplies a compiled-in default when
+  # the variable is absent, so this cannot abort on a launcher that passes no PATH.
+  # Worth naming the default rather than leaving it to be assumed -- for nixpkgs bash
+  # it is `/no-such-path`, not the system one, so the inherited tail is a directory
+  # that does not exist. Harmless here, since everything this wrapper needs is in the
+  # three directories it prepends, and verified against the built wrapper under
+  # `env -i`.
+  #
+  # STEAM_BIN is a seam for tests/steam-env.sh and nothing else sets it. It is not
+  # a privilege boundary: anything that can write this process's environment could
+  # exec what it liked regardless -- and could more durably just rewrite the Exec=
+  # line of the 0644 desktop file this change installs.
+  steam = pkgs.writeShellScriptBin "steam" ''
+    set -u
+    export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+    unset GIO_EXTRA_MODULES
+    exec "''${STEAM_BIN:-/usr/bin/steam}" "$@"
+  '';
+
+  # The Exec= rewrite that points the packaged steam.desktop at the wrapper above.
+  # A repo script rather than an inline writeShellScript so tests/steam-env.sh can
+  # drive the real thing directly, the way tests/thermald-setup.sh drives
+  # system/thermald-setup; its own header carries the reasoning.
+  steam-desktop-override = ./home/steam-desktop-override;
+
   hypr-fullscreen-inhibit = pkgs.writeShellScriptBin "hypr-fullscreen-inhibit" ''
     set -u
     PIDFILE="''${XDG_RUNTIME_DIR:-/tmp}/hypr-fullscreen-inhibit.pid"
@@ -1995,6 +2105,48 @@ in
   # ── p10k ───────────────────────────────────────────────────────────────────
   xdg.configFile."zsh/.p10k.zsh".source = ./home/p10k.zsh;
 
+  # Rewrite the packaged steam.desktop's Exec= to the `steam` wrapper, so a launch
+  # from elephant/walker -- and a steam:// link handed over by xdg-open -- goes
+  # through it rather than straight to /usr/bin/steam. Same destination directory,
+  # and for the same reason, as Zoom.desktop just below: ~/.local/share beats
+  # /usr/share, where hm's xdg.desktopEntries (~/.nix-profile/share) loses to it.
+  #
+  # An activation entry rather than a declarative file because the content is
+  # derived from the pacman file at switch time -- see home/steam-desktop-override
+  # for why this repo does not keep its own copy of those 282 lines. Re-runs on
+  # every `hms`, which is also what picks up a steam.desktop changed by a package
+  # update. Nothing re-runs update-desktop-database: the override keeps the filename
+  # steam.desktop, so an existing mimeinfo.cache entry for x-scheme-handler/steam
+  # still names a file that exists, and XDG_DATA_HOME's precedence picks ours.
+  #
+  # `|| warnEcho` and not a bare call, which is the whole failure policy. The
+  # generated `activate` runs under `set -eu` (verified: line 2 of a built
+  # generation), and this entry sorts after linkGeneration and reloadSystemd but
+  # BEFORE zenInstallsIni. So a non-zero exit here would not merely skip the
+  # launcher fix -- it would abort the rest of activation, leaving the profile
+  # already pointing at the new generation while gcroots/current-home still names
+  # the old one, and leaving installs.ini in place for Zen to re-pin. The degraded
+  # outcome this buys instead is "Steam launches unwrapped", which is recoverable
+  # and strictly smaller. Same call system/deploy already makes for the same reason:
+  # `./thermald-setup || echo ... continuing`.
+  #
+  # entryAfter [ "linkGeneration" ] rather than the bare write boundary, matching
+  # antigravity.nix: this writes into a directory hm also links into, and relying on
+  # attribute order to land after linkGeneration is an accident rather than an edge.
+  #
+  # Guarded like the Zoom.desktop sibling below rather than left unconditional: the
+  # script's own gate would make it a no-op on Darwin anyway, but the guard keeps a
+  # Linux-shaped wrapper out of the Darwin host's closure.
+  home.activation.steamDesktopOverride = lib.mkIf (!isDarwin && isDesktop) (
+    lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      $DRY_RUN_CMD ${pkgs.bash}/bin/bash ${steam-desktop-override} \
+        /usr/share/applications/steam.desktop \
+        "${config.xdg.dataHome}/applications/steam.desktop" \
+        "${steam}/bin/steam" \
+        || warnEcho "steamDesktopOverride: failed; Steam will launch unwrapped"
+    ''
+  );
+
   # Override the packaged Zoom.desktop so the app launcher (elephant/walker) and
   # zoommtg: scheme handlers use the wayland `zoom` wrapper instead of
   # /usr/bin/zoom (which force-sets QT_QPA_PLATFORM=xcb and crashes — see the
@@ -2561,6 +2713,12 @@ in
     # host one. shiori-only because it is the only Framework we own; on anything
     # else it would just fail to find an EC.
     pkgs.framework-tool
+    # The `steam` wrapper (see its comment up top). In the profile so a bare
+    # `steam` from a shell gets it too -- ~/.nix-profile/bin precedes /usr/bin, so
+    # this shadows the pacman binary it then execs by absolute path. shiori-only
+    # because that is the only host whose package list asks for Steam; elsewhere
+    # it would be a `steam` command that only ever fails to find /usr/bin/steam.
+    steam
   ];
 
   # No permittedInsecurePackages entry: nothing here needs one, and

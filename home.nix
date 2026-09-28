@@ -2445,10 +2445,14 @@ in
   # No permittedInsecurePackages entry: nothing here needs one, and
   # tests/insecure-packages.sh holds that rather than a comment a lock bump can
   # quietly falsify -- which is exactly how the entry this replaces went stale.
-  nixpkgs.config = {
-    allowUnfree = true;
-    sandbox = true;
-  };
+  # `sandbox` used to be set here too, doing nothing: it is a nix.conf setting,
+  # not a nixpkgs config attr, and nixpkgs' freeform config type swallows
+  # undeclared attrs without even a warning unless warnUndeclaredOptions is on.
+  # Nothing in this repo sets it for these boxes at all; they get nix's
+  # compiled-in default, which is on. The one place it is set on purpose is CI,
+  # via NIX_CONFIG in both workflows, forcing it back on because the runner image
+  # ships sandbox = false and unsandboxed builds fail there.
+  nixpkgs.config.allowUnfree = true;
 
   nixpkgs.overlays = [
     (final: prev: {

@@ -57,7 +57,9 @@ is ".sops.yaml uses no key_groups (recipients stay OR)" "$groups" 0
 # `gcp_kms:`/`age:` in a creation rule are comma-joined strings, and sops also
 # accepts a list; normalise both to one recipient per line, sorted.
 field() { # field <file> <yq path>
-  "$YQ" -r "$2 // \"\"" "$1" | tr ', ' '\n\n' | grep -v '^$' | sort -u
+  # tr pads set2 with its last character, so ',' and ' ' both become newlines;
+  # spelling '\n' twice says the same thing and only trips SC2020.
+  "$YQ" -r "$2 // \"\"" "$1" | tr ', ' '\n' | grep -v '^$' | sort -u
 }
 rule_kms=$(field "$rules" '.creation_rules[0].gcp_kms')
 rule_age=$(field "$rules" '.creation_rules[0].age')

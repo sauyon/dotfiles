@@ -48,6 +48,13 @@ signer="$repo/home/scripts/ko-wif-token.py"
 host="$(uname -n)"; host="${host%%.*}"
 key="${1:-${KO_WIF_TPM_KEY:-$HOME/.config/ko/wif-tpm.pem}}"
 oldkey="${KO_WIF_FILE_KEY:-$HOME/.config/ko/wif.pem}"
+# Pinned, not derived. The kid is public, stable and already in this file's own
+# failure message, and keying the revocation check on the key FILE made the check
+# disappear the moment anyone moved the file -- which is the single most likely
+# thing an operator does next. Deleting a private key revokes nothing: authority
+# lives in the JWKS, and whoever copied the file first keeps a working identity.
+# Override for another host; empty disables the check deliberately.
+oldkid_pinned="${KO_WIF_OLD_KID-01HB4BTt8_vvHx6QA2OY2lhRkDsZcO6XaYGIOtd5sZs}"
 tcti="${TPM2OPENSSL_TCTI:-device:/dev/tpmrm0}"
 issuer="https://storage.googleapis.com/ko-keys-sauyon/hosts"
 
@@ -57,7 +64,7 @@ bad()  { n=$((n+1)); fails=$((fails+1)); printf 'FAIL %d - %s\n' "$n" "$1"; }
 skip() { n=$((n+1)); skipped=$((skipped+1)); printf 'skip %d - %s\n' "$n" "$1"; }
 # A condition that should be impossible on a host this file is meant to run on.
 # Skipping here would mean reporting "all good" for a run that checked nothing.
-needed() { bad "$1"$'\n'"      (this host has a TPM and a device key, so this is a broken test run, not a skip)"; }
+needed() { bad "$1"$'\n'"      (${2:-this host has a TPM and a device key}, so this is a broken test run, not a skip)"; }
 is()   { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1"$'\n'"      want: $3"$'\n'"      got:  $2"; fi; }
 
 work=$(mktemp -d); trap 'rm -rf "$work"' EXIT
@@ -213,7 +220,7 @@ assert len(j["kid"]) == 43 and len(j["x"]) == 43 and len(j["y"]) == 43, j' 2>/de
     if out=$(TPM2OPENSSL_TCTI="device:/dev/null" python3 "$signer" --key "$key" \
                --iss "$issuer" --sub "device:$host" --aud test-aud --skip-clock-check 2>&1); then
       bad "the TPM key's signing path goes through the TPM"$'\n'"      it signed with TPM2OPENSSL_TCTI=device:/dev/null"
-    elif printf '%s' "$out" | grep -qiE 'provider|tcti|tpm'; then
+    elif printf '%s' "$out" | grep -qiE 'provider|tcti'; then
       ok "the TPM key's signing path goes through the TPM (a dead TCTI refuses it)"
     else
       bad "the TPM key's signing path goes through the TPM"$'\n'"      it failed, but for an unrelated reason:"$'\n'"$(printf '%s' "$out" | tail -2 | sed 's/^/      /')"
@@ -237,21 +244,24 @@ fi
 
 # ── the old file key must no longer be authorised ───────────────────────────
 # Rationale 1. Generating a TPM key removes nothing by itself: authority lives in
-# the JWKS, so while the old kid is published the plaintext key on disk still
-# decrypts every dotfiles secret and this migration is not finished. Keyed on the
-# old key file because that is the only way to know its kid; if the file is gone
-# there is nothing to assert and nothing at risk from it.
-if [ ! -r "$oldkey" ]; then
-  skip "the old file key is no longer authorised: $oldkey does not exist (nothing to revoke)"
+# the JWKS, so while the old kid is published the old key still decrypts every
+# dotfiles secret and this migration is not finished. Keyed on the KID, not on the
+# key file: the file being gone proves nothing, because a copy taken before it was
+# deleted works exactly as well, and because that is precisely the moment an
+# operator would most like the check to keep asserting.
+oldkid="$oldkid_pinned"
+# The file is only a fallback source for the kid, never a precondition.
+if [ -z "$oldkid" ] && [ -r "$oldkey" ]; then
+  oldkid=$(python3 "$signer" --key "$oldkey" --jwk 2>/dev/null \
+           | python3 -c 'import json,sys; print(json.load(sys.stdin)["kid"])' 2>/dev/null)
+fi
+if [ -z "$oldkid" ]; then
+  skip "the old file key is no longer authorised: no kid pinned (KO_WIF_OLD_KID) and $oldkey unreadable"
 elif ! jwks=$(curl -fsS --max-time 15 "$issuer/.well-known/jwks.json" 2>/dev/null); then
   skip "the old file key is no longer authorised: $issuer is unreachable"
 else
-  oldkid=$(python3 "$signer" --key "$oldkey" --jwk 2>/dev/null \
-           | python3 -c 'import json,sys; print(json.load(sys.stdin)["kid"])' 2>/dev/null)
-  if [ -z "$oldkid" ]; then
-    skip "the old file key is no longer authorised: could not read a kid from $oldkey"
-  elif printf '%s' "$jwks" | grep -qF "$oldkid"; then
-    bad "the old file key is no longer authorised"$'\n'"      $oldkey is plaintext on disk and its kid $oldkid is STILL in the live JWKS,"$'\n'"      so it still mints device tokens: the TPM key is an addition, not yet a migration."$'\n'"      Republish the JWKS without that kid once the new generation is live."
+  if printf '%s' "$jwks" | grep -qF "$oldkid"; then
+    bad "the old file key is no longer authorised"$'\n'"      kid $oldkid is STILL in the live JWKS, so whoever holds that key -- the plaintext"$'\n'"      file at $oldkey, or any copy made of it -- still mints device tokens."$'\n'"      The TPM key is an addition, not yet a migration. Once the new generation is live:"$'\n'"        ./install/wif/revoke-kid.sh $oldkid $oldkey"
   else
     ok "the old file key's kid is no longer in the live JWKS"
   fi
@@ -294,14 +304,15 @@ else
       # this host is not in wifHosts. On a host holding a TSS2 device key that is
       # the regression these checks exist for, not a reason to skip them.
       if [ "$have_key" = 1 ]; then
-        needed "home.nix wiring: $host has a TPM device key but its credential config is $cfg (not in wifHosts?)"
+        needed "home.nix wiring: $host has a TPM device key but its credential config is $cfg (not in wifHosts?)" \
+               "this host holds a TSS2 device key"
       else
         skip "home.nix wiring: $host is not a WIF host (credential config is $cfg)"
       fi
       cfg="" ;;
   esac
   if [ -n "${cfg:-}" ] && [ ! -e "$cfg" ]; then
-    needed "home.nix wiring: could not realise $cfg"
+    needed "home.nix wiring: could not realise $cfg" "$host has a WIF credential config"
     cfg=""
   fi
   if [ -n "${cfg:-}" ]; then
@@ -313,6 +324,7 @@ else
     wrapper=$(grep -o '/nix/store/[^ "]*ko-wif-token[^ "]*/bin/ko-wif-token' "$cfg" | head -1)
     moddir=$(grep -o 'OPENSSL_MODULES=[^ ]*' "${wrapper:-/dev/null}" 2>/dev/null | head -1)
     moddir=${moddir#OPENSSL_MODULES=}
+    moddir=${moddir%\"}; moddir=${moddir#\"}   # bare today; do not depend on that
     # Grepping the wrapper for the two names is not enough: the exports could
     # point at a derivation with no provider in it and every token would still
     # fail at runtime. Check the module is actually there.

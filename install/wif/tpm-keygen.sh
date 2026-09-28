@@ -145,10 +145,11 @@ if ! KO_OPENSSL="$OSSL" "$PY" "$repo/home/scripts/ko-wif-token.py" --key "$tmpd/
   echo "could not derive the public JWK from the new key; not installing it" >&2
   exit 1
 fi
-cp "$tmpd/jwk.json" "$jwk"
-
 chmod 400 "$tmpd/key"
 mv "$tmpd/key" "$out"
+# Only once the key is installed: a JWK in out/ for a key that does not exist is
+# a JWK someone will publish, and then a host 401s on a kid nobody can sign for.
+cp "$tmpd/jwk.json" "$jwk"
 cat "$jwk"
 
 echo

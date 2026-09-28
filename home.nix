@@ -2340,6 +2340,19 @@ in
     pkgs.xdg-utils
   ] ++ lib.optionals (hostname == "fujiwara") [
     clawpatrol
+  ] ++ lib.optionals (hostname == "shiori") [
+    # `framework_tool`, Framework's own utility for talking to the embedded
+    # controller. It is the only way to read EC state (fan duty, per-cell battery
+    # health, EC/PD firmware versions) and the only way to set a charge limit:
+    # Framework exposes no charge_control_end_threshold under /sys, so the
+    # kernel-level battery knobs every other laptop has simply are not there.
+    #   framework_tool --charge-limit 80       # spare the cells when desk-bound
+    #   framework_tool --versions              # BIOS/EC/PD, without rebooting
+    # Wants sudo (it drives the EC over the LPC port), which is fine from a nix
+    # profile -- so by system/packages' own rule this is a user package, not a
+    # host one. shiori-only because it is the only Framework we own; on anything
+    # else it would just fail to find an EC.
+    pkgs.framework-tool
   ];
 
   nixpkgs.config = {

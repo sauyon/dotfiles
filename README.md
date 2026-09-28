@@ -65,6 +65,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ```bash
 ./tests/hyprlock-faillock.sh     # builds the script, then drives 33 cases
 ./tests/system-packages.sh       # sources system/pacman.sh, drives 21 cases
+./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
 ```
 
 `hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows
@@ -82,6 +83,15 @@ copy of this host's real `pacman.conf` to `pacman-conf` to confirm pacman does
 glob an `Include` and does register a `[multilib]` section reached through one --
 the assumption the whole drop-in design rests on. Nothing writes to `/etc`, and
 no case needs root.
+
+`system/thermald-setup` (run from `system/deploy`) is the *enable* half that a
+package list cannot express: `pacman -S` installs a unit, it does not start one.
+Which hosts want thermald is decided upstream of it, by `thermald` appearing in
+`system/packages.<host>` — so the script's own gate is just "is it installed",
+and a host whose list never asked for it is one it never touches. The cases drive
+the real script with stub `pacman`/`sudo`/`systemctl` on `PATH`, asserting both
+halves: a host without the package does nothing at all, and a converged host
+escalates zero times.
 
 ## System config
 

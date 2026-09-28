@@ -29,3 +29,24 @@ lib32-mesa
 # Panther Lake / Arc B390 is mesa's ANV, same as the 64-bit vulkan-intel.
 lib32-vulkan-intel
 lib32-vulkan-icd-loader
+
+# Thermal daemon, and the reason it is here rather than in the shared list: it
+# is Intel-only. It drives the ACPI DPTF devices (int3400/int3403) and the
+# processor_thermal_device RAPL knobs, and on a non-Intel CPU it exits -- so on
+# utsuho and fujiwara it would be a unit that fails on every boot, which is the
+# one way a wrongly-placed package is not merely inert.
+#
+# It is the recommendation for this box, not a preference: ArchWiki's Framework
+# Laptop 13 page names thermald for the Intel version under "Lowering fan
+# noise", both distributions Framework certifies the Laptop 13 Pro against
+# (Ubuntu 26.04 LTS, Fedora 44) ship it by default on Intel, and Phoronix ran
+# its Panther Lake performance-profile numbers with it applied. It sits under
+# power-profiles-daemon rather than replacing it -- ppd owns the EPP and the
+# ACPI platform_profile, thermald the passive trip points and the fan response.
+#
+# Installing it does not start it, and nothing in a package list can: ./deploy
+# runs ./thermald-setup right after this step for that half.
+#
+# setsuna is the other Intel box. It has no ./packages.setsuna yet, and giving
+# it one is the whole edit if it ever wants this.
+thermald

@@ -150,6 +150,25 @@ utsuho | setsuna | shiori | fujiwara)
       echo "  no network. Continuing; nothing below needs these packages." >&2
     }
   fi
+
+  # The step after convergence, for the one listed package that is a daemon:
+  # `pacman -S` puts thermald's unit on disk without enabling or starting it, and
+  # a package list has no way to say "and run it". ./thermald-setup is that half,
+  # and it gates on the package being installed -- so which hosts get it stays a
+  # question only ./packages.<host> answers (today, ./packages.shiori).
+  #
+  # Immediately after the install rather than further down: on the run that first
+  # installs thermald, this is what makes the daemon actually run without waiting
+  # for a reboot or a second deploy.
+  #
+  # Inside the SKIP_HOST_PACKAGES guard because it is the tail of the package
+  # step -- skipping the convergence and then enabling what it would have
+  # installed is not a state worth being able to reach.
+  #
+  # Warn rather than abort, for the same reason the pacman step above does:
+  # nothing below this point wants thermald, and the attic netrc further down is
+  # what spares the switch an hour of compiling.
+  ./thermald-setup || echo "system/deploy: thermald-setup failed; continuing." >&2
   ;;
 *)
   echo "system/deploy: ${host} is not one of our Arch hosts -- skipping host packages."

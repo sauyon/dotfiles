@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Enable thermald where it is installed, and nowhere else.
+#
+# The split of labour with ./packages.<host>: that list decides WHICH hosts want
+# thermald (today only ./packages.shiori), and ./deploy's pacman step installs
+# it. This script does the one thing a package list cannot express -- `pacman -S`
+# puts a unit on disk, it does not start it or wire it into a target, and
+# install-base.sh's `systemctl enable` line runs once inside the chroot of a
+# fresh install, so it only ever reaches the NEXT new host. That gap is how
+# fprintd stayed uninstalled for months; a daemon nobody enabled is the same gap
+# with the same shape.
+#
+# So the gate here is "is thermald installed", not the CPU vendor. Deliberately:
+# a vendor check here would be a second, independent answer to a question the
+# per-host list already answers, and the two would drift. thermald is Intel-only
+# -- it steers the ACPI DPTF devices (int3400/int3403) and the
+# processor_thermal_device RAPL knobs, and exits on anything else -- but that is
+# an argument about which list it belongs in, which is settled in the list.
+#
+# WHY thermald AT ALL: it is the Framework/Intel recommendation, not a hunch.
+# ArchWiki's Framework Laptop 13 page ("Lowering fan noise") names it for the
+# Intel version specifically; both distributions Framework certifies the Laptop
+# 13 Pro against -- Ubuntu 26.04 LTS and Fedora 44 -- ship it by default on
+# Intel; and Phoronix ran its Panther Lake performance-profile numbers with
+# thermald applied. shiori is a Framework Laptop 13 Pro (Core Ultra X7 358H,
+# Panther Lake) and has the int3400/int3403 devices thermald steers.
+#
+# It coexists with power-profiles-daemon rather than replacing it: ppd sets the
+# EPP and the ACPI platform_profile, thermald manages the passive trip points and
+# fan response underneath. That pairing is what Fedora and Ubuntu both ship.
+#
+# Seams, for ../tests/thermald-setup.sh: pacman, sudo and systemctl are resolved
+# through PATH, so the harness stubs them and no case needs a real package, a
+# real unit, or root.
+set -euo pipefail
+
+# The host asked for thermald by listing it, or it did not. Nothing to do is the
+# normal case on three of four hosts, and it has to be silent -- a deploy step
+# that narrates its own no-op on every run trains people to skim the output.
+if ! pacman -Qq thermald >/dev/null 2>&1; then
+  exit 0
+fi
+
+# is-enabled/is-active are unprivileged where `enable --now` is not, so asking
+# first is what keeps a converged host at zero sudo prompts. ./deploy runs on
+# every `mise run system:deploy`; a step that escalated unconditionally would
+# turn the password prompt into background noise.
+#
+# Both halves matter. Enabled-but-stopped is a live host where someone ran
+# `systemctl stop`; active-but-disabled is one that loses the daemon at the next
+# reboot. Either way `enable --now` is the same idempotent fix.
+if [ "$(systemctl is-enabled thermald.service 2>/dev/null)" != enabled ] ||
+  [ "$(systemctl is-active thermald.service 2>/dev/null)" != active ]; then
+  echo "system/thermald-setup: enabling thermald.service"
+  sudo systemctl enable --now thermald.service
+fi

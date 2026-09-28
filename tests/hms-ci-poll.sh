@@ -1,0 +1,226 @@
+#!/usr/bin/env bash
+# Cases for `hms`'s CI-polling half (defined in home.nix).
+#
+# The bug that prompted these: hms wrote the Authorization header into a curl
+# config **once**, before the poll began, and every request for the next hour
+# reused it. forge.ko.ag is an OAuth grant (`fj auth login`), and its access
+# token carries an expires_at roughly an hour out -- the same hour the poll is
+# bounded by. So any run that outlived the token's remaining life started 401ing
+# mid-poll, and hms sat there printing "still waiting" at a dead token until the
+# deadline. The push in the same invocation kept working, because that goes
+# through git-credential-fj, which checks the expiry and pokes `fj whoami` to
+# refresh. Only the polling path lacked it.
+#
+# So the contract these pin is narrow and mechanical: hms asks the credential
+# helper for a token **per request**, not once per run. Case 1 is the regression;
+# it fails against the old script by observing exactly one token fetch.
+#
+# They drive the real built script through its four seams -- HMS_REPO (a
+# throwaway git repo with a bare origin, so nothing touches the real one),
+# HMS_CURL (a stub forge), HMS_TOKEN_CMD (a stub credential helper that counts
+# its calls) and HMS_SWITCH_CMD (so a "switch" is a marker file, not an actual
+# home-manager activation).
+#
+#   ./tests/hms-ci-poll.sh                  # builds hms, then tests it
+#   ./tests/hms-ci-poll.sh /path/to/hms     # tests one you already have
+set -u
+
+SCRIPT="${1:-}"
+if [ -z "$SCRIPT" ]; then
+  host=$(cat /etc/hostname)
+  drv=$(nix eval --raw ".#homeConfigurations.$host.config.home.packages" \
+    --apply 'ps: (builtins.head (builtins.filter (p: p.name or "" == "hms") ps)).drvPath') \
+    || { echo "could not evaluate hms for $host" >&2; exit 1; }
+  SCRIPT="$(nix-store --realise "$drv" | tail -1)/bin/hms"
+  echo "testing $SCRIPT"
+fi
+[ -x "$SCRIPT" ] || { echo "not executable: $SCRIPT" >&2; exit 1; }
+
+D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
+fails=0; n=0
+
+# A throwaway repo whose origin is a bare repo next to it, so hms's fetch/push
+# half runs for real without touching anything that matters.
+setup_repo() {
+  rm -rf "$D/origin.git" "$D/repo"
+  git init --quiet --bare "$D/origin.git"
+  git init --quiet "$D/repo"
+  git -C "$D/repo" config user.email "t@t"
+  git -C "$D/repo" config user.name "t"
+  echo x > "$D/repo/f"
+  git -C "$D/repo" add f
+  git -C "$D/repo" commit --quiet -m first
+  git -C "$D/repo" branch -M master
+  git -C "$D/repo" remote add origin "$D/origin.git"
+  git -C "$D/repo" push --quiet -u origin master
+  # One unpushed commit, so hms takes its normal "push, then wait" path.
+  echo y > "$D/repo/f"
+  git -C "$D/repo" commit --quiet -am second
+  git -C "$D/repo" rev-parse HEAD > "$D/sha"
+}
+
+# Stub credential helper. Appends a line per invocation, so a case can assert how
+# many times hms asked, and emits whatever token the case staged. Mirrors
+# git-credential-fj's contract: `get` on argv, key=value on stdin, password= out.
+mktoken() { # mktoken <token-to-emit>
+  : > "$D/token-calls"
+  printf '%s' "$1" > "$D/token-value"
+  cat > "$D/token-cmd" <<STUB
+#!/bin/sh
+echo call >> "$D/token-calls"
+cat >/dev/null
+printf 'username=oauth2\npassword=%s\n' "\$(cat "$D/token-value")"
+STUB
+  chmod +x "$D/token-cmd"
+}
+
+# A credential helper that changes its answer on the second call, the way a real
+# refresh does: the first read hands back the expired grant, the poke rewrites
+# keys.json, and the next read picks up the new one.
+mktoken_refreshing() { # mktoken_refreshing <stale> <fresh>
+  : > "$D/token-calls"
+  cat > "$D/token-cmd" <<STUB
+#!/bin/sh
+echo call >> "$D/token-calls"
+cat >/dev/null
+if [ "\$(wc -l < "$D/token-calls")" -le 1 ]; then
+  printf 'username=oauth2\npassword=%s\n' '$1'
+else
+  printf 'username=oauth2\npassword=%s\n' '$2'
+fi
+STUB
+  chmod +x "$D/token-cmd"
+}
+
+# Stub forge. Answers on the URL, and -- the point of the whole exercise --
+# on the token it was actually handed, which it reads back out of the curl
+# config hms wrote. `-w '\n%{http_code}'` means the body must be followed by a
+# newline and the status code, which is how hms tells 401 from 200.
+mkcurl() { # mkcurl <good-token> <run-status>
+  cat > "$D/curl" <<STUB
+#!/usr/bin/env bash
+url=""; cfg=""
+while [ \$# -gt 0 ]; do
+  case "\$1" in
+    -K) cfg="\$2"; shift 2 ;;
+    https://*) url="\$1"; shift ;;
+    *) shift ;;
+  esac
+done
+tok=\$(sed -n 's/.*Authorization: token \([^"]*\)".*/\1/p' "\$cfg")
+echo "\$url \$tok" >> "$D/requests"
+if [ "\$tok" != '$1' ]; then
+  printf 'unauthorized\n401\n'
+  exit 0
+fi
+case "\$url" in
+  *actions/tasks*)
+    printf '{"workflow_runs":[{"head_sha":"%s","workflow_id":"nix-home.yml","run_number":42,"status":"%s"}]}\n200\n' \\
+      "\$(cat "$D/sha")" '$2' ;;
+  *jobs/0*)   printf 'job_id 7 not found\n200\n' ;;
+  *jobs/*logs*) printf 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxerror: the build broke\n200\n' ;;
+  *)          printf '{}\n200\n' ;;
+esac
+STUB
+  chmod +x "$D/curl"
+}
+
+# A "switch" is a marker file: the cases care that hms decided to switch, not
+# that a home-manager activation ran.
+mkswitch() {
+  rm -f "$D/switched"
+  cat > "$D/switch" <<STUB
+#!/bin/sh
+echo "\$@" > "$D/switched"
+STUB
+  chmod +x "$D/switch"
+}
+
+run() {
+  rm -f "$D/requests"
+  # HMS_WAIT_SECONDS bounds the status poll, which ships at an hour. Without it
+  # a case that never reaches a terminal status -- which is exactly what the
+  # unfixed script does with a stale token -- would hang the suite for that hour.
+  env -i PATH="$PATH" HOME="$HOME" \
+    HMS_REPO="$D/repo" HMS_CURL="$D/curl" HMS_TOKEN_CMD="$D/token-cmd" \
+    HMS_SWITCH_CMD="$D/switch" HMS_WAIT_SECONDS=20 "$SCRIPT" 2>&1
+}
+
+report() { # report <name> <ok?> <detail>
+  n=$((n + 1))
+  if [ "$2" = ok ]; then
+    printf 'ok %d - %s\n' "$n" "$1"
+  else
+    printf 'FAIL %d - %s\n      %s\n' "$n" "$1" "$3"
+    fails=$((fails + 1))
+  fi
+}
+
+# --- the regression -------------------------------------------------------
+# One token fetch for the whole run is the bug. hms must ask again for each
+# request, so that a token which expired since the last one gets refreshed.
+setup_repo; mktoken good; mkcurl good success; mkswitch
+out=$(run); rc=$?
+calls=$(wc -l < "$D/token-calls")
+if [ "$calls" -gt 1 ]; then
+  report "token is fetched per request, not once per run" ok
+else
+  report "token is fetched per request, not once per run" no \
+    "credential helper called $calls time(s); want >1. rc=$rc out=[$out]"
+fi
+
+# --- and the point of it: a stale token recovers ---------------------------
+# The first request goes out with the expired grant and 401s; the refresh the
+# helper performs is picked up by the next request, which succeeds. Before the
+# fix this case cannot pass at all -- the 401 token is the only one hms ever has.
+setup_repo; mktoken_refreshing stale good; mkcurl good success; mkswitch
+out=$(run); rc=$?
+# "switched" alone does not prove recovery: hms also switches when it gives up
+# on reaching the forge at all ("request failed — switching locally"), which is
+# exactly what a permanently-stale token produces. The run has to have been seen
+# green for this to mean the refresh worked.
+if [ -f "$D/switched" ] && printf '%s' "$out" | grep -q 'run 42 green'; then
+  report "a 401 from an expired token recovers after refresh" ok
+else
+  report "a 401 from an expired token recovers after refresh" no \
+    "switched=$([ -f "$D/switched" ] && echo y || echo n), never saw the run go green. rc=$rc out=[$out]"
+fi
+
+# --- behaviour these must not break ---------------------------------------
+setup_repo; mktoken good; mkcurl good success; mkswitch
+out=$(run); rc=$?
+if [ -f "$D/switched" ] && [ "$rc" -eq 0 ]; then
+  report "green run switches" ok
+else
+  report "green run switches" no "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+fi
+
+setup_repo; mktoken good; mkcurl good failure; mkswitch
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ]; then
+  report "failed run does not switch, and exits nonzero" ok
+else
+  report "failed run does not switch, and exits nonzero" no \
+    "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+fi
+
+# The CI error lines are the reason hms fetches the log at all; a failure that
+# prints nothing useful sends you to the web UI for no reason.
+if printf '%s' "$out" | grep -q 'error: the build broke'; then
+  report "a failed run prints CI's error lines" ok
+else
+  report "a failed run prints CI's error lines" no "out=[$out]"
+fi
+
+# An empty token must not go out as a request that 401s confusingly.
+setup_repo; mktoken ""; mkcurl good success; mkswitch
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ]; then
+  report "no token is an error, not a silent 401 loop" ok
+else
+  report "no token is an error, not a silent 401 loop" no \
+    "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+fi
+
+printf '\n%d/%d passed\n' "$((n - fails))" "$n"
+[ "$fails" -eq 0 ]

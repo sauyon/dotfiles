@@ -751,12 +751,18 @@ let
   hms = pkgs.writeShellScriptBin "hms" ''
     set -euo pipefail
 
-    repo="$HOME/devel/dotfiles"
+    # Seams, all defaulted to the real thing. tests/hms-ci-poll.sh drives the
+    # built script through them: a throwaway repo, a stub forge, a stub
+    # credential helper and a marker-file "switch", with the status poll bounded
+    # to seconds rather than the hour it ships with.
+    repo="''${HMS_REPO:-$HOME/devel/dotfiles}"
     host="$(uname -n)"
     forge="https://forge.ko.ag"
     slug="sauyon/dotfiles"
-    curl=${lib.getExe pkgs.curl}
+    curl="''${HMS_CURL:-${lib.getExe pkgs.curl}}"
     jq=${lib.getExe pkgs.jq}
+    token_cmd="''${HMS_TOKEN_CMD:-${git-credential-fj}/bin/git-credential-fj}"
+    wait_seconds="''${HMS_WAIT_SECONDS:-3600}"
 
     local_only=0
     hm_args=()
@@ -773,7 +779,7 @@ let
     done
 
     switch_now() {
-      exec home-manager switch --flake "$repo#$host" ''${hm_args[@]+"''${hm_args[@]}"}
+      exec ''${HMS_SWITCH_CMD:-home-manager switch} --flake "$repo#$host" ''${hm_args[@]+"''${hm_args[@]}"}
     }
 
     # mari (darwin) has no Linux CI job; nix-home.yml builds only these.
@@ -842,13 +848,21 @@ let
 
     # The token lands in a 0600 curl config, never in argv or the environment —
     # /proc/<pid>/cmdline and environ are world-readable.
-    keys="''${XDG_DATA_HOME:-$HOME/.local/share}/forgejo-cli/keys.json"
     tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
     # Timeouts belong here, not on the call sites: the poll's hour-long bound
     # counts iterations, so a connection that stalls forever would never reach it.
-    ( umask 077
-      printf 'header = "Authorization: token %s"\nsilent\nconnect-timeout = 10\nmax-time = 120\n' \
-        "$($jq -r '.hosts["forge.ko.ag"].token' "$keys")" > "$tmp/curlrc" )
+    write_curlrc() {
+      local tok
+      tok=$(printf 'host=forge.ko.ag\n\n' | "$token_cmd" get | sed -n 's/^password=//p')
+      [ -n "$tok" ] || return 1
+      ( umask 077
+        printf 'header = "Authorization: token %s"\nsilent\nconnect-timeout = 10\nmax-time = 120\n' \
+          "$tok" > "$tmp/curlrc" )
+    }
+    if ! write_curlrc; then
+      echo "hms: no forge.ko.ag token from $token_cmd — try 'fj auth login'." >&2
+      exit 1
+    fi
 
     # An HTTP error must not read as success — otherwise a dead token gives jq an
     # error body to find no runs in, and hms concludes "nothing CI-relevant
@@ -860,9 +874,22 @@ let
     # api_why and every failure would read as "could not reach". 0 means the
     # request never got an HTTP response at all.
     echo 0 > "$tmp/code"
+    # Re-mint the header before every request rather than once per run.
+    # forge.ko.ag is an OAuth grant whose access token expires roughly an hour
+    # out — the same hour the status poll below is bounded by — so a snapshot
+    # taken before the wait is routinely dead by the end of it, and the whole
+    # wait then burns against a token nothing will refresh. git-credential-fj
+    # owns the expiry check and the `fj whoami` poke that mints a new one;
+    # asking it per request is what picks that up.
+    #
+    # Best-effort, exactly like the helper itself: a refresh that fails leaves
+    # the last good curlrc in place, so one hiccup cannot throw away a wait that
+    # is already minutes deep. The request then fails on its own merits and the
+    # 401 branch of api_why says so.
     api() {
       local p="$1"; shift
       local out code
+      write_curlrc || true
       if ! out=$($curl -K "$tmp/curlrc" -w '\n%{http_code}' "$forge$p" "$@"); then
         echo 0 > "$tmp/code"; return 1
       fi
@@ -877,7 +904,13 @@ let
       local code; code=$(cat "$tmp/code" 2>/dev/null || echo 0)
       case "$code" in
         0)       echo "could not reach $forge" ;;
-        401|403) echo "$forge rejected our token (HTTP $code) — try 'fj auth add-token'" ;;
+        # Every request now re-mints the header through git-credential-fj, which
+        # refreshes an expired grant on its own. So a 401 that survives that is
+        # not staleness — it is a login that can no longer be refreshed, and the
+        # fix is to log in again. Emphatically *not* `fj auth add-token`: an
+        # application token has no expires_at, so it skips the refresh poke
+        # entirely, and "fixes" this by abandoning the OAuth login instead.
+        401|403) echo "$forge rejected our token (HTTP $code) — try 'fj auth login'" ;;
         5??)     echo "$forge returned HTTP $code — server-side, retry later" ;;
         *)       echo "$forge returned HTTP $code" ;;
       esac
@@ -885,7 +918,7 @@ let
 
     # The job-id lookup is the exception: it *wants* the 404 body, which is the
     # only place Forgejo 13 names the job id. Failing on it would throw that away.
-    api_raw() { local p="$1"; shift; $curl -K "$tmp/curlrc" "$forge$p" "$@"; }
+    api_raw() { local p="$1"; shift; write_curlrc || true; $curl -K "$tmp/curlrc" "$forge$p" "$@"; }
 
     # The workflow's `paths:` filter means a commit touching nothing nix-shaped
     # never starts a run. Give it 90s to appear, then stop waiting for a run that
@@ -924,7 +957,7 @@ let
     # an hour so a run that never reaches a terminal state cannot hang the shell —
     # by SECONDS, not an iteration count, since a request can burn max-time before
     # returning and a counted hour would then be several.
-    status=""; degraded=""; deadline=$((SECONDS + 3600))
+    status=""; degraded=""; deadline=$((SECONDS + wait_seconds))
     while :; do
       if tasks=$(api "/api/v1/repos/$slug/actions/tasks?limit=20"); then
         [ -z "$degraded" ] || { echo "hms: forge back" >&2; degraded=""; }
@@ -939,7 +972,7 @@ let
         success|failure|cancelled|skipped) break ;;
       esac
       if [ "$SECONDS" -ge "$deadline" ]; then
-        echo "hms: run $run still ''${status:-unknown} after an hour — giving up on the wait." >&2
+        echo "hms: run $run still ''${status:-unknown} after ''${wait_seconds}s — giving up on the wait." >&2
         echo "hms: check $forge/$slug/actions/runs/$run, or 'hms --local'." >&2
         exit 1
       fi

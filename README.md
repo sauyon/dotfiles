@@ -68,6 +68,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live zsh config
 ./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
+./tests/hms-ci-poll.sh           # drives 6 cases against the built hms
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
 ./tests/polkit-agent.sh          # evaluates 4 hosts, drives 12 cases
 ./tests/insecure-packages.sh     # 2 cases per host, plus mari's darwin system

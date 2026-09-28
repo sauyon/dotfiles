@@ -188,17 +188,80 @@ in
 
     # exec-once equivalents. The module already emits a hyprland.start hook for
     # the systemd/D-Bus activation env, so we only add our own programs.
-    on = {
-      _args = [
-        "hyprland.start"
-        (mkLuaInline ''
-          function()
-            hl.exec_cmd("mako")
-            hl.exec_cmd("hypr-fullscreen-inhibit")
-            hl.exec_cmd("elephant")
-          end'')
-      ];
-    };
+    on = [
+      {
+        _args = [
+          "hyprland.start"
+          (mkLuaInline ''
+            function()
+              hl.exec_cmd("mako")
+              hl.exec_cmd("hypr-fullscreen-inhibit")
+              hl.exec_cmd("elephant")
+            end'')
+        ];
+      }
+
+      # Float Zen's extension popups (Bitwarden's is the one that prompted this).
+      #
+      # This cannot be a window_rule. `float` is a *static* effect: Hyprland
+      # evaluates it once at map time against initialTitle/initialClass and never
+      # again. Gecko maps the popup as an ordinary browser window and only then
+      # renames it to "Extension: (...)", so there is no moment at which a title
+      # matcher and the static pass coincide. Upstream closed the request to make
+      # `float` dynamic as not planned (hyprwm/Hyprland#3835; #602 is the same
+      # bug against Tree Style Tabs), and the wiki's own answer is to dispatch
+      # from an event listener -- which is this.
+      #
+      # Guards, both load-bearing: `class` because any window may put
+      # "Extension: " in its title, and `address` because window.title is a
+      # global event, not a per-window one. Covered by tests/hyprland-zen-popup.sh.
+      #
+      # zenPopupSubs keys the live subscriptions by address so the window.close
+      # hook below can drop one that never fired. Deliberately a global: each
+      # `on` renders as its own top-level hl.on call, so the two hooks share no
+      # local scope.
+      {
+        _args = [
+          "window.open"
+          (mkLuaInline ''
+            function(w)
+              if w.class ~= "zen-beta" then return end
+              zenPopupSubs = zenPopupSubs or {}
+              local subs = zenPopupSubs
+              if subs[w.address] then subs[w.address]:remove() end
+              local sub
+              sub = hl.on("window.title", function(tw)
+                if tw.address ~= w.address then return end
+                if not tw.title:match("^Extension: ") then return end
+                sub:remove()
+                subs[w.address] = nil
+                hl.dispatch(hl.dsp.window.float({ action = "enable", window = tw }))
+              end)
+              subs[w.address] = sub
+            end'')
+        ];
+      }
+
+      # A Zen window that never turns out to be a popup would otherwise keep its
+      # window.title subscription for the compositor's lifetime. Hyprland
+      # addresses are recycled heap pointers, so a stale subscription does not
+      # just leak -- it fires for whichever window inherits the address next.
+      {
+        _args = [
+          "window.close"
+          (mkLuaInline ''
+            function(w)
+              local subs = zenPopupSubs
+              if not subs then return end
+              local sub = subs[w.address]
+              if sub then
+                sub:remove()
+                subs[w.address] = nil
+              end
+            end'')
+        ];
+      }
+    ];
 
     bind =
       [

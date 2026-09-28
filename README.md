@@ -68,6 +68,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live generated zsh config
 ./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
+./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
 ```
 
 `hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows

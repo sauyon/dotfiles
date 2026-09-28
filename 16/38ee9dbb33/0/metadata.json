@@ -1,0 +1,111 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "1638ee9dbb33",
+  "session_id": "f0602f47-fb3e-456f-913d-b0dec50b3b56",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-28T09:57:53.363317691Z",
+  "branch": "drovr/ghostty-test-fix",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    "tests/ghostty-p10k-prompt.sh"
+  ],
+  "agent": "Claude Code",
+  "model": "",
+  "turn_id": "76195be27f74",
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 49806,
+    "cache_read_tokens": 9520560,
+    "output_tokens": 32865,
+    "api_call_count": 40,
+    "subagent_tokens": {
+      "input_tokens": 74,
+      "cache_creation_tokens": 122720,
+      "cache_read_tokens": 3130134,
+      "output_tokens": 334,
+      "api_call_count": 37
+    }
+  },
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-28T09:57:53.34310247Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 255,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 255,
+    "total_lines_changed": 265,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1282,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/edp1-scale-2x-review-1/001-hyprland.nix.diff": 21,
+        ".drovr/review/edp1-scale-2x-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-1/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-2/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-2/index.md": 27,
+        ".drovr/review/ghostty-p10k-osc133-review-1/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-1/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-1/index.md": 29,
+        ".drovr/review/ghostty-p10k-osc133-review-2/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-2/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-2/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-1/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-1/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-1/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-2/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-2/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-2/index.md": 29,
+        ".drovr/review/zen-instead-of-firefox-review-1/001-env.nix.diff": 45,
+        ".drovr/review/zen-instead-of-firefox-review-1/002-flake.lock.diff": 44,
+        ".drovr/review/zen-instead-of-firefox-review-1/003-flake.nix.diff": 30,
+        ".drovr/review/zen-instead-of-firefox-review-1/004-home.nix.diff": 134,
+        ".drovr/review/zen-instead-of-firefox-review-1/index.md": 33
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 1282,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/edp1-scale-2x-review-1/001-hyprland.nix.diff": 21,
+        ".drovr/review/edp1-scale-2x-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-1/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-2/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-2/index.md": 27,
+        ".drovr/review/ghostty-p10k-osc133-review-1/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-1/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-1/index.md": 29,
+        ".drovr/review/ghostty-p10k-osc133-review-2/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-2/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-2/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-1/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-1/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-1/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-2/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-2/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-2/index.md": 29,
+        ".drovr/review/zen-instead-of-firefox-review-1/001-env.nix.diff": 45,
+        ".drovr/review/zen-instead-of-firefox-review-1/002-flake.lock.diff": 44,
+        ".drovr/review/zen-instead-of-firefox-review-1/003-flake.nix.diff": 30,
+        ".drovr/review/zen-instead-of-firefox-review-1/004-home.nix.diff": 134,
+        ".drovr/review/zen-instead-of-firefox-review-1/index.md": 33
+      }
+    }
+  ]
+}

@@ -69,6 +69,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live generated zsh config
 ./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
+./tests/polkit-agent.sh          # evaluates 3 hosts, drives 8 cases
 ```
 
 `hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows
@@ -115,6 +116,24 @@ itself — the var must equal the scale that host's eDP-1 monitor rule asks for,
 and be unset where there is no such rule — so the pair can't drift apart
 silently, which is the only way this fails. A fourth case asserts a scaled host
 still exists, since otherwise all three would pass vacuously.
+
+`hyprpolkitagent` (in `home.nix`) is the unit whose absence is silent: polkit has
+no prompt of its own, so with no agent registered it refuses every `auth_self`
+action outright — no dialog, nothing in polkitd's journal. That is what makes
+`fprintd-enroll` fail on a fresh box and what would make Bitwarden's "unlock with
+system authentication" fail the same way, which in turn means
+`system/etc/pam.d/polkit-1` is never reached and its fingerprint wiring reads as
+broken when it is only unreachable. `pkexec` hid this for a long time by carrying
+its own text agent. The cases evaluate the flake's home configs rather than the
+running host: that the unit exists on a `gui = true` host, that its `ExecStart`
+is the `withHostNss` join (the agent calls `getpwuid` on a homed-only user with no
+`/etc/passwd` entry), that `Install.WantedBy` is set so a `.wants` link actually
+gets made, that `Restart`/`RestartSec` are pinned as a pair — systemd's 100ms
+default burns this host's five-attempt budget in half a second and then gives up
+for the session, which reproduces the very silence the unit removes — and that
+headless and Darwin hosts get no unit at all. An eval that *fails* aborts the run
+rather than being read as "the unit is absent", which is what the two gating cases
+would otherwise have called a pass.
 
 ## System config
 

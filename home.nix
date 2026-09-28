@@ -2041,6 +2041,65 @@ in
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
+  # The polkit authentication agent. polkit has no prompt of its own: with no
+  # agent registered it refuses every auth_self/auth_admin action outright --
+  # no dialog, nothing in polkitd's journal, just a bare not-authorized. So this
+  # unit is what makes two things in this repo reachable at all:
+  #   - `fprintd-enroll` on a new box, since net.reactivated.fprint.device.enroll
+  #     defaults to auth_self_keep (docs/new-host.md's enrollment step).
+  #   - Bitwarden's "unlock with system authentication", which authorizes
+  #     com.bitwarden.Bitwarden.unlock as auth_self. That action is the whole
+  #     reason system/etc/pam.d/polkit-1 puts pam_fprintd ahead of system-auth;
+  #     without an agent that stack is never reached, so the fingerprint wiring
+  #     reads as broken when it is only unreachable.
+  # `pkexec` is the exception that hid this for so long -- it carries its own
+  # text agent, so it kept prompting from a TTY while everything going through
+  # the bus did not.
+  #
+  # Fields mirror upstream's own share/systemd/user/hyprpolkitagent.service
+  # rather than being invented here; we define the unit instead of installing
+  # that file because standalone home-manager's units come from this attrset,
+  # and a copied unit gets no graphical-session.target.wants symlink.
+  # withHostNss is load-bearing, not boilerplate: the agent calls getpwuid on
+  # the user it is authenticating, and sauyon is homed-only with no /etc/passwd
+  # entry, so an unwrapped binary cannot name whose password it is asking for.
+  # The upstream binary sits in libexec/, which withHostNss wraps alongside bin/.
+  systemd.user.services.hyprpolkitagent = lib.mkIf (!isDarwin && isDesktop) {
+    Unit = {
+      Description = "Hyprland Polkit Authentication Agent";
+      PartOf = [ "graphical-session.target" ];
+      After = [ "graphical-session.target" ];
+      # Keeps activation outside a Wayland session (a plain ssh login) a no-op
+      # rather than leaving a failed unit behind. The hyprland start hook imports
+      # WAYLAND_DISPLAY into the user manager's environment before it starts
+      # hyprland-session.target, so the ordering holds on this host -- but when it
+      # does not (a session brought up by some other path), the unit is *skipped*,
+      # not failed: `systemctl --user status hyprpolkitagent` reads
+      # `inactive (dead)`, Restart= never applies, and nothing retries later. That
+      # reads identically to having no agent at all, so inactive-not-failed is the
+      # tell when auth_self prompts go missing again.
+      ConditionEnvironment = "WAYLAND_DISPLAY";
+    };
+    Service = {
+      ExecStart = "${withHostNss pkgs.hyprpolkitagent}/libexec/hyprpolkitagent";
+      Slice = "session.slice";
+      TimeoutStopSec = "5sec";
+      Restart = "on-failure";
+      # Upstream omits this and so inherits systemd's 100ms default, which is a
+      # trap here rather than a preference: with DefaultStartLimitBurst=5 over a
+      # 10s interval, five attempts fit inside half a second and the unit is then
+      # marked failed for the rest of the session -- nothing retries, nothing
+      # notifies, and the symptom is the exact silence this unit exists to
+      # remove. Five seconds spreads the same budget over ~25s, which is enough
+      # to outlast the things that actually fail transiently here: the Qt wayland
+      # plugin while the compositor is still settling, and a
+      # RegisterAuthenticationAgent collision during the start hook's
+      # stop-then-start of hyprland-session.target. Matches psi-notify above.
+      RestartSec = 5;
+    };
+    Install.WantedBy = [ "graphical-session.target" ];
+  };
+
   # Replaces home-manager's services.gnome-keyring (see the NOTE where that
   # module would have been configured). Keeps the same unit name and target so
   # ordering against graphical-session-pre.target is unchanged; the only

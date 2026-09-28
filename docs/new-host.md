@@ -134,6 +134,18 @@ Then log in again (`exec zsh -l` on a console that predates the switch) and
   unlocks hyprlock and the polkit/Bitwarden prompt; `sudo` and TTY login stay
   password-only on purpose.
 
+  Enrollment itself needs the polkit agent already running, which is easy to
+  miss because the failure names the wrong thing: `device.enroll` defaults to
+  `auth_self_keep`, and with no agent registered polkit refuses instead of
+  prompting, so `fprintd-enroll` dies with
+  `net.reactivated.Fprint.Error.PermissionDenied` as though the account lacked
+  permission. `hyprpolkitagent` (`home.nix`) supplies the agent, so enroll after
+  the switch, from inside a graphical session — its unit is conditioned on
+  `WAYLAND_DISPLAY`, so an ssh login has no agent either. To check before
+  blaming the reader: `pkcheck --process $$ --action-id
+  net.reactivated.fprint.device.enroll --allow-user-interaction` says outright
+  when no agent is available.
+
   Two things change the moment a finger is enrolled, both of which read as
   regressions if you don't expect them: every polkit `auth_self` prompt now
   waits on the reader before offering a password field (including `pkexec` from

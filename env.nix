@@ -56,8 +56,6 @@ rec {
   # exists on these hosts to care either way.
   MOZ_LEGACY_PROFILES = "1";
 
-  WARP_ENABLE_WAYLAND = "1";
-
   TG_PROVIDER_CACHE = "1";
 
   # cursor-agent otherwise dumps verbose debug logs to

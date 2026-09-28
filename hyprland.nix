@@ -13,7 +13,7 @@ let
   # Hyprland's $variable mechanism is a Hyprlang-parser feature; the Lua config
   # backend has no equivalent, so resolve these in Nix and inline the values.
   mainMod = "SUPER";
-  terminal = "warp-terminal";
+  terminal = "ghostty";
   menu = "walker";
 
   # Bind helpers. In the Lua config every `bind` is `hl.bind(keys, dispatcher,
@@ -168,13 +168,6 @@ in
         edgeGap
         edgeGap
         edgeGap
-      ];
-    };
-
-    env = {
-      _args = [
-        "WARP_ENABLE_WAYLAND"
-        "1"
       ];
     };
 

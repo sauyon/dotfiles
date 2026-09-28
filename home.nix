@@ -1876,17 +1876,6 @@ in
   # ── p10k ───────────────────────────────────────────────────────────────────
   xdg.configFile."zsh/.p10k.zsh".source = ./home/p10k.zsh;
 
-  # ── Warp ───────────────────────────────────────────────────────────────────
-  xdg.configFile."warp-terminal/keybindings.yaml" = lib.mkIf (!isDarwin && isDesktop) {
-    source = ./home/warp/keybindings.yaml;
-  };
-  xdg.configFile."warp-terminal/user_preferences.json" = lib.mkIf (!isDarwin && isDesktop) {
-    source = ./home/warp/user_preferences.json;
-  };
-  home.file.".local/share/warp-terminal/tab_configs/startup_config.toml" = lib.mkIf (!isDarwin && isDesktop) {
-    source = ./home/warp/tab_configs/startup_config.toml;
-  };
-
   # Override the packaged Zoom.desktop so the app launcher (elephant/walker) and
   # zoommtg: scheme handlers use the wayland `zoom` wrapper instead of
   # /usr/bin/zoom (which force-sets QT_QPA_PLATFORM=xcb and crashes — see the
@@ -2335,7 +2324,6 @@ in
     # Dropped: vesktop's build pulls pnpm-10.29.2, marked insecure in nixpkgs
     # (CVE-2026-48995, CVE-2026-50014). Re-add once nixpkgs ships a patched pnpm.
     # pkgs.vesktop
-    (config.lib.nixGL.wrap (withHostNss pkgs.warp-terminal))
     pkgs.xauth
     pkgs.xdg-utils
   ] ++ lib.optionals (hostname == "fujiwara") [
@@ -2397,17 +2385,6 @@ in
       }).overrideAttrs (old: {
         patches = (old.patches or []) ++ [
           ./patches/hyprlock-skip-dtors-on-early-fail.patch
-        ];
-      });
-    })
-    (final: prev: {
-      # Warp dlopens libwayland-client.so.0 via winit, but the nixpkgs build
-      # omits wayland from RUNPATH — autoPatchelfHook only sees linked deps, not
-      # dlopen'd ones. Without this, warp falls back to X11 even with
-      # WARP_ENABLE_WAYLAND=1.
-      warp-terminal = prev.warp-terminal.overrideAttrs (old: {
-        runtimeDependencies = (old.runtimeDependencies or []) ++ [
-          final.wayland
         ];
       });
     })

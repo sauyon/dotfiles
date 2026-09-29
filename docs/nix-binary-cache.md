@@ -19,7 +19,7 @@ there); this file is the *consumer* side only.
   live under `/etc`, not in home-manager. That is why this is wired through
   `system/deploy` (sudo → `/etc`) rather than `home.nix`.
 
-## How it is wired (Linux: utsuho, setsuna, fujiwara)
+## How it is wired (Linux: utsuho, setsuna, fujiwara, shiori)
 
 Three pieces, all applied by `./system/deploy` (sudo):
 
@@ -46,8 +46,26 @@ Three pieces, all applied by `./system/deploy` (sudo):
    (GCP KMS, as the user) and `sudo install`s `machine attic.ko.ag password
    <token>` to `/etc`. Then it restarts `nix-daemon`.
 
-To apply on a machine: `./system/deploy` (needs your sudo password + your
-`~/.config/sops/gcp-key.json` for the KMS decrypt).
+To apply on a machine: `./system/deploy` (needs your sudo password, plus
+whatever credential that host decrypts with).
+
+Which credential that is depends on the host, and `system/secrets.sh` reads the
+answer out of the flake (`homeConfigurations.<host>.config.sops.environment`)
+rather than assuming one:
+
+- A **WIF host** (`wifHosts` in `home.nix` — currently `shiori`) has no
+  decryption key on disk at all. It signs a short-lived JWT with a local key and
+  exchanges it for GCP credentials, so the "credential" is a store path built by
+  the host's home-manager generation. Run `hms` before `./system/deploy` on a
+  fresh machine, or that path will not exist yet and deploy says so.
+- **Every other Linux host** still uses the GCP service-account key at
+  `~/.config/sops/gcp-key.json`.
+
+Getting this wrong is not loud: nix *fails open* on a substituter it cannot
+authenticate to, warning and then building locally. `shiori` sat in that state
+from the WIF migration until 2026-09-29 because `system/deploy` hardcoded the
+service-account path and its decrypt failure landed mid-pipeline, leaving a
+0-byte `/etc/determinate/netrc.custom` that looked provisioned.
 
 ## How it is wired (darwin: mari)
 

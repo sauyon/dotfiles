@@ -18,6 +18,25 @@ cd "$(dirname "$0")"
 # shellcheck source=pacman.sh
 . ./pacman.sh
 
+# The sops credential selection and the decrypt-then-install pattern live in
+# ./secrets.sh for the same reason, so ../tests/system-secrets.sh can drive them
+# without touching /etc. Sourced for its functions; it does nothing on its own.
+# shellcheck source=secrets.sh
+. ./secrets.sh
+
+# `uname -n`, not $HOSTNAME and not hostname(1): the kernel owns it where an env
+# var is inheritable, the repo derives the host this way in three other places
+# (home.nix's hms, two mise tasks), and hostname(1) lives in inetutils, which is
+# installed on none of these boxes.
+#
+# Assigned here, at the top, and NOT inside the SKIP_HOST_PACKAGES else arm
+# below where it used to live: the sops block near the end of this script reads
+# $host too, so under `set -u` a SKIP_HOST_PACKAGES run aborted on an unbound
+# variable after the etc/ copy and before every credential it installs. That
+# flag exists to re-run the non-package half; it must not be the half that
+# breaks. ../tests/system-secrets.sh checks the position.
+host=$(uname -n); host=${host%%.*}
+
 # ── host packages: converge pacman onto ./packages[.<host>] ──────────────────
 # install-base.sh pacstraps the same list, but that only ever runs on the live
 # ISO, so a package added after a host was built never reaches it.
@@ -59,14 +78,9 @@ cd "$(dirname "$0")"
 # so a deploy driven over ssh wants a tty. Without one, pacman takes its defaults
 # or aborts, and either way the warn-and-continue above keeps the rest running.
 #
-# `uname -n`, not $HOSTNAME and not hostname(1): the kernel owns it where an env
-# var is inheritable, the repo derives the host this way in three other places
-# (home.nix's hms, two mise tasks), and hostname(1) lives in inetutils, which is
-# installed on none of these boxes.
 if [ -n "${SKIP_HOST_PACKAGES:-}" ]; then
   echo "system/deploy: SKIP_HOST_PACKAGES set -- not touching pacman."
 else
-host=$(uname -n); host=${host%%.*}
 case "$host" in
 utsuho | setsuna | shiori | fujiwara)
   # ── multilib: Arch's 32-bit repo, off by default ──────────────────────────
@@ -227,7 +241,49 @@ sudo systemctl restart systemd-oomd
 #     (On a Determinate host the extra /etc/nix/netrc copy is simply unused.)
 # The token is sops-encrypted in ../secrets.yaml: decrypt as the user (GCP KMS),
 # then install to /etc as root. The token is never printed.
-export GOOGLE_APPLICATION_CREDENTIALS="${GOOGLE_APPLICATION_CREDENTIALS:-$HOME/.config/sops/gcp-key.json}"
+#
+# Which credential that decrypt uses is per-host and is decided in home.nix, not
+# here: a WIF host signs a short-lived JWT with a local key and has no decryption
+# key on disk at all, while every other host still has the GCP service-account
+# key under $HOME. This used to hardcode the service-account path, which meant it
+# could never decrypt on the WIF host -- and because the failure landed inside a
+# pipeline, it presented as an empty netrc rather than as an error. ./secrets.sh
+# reads the decision back out of the flake so there is only ever one copy of it.
+#
+# An explicit GOOGLE_APPLICATION_CREDENTIALS still wins, for the case where you
+# are deliberately deploying with some other credential. ./secrets.sh owns that
+# choice -- including the deliberate refusal to turn ALLOW_EXECUTABLES on for an
+# override, which is a code-execution interlock and not a compatibility flag; the
+# reasoning is written out there.
+[ -z "${GOOGLE_APPLICATION_CREDENTIALS-}" ] \
+  || echo "system/deploy: using GOOGLE_APPLICATION_CREDENTIALS from the environment"
+
+# mapfile rather than word-splitting: a credential path could contain spaces,
+# and these lines are KEY=VALUE pairs meant for `export`, not for the shell.
+#
+# No `||` on the mapfile, deliberately. mapfile's exit status is mapfile's own
+# and never the process substitution's -- the same trap the pacman_wants call
+# above documents -- so a `|| exit` there would be dead code claiming a check it
+# does not perform. A failed `nix eval` writes to stderr and nothing to stdout,
+# so it arrives here as an empty array, which the length test catches.
+mapfile -t sops_env < <(sops_env_select .. "$host")
+# Load-bearing beyond the error message: `export "${empty_array[@]}"` expands to
+# zero words, and bare `export` prints the whole environment and succeeds.
+[ "${#sops_env[@]}" -gt 0 ] || {
+  echo "system/deploy: no sops.environment for $host — nix eval failed, or the host has none." >&2
+  echo "system/deploy: nix's own error, if any, is above." >&2
+  exit 1
+}
+export "${sops_env[@]}"
+
+# Fail here, with the reason, rather than four lines down inside a decrypt. On a
+# WIF host this is a store path from the flake, so it is missing exactly when the
+# home-manager generation that provides it has not been built yet.
+if [ ! -r "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+  echo "system/deploy: credential config not readable: $GOOGLE_APPLICATION_CREDENTIALS" >&2
+  echo "system/deploy: run 'hms' first (it builds that path), then re-run this." >&2
+  exit 1
+fi
 
 # Plain upstream nix only reads /etc/nix/nix.conf; pull in nix.custom.conf so the
 # substituter + trusted key take effect. Idempotent, and a no-op on Determinate
@@ -236,19 +292,14 @@ if ! sudo grep -qF 'nix.custom.conf' /etc/nix/nix.conf 2>/dev/null; then
   echo '!include nix.custom.conf' | sudo tee -a /etc/nix/nix.conf >/dev/null
 fi
 
-sops -d --extract '["atticPullToken"]' ../secrets.yaml \
-  | sed 's#^#machine attic.ko.ag password #' \
-  | sudo install -m600 -o root -g root /dev/stdin /etc/determinate/netrc.custom
-sops -d --extract '["atticPullToken"]' ../secrets.yaml \
-  | sed 's#^#machine attic.ko.ag password #' \
-  | sudo install -m600 -o root -g root /dev/stdin /etc/nix/netrc
+install_secret ../secrets.yaml atticPullToken /etc/determinate/netrc.custom 'machine attic.ko.ag password '
+install_secret ../secrets.yaml atticPullToken /etc/nix/netrc 'machine attic.ko.ag password '
 
 # ── remote builder: SSH key the nix daemon uses to reach mari ─────────────────
 # nix.custom.conf delegates aarch64-darwin builds to sauyon@mari-1 over Tailscale;
 # the daemon (root) authenticates with this key. Private key is sops-encrypted in
 # ../secrets.yaml; install root-owned, 0600. Never printed.
-sops -d --extract '["mariBuilderKey"]' ../secrets.yaml \
-  | sudo install -m600 -o root -g root /dev/stdin /etc/nix/mari-builder-key
+install_secret ../secrets.yaml mariBuilderKey /etc/nix/mari-builder-key
 
 # Pick up the new substituter, trusted key, netrc, and builder.
 sudo systemctl restart nix-daemon

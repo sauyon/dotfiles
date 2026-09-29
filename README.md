@@ -65,6 +65,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ```bash
 ./tests/hyprlock-faillock.sh     # builds the script, then drives 33 cases
 ./tests/system-packages.sh       # sources system/pacman.sh, drives 21 cases
+./tests/system-secrets.sh        # sources system/secrets.sh, drives 19 cases
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live zsh config
 ./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
@@ -90,6 +91,24 @@ copy of this host's real `pacman.conf` to `pacman-conf` to confirm pacman does
 glob an `Include` and does register a `[multilib]` section reached through one --
 the assumption the whole drop-in design rests on. Nothing writes to `/etc`, and
 no case needs root.
+
+`system/secrets.sh` holds `system/deploy`'s sops half, and exists because both
+of its bugs were silent. The credential is per-host — a WIF host has no
+decryption key on disk at all — and `home.nix` already decides that in
+`sops.environment`, so the helper reads it back out of the flake rather than
+keeping a second copy of the host list in bash. `PATH` is dropped from that
+attrset: sops-nix sets it empty for its own sandboxed activation, and inheriting
+it would blank deploy's. The other half is ordering: the old
+`sops | sed | sudo install /dev/stdin` ran concurrently, so a failed decrypt had
+already truncated the destination, which is how `shiori` ended up with a 0-byte
+`/etc/determinate/netrc.custom` that looked provisioned while every later step
+never ran. Decrypting into a variable first fixes that and costs an `xtrace`
+exposure the pipeline never had, so tracing is suppressed for the secret's
+lifetime — `bash -x system/deploy` would otherwise print the attic token and the
+mari SSH private key. The cases pin all of it through `SUDO`/`SOPS`/`NIX`/`JQ`
+seams, including that an explicit credential override does *not* enable
+`GOOGLE_EXTERNAL_ACCOUNT_ALLOW_EXECUTABLES`, which is a code-execution interlock
+and not a compatibility flag.
 
 `system/thermald-setup` (run from `system/deploy`) is the *enable* half that a
 package list cannot express: `pacman -S` installs a unit, it does not start one.

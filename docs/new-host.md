@@ -127,12 +127,73 @@ Then log in again (`exec zsh -l` on a console that predates the switch) and
 
 ## 5. Afterwards
 
+- Seal the gnome-keyring passphrase to this host's TPM. Nothing in the repo can
+  do it for you — the sealed blob is per-machine by construction — and until it
+  exists there is no Secret Service worth the name:
+
+  ```bash
+  cd ~/devel/dotfiles   # mise resolves the task from cwd; step 4 leaves you in $HOME
+  mise run sops -- -d --extract '["gnomeKeyringPassphrase"]' secrets.yaml \
+    | gnome-keyring-tpm-seal
+  systemctl --user restart gnome-keyring
+  ```
+
+  `mise run sops`, not bare `sops`. `home.nix`'s `sops.environment` supplies
+  `GOOGLE_APPLICATION_CREDENTIALS` to *sops-nix's activation only*, so a bare
+  `sops -d` in a shell has no credential and fails with "no master key was able
+  to decrypt the file" — which reads like a missing recipient rather than a
+  missing environment variable. The mise task reads the per-host credential back
+  out of the flake via `system/secrets.sh`, which is the only thing that works on
+  a WIF host.
+
+  What it looks like when this step is skipped: `gnome-keyring-tpm` logs
+  `no sealed passphrase … starting daemon WITHOUT TPM unlock` and degrades to the
+  stock daemon, no login collection is ever created, and every attempt to store a
+  persistent secret needs a prompt that no prompter answers — so it fails with
+  `DBus error Prompt was dismissed`. Downstream that surfaces as symptoms that
+  name the wrong component: Bitwarden silently offers no biometric-unlock option
+  and logs `storing refresh token in secure storage failed`, and the git
+  credential helper cannot persist anything.
+
+  Then check *which* daemon answers, because sealing is not sufficient on a box
+  that has been up a while:
+
+  ```bash
+  busctl --user list | grep org.freedesktop.secrets   # note the PID
+  cat /proc/<pid>/cgroup                              # want gnome-keyring.service
+  ```
+
+  A daemon started by D-Bus activation can be squatting on
+  `org.freedesktop.secrets` from an `app-dbus-*` scope. Masking Arch's
+  `gnome-keyring-daemon.{socket,service}` in `system/deploy` does nothing about
+  that path — both that file and `home.nix` say so — and the window is this
+  runbook's own ordering: anything that asks for a secret between the switch and
+  the seal above activates the TPM wrapper, which finds no sealed passphrase, falls
+  back to `gnome-keyring-daemon --start` with no unlock, and then holds the bus name
+  with no login collection. So the squatter usually *postdates* the masking; don't
+  go looking for an unmasked unit. The symptom is `secret-tool` reporting
+  `Object does not exist at path "/org/freedesktop/secrets/collection/login"` while
+  `Collections` lists exactly that path, and `systemctl --user restart
+  gnome-keyring` cannot dislodge it because the squatter is not that unit's child.
+  Rebooting is the clean fix (a fresh session starts the unit at
+  `graphical-session-pre.target` before anything can activate a daemon);
+  `kill <that pid>` followed by restarting the unit is the impatient one.
+
+  Verify functionally rather than by introspection, which lies here:
+
+  ```bash
+  printf 'x\n' | secret-tool store --label=probe probe check \
+    && secret-tool lookup probe check && secret-tool clear probe check
+  ```
+
 - Enroll a fingerprint if the box has a reader: `fprintd-enroll` (right index
   only — other fingers need `-f left-index-finger` and so on), then
-  `fprintd-list $USER` to confirm. The enrollment is root state in
-  `/var/lib/fprint`, per host, and nothing in this repo can carry it over. It
-  unlocks hyprlock and the polkit/Bitwarden prompt; `sudo` and TTY login stay
-  password-only on purpose.
+  `fprintd-list $USER` to confirm. The host side of the enrollment is root state
+  in `/var/lib/fprint`, per host, and nothing in this repo can carry it over —
+  and on a match-on-chip reader that is only half the story, since the template
+  itself lives on the sensor (see the duplicate case below). It unlocks hyprlock
+  and the polkit/Bitwarden prompt; `sudo` and TTY login stay password-only on
+  purpose.
 
   Enrollment itself needs the polkit agent already running, which is easy to
   miss because the failure names the wrong thing: `device.enroll` defaults to
@@ -154,6 +215,45 @@ Then log in again (`exec zsh -l` on a console that predates the switch) and
   `active (running)` five seconds later — so `systemctl --user status` will lie
   to you here and the core dump will not. `journalctl --user -u
   hyprpolkitagent` around the attempt names the reason.
+
+  The other way enrollment fails is `enroll-duplicate`, and it contradicts
+  `fprintd-list` to your face: the reader is match-on-chip (shiori's is a
+  `Goodix MOC Fingerprint Sensor`), so templates live *on the sensor*, not in
+  `/var/lib/fprint`. The chip survives OS reinstalls, so a reinstalled box can hold
+  a template the host database knows nothing about — `fprintd-list` says "no
+  fingers enrolled" while the sensor says "already enrolled". Its records do carry
+  a user id (the driver's error names it: "already enrolled as '<user_id>'"), but
+  the duplicate check is not scoped to yours, so do not reason about it as a
+  per-user namespace.
+
+  Note what does *not* fix it: `fprintd-delete $USER` checks the **host** store
+  first and returns `net.reactivated.Fprint.Error.NoEnrolledPrints` when it is
+  empty, without touching the device — so in exactly the state above it is a
+  no-op, not a way to clear the sensor. (It also needs `device.enroll`, so it
+  wants the polkit agent too.) Deleting *other users'* prints is what helped here,
+  because fprintd runs its pre-enroll duplicate check against every user's prints,
+  not just yours — a print belonging to root is enough to refuse yours:
+
+  ```bash
+  sudo fprintd-delete root   # if a root print exists -- see the sudo warning below
+  fprintd-enroll
+  ```
+
+  If that still refuses, the stale template is one nothing on this host has a
+  record of, and clearing it is not something the fprintd CLI exposes. Enrolling a
+  different finger (`fprintd-enroll -f left-index-finger`) is the cheap way past
+  it. The exact conditions under which libfprint clears on-chip storage are not
+  established here, so do not assume a command wipes the sensor unless you have
+  watched it do so.
+
+  Do **not** reach for `sudo fprintd-enroll` when the unprivileged one is refused.
+  The print it creates cannot be moved to your user — both the on-chip record and
+  the host file are bound to root — and per the duplicate check above, a root print
+  then blocks *your* enrollment until it is deleted, so it actively makes the
+  problem worse. It does **not** hand root a way past admin prompts, despite how it
+  looks: polkit's admin identity here is `unix-group:wheel`
+  (`/usr/share/polkit-1/rules.d/50-default.rules`) and root is not a member, so
+  `auth_admin` authenticates as `sauyon` either way.
 
   Two things change the moment a finger is enrolled, both of which read as
   regressions if you don't expect them: every polkit `auth_self` prompt now

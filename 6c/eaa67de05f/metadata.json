@@ -3,7 +3,7 @@
   "checkpoint_id": "6ceaa67de05f",
   "strategy": "manual-commit",
   "branch": "worktree-polkit-agent",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "README.md"
   ],
@@ -14,13 +14,20 @@
       "compact_transcript": "/6c/eaa67de05f/0/transcript.jsonl",
       "content_hash": "/6c/eaa67de05f/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/6c/eaa67de05f/1/metadata.json",
+      "transcript": "/6c/eaa67de05f/1/full.jsonl",
+      "compact_transcript": "/6c/eaa67de05f/1/transcript.jsonl",
+      "content_hash": "/6c/eaa67de05f/1/content_hash.txt",
+      "prompt": "/6c/eaa67de05f/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 32,
-    "cache_creation_tokens": 354993,
-    "cache_read_tokens": 5291065,
-    "output_tokens": 14636,
-    "api_call_count": 16
+    "input_tokens": 84,
+    "cache_creation_tokens": 385518,
+    "cache_read_tokens": 14992588,
+    "output_tokens": 32485,
+    "api_call_count": 42
   }
 }

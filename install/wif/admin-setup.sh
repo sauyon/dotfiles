@@ -18,7 +18,8 @@ KEYRING="${KEYRING:-nix-keyring}"
 KEY="${KEY:-host-key}"
 [ $# -ge 1 ] || { echo "usage: $0 out/<host>.jwk.json [...]" >&2; exit 2; }
 for f in "$@"; do [ -s "$f" ] || { echo "missing $f" >&2; exit 2; }; done
-out="$(cd "$(dirname "$0")" && pwd)/out"; mkdir -p "$out"
+here="$(cd "$(dirname "$0")" && pwd)"
+out="$here/out"; mkdir -p "$out"
 
 # The admin's gcp-key.json (SA with nix-key only) must NOT be used here: it cannot create
 # anything and, if GOOGLE_APPLICATION_CREDENTIALS points at it, sops/gcloud silently use it.
@@ -41,6 +42,52 @@ if ! gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member=allUs
 fi
 ISSUER="https://storage.googleapis.com/$BUCKET/hosts"
 jq -s '{keys: .}' "$@" > "$out/jwks.json"
+
+# The set published below is EXACTLY the files on this command line, and the
+# upload replaces the object outright. Leaving one out is a silent
+# de-authorisation with every visible signal green, and per A6.5 it produces no
+# prompt symptom either: removals have no measured upper bound, so the dropped
+# host keeps working for an unknown period and fails to activate a day later,
+# long after anyone connects it to this command. Item 3 runs this once per
+# enrolled identity, so guard it every time.
+#
+# Fetch the live set first, and distinguish the two ways it can be absent: a
+# genuine 404 is the first publish and there is nothing to drop; anything else
+# is a failed fetch, and treating THAT as an empty set would hide every removal.
+live="$out/jwks-live.json"
+if [ "$PUBLIC" = 1 ]; then
+  code=$(curl -sS --max-time 20 -o "$live" -w '%{http_code}' \
+    "$ISSUER/.well-known/jwks.json?_=$(date +%s%N)" 2>/dev/null) || code=000
+  case "$code" in
+    200) : ;;
+    404) echo "no JWKS published yet at $ISSUER -- treating this as the first publish"
+         echo '{"keys":[]}' > "$live" ;;
+    *)   echo "could not read the live JWKS (http $code); refusing to replace an object" >&2
+         echo "whose current contents are unknown. Nothing has been changed." >&2
+         exit 1 ;;
+  esac
+else
+  # On the non-public path the key set lives on the PROVIDER (--jwk-json-path),
+  # not in a fetchable object, so there is nothing to diff over HTTP. The replace
+  # footgun is identical there and this guard does not cover it; read the current
+  # set with `gcloud iam workload-identity-pools providers describe` before
+  # re-running. Saying so is better than silently fetching nothing and calling
+  # the publish guarded.
+  echo "WARN: bucket is not public, so the key set is held on the provider and this" >&2
+  echo "      publish is NOT guarded against dropping a kid. Check the provider's" >&2
+  echo "      current key set by hand before continuing." >&2
+  echo '{"keys":[]}' > "$live"
+fi
+# KO_ALLOW_DROP: space-separated kids this publish is permitted to remove. Empty
+# by default, so a removal is never something that just happens.
+gargs=(); for k in ${KO_ALLOW_DROP:-}; do gargs+=(--allow-drop "$k"); done
+if ! python3 "$here/jwks-publish-guard.py" "$out/jwks.json" "$live" "${gargs[@]}"; then
+  echo >&2
+  echo "Nothing has been changed. Pass every JWK that should stay published --" >&2
+  echo "including the hosts already enrolled -- or set KO_ALLOW_DROP='<kid>...'." >&2
+  exit 1
+fi
+
 cat > "$out/openid-configuration" <<EOF
 {"issuer":"$ISSUER","jwks_uri":"$ISSUER/.well-known/jwks.json","response_types_supported":["id_token"],"subject_types_supported":["public"],"id_token_signing_alg_values_supported":["ES256","RS256"],"claims_supported":["sub","aud","exp","iat","iss"]}
 EOF

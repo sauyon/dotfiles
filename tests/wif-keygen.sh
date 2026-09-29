@@ -124,7 +124,44 @@ else
   bad "a second run reuses the existing key (no key to re-run against)"
 fi
 
-# --- 6: the instructions it prints name paths that exist ------------------------
+# --- 6: it refuses on a host that already signs with a TPM ----------------------
+# Pointing this script at ~/.config/ko/wif.pem (check 2) put it on the same path
+# a TPM host's SUPERSEDED file key occupies. On shiori that file is the key whose
+# kid was deliberately removed from the JWKS, kept only so the removal could be
+# timed. The reuse branch would then print ITS JWK -- and the whole job of this
+# script's output is to be carried to the admin and published, which is exactly
+# how a revoked identity gets re-authorised, by an operator doing what the script
+# told them. The sibling wif-tpm.pem is the unambiguous signal that this host
+# does not sign with a file key, so refuse before anything is written.
+h2="$work/h2"; mkdir -p "$h2/.config/ko"
+: > "$h2/.config/ko/wif-tpm.pem"; chmod 600 "$h2/.config/ko/wif-tpm.pem"
+# A DIFFERENT key from h1's, deliberately: if the two were the same, the JWK the
+# script would wrongly write is byte-identical to the one already there and
+# check 7 can never fail, no matter what the script does.
+(umask 077; openssl ecparam -name prime256v1 -genkey -noout -out "$h2/.config/ko/wif.pem")
+jwk_before=$(cat "$jwkfile" 2>/dev/null)
+if run_keygen "$h2"; then
+  bad "refuses on a host that already has a TPM key"$'\n'\
+"      it exited 0 and printed a JWK for the superseded file key. Carried to the"$'\n'\
+"      admin, that republishes a kid this host no longer signs with."
+else
+  if grep -qi 'tpm' "$work/log"; then
+    ok "refuses on a host that already has a TPM key, and says why"
+  else
+    bad "refuses on a host that already has a TPM key, and says why"$'\n'\
+"      it refused, but the message never mentions the TPM:"$'\n'"      $(tail -2 "$work/log")"
+  fi
+fi
+
+# --- 7: that refusal left nothing behind for the admin to publish ---------------
+if [ "$(cat "$jwkfile" 2>/dev/null)" = "$jwk_before" ]; then
+  ok "the refusal does not overwrite out/<host>.jwk.json"
+else
+  bad "the refusal does not overwrite out/<host>.jwk.json"$'\n'\
+"      it refused but still left a JWK where the admin is told to fetch one."
+fi
+
+# --- 8: the instructions it prints name paths that exist ------------------------
 # The last thing this script does is tell an operator where to carry the JWK. It
 # named experiments/wif/ long after the kit moved to install/wif/, which sends
 # the one person following it literally to a directory that is not there.

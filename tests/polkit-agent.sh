@@ -57,6 +57,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 
 fails=0; n=0
 
+# For cases that must distinguish "eval failed with the expected throw" from "eval
+# succeeded and returned something": nix writes cache warnings to stderr, so the two
+# streams have to stay apart or a success message quotes a warning instead of a value.
+D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
+
 ok() { n=$((n+1)); printf 'ok   %s\n' "$1"; }
 no() { n=$((n+1)); fails=$((fails+1)); printf 'FAIL %s\n     %s\n' "$1" "$2"; }
 
@@ -94,6 +99,25 @@ unit_json() {
 # that matter: `!WAYLAND_DISPLAY` is a valid systemd negation that inverts the
 # gate, and `graphical-session.target.wants` is a different target -- both would
 # pass a `*needle*` case while breaking the behaviour the case exists to pin.
+# Check that an ExecStart's first token is a shim which execs the named nixgl
+# vendor wrapper. The shim is a store path that `nix eval` never realises, so on a
+# cold store (fresh clone, CI runner, after a GC) it is simply absent -- and
+# reporting that as "wrong vendor" would be indistinguishable from the regression
+# these cases exist to catch. So realise it first, and keep "could not realise" as
+# its own outcome.
+shim_execs_vendor() { # $1 = ExecStart, $2 = expected vendor attr, $3 = case label
+  local shim=${1%% *} vendor=$2 label=$3
+  if [ ! -r "$shim" ] && ! nix-store --realise "$shim" >/dev/null 2>&1; then
+    no "$label" "could not realise $shim -- cold store, not a vendor mismatch"
+    return
+  fi
+  if grep -qE "/nix/store/[a-z0-9]{32}-$vendor/bin/$vendor( |\$)" "$shim"; then
+    ok "$label"
+  else
+    no "$label" "shim $shim does not exec $vendor"
+  fi
+}
+
 want() {
   local label=$1 section=$2 key=$3 expected=$4 got
   got=$(python3 -c '
@@ -167,15 +191,10 @@ fi
 #     Every mutant that matters keeps the name: replace the shim body with
 #     `exec "$@"`, or point it at a different vendor wrapper, and the path still
 #     matches while the SIGABRT comes straight back. So read the shim and check it
-#     actually hands off to a nixGL vendor wrapper. Still eval-only -- the file is
-#     already in the store because the unit references it.
-shim=${exec_start%% *}
-if [ -r "$shim" ] && grep -qE '/nix/store/[a-z0-9]{32}-nixGL[A-Za-z]+/bin/nixGL[A-Za-z]+' "$shim"; then
-  ok "shiori's nixGL shim actually dispatches to a nixGL vendor wrapper"
-else
-  no "shiori's nixGL shim actually dispatches to a nixGL vendor wrapper" \
-    "$shim does not exec a nixGL* vendor wrapper"
-fi
+#     actually hands off to the vendor wrapper glWrapper selected. shiori declares
+#     no gpu, so that is the mesa one.
+shim_execs_vendor "$exec_start" "nixGLIntel" \
+  "shiori's nixGL shim actually dispatches to nixGLIntel"
 
 # 3. Install.WantedBy is what puts the .wants symlink in place. A unit file with
 #    no wants link is a unit that never starts -- the failure mode this repo
@@ -215,9 +234,8 @@ want "shiori's unit pins the start-limit burst the window is sized against" \
   Unit StartLimitBurst "5"
 
 # The unit is generated identically for every desktop host, so checking only
-# shiori leaves the other gui hosts unmeasured -- and the nixGL shim is hardcoded
-# to one vendor wrapper regardless of machine.gpu. This does not catch a wrong
-# vendor, but it does catch a gui host that silently loses the unit.
+# shiori leaves the other gui hosts unmeasured. This catches a gui host that
+# silently loses the unit; the vendor mapping is covered by the utsuho block below.
 echo "evaluating setsuna (gui = true)"
 present=$(has_unit setsuna) ||
   die "could not evaluate systemd.user.services for setsuna (see the nix error above)"
@@ -226,6 +244,85 @@ if [ "$present" = true ]; then
 else
   no "setsuna, the other gui host, defines the unit too" "no unit on a gui = true host"
 fi
+
+# utsuho is the only gui host that declares a gpu (amd), and glWrapper refuses any
+# gpu it has no mapping for. Note what `has_unit` can and cannot tell us here: it
+# is a membership test (`ss ? hyprpolkitagent`) and never forces ExecStart, so a
+# throw from the gpu mapping is invisible to it. Only forcing the unit itself --
+# the unit_json below -- can surface that, which is why this block asserts through
+# that path and dies on its failure rather than folding it into a case.
+#
+# What is being pinned is the mesa-covers-amd assumption: radeonsi ships in mesa's
+# own lib/dri, so amd must land on the *same* nixgl attr as Intel. The literal
+# `nixGLIntel` is deliberate -- matching any `nixGL*` would let a future second
+# branch map amd onto a proprietary wrapper and still pass.
+echo "evaluating utsuho (gui = true, gpu = amd)"
+present=$(has_unit utsuho) ||
+  die "could not evaluate systemd.user.services for utsuho (see the nix error above)"
+vendor_label="utsuho (gpu = amd) dispatches to nixGLIntel, the mesa wrapper"
+if [ "$present" = true ]; then
+  ok "utsuho, the gui host declaring a gpu, defines the unit"
+  # Only inside this branch: if the unit is absent, forcing it would abort the run
+  # on a missing attribute and blame the gpu mapping for it -- taking the remaining
+  # cases and the summary line down with it.
+  u_unit=$(unit_json utsuho) ||
+    die "could not evaluate utsuho's hyprpolkitagent unit -- if the error above names nixGL, the gpu mapping rejected \"amd\""
+  u_exec=$(python3 -c '
+import json,sys
+v=(json.loads(sys.argv[1]).get("Service") or {}).get("ExecStart")
+if isinstance(v,list): v = v[0] if len(v)==1 else ""
+print(v or "")
+' "$u_unit") || die "could not read utsuho's ExecStart out of the unit JSON"
+  shim_execs_vendor "$u_exec" "nixGLIntel" "$vendor_label"
+else
+  no "utsuho, the gui host declaring a gpu, defines the unit" "no unit on a gui = true host"
+  no "$vendor_label" "skipped: utsuho has no unit to read an ExecStart from"
+fi
+
+# glWrapper's two consumers, tested through the linkage rather than through a real
+# host's value. Pinning `defaultWrapper = "mesa"` on shiori/utsuho looked like it
+# guarded this and did not: "mesa" is *home-manager's own default*, so those cases
+# passed identically with the assignment deleted -- vacuous in exactly the spot
+# where the two halves had already drifted apart once.
+#
+# So inject a synthetic machine instead. extendModules can override the
+# extraSpecialArgs `machine` that flake.nix passes in, which gives a host that does
+# not exist without touching flake.nix: gpu = "nvidia" must be refused by BOTH
+# consumers, and the gpu = "amd" control must still produce mesa so a case cannot
+# pass merely because evaluation is broken in general.
+synth() { # $1 = nix expr for gpu, $2 = attr path under config
+  nix eval --impure --json --expr "
+let
+  f = builtins.getFlake \"path:$PWD\";
+  c = f.homeConfigurations.shiori.extendModules {
+    specialArgs = { machine = { hostname = \"gputest\"; gui = true; gpu = $1; }; };
+  };
+in c.config.$2
+"
+}
+
+echo "evaluating a synthetic gui host (not in flake.nix) to test the gpu linkage"
+
+# Control first: the machinery works and an accepted gpu still maps to mesa.
+if ctrl=$(synth '"amd"' 'targets.genericLinux.nixGL.defaultWrapper' 2>/dev/null) &&
+   [ "$ctrl" = '"mesa"' ]; then
+  ok "synthetic gpu = amd still maps to mesa (so the refusals below mean something)"
+else
+  no "synthetic gpu = amd still maps to mesa (so the refusals below mean something)" \
+    "got: ${ctrl:-<eval failed>}"
+fi
+
+for attr in targets.genericLinux.nixGL.defaultWrapper \
+            systemd.user.services.hyprpolkitagent.Service.ExecStart; do
+  label="synthetic gpu = nvidia is refused by ${attr##*.}"
+  if out=$(synth '"nvidia"' "$attr" 2>"$D/synth.err"); then
+    no "$label" "eval succeeded and returned: $out"
+  elif grep -q 'no wrapper mapped for gpu="nvidia"' "$D/synth.err"; then
+    ok "$label"
+  else
+    no "$label" "eval failed, but not with the gpu-mapping throw (see $D/synth.err)"
+  fi
+done
 
 # Gating: no agent on hosts with no graphical session, and none on Darwin,
 # which has no polkit at all.

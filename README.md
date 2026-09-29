@@ -70,7 +70,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
 ./tests/hms-ci-poll.sh           # drives 6 cases against the built hms
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
-./tests/polkit-agent.sh          # evaluates 4 hosts, drives 12 cases
+./tests/polkit-agent.sh          # evaluates 5 hosts + a synthetic one, 17 cases
 ./tests/insecure-packages.sh     # 2 cases per host, plus mari's darwin system
 ```
 
@@ -147,6 +147,31 @@ session, while a 5s delay overcorrects so far that the limiter becomes
 so the window is widened until five failures stick. An eval that *fails* aborts
 the run rather than being read as "the unit is absent", which is what the gating
 cases would otherwise have called a pass.
+
+Which GL stack a desktop host's nix GUI apps get is one decision, `glWrapper`, with
+two consumers that are reached by different code paths: `targets.genericLinux.nixGL.defaultWrapper`
+for everything going through `config.lib.nixGL.wrap` (ghostty, hyprlock, hyprpaper,
+cumora), and the `nixGL` shim for hyprpolkitagent's `ExecStart` and the `nixGL` on
+PATH. It is derived from `machine.gpu` and **refuses** a value it has no wrapper
+for. nixgl's mesa wrapper is *named* `nixGLIntel` but covers AMD too (radeonsi
+ships in mesa's `lib/dri`), so utsuho is correctly served by it and has a case
+pinning that literally. A proprietary driver is not, and quietly handing it mesa
+reproduces the EGL abort above — invisible until someone tries to render. So a
+**desktop** host declaring `gpu = "nvidia"` fails to evaluate, naming the gpu and
+the host, until both consumers are wired up; a headless one is unaffected, since
+nothing forces `glWrapper` there (fujiwara already carries `gpu = "amd"` with
+`gui = false`).
+
+Testing that refusal takes a host that does not exist, and the obvious shortcut is
+vacuous: asserting `defaultWrapper = "mesa"` on a real host passes whether or not
+`home.nix` sets it, because `"mesa"` *is* home-manager's default — so the case
+cannot tell the wired-up state from the drift it was written to catch. Instead the
+cases inject a synthetic `machine` through `extendModules`, overriding the
+`extraSpecialArgs` `flake.nix` passes in, and require `gpu = "nvidia"` to be refused
+by **both** consumers, with a `gpu = "amd"` control so a refusal can't pass just
+because evaluation is broken. Verified by deleting the `defaultWrapper` assignment:
+the old pins stayed green, the linkage case goes red.
+
 `insecure-packages` is the odd one out: it models nothing, it holds a claim
 `home.nix` makes by omission. There is no `permittedInsecurePackages` entry in
 `nixpkgs.config` because nothing needs one -- and the entry that used to be there

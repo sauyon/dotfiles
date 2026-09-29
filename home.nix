@@ -134,12 +134,54 @@ let
   # attribute, file or hint; naming itself costs nothing and is equally lazy. It
   # matters more since hyprpolkitagent's ExecStart started depending on it, because
   # that unit's failure mode is silent.
+  # Which GL stack every nix-built GUI app on a desktop host is launched against.
+  # ONE decision with TWO consumers, which is the whole reason it is a binding:
+  #
+  #   * targets.genericLinux.nixGL.defaultWrapper (set below) drives
+  #     config.lib.nixGL.wrap -- ghostty, hyprlock, hyprpaper, cumora.
+  #   * the `nixGL` shim just below drives hyprpolkitagent's ExecStart, and is the
+  #     `nixGL` on PATH.
+  #
+  # Keeping them in one place is not tidiness. They are reached by different code
+  # paths, so a reader who patches only the shim gets a config that evaluates
+  # while four apps quietly stay on mesa -- which is the failure this whole area
+  # exists to prevent, arrived at by a different route.
+  #
+  # mesa covers Intel *and* AMD: nixgl's mesa wrapper is named nixGLIntel, but it
+  # is "nixGL + mesa" and radeonsi ships in mesa's own lib/dri, so utsuho
+  # (gpu = "amd") is correctly served by it. `null` is the unstated case -- shiori
+  # and setsuna declare no gpu and are Intel.
+  #
+  # Anything needing a proprietary driver is a different wrapper, and handing it
+  # mesa reproduces hyprpolkitagent's EGL abort: GL initialises against the wrong
+  # driver or not at all, and the app dies the first time it renders, long after
+  # activation reported success. So refuse at eval rather than guess. A loud build
+  # failure on a host that does not exist yet is the cheap end of this trade.
+  glWrapper =
+    if gpu == null || gpu == "intel" || gpu == "amd" then
+      "mesa"
+    else
+      throw (
+        "nixGL: no wrapper mapped for gpu=\"${gpu}\" (hostname=${hostname}). "
+        + "Fix BOTH consumers of glWrapper in home.nix or neither: "
+        + "targets.genericLinux.nixGL.defaultWrapper takes one of "
+        + "mesa/mesaPrime/nvidia/nvidiaPrime and drives config.lib.nixGL.wrap "
+        + "(ghostty, hyprlock, hyprpaper, cumora), while nixGLVendor below maps "
+        + "the same choice onto a nixgl attr for hyprpolkitagent's ExecStart. "
+        + "Patching one alone leaves the other on mesa, silently."
+      );
+
+  # The nixgl attribute implementing glWrapper. An attrset lookup rather than an
+  # if-chain so that adding a glWrapper value without a shim mapping fails here,
+  # loudly, instead of falling through to Intel.
+  nixGLVendor = { mesa = "nixGLIntel"; }.${glWrapper};
+
   nixGL =
     if isDarwin || !isDesktop then
       throw "nixGL is desktop-Linux only (hostname=${hostname}); guard the reference with (!isDarwin && isDesktop)"
     else
       pkgs.writeShellScriptBin "nixGL" ''
-        exec ${nixgl.packages.${system}.nixGLIntel}/bin/nixGLIntel "$@"
+        exec ${nixgl.packages.${system}.${nixGLVendor}}/bin/${nixGLVendor} "$@"
       '';
   # hunk builds on all four systems, so no darwin guard needed.
   hunk-pkg = hunk.packages.${system}.default;
@@ -2883,6 +2925,11 @@ in
 
   targets.genericLinux.enable = !isDarwin;
   targets.genericLinux.nixGL.packages = lib.mkIf (!isDarwin && isDesktop) nixgl.packages.${system};
+  # The other half of glWrapper (see its comment above the nixGL shim). Left at
+  # home-manager's "mesa" default this silently ignored machine.gpu, so a
+  # proprietary-driver host would have kept the mesa wrapper for every app going
+  # through config.lib.nixGL.wrap even after the shim learned to refuse it.
+  targets.genericLinux.nixGL.defaultWrapper = lib.mkIf (!isDarwin && isDesktop) glWrapper;
 
   wayland.windowManager.hyprland = lib.optionalAttrs (!isDarwin && isDesktop) (import ./hyprland.nix { inherit pkgs config edgeGap laptopScale hyprDpmsPhysical; });
 

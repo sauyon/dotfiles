@@ -296,10 +296,13 @@ else
     ok "the old file key's kid is no longer published in the JWKS"
   fi
 
-  # ...and then ask the only authority that decides: Google. Measured once, on
-  # 2026-09-28, against this provider: a removed kid was still accepted 38
-  # minutes after the JWKS write, with no upper bound established -- while a
-  # newly ADDED kid was accepted within ~15s (a single uncontrolled observation).
+  # ...and then ask the only authority that decides: Google. Measured against
+  # this provider, twice, on the same removal (JWKS write 2026-09-28T21:33:55Z):
+  # still accepted at t+38 min, and still accepted at t+21.7 h (2026-09-29T19:17Z),
+  # with no upper bound established -- while a newly ADDED kid was accepted
+  # within ~15s (a single uncontrolled observation). The second reading is the
+  # one that settles the shape of this: 38 minutes reads as a slow cache, most of
+  # a day does not. Treat JWKS removal as ineffective for revocation, not slow.
   # So "not in the JWKS" and "cannot mint a token" are different facts for at
   # least that long, and the first alone would have declared this migration
   # finished while the old key was still opening every dotfiles secret.
@@ -344,7 +347,7 @@ except Exception: print("")' "$work/sts.json" 2>/dev/null)
           ok "the old file key can no longer mint an STS token (http $sts_code $sts_err)" ;;
         400:*)
           skip "the old file key can no longer mint an STS token: STS refused the REQUEST, not the key (http 400 $sts_err) -- check KO_WIF_AUDIENCE/KO_WIF_SUB" ;;
-        200:*)   bad "the old file key can no longer mint an STS token"$'\n'"      STS still returns 200 for it. Its kid is out of the JWKS, but Google has not"$'\n'"      caught up -- so the key still decrypts every dotfiles secret. This is expected"$'\n'"      for a while after the removal: it held for 38+ minutes when measured. Re-run." ;;
+        200:*)   bad "the old file key can no longer mint an STS token"$'\n'"      STS still returns 200 for it. Its kid is out of the JWKS, but Google has not"$'\n'"      caught up -- so the key still decrypts every dotfiles secret. Measured on this"$'\n'"      provider: still accepted 21.7 HOURS after the JWKS write, no upper bound. Do"$'\n'"      not wait this out as a cache; treat the key as live and the secrets as"$'\n'"      reachable by anyone holding it." ;;
         *)       skip "the old file key can no longer mint an STS token: STS unreachable (http $sts_code)" ;;
       esac
       # A live cloud-platform access token sits in here on the 200 path.

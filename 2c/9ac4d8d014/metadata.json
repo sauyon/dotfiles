@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "2c9ac4d8d014",
+  "strategy": "manual-commit",
+  "branch": "drovr/wif-enroll",
+  "checkpoints_count": 8,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/2c/9ac4d8d014/0/metadata.json",
+      "transcript": "/2c/9ac4d8d014/0/full.jsonl",
+      "compact_transcript": "/2c/9ac4d8d014/0/transcript.jsonl",
+      "content_hash": "/2c/9ac4d8d014/0/content_hash.txt",
+      "prompt": "/2c/9ac4d8d014/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 126,
+    "cache_creation_tokens": 402933,
+    "cache_read_tokens": 16270890,
+    "output_tokens": 70850,
+    "api_call_count": 63,
+    "subagent_tokens": {
+      "input_tokens": 10,
+      "cache_creation_tokens": 45820,
+      "cache_read_tokens": 110302,
+      "output_tokens": 476,
+      "api_call_count": 5
+    }
+  }
+}

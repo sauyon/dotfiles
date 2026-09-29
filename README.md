@@ -65,7 +65,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ```bash
 ./tests/hyprlock-faillock.sh     # builds the script, then drives 33 cases
 ./tests/system-packages.sh       # sources system/pacman.sh, drives 21 cases
-./tests/system-secrets.sh        # sources system/secrets.sh, drives 19 cases
+./tests/system-secrets.sh        # sources system/secrets.sh, drives 20 cases
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live zsh config
 ./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases

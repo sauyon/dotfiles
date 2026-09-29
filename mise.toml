@@ -45,8 +45,37 @@ gcloud iam service-accounts keys create "$KEY_PATH" \
 '''
 
 [tasks.sops]
-description = "Run sops with GCP credentials"
-run = 'GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/sops/gcp-key.json" sops "$@"'
+description = "Run sops with this host's GCP credentials (WIF config, or the service-account key)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+# Which credential this host decrypts with is per-host and decided in home.nix's
+# `sops.environment`; system/secrets.sh reads it back out of the flake. This used
+# to hardcode $HOME/.config/sops/gcp-key.json, which meant the task could not
+# decrypt at all on a WIF host -- the host that by design has no decryption key
+# on disk. Same bug system/deploy had, same fix, one source of truth.
+repo="{{config_root}}"
+host="$(uname -n)"; host="${host%%.*}"
+# shellcheck source=system/secrets.sh
+. "$repo/system/secrets.sh"
+mapfile -t sops_env < <(sops_env_for "$repo" "$host")
+# No `||` on the mapfile: its status is its own, never the process
+# substitution's. A failed `nix eval` arrives as an empty array instead.
+#
+# Tested via element 0 rather than the obvious bash array-length form. mise
+# renders this script through a Tera template before bash ever sees it, and the
+# brace-then-hash sequence that an array length begins with opens a Tera
+# comment -- the whole task then fails to validate with "Closing comment tag not
+# found". Tera's raw-block escape would stop that, but it would equally stop the
+# config_root substitution above from expanding, so the sequence is simply
+# avoided. Same reason this comment describes those tags instead of spelling
+# them: a literal one here breaks the task just as thoroughly.
+[ -n "${sops_env[0]:-}" ] || {
+  echo "mise sops: no sops.environment for $host — nix eval failed, or the host has none." >&2
+  exit 1
+}
+exec env "${sops_env[@]}" sops "$@"
+'''
 
 [tasks.sops-fix]
 description = "Fix sops-nix Docker-created root-owned directories and restart"

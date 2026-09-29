@@ -67,6 +67,25 @@ from the WIF migration until 2026-09-29 because `system/deploy` hardcoded the
 service-account path and its decrypt failure landed mid-pipeline, leaving a
 0-byte `/etc/determinate/netrc.custom` that looked provisioned.
 
+**One 401 during `./system/deploy` itself is expected, and always will be.**
+Deploy has to `nix eval` the flake to discover *which* credential this host uses,
+and that evaluation necessarily precedes installing the netrc it is about to
+write — so the first thing a deploy does is reach attic uncredentialed:
+
+```
+warning: unable to download 'https://attic.ko.ag/kube/nix-cache-info': HTTP error 401
+```
+
+Bootstrap ordering, not a failure, and it recurs on every deploy. The warning
+that *does* mean something is the same line from any other nix invocation after
+the deploy has finished and restarted `nix-daemon`. To tell them apart, check the
+cache directly rather than reading warnings:
+
+```sh
+nix store info --store https://attic.ko.ag/kube   # exit 0 = authenticated
+ls -l /etc/determinate/netrc.custom               # 0 bytes = never provisioned
+```
+
 ## How it is wired (darwin: mari)
 
 `mari` runs nix-darwin-managed nix (`nix.enable = true` in `flake.nix`), so the

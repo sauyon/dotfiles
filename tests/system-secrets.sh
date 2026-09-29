@@ -334,6 +334,27 @@ fi
 # the old assignment sat immediately above its first use and that else arm is
 # written flush left. Only the position relative to the guard distinguishes
 # "always set" from "set unless SKIP_HOST_PACKAGES".
+# mise's `sops` task consumes sops_env_for too, and mise renders a task's script
+# through a Tera template before bash sees it. A bash array-length expansion
+# begins with a sequence Tera reads as a comment opener, which fails the task at
+# validation with "Closing comment tag not found" -- and nothing about editing
+# the TOML tells you, because `mise tasks` still lists it happily. The task only
+# breaks for whoever next tries to edit secrets. Running it is the only check
+# that means anything.
+#
+# --version, not a decrypt: this asserts the task is well-formed and that the
+# credential lookup inside it runs, without needing KMS.
+if command -v mise >/dev/null 2>&1; then
+  if mise run sops -- --version >/dev/null 2>&1; then
+    report "mise's sops task is well-formed and runs" ok
+  else
+    report "mise's sops task is well-formed and runs" no \
+      "$(mise run sops -- --version 2>&1 | grep -i 'ERROR' | head -2)"
+  fi
+else
+  report "mise's sops task is well-formed and runs" ok  # no mise here; not this suite's business
+fi
+
 # The xtrace suppression lives entirely in the install_secret wrapper, so a
 # later edit that calls _install_secret directly would reinstate the leak and
 # every case above would still pass -- they all go through the wrapper. The `_`

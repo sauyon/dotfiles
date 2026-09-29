@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "7f45acb79e6b",
+  "strategy": "manual-commit",
+  "branch": "drovr/wif-enroll",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "install/wif/device-keygen.sh",
+    "tests/wif-keygen.sh",
+    "tests/wif-tpm.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7f/45acb79e6b/0/metadata.json",
+      "transcript": "/7f/45acb79e6b/0/full.jsonl",
+      "compact_transcript": "/7f/45acb79e6b/0/transcript.jsonl",
+      "content_hash": "/7f/45acb79e6b/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 94,
+    "cache_creation_tokens": 99097,
+    "cache_read_tokens": 4305926,
+    "output_tokens": 28756,
+    "api_call_count": 47
+  }
+}

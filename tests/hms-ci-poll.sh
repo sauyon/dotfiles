@@ -92,6 +92,22 @@ STUB
   chmod +x "$D/token-cmd"
 }
 
+# A helper that answers with more than one password line. git-credential-fj emits
+# exactly one, but the curlrc is a line-oriented format: a token that arrives as
+# two lines does not become a longer token, it becomes a truncated header plus a
+# stray directive on the next line. Taking the first match is what keeps a
+# malformed answer from turning into a malformed config.
+mktoken_multi() {
+  : > "$D/token-calls"
+  cat > "$D/token-cmd" <<STUB
+#!/bin/sh
+echo call >> "$D/token-calls"
+cat >/dev/null
+printf 'username=oauth2\npassword=good\npassword=evil\n'
+STUB
+  chmod +x "$D/token-cmd"
+}
+
 # Stub forge. Answers on the URL, and -- the point of the whole exercise --
 # on the token it was actually handed, which it reads back out of the curl
 # config hms wrote. `-w '\n%{http_code}'` means the body must be followed by a
@@ -220,6 +236,19 @@ if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ]; then
 else
   report "no token is an error, not a silent 401 loop" no \
     "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+fi
+
+# Only the first password line is the token. Asserting through a real request
+# rather than by reading the curlrc: what matters is that the forge receives a
+# usable header, and a multiline token fails that whether it truncates, splits
+# across directives, or makes curl reject the config outright.
+setup_repo; mktoken_multi; mkcurl good success; mkswitch
+out=$(run); rc=$?
+if [ -f "$D/switched" ] && printf '%s' "$out" | grep -q 'run 42 green'; then
+  report "a multi-line credential answer yields the first token, not a broken config" ok
+else
+  report "a multi-line credential answer yields the first token, not a broken config" no \
+    "switched=$([ -f "$D/switched" ] && echo y || echo n), never saw the run go green. rc=$rc out=[$out]"
 fi
 
 printf '\n%d/%d passed\n' "$((n - fails))" "$n"

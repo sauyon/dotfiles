@@ -1005,7 +1005,13 @@ let
     # counts iterations, so a connection that stalls forever would never reach it.
     write_curlrc() {
       local tok
-      tok=$(printf 'host=forge.ko.ag\n\n' | "$token_cmd" get | sed -n 's/^password=//p')
+      # The first password line is the token, and only the first: the curlrc is
+      # line-oriented, so a second one would not lengthen the header but end it
+      # and leave a stray directive behind. Read to EOF rather than exiting on
+      # the match — under `set -o pipefail` an early exit SIGPIPEs the helper and
+      # fails the pipeline, the same trap the `-n 5` note further down guards.
+      tok=$(printf 'host=forge.ko.ag\n\n' | "$token_cmd" get \
+        | ${lib.getExe pkgs.gawk} '/^password=/ && !seen { sub(/^password=/, ""); print; seen = 1 }')
       [ -n "$tok" ] || return 1
       ( umask 077
         printf 'header = "Authorization: token %s"\nsilent\nconnect-timeout = 10\nmax-time = 120\n' \

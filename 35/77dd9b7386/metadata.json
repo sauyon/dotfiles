@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "3577dd9b7386",
+  "strategy": "manual-commit",
+  "branch": "drovr/steam-xdg-open",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/35/77dd9b7386/0/metadata.json",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 410,
+    "cache_creation_tokens": 652572,
+    "cache_read_tokens": 56308966,
+    "output_tokens": 191879,
+    "api_call_count": 205,
+    "subagent_tokens": {
+      "input_tokens": 246,
+      "cache_creation_tokens": 382129,
+      "cache_read_tokens": 7780270,
+      "output_tokens": 7895,
+      "api_call_count": 123
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "b75cfe9b9f2b",
+  "strategy": "manual-commit",
+  "branch": "worktree-mise-sops-wif",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "README.md",
+    "docs/nix-binary-cache.md",
+    "mise.toml",
+    "tests/system-secrets.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b7/5cfe9b9f2b/0/metadata.json",
+      "transcript": "/b7/5cfe9b9f2b/0/full.jsonl",
+      "compact_transcript": "/b7/5cfe9b9f2b/0/transcript.jsonl",
+      "content_hash": "/b7/5cfe9b9f2b/0/content_hash.txt",
+      "prompt": "/b7/5cfe9b9f2b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 84,
+    "cache_creation_tokens": 478853,
+    "cache_read_tokens": 19551965,
+    "output_tokens": 23073,
+    "api_call_count": 42,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  }
+}

@@ -112,7 +112,15 @@ exchange() { # exchange <key> -> prints the verdict line from sts-classify
     --data-urlencode scope=https://www.googleapis.com/auth/cloud-platform \
     --data-urlencode requested_token_type=urn:ietf:params:oauth:token-type:access_token \
     --data-urlencode subject_token_type=urn:ietf:params:oauth:token-type:jwt \
-    --data-urlencode "subject_token@$work/tok.jwt" 2>/dev/null) || code=000
+    --data-urlencode "subject_token@$work/tok.jwt" 2>"$work/curlerr") || code=000
+  # curl's stderr is kept, not discarded: every transport failure lands here as a
+  # `void` trial, and a void trial you cannot diagnose is the one outcome that
+  # makes the whole run unusable -- you cannot tell a flaky link from a pool that
+  # has been disabled underneath you, and both read as "nothing measured".
+  if [ "$code" = 000 ]; then
+    printf 'void transport: %s\n' "$(tr -d '\r' < "$work/curlerr" | tail -1)"
+    return 0
+  fi
   python3 "$classify" "$code" "$work/sts.json"
 }
 

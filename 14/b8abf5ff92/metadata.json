@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "14b8abf5ff92",
+  "strategy": "manual-commit",
+  "branch": "framework-linux",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".drovr/wt/fprintd/docs/new-host.md",
+    ".drovr/wt/fprintd/install/install-base.sh",
+    ".drovr/wt/fprintd/install/packages-install-only",
+    ".drovr/wt/fprintd/mise.toml",
+    ".drovr/wt/fprintd/system/deploy",
+    ".drovr/wt/fprintd/system/etc/pam.d/polkit-1",
+    ".drovr/wt/fprintd/system/packages"
+  ],
+  "sessions": [
+    {
+      "metadata": "/14/b8abf5ff92/0/metadata.json",
+      "transcript": "/14/b8abf5ff92/0/full.jsonl",
+      "compact_transcript": "/14/b8abf5ff92/0/transcript.jsonl",
+      "content_hash": "/14/b8abf5ff92/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 300,
+    "cache_creation_tokens": 236313,
+    "cache_read_tokens": 25471183,
+    "output_tokens": 114530,
+    "api_call_count": 150,
+    "subagent_tokens": {
+      "input_tokens": 190,
+      "cache_creation_tokens": 468435,
+      "cache_read_tokens": 8997348,
+      "output_tokens": 1547,
+      "api_call_count": 95
+    }
+  }
+}

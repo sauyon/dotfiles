@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "8f94d03f56dc",
+  "strategy": "manual-commit",
+  "branch": "worktree-deploy-wif-credentials",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "README.md",
+    "docs/nix-binary-cache.md",
+    "system/deploy",
+    "system/secrets.sh",
+    "tests/system-secrets.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8f/94d03f56dc/0/metadata.json",
+      "transcript": "/8f/94d03f56dc/0/full.jsonl",
+      "compact_transcript": "/8f/94d03f56dc/0/transcript.jsonl",
+      "content_hash": "/8f/94d03f56dc/0/content_hash.txt",
+      "prompt": "/8f/94d03f56dc/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 120,
+    "cache_creation_tokens": 58851,
+    "cache_read_tokens": 17885396,
+    "output_tokens": 36528,
+    "api_call_count": 60,
+    "subagent_tokens": {
+      "input_tokens": 22,
+      "cache_creation_tokens": 61322,
+      "cache_read_tokens": 413516,
+      "output_tokens": 340,
+      "api_call_count": 11
+    }
+  }
+}

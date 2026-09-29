@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "935b8dd5dff9",
+  "strategy": "manual-commit",
+  "branch": "drovr/steam-nix-env",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/93/5b8dd5dff9/0/metadata.json",
+      "transcript": "/93/5b8dd5dff9/0/full.jsonl",
+      "compact_transcript": "/93/5b8dd5dff9/0/transcript.jsonl",
+      "content_hash": "/93/5b8dd5dff9/0/content_hash.txt",
+      "prompt": "/93/5b8dd5dff9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 36,
+    "cache_creation_tokens": 15438,
+    "cache_read_tokens": 6951643,
+    "output_tokens": 12832,
+    "api_call_count": 18
+  }
+}

@@ -1,0 +1,9 @@
+even terminal can't connect for some reason
+
+---
+
+the phone is on my lan. it's orie. find it.
+
+---
+
+oh. I just realized it's configured to use kanon as an exit node. but that should work regardless no?

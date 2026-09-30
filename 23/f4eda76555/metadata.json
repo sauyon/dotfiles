@@ -3,8 +3,9 @@
   "checkpoint_id": "23f4eda76555",
   "strategy": "manual-commit",
   "branch": "worktree-keyring-no-escrow",
-  "checkpoints_count": 7,
+  "checkpoints_count": 9,
   "files_touched": [
+    "README.md",
     "home.nix",
     "tests/elephant-reindex.sh"
   ],
@@ -15,13 +16,20 @@
       "compact_transcript": "/23/f4eda76555/0/transcript.jsonl",
       "content_hash": "/23/f4eda76555/0/content_hash.txt",
       "prompt": "/23/f4eda76555/0/prompt.txt"
+    },
+    {
+      "metadata": "/23/f4eda76555/1/metadata.json",
+      "transcript": "/23/f4eda76555/1/full.jsonl",
+      "compact_transcript": "/23/f4eda76555/1/transcript.jsonl",
+      "content_hash": "/23/f4eda76555/1/content_hash.txt",
+      "prompt": "/23/f4eda76555/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 148,
-    "cache_creation_tokens": 114618,
-    "cache_read_tokens": 15849711,
-    "output_tokens": 77499,
-    "api_call_count": 74
+    "input_tokens": 278,
+    "cache_creation_tokens": 222994,
+    "cache_read_tokens": 21796033,
+    "output_tokens": 121434,
+    "api_call_count": 139
   }
 }

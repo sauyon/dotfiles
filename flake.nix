@@ -32,7 +32,9 @@
     mattpocock-skills.url = "github:mattpocock/skills";
     mattpocock-skills.flake = false;
     # Seamless OIDC SSH gate (gate binary + nixos/darwin modules).
-    ssh-oidc.url = "git+https://codeberg.org/sauyon/ssh-oidc";
+    # forge.ko.ag is the canonical remote (anon-readable over the CF tunnel);
+    # codeberg is a stale mirror. Pin here so the lock tracks forge, not codeberg.
+    ssh-oidc.url = "git+https://forge.ko.ag/sauyon/ssh-oidc";
     # Private companion to this repo: the git identity, internal endpoints,
     # the new-tab links and the per-host posture home.nix hands the Claude
     # auto-mode classifier. Not a flake -- a plain tree of nix values, like
@@ -149,8 +151,13 @@
           # rendered by sops-nix, read by the gate at runtime (never in the store).
           # NOTE: add an `sshOidcToken` key to secrets.yaml (the gate's service token).
           sops.secrets.sshOidcToken = {
-            # Readable by the login (sauyon) user — the gate runs as that user.
-            mode = "0444";
+            # This is THIS node's signing secret; anyone who can read it can
+            # impersonate mari to the enrollment service. The gate runs under
+            # ForceCommand as the login user, so restrict it to that user
+            # (owner-only 0400) rather than the world-readable 0444 the gate
+            # warns about (F6). mari has a single human login (sauyon).
+            owner = "sauyon";
+            mode = "0400";
           };
           # The remote-builder's PUBLIC key, in its own authorized_keys file, used by
           # the gate's Match-block carve-out for the `nixremote` builder user.

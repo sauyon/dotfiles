@@ -398,17 +398,17 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1786868020,
-        "narHash": "sha256-iK4Ql0rEivBRuyb23klSfeuV44Dwfy33Dk71zxNYpgM=",
+        "lastModified": 1790766766,
+        "narHash": "sha256-ozU8RL+j3q1gnuOn/JJCM8nNlbd6S2OVNB4supNEvYo=",
         "ref": "refs/heads/main",
-        "rev": "05694e73f7e4946225bc0566982ea9fa0d83916e",
-        "revCount": 92,
+        "rev": "cbc4140c3c5970ef8cc5d12fba6a67928f27ba28",
+        "revCount": 154,
         "type": "git",
-        "url": "https://codeberg.org/sauyon/ssh-oidc"
+        "url": "https://forge.ko.ag/sauyon/ssh-oidc"
       },
       "original": {
         "type": "git",
-        "url": "https://codeberg.org/sauyon/ssh-oidc"
+        "url": "https://forge.ko.ag/sauyon/ssh-oidc"
       }
     },
     "systems": {

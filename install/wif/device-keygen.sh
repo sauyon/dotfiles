@@ -28,14 +28,19 @@ if [ -e "$kdir/wif-tpm.pem" ]; then
   exit 1
 fi
 
-mkdir -p "$kdir" "$here/out"; chmod 700 "$kdir"
+# KO_OUT_DIR exists so a test run cannot write a JWK into the real out/. That
+# directory is what the admin is told to collect and publish from, so a stray
+# JWK there is a public key whose private half nobody has -- publishable by
+# `admin-setup.sh install/wif/out/*.jwk.json`, which is the obvious thing to type.
+outdir="${KO_OUT_DIR:-$here/out}"
+mkdir -p "$kdir" "$outdir"; chmod 700 "$kdir"
 if [ ! -s "$key" ]; then
   (umask 077; openssl ecparam -name prime256v1 -genkey -noout -out "$key")
   echo "generated $key"
 else
   echo "reusing $key"
 fi
-python3 "$here/../../home/scripts/ko-wif-token.py" --key "$key" --jwk | tee "$here/out/$host.jwk.json"
+python3 "$here/../../home/scripts/ko-wif-token.py" --key "$key" --jwk | tee "$outdir/$host.jwk.json"
 echo
-echo "Next: get out/$host.jwk.json to the admin machine and run admin-setup.sh there, e.g. from the admin machine:"
+echo "Next: get $outdir/$host.jwk.json to the admin machine and run admin-setup.sh there, e.g. from the admin machine:"
 echo "  scp $host:devel/dotfiles/install/wif/out/$host.jwk.json ."

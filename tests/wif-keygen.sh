@@ -49,12 +49,21 @@ if [ -z "$want_rel" ]; then
   echo; echo "$n checks, $fails failed"; exit 1
 fi
 
-# One run, in a $HOME of its own. The script also drops the JWK in the repo's
-# gitignored install/wif/out/, which is where the admin host is told to fetch it
-# from; that is the real workflow and is left alone.
+# One run, in a $HOME of its own.
+# KO_OUT_DIR keeps the JWK this writes out of the REPO's install/wif/out/. That
+# directory is where the admin is told to collect JWKs from, and a test that
+# leaves one there plants an unaccountable public key: the private half lives in
+# $work and is deleted on exit, so `admin-setup.sh install/wif/out/*.jwk.json`
+# would publish a kid nobody holds. That is the GKJJEO3B... incident, generated
+# by the test suite instead of by an experiment.
 run_keygen() { # run_keygen <home> -> stdout+stderr in $work/log, exit status
-  HOME="$1" XDG_CONFIG_HOME="$1/.config" "$prog" >"$work/log" 2>&1
+  HOME="$1" XDG_CONFIG_HOME="$1/.config" KO_OUT_DIR="$work/out" "$prog" >"$work/log" 2>&1
 }
+
+# Snapshot the real out/ so the last check can prove this suite did not touch it.
+repo_out="$repo/install/wif/out"
+snapshot() { find "$repo_out" -maxdepth 1 -printf '%P %s %T@\n' 2>/dev/null | sort; }
+repo_out_before="$(snapshot)"
 
 h1="$work/h1"; mkdir -p "$h1"
 if run_keygen "$h1"; then
@@ -89,7 +98,7 @@ else
 fi
 
 # --- 4: the JWK it publishes describes the key it wrote -------------------------
-jwkfile="$repo/install/wif/out/$(uname -n | cut -d. -f1).jwk.json"
+jwkfile="$work/out/$(uname -n | cut -d. -f1).jwk.json"
 if [ -n "$found" ] && [ -s "$jwkfile" ]; then
   from_key=$(python3 "$signer" --key "$h1/${found#./}" --jwk 2>/dev/null \
     | python3 -c 'import json,sys; print(json.load(sys.stdin)["kid"])' 2>/dev/null)
@@ -175,6 +184,16 @@ if [ -z "$missing" ]; then
 else
   bad "the next-step instructions point at directories that exist in this repo"$'\n'\
 "      not in the repo:$missing"
+fi
+
+# --- 9: this suite must not litter the directory the admin collects from -------
+if [ "$(snapshot)" = "$repo_out_before" ]; then
+  ok "the suite leaves the repo's install/wif/out/ untouched"
+else
+  bad "the suite leaves the repo's install/wif/out/ untouched"$'\n'\
+"      A JWK written here is a public key the admin is told to collect and"$'\n'\
+"      publish, whose private half this suite deletes on exit. Diff:"$'\n'\
+"      $(diff <(printf '%s' "$repo_out_before") <(snapshot) | head -5)"
 fi
 
 echo

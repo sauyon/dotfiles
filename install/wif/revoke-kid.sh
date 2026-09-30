@@ -203,22 +203,26 @@ for _ in $(seq 1 180); do
   code=$(sts)
   prev_t=${t:-0}
   t=$(( $(date +%s) - start ))
-  case "$code" in
-    200) accepted_any=1; echo "  t+${t}s: still accepted" ;;
-    400|401)
-      # Only an auth refusal is the revocation landing. Anything else that is
-      # not 200 is the network or Google having a bad minute, and reporting it
-      # as a revocation would put a fabricated number in the report.
-      why=$(python3 -c 'import json,sys
-try:
-    d = json.load(open(sys.argv[1])); print(d.get("error"), "-", str(d.get("error_description"))[:120])
-except Exception: print("(no JSON body)")' "$work/sts.json" 2>/dev/null)
+  # Classified by sts-classify.py, not inline. Only an AUTHENTICATION refusal is
+  # the revocation landing -- 401, or 400 with error=invalid_grant. STS also
+  # answers 400 for a wrong audience and for a subject the provider condition
+  # rejects, and counting those here prints a measured revocation time for what
+  # is actually a stale KO_WIF_AUDIENCE. This loop used to match `400|401)` with
+  # no inspection of the error field; the commit that fixed the same bug in
+  # tests/wif-tpm.sh asserted this loop "already had" the rule, which was not
+  # true. tests/wif-revoke-kid.sh now checks it instead of trusting a comment.
+  verdict=$(python3 "$here/sts-classify.py" "$code" "$work/sts.json")
+  case "${verdict%% *}" in
+    accepted) accepted_any=1; echo "  t+${t}s: still accepted" ;;
+    rejected)
       # A bracket, not a point: the previous round was accepted at t=$prev_t and
       # this one was refused at t=$t, so the change landed somewhere between.
-      echo "REJECTED between t+${prev_t}s and t+${t}s (http $code): $why"
+      echo "REJECTED between t+${prev_t}s and t+${t}s: ${verdict#rejected }"
       exit 0 ;;
     *)
-      echo "  t+${t}s: http $code -- transport or server error, not a revocation; retrying" >&2 ;;
+      # void: not a fact about the key at all. Retry -- never terminate on it,
+      # or the bracket printed describes a network blip.
+      echo "  t+${t}s: ${verdict#void } -- not a verdict about the key; retrying" >&2 ;;
   esac
   sleep 10
 done

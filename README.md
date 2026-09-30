@@ -69,6 +69,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live zsh config
 ./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
+./tests/aur-helper.sh            # evaluates 6 hosts, 8 cases
 ./tests/hms-ci-poll.sh           # drives 7 cases against the built hms
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
 ./tests/polkit-agent.sh          # evaluates 5 hosts + a synthetic one, 17 cases
@@ -121,6 +122,19 @@ and a host whose list never asked for it is one it never touches. The cases driv
 the real script with stub `pacman`/`sudo`/`systemctl` on `PATH`, asserting both
 halves: a host without the package does nothing at all, and a converged host
 escalates zero times.
+
+`paru` (in `home.nix`) is the AUR helper, and the test is about one predicate:
+`isArchHost`, which is deliberately not `!isDarwin`. kyuusaku is a Linux host
+whose distribution is not ours -- the same reason `system/deploy` keeps an
+explicit four-host allow-list instead of testing for pacman -- so `!isDarwin`
+would hand it a pacman frontend with no pacman under it, a tool that evaluates
+and builds fine and fails the moment anyone runs it. It is nixpkgs' paru rather
+than the AUR's `paru-bin` so that the helper itself arrives from the attic cache
+with no makepkg run and no PKGBUILD trusted at bootstrap, which leaves the AUR
+trust surface covering only the packages actually wanted from there. The cases
+evaluate all six host configs and assert membership both ways, plus two teeth:
+paru dropped from `home.packages` entirely, or handed to every host, each turns
+half the suite vacuous while leaving it green.
 
 The `_ghostty_saved_ps1` priming in `zsh.nix` is a model of ghostty's
 `ghostty-integration`: it pre-sets variables private to that script so its own

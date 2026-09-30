@@ -84,6 +84,10 @@ system's Wi-Fi into a NetworkManager connection, installs your SSH key for
 `sauyon` (key-only sshd, no root login), and leaves a temporary `NOPASSWD`
 sudoers drop-in (`99-bootstrap`) for step 4.
 
+That sshd is a bootstrap affordance, not the finished posture: step 4 disables it
+again unless a working ssh-oidc gate is installed. If you want this host to keep
+accepting ssh, install the gate before or during step 4 — see step 5.
+
 Pull the stick and reboot; it asks for the disk passphrase at boot.
 
 ## 4. Bootstrap
@@ -120,7 +124,9 @@ kubectl -n bootstrap create secret generic sops-gcp-key \
    next step downloads CI's build;
 3. does the Home Manager switch for `<host>` (via `nix run` the first time);
 4. runs `tailscale up` if it isn't up;
-5. removes the `99-bootstrap` sudoers drop-in from step 3.
+5. on exit, however it exits: runs `install/finalize-ssh.sh` (disables sshd
+   unless a working ssh-oidc gate is installed), then removes the
+   `99-bootstrap` sudoers drop-in from step 3.
 
 Then log in again (`exec zsh -l` on a console that predates the switch) and
 `start-hyprland`.

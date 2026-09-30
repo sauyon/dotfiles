@@ -201,7 +201,10 @@ chmod 440 /etc/sudoers.d/10-wheel
 echo '${USERNAME} ALL=(ALL:ALL) NOPASSWD: ALL' > /etc/sudoers.d/99-bootstrap
 chmod 440 /etc/sudoers.d/99-bootstrap
 
-# Key-only SSH for sauyon, for running bootstrap from another machine.
+# Key-only SSH for sauyon, for running bootstrap from another machine. This is a
+# bootstrap affordance with a deliberate end: `mise run bootstrap` disables sshd
+# on exit unless a working ssh-oidc gate is installed (install/finalize-ssh.sh).
+# Do not read the `systemctl enable sshd` below as this host's finished posture.
 install -d -m700 -o ${USERNAME} -g ${USERNAME} /home/${USERNAME}/.ssh
 printf 'PermitRootLogin no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\n' > /etc/ssh/sshd_config.d/00-keys-only.conf
 

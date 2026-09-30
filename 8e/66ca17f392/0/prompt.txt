@@ -1,0 +1,17 @@
+why is ssh-oidc not running
+
+---
+
+what? not it's not? I run it on fujiwara for sure. also, I'm not connecting this machine to my tailnet.
+
+---
+
+why is not running on shiori...
+
+---
+
+why is sshd enabled? dotfiles just enables it? the fuck?
+
+---
+
+I want ssh-oidc only enabled

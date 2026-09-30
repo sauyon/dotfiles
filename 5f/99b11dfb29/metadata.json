@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "5f99b11dfb29",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".drovr/wt/ghostty-contline/README.md",
+    ".drovr/wt/ghostty-contline/tests/ghostty-p10k-prompt.sh",
+    ".drovr/wt/ghostty-contline/zsh.nix",
+    ".drovr/wt/steam-ui-scale/README.md",
+    ".drovr/wt/steam-ui-scale/home.nix",
+    ".drovr/wt/steam-ui-scale/tests/steam-ui-scaling.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5f/99b11dfb29/0/metadata.json",
+      "transcript": "/5f/99b11dfb29/0/full.jsonl",
+      "compact_transcript": "/5f/99b11dfb29/0/transcript.jsonl",
+      "content_hash": "/5f/99b11dfb29/0/content_hash.txt",
+      "prompt": "/5f/99b11dfb29/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 56,
+    "cache_creation_tokens": 231647,
+    "cache_read_tokens": 6636084,
+    "output_tokens": 19304,
+    "api_call_count": 28,
+    "subagent_tokens": {
+      "input_tokens": 14,
+      "cache_creation_tokens": 34523,
+      "cache_read_tokens": 174942,
+      "output_tokens": 612,
+      "api_call_count": 7
+    }
+  }
+}

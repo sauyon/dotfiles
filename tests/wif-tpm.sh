@@ -438,6 +438,34 @@ else
 fi
 
 echo
+# --- every declared TPM host must actually be wired for TPM --------------------
+# useWifTpm = useWif && !isDarwin && elem hostname wifTpmHosts. So a host added to
+# wifTpmHosts but NOT to wifHosts gets useWifTpm = false and silently signs with
+# ~/.config/ko/wif.pem -- a file key it may not even have -- while the list says
+# it is a TPM host. Nothing reports the discrepancy on that host; it surfaces as
+# an STS 401 at its next activation. Checked from any host, since it is a
+# property of the lists rather than of the machine this runs on.
+nixlist() { # nixlist <attr> -> one host per line
+  sed -n "s/^ *$1 *= *\\[\\(.*\\)\\];.*/\\1/p" "$repo/home.nix" | tr -d '"' | tr ' ' '\n' | grep -v '^$'
+}
+tpm_hosts=$(nixlist wifTpmHosts); wif_hosts=$(nixlist wifHosts)
+if [ -z "$tpm_hosts" ] || [ -z "$wif_hosts" ]; then
+  needed "wifTpmHosts/wifHosts could not be parsed from home.nix" "the WIF host lists are readable"
+else
+  bad_wiring=""
+  for h in $tpm_hosts; do
+    printf '%s\n' "$wif_hosts" | grep -qxF "$h" || bad_wiring="$bad_wiring $h"
+  done
+  if [ -z "$bad_wiring" ]; then
+    ok "every host in wifTpmHosts is also in wifHosts ($(printf '%s' "$tpm_hosts" | tr '\n' ' '))"
+  else
+    bad "every host in wifTpmHosts is also in wifHosts"$'\n'\
+"      missing from wifHosts:$bad_wiring"$'\n'\
+"      useWifTpm is gated on useWif, so each of these evaluates to a FILE key"$'\n'\
+"      path while the list claims TPM. The host 401s at its next activation."
+  fi
+fi
+
 note=""
 [ "$skipped" -gt 0 ] && note=", $skipped skipped"
 if [ "$fails" = 0 ]; then

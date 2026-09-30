@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "65b7a27f3fee",
+  "strategy": "manual-commit",
+  "branch": "worktree-keyring-no-escrow",
+  "checkpoints_count": 2,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/65/b7a27f3fee/0/metadata.json",
+      "transcript": "/65/b7a27f3fee/0/full.jsonl",
+      "compact_transcript": "/65/b7a27f3fee/0/transcript.jsonl",
+      "content_hash": "/65/b7a27f3fee/0/content_hash.txt",
+      "prompt": "/65/b7a27f3fee/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 28637,
+    "cache_read_tokens": 4139364,
+    "output_tokens": 14809,
+    "api_call_count": 17,
+    "subagent_tokens": {
+      "input_tokens": 2,
+      "cache_creation_tokens": 16858,
+      "cache_read_tokens": 0,
+      "output_tokens": 1,
+      "api_call_count": 1
+    }
+  }
+}

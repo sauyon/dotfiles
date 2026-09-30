@@ -1386,6 +1386,30 @@ let
   # profile (see `claudeProfiles`); everything else is rendered identically into
   # each profile's settings.json by the home.file entries below, so per-profile
   # state is fully declarative.
+  # Facts about this host and these repos, handed to the auto-mode classifier as
+  # `autoMode.environment` below. Written by hand rather than captured from
+  # `/auto-mode-setup`: that flow ends by saving into <config dir>/settings.json,
+  # which is a read-only store symlink on every host here, so it can only fail
+  # with `Could not write .../settings.json`. Launching it against a scratch
+  # CLAUDE_CONFIG_DIR does not dodge that -- it resolves the save path from the
+  # live profile, not from the config dir it was started with.
+  #
+  # Entries must be single-line plain text with no double quotes; Claude Code
+  # validates the block and rejects the whole of autoMode if one is malformed.
+  claudeAutoModeEnvShared = [
+    "This user environment is managed declaratively by Nix home-manager from the dotfiles repo at ${config.home.homeDirectory}/devel/dotfiles, which builds six hosts: utsuho, kyuusaku, setsuna, shiori, fujiwara and mari. Everything under /nix/store is read-only on purpose."
+    "A tool that cannot write ~/.claude/settings.json or ~/.config/claude-*/settings.json is hitting that read-only store symlink, not a permissions or disk fault. The fix is an edit to home.nix in the dotfiles repo followed by hms, never a chmod."
+    "Config is applied with the hms wrapper, which pushes, waits for the commit to build in CI on forge.ko.ag, then switches. Its refusals on a dirty tree or on a checkout behind origin/master are intended; a bare home-manager switch is the wrong way around them."
+    "The dotfiles repo is public and single-maintainer, worked directly on master. Committing and pushing there is routine and needs no PR or review gate."
+    "${config.home.homeDirectory}/devel/kube is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow."
+    "Repos under github.com/modular, github.com/modularml and github.com/bentoml are shared work repos: changes there go through a branch and a PR, never a direct push to the default branch."
+    "Secrets are sops-encrypted in the dotfiles repo and decrypted at activation. Passing one to a command by reading its file inline is the normal pattern here; printing one into the terminal or into a file is not."
+    "Per-project toolchains come from mise, direnv and nix develop, so a missing-command failure usually means the command belongs under mise run or nix develop rather than a global install."
+    "A SessionStart hook gives each Claude session a copy of ~/.kube/config with every context matching prod deleted and current-context unset, so kubectl in this session has no production cluster to reach."
+    "That hook does not revoke the underlying SSO credential, so re-running an SSO login or writing a fresh kubeconfig could restore production reach. Those are worth a prompt rather than an auto-approval."
+  ];
+
+
   claudeBaseSettings = {
     hooks = {
       PreToolUse = [
@@ -1610,6 +1634,7 @@ let
         # match is `Bash(cd:*)`, which allows every cd anywhere.
         "Changing directory into a drovr worktree is ALLOWED: a `cd` whose target path contains `/.drovr/wt/` (for example `cd ${config.home.homeDirectory}/devel/dotfiles/.drovr/wt/some-run`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only."
       ];
+      environment = claudeAutoModeEnvShared;
     };
     # Declare marketplaces here instead of shelling out to `claude plugin
     # marketplace add` at activation: Claude Code registers every entry into

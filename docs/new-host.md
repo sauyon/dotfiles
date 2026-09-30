@@ -132,19 +132,34 @@ Then log in again (`exec zsh -l` on a console that predates the switch) and
   exists there is no Secret Service worth the name:
 
   ```bash
-  cd ~/devel/dotfiles   # mise resolves the task from cwd; step 4 leaves you in $HOME
-  mise run sops -- -d --extract '["gnomeKeyringPassphrase"]' secrets.yaml \
-    | gnome-keyring-tpm-seal
+  gnome-keyring-tpm-seal
   systemctl --user restart gnome-keyring
   ```
 
-  `mise run sops`, not bare `sops`. `home.nix`'s `sops.environment` supplies
-  `GOOGLE_APPLICATION_CREDENTIALS` to *sops-nix's activation only*, so a bare
-  `sops -d` in a shell has no credential and fails with "no master key was able
-  to decrypt the file" — which reads like a missing recipient rather than a
-  missing environment variable. The mise task reads the per-host credential back
-  out of the flake via `system/secrets.sh`, which is the only thing that works on
-  a WIF host.
+  No secret goes in and none comes out: it generates 32 random bytes, seals them
+  to this host's TPM, and verifies the round-trip. The passphrase is escrowed
+  nowhere on purpose, which is what makes "useless off this machine" true — it was
+  briefly kept in `secrets.yaml`, where one KMS-decryptable value opened every
+  host's keyring file and a fresh box could not enrol until it could decrypt
+  someone else's secret.
+
+  The price is that there is no recovery: a cleared TPM leaves the keyring
+  unreadable for good. That is cheap here because of *what* it holds — a Bitwarden
+  refresh token, a huggingface token, fj's store — all replaced by signing in
+  again. So `gnome-keyring-tpm-seal` refuses when a `login.keyring` already exists
+  rather than silently making it unopenable. `--force` is the "yes, I am losing
+  those secrets" flag: it seals, then moves the old keyring to
+  `login.keyring.superseded-<timestamp>`, because sealing while leaving it in place
+  would give the daemon a collection it cannot unlock and bring the prompts
+  straight back. It moves `user.keystore` too — that is the PKCS#11 half, its unlock
+  secret lives *inside* the login keyring, and the daemon runs both components.
+
+  On a host enrolled **before** this changed, none of the above has happened yet:
+  its sealed blob still holds the old shared passphrase, and that value is still in
+  git history where its recipients open it. Such a host only gets the per-host
+  property by re-enrolling — `gnome-keyring-tpm-seal --force`, then the restart —
+  which costs it the keyring, so do it when signing back into Bitwarden and the git
+  credential helper is convenient rather than in the middle of something.
 
   What it looks like when this step is skipped: `gnome-keyring-tpm` logs
   `no sealed passphrase … starting daemon WITHOUT TPM unlock` and degrades to the

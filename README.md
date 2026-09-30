@@ -73,6 +73,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
 ./tests/polkit-agent.sh          # evaluates 5 hosts + a synthetic one, 17 cases
 ./tests/insecure-packages.sh     # 2 cases per host, plus mari's darwin system
+./tests/gnome-keyring-seal.sh    # builds the script, drives 14 cases with stub tpm2
 ./tests/steam-env.sh             # builds the steam wrapper, drives 46 cases
 ./tests/even-terminal.sh         # builds the npm package, drives 7 cases
 ```
@@ -215,6 +216,36 @@ permit or a predicate reappearing in `home.nix` stops it throwing; a typo or a
 renamed attr fails it for the wrong reason and says so. Not to be confused with
 `.forgejo/workflows/vulnix-scan.yml`, which scans the realised closure for CVEs
 weekly and never fails -- that one is a report, this is a gate.
+
+`gnome-keyring-tpm-seal` (in `home.nix`) has cases because its failure is
+irreversible rather than noisy. The passphrase is generated per host and escrowed
+nowhere, so a *new* one cannot open an *existing* `login.keyring` — sealing over a
+live keyring destroys every secret in it with no way back, and the symptom looks
+like a corrupt keyring rather than something you did. The cases drive the built
+script through `SEAL_TPM2_BIN` / `SEAL_KEYRING_DIR` seams — both gated behind
+`SEAL_TEST=1`, since `SEAL_KEYRING_DIR` *is* the guard and a stray exported
+variable should not be able to switch it off — with stub `tpm2_*` binaries, so none
+of them needs a TPM or goes near the real keyring.
+
+Three of the cases are there because review found the bugs they now pin. The
+passphrase must be **text**: the daemon reads it back with `PW="$(unseal)"` and
+pipes it to `--unlock`, and command substitution drops NUL bytes while `--unlock`
+stops at a newline — so raw `/dev/urandom` silently shortened the passphrase for
+about a fifth of enrolments, and emptied it when the first byte was `0x0a`, with
+the seal's own round-trip check blind to it because that compares files rather than
+what the daemon receives. A rejected seal must be **inert**: sealing straight into
+place meant the blob the script had just called untrusted was the one the daemon
+would read, after destroying the enrolment it replaced. And `--force` must **finish
+the job**: sealing a new passphrase while leaving the old `login.keyring` gives the
+daemon a collection it cannot unlock, which is the prompt-loop this design exists
+to remove. The rest pin enrolling with nothing on stdin, a fresh passphrase per
+run, and the refusal naming the file while writing no seal files.
+
+A caveat the cases cannot carry: removing the escrowed value does not rotate a
+host that is already enrolled. shiori's sealed blob predates this change and still
+holds the old shared passphrase, and the old ciphertext stays in history where its
+recipients still open it. "Escrowed nowhere" becomes true for a given host only once
+it re-enrols with `--force`, which costs that host's keyring.
 
 The `nixGL` half of that `ExecStart` is why this shipped broken once. The agent
 builds its Qt Quick dialog only when a challenge arrives, and nix-built Qt

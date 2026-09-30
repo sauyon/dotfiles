@@ -722,10 +722,20 @@ let
   # keyring file is useless off this machine -- nothing more. Prompts stop
   # either way; this is the cheaper-to-lose-a-laptop version.
   #
-  # A copy is escrowed in secrets.yaml as `gnomeKeyringPassphrase`. That copy is
-  # deliberately NOT wired into sops.secrets: if it were, sops-nix would decrypt
-  # it to /run on every activation and the TPM would be pointless. It is cold
-  # storage for re-sealing only (see gnome-keyring-tpm-seal below).
+  # That claim only holds because the passphrase is generated on the host and
+  # escrowed nowhere. It used to live in secrets.yaml as `gnomeKeyringPassphrase`,
+  # which made it false twice over: one value opened every host's keyring file, and
+  # it was decryptable by a cloud KMS from anywhere, so "off this machine" bought
+  # nothing. The escrow's only benefit was surviving a TPM clear without re-signing
+  # in -- and what lives in here is a Bitwarden refresh token, a huggingface token
+  # and fj's store, all of which a sign-in replaces. There is deliberately no
+  # recovery path now: a cleared TPM means a new keyring.
+  #
+  # None of that is retroactive. A host enrolled before this still has the old
+  # shared passphrase in its sealed blob, and the old value remains in git history
+  # where its recipients open it -- so treat it as burned, not gone. Such a host
+  # becomes per-host only by re-enrolling (gnome-keyring-tpm-seal --force), which
+  # costs it the keyring.
   gnome-keyring-tpm = pkgs.writeShellScriptBin "gnome-keyring-tpm" ''
     set -uo pipefail
 
@@ -776,39 +786,151 @@ let
     Exec=${gnome-keyring-tpm}/bin/gnome-keyring-tpm
   '';
 
-  # One-time enrolment, and recovery after a TPM clear. Reads the passphrase on
-  # stdin so it never lands in argv:
-  #   sops -d --extract '["gnomeKeyringPassphrase"]' secrets.yaml | gnome-keyring-tpm-seal
-  # Then restart the daemon: systemctl --user restart gnome-keyring
+  # One-time enrolment per keyring. Takes no input and no secret -- it generates
+  # the passphrase itself, seals it, and verifies the round-trip:
+  #   gnome-keyring-tpm-seal
+  #   systemctl --user restart gnome-keyring
+  # It refuses if a login.keyring already exists, because a new passphrase cannot
+  # open an old keyring; `--force` is the "yes, I am giving up those secrets" flag.
+  # Cases: tests/gnome-keyring-seal.sh.
   gnome-keyring-tpm-seal = pkgs.writeShellScriptBin "gnome-keyring-tpm-seal" ''
     set -euo pipefail
 
     export TPM2TOOLS_TCTI="device:/dev/tpmrm0"
     SEAL="''${XDG_DATA_HOME:-$HOME/.local/share}/gnome-keyring-tpm"
     RUN="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+    # Override seams for tests/gnome-keyring-seal.sh, gated behind SEAL_TEST so a
+    # real run cannot be redirected by a stray exported variable. That gate is not
+    # tidiness: SEAL_KEYRING_DIR is the guard standing between a user and an
+    # unopenable keyring, and SEAL_TPM2_BIN decides which binaries get to see the
+    # passphrase.
+    if [ "''${SEAL_TEST:-0}" = 1 ]; then
+      TPM2_BIN="''${SEAL_TPM2_BIN:-${pkgs.tpm2-tools}/bin}"
+      KEYRINGS="''${SEAL_KEYRING_DIR:-''${XDG_DATA_HOME:-$HOME/.local/share}/keyrings}"
+    else
+      TPM2_BIN="${pkgs.tpm2-tools}/bin"
+      KEYRINGS="''${XDG_DATA_HOME:-$HOME/.local/share}/keyrings"
+    fi
+
+    FORCE=0
+    for a in "$@"; do
+      case "$a" in
+        --force) FORCE=1 ;;
+        *) echo "gnome-keyring-tpm-seal: unknown argument: $a (only --force)" >&2; exit 2 ;;
+      esac
+    done
+
+    # A new passphrase cannot open an existing login.keyring -- that file is
+    # encrypted with the old one, and there is no re-key path here. Sealing over it
+    # would leave the daemon holding a passphrase the keyring has never seen, which
+    # reads exactly like a corrupt keyring and loses every secret in it. Refuse
+    # before touching anything.
+    # Every store the daemon opens, not just login.keyring: it runs with
+    # --components="pkcs11,secrets", and user.keystore (the PKCS#11 half) keeps its
+    # own unlock secret *inside* the login keyring. A fresh login passphrase
+    # therefore orphans the keystore too, and checking only login.keyring made the
+    # refusal's own advice ("delete it, run again") break things -- that leaves
+    # user.keystore behind and then passes the guard.
+    stores() {
+      ${pkgs.findutils}/bin/find "$KEYRINGS" -maxdepth 1 \
+        \( -name '*.keyring' -o -name 'user.keystore' \) -printf '%f\n' 2>/dev/null || true
+    }
+
+    EXISTING="$(stores)"
+    if [ "$FORCE" -eq 0 ] && [ -n "$EXISTING" ]; then
+      echo "gnome-keyring-tpm-seal: $KEYRINGS already holds:" >&2
+      printf '    %s\n' $EXISTING >&2
+      echo "  A freshly generated passphrase cannot open any of them, so sealing now" >&2
+      echo "  would lose every secret they hold. Enrolment is once per keyring, not" >&2
+      echo "  once per boot." >&2
+      echo "  If the TPM was cleared they are already unreadable, so nothing is lost by" >&2
+      echo "  starting over: run with --force, which seals and then moves all of them" >&2
+      echo "  aside, and sign back in to whatever stored secrets there (Bitwarden, the" >&2
+      echo "  git credential helper). Then: systemctl --user restart gnome-keyring" >&2
+      exit 1
+    fi
 
     WORK="$(${pkgs.coreutils}/bin/mktemp -d "$RUN/gnome-keyring-seal.XXXXXX")"
     trap '${pkgs.coreutils}/bin/rm -rf "$WORK"' EXIT
     ${pkgs.coreutils}/bin/mkdir -p -m700 "$SEAL"
 
-    ${pkgs.coreutils}/bin/cat > "$WORK/pw"
-    [ -s "$WORK/pw" ] || { echo "gnome-keyring-tpm-seal: empty passphrase on stdin" >&2; exit 1; }
+    # Generated here, per host, and never written anywhere but the TPM-sealed blob.
+    # It used to be escrowed in secrets.yaml and piped in on stdin, which made the
+    # "useless off this machine" claim above false -- one KMS-decryptable value
+    # opened every host's keyring file -- and made a new host wait on a decrypt it
+    # could not do. Nothing needs to know this value: the daemon unseals it, and a
+    # TPM clear means starting the keyring over, which costs a few sign-ins.
+    # base64, not raw bytes. The consumer is gnome-keyring-tpm above, which reads
+    # the unsealed value with PW="$(unseal)" and pipes it with printf: command
+    # substitution drops NUL bytes and strips trailing newlines, and --unlock reads
+    # a newline-terminated password. Raw /dev/urandom would therefore hand the
+    # keyring a *shorter* passphrase than was sealed for about a fifth of
+    # enrolments, and an empty one when the first byte is 0x0a -- silently, since
+    # the round-trip check below compares files rather than what the daemon gets.
+    # Encoding keeps all 256 bits and makes the value survive both hops. (The old
+    # escrowed value could not hit this: it was base64 in secrets.yaml already.)
+    ${pkgs.coreutils}/bin/head -c 32 /dev/urandom \
+      | ${pkgs.coreutils}/bin/base64 -w0 \
+      | ${pkgs.coreutils}/bin/tr -d '\n' > "$WORK/pw"
+    [ "$(${pkgs.coreutils}/bin/wc -c < "$WORK/pw")" -eq 44 ] \
+      || { echo "gnome-keyring-tpm-seal: could not generate a 32-byte passphrase" >&2; exit 1; }
 
-    ${pkgs.tpm2-tools}/bin/tpm2_createprimary -C o -g sha256 -G ecc -c "$WORK/primary.ctx" >/dev/null
-    ${pkgs.tpm2-tools}/bin/tpm2_create -C "$WORK/primary.ctx" -g sha256 -i "$WORK/pw" \
-      -u "$SEAL/seal.pub" -r "$SEAL/seal.priv" >/dev/null
-    ${pkgs.coreutils}/bin/chmod 600 "$SEAL/seal.pub" "$SEAL/seal.priv"
+    # Seal into $WORK and only install after verifying. Writing straight into $SEAL
+    # means any failure past this point -- a mismatch, a tpm2 error under set -e, a
+    # signal -- leaves the blob the script just called untrusted as the one the
+    # daemon reads at next start, having already destroyed the enrolment it
+    # replaced. With nothing escrowed, that is unrecoverable.
+    "$TPM2_BIN/tpm2_createprimary" -C o -g sha256 -G ecc -c "$WORK/primary.ctx" >/dev/null
+    "$TPM2_BIN/tpm2_create" -C "$WORK/primary.ctx" -g sha256 -i "$WORK/pw" \
+      -u "$WORK/seal.pub" -r "$WORK/seal.priv" >/dev/null
 
     # Prove the blob round-trips before trusting it, from a freshly re-derived
     # parent -- that is the path the daemon will actually take at next start.
-    ${pkgs.tpm2-tools}/bin/tpm2_createprimary -C o -g sha256 -G ecc -c "$WORK/verify.ctx" >/dev/null
-    ${pkgs.tpm2-tools}/bin/tpm2_load -C "$WORK/verify.ctx" \
-      -u "$SEAL/seal.pub" -r "$SEAL/seal.priv" -c "$WORK/vseal.ctx" >/dev/null
-    ${pkgs.tpm2-tools}/bin/tpm2_unseal -c "$WORK/vseal.ctx" -o "$WORK/verify"
+    "$TPM2_BIN/tpm2_createprimary" -C o -g sha256 -G ecc -c "$WORK/verify.ctx" >/dev/null
+    "$TPM2_BIN/tpm2_load" -C "$WORK/verify.ctx" \
+      -u "$WORK/seal.pub" -r "$WORK/seal.priv" -c "$WORK/vseal.ctx" >/dev/null
+    "$TPM2_BIN/tpm2_unseal" -c "$WORK/vseal.ctx" -o "$WORK/verify"
     ${pkgs.diffutils}/bin/cmp -s "$WORK/pw" "$WORK/verify" \
       || { echo "gnome-keyring-tpm-seal: seal/unseal round-trip MISMATCH, not trusting this blob" >&2; exit 1; }
 
+    ${pkgs.coreutils}/bin/chmod 600 "$WORK/seal.pub" "$WORK/seal.priv"
+
+    # Install via $SEAL itself, not straight from $WORK. $WORK is under
+    # XDG_RUNTIME_DIR (tmpfs) and $SEAL is on disk, so `mv` between them is
+    # copy-then-unlink rather than rename: ENOSPC or a signal partway through would
+    # leave a NEW seal.pub beside the OLD seal.priv, an unloadable pair with the old
+    # pub already gone -- the unrecoverable state the staging exists to avoid. Copy
+    # both onto the same filesystem first, keep the outgoing pair as .prev so a
+    # half-finished swap is still recoverable by hand, then rename, which is atomic
+    # per file within one directory.
+    ${pkgs.coreutils}/bin/cp -f "$WORK/seal.pub"  "$SEAL/seal.pub.new"
+    ${pkgs.coreutils}/bin/cp -f "$WORK/seal.priv" "$SEAL/seal.priv.new"
+    if [ -e "$SEAL/seal.pub" ] && [ -e "$SEAL/seal.priv" ]; then
+      ${pkgs.coreutils}/bin/cp -f "$SEAL/seal.pub"  "$SEAL/seal.pub.prev"
+      ${pkgs.coreutils}/bin/cp -f "$SEAL/seal.priv" "$SEAL/seal.priv.prev"
+    fi
+    ${pkgs.coreutils}/bin/mv -f "$SEAL/seal.priv.new" "$SEAL/seal.priv"
+    ${pkgs.coreutils}/bin/mv -f "$SEAL/seal.pub.new"  "$SEAL/seal.pub"
+
+    # Only now, with a working seal installed: the old keyring cannot be opened by
+    # the passphrase just sealed, so leaving it in place would hand the daemon a
+    # collection it cannot unlock and bring the prompts back -- right after this
+    # script said "verified". Move it aside rather than delete it, so a user who
+    # changes their mind still has the file even though nothing can read it.
+    if [ "$FORCE" -eq 1 ] && [ -n "$EXISTING" ]; then
+      stamp="$(${pkgs.coreutils}/bin/date +%Y%m%d%H%M%S)"
+      for f in $EXISTING; do
+        ${pkgs.coreutils}/bin/mv "$KEYRINGS/$f" "$KEYRINGS/$f.superseded-$stamp"
+        echo "gnome-keyring-tpm-seal: moved $f aside as $f.superseded-$stamp (nothing can read it now)"
+      done
+    fi
+
     echo "gnome-keyring-tpm-seal: sealed to $SEAL and verified"
+    # Named here, not only in the docs: until the daemon restarts it still holds the
+    # old passphrase and will happily recreate login.keyring under it if anything
+    # stores a secret in the meantime -- which then cannot be opened by what was
+    # just sealed, and the guard above will refuse to re-enrol over it.
+    echo "gnome-keyring-tpm-seal: now run: systemctl --user restart gnome-keyring"
   '';
 
   # git built with the libsecret credential helper (git-credential-libsecret),

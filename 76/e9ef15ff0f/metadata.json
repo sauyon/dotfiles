@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "76e9ef15ff0f",
+  "strategy": "manual-commit",
+  "branch": "aur-paru-bootstrap",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md",
+    "mise.toml",
+    "system/aur-setup",
+    "system/deploy",
+    "tests/aur-setup.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/76/e9ef15ff0f/0/metadata.json",
+      "transcript": "/76/e9ef15ff0f/0/full.jsonl",
+      "compact_transcript": "/76/e9ef15ff0f/0/transcript.jsonl",
+      "content_hash": "/76/e9ef15ff0f/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 62,
+    "cache_creation_tokens": 83220,
+    "cache_read_tokens": 2825747,
+    "output_tokens": 27664,
+    "api_call_count": 31
+  }
+}

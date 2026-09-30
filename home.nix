@@ -3132,35 +3132,56 @@ in
   # was still offered.
   #
   # config.home.path and not some other store path: it is the collection every
-  # desktop entry in the profile comes from, so it changes exactly when the entry
-  # set can change, and not on an unrelated rebuild. Which store path the profile
-  # actually hands elephant is not something to rely on -- under the nix-env layout
-  # share/ symlinks into home-manager-path, under nix's own profile format it is a
-  # merged `-profile` directory with home-manager-path nowhere in the resolved path
-  # -- and the trigger is correct either way. The upstream module already sets
-  # X-Restart-Triggers, but hashes elephant's own settings, which is why a package
-  # add never restarted it. The option is a list, so this appends rather than
-  # colliding.
+  # desktop entry in the profile comes from, so an entry-set change always changes
+  # it. Not the converse -- it is a buildEnv over home.packages, so any version or
+  # hash bump of anything in it changes the path too, which means most flake-input
+  # bumps fire this trigger without a single .desktop file differing. That is a real
+  # cost, not a rounding error: by the restart note below, every such switch bounces
+  # walker. Accepted deliberately, because the alternative is hashing the entry set
+  # itself, and a launcher blinking on a switch is cheaper than a launcher that
+  # silently lies about what is installed.
   #
-  # X-SwitchMethod=restart, and it is not decoration: sd-switch's default for a
-  # changed unit is a stop followed by a start, two separate jobs, and an explicit
-  # stop of a required unit propagates to its dependents. walker.service carries
-  # `Requires=elephant.service`, so the first switch to ship this trigger took the
-  # launcher down -- "Stopping units: elephant.service" at 04:55:42, walker
-  # "Stopped" the same second, then only elephant started back up and walker was
-  # left inactive. A single restart job does not propagate, which is also why
-  # restarting elephant by hand had left walker up and hid this from the first
-  # round of verification. sd-switch --dry-run tells the two apart, and
-  # tests/elephant-reindex.sh drives it.
+  # Which store path the profile actually hands elephant is not something to rely
+  # on -- under the nix-env layout share/ symlinks into home-manager-path, under
+  # nix's own profile format it is a merged `-profile` directory with
+  # home-manager-path nowhere in the resolved path -- and the trigger is correct
+  # either way. What it does not cover: a `nix profile install` straight into that
+  # profile changes the indexed directory with no home.path change and no switch, so
+  # the index goes stale again with nothing to fire.
+  #
+  # The upstream module sets its own X-Restart-Triggers, hashing elephant's settings,
+  # which is why a package add never restarted it. Note it lands in [Service] while
+  # this one lands in [Unit] -- two separate keys in two sections, not one merged
+  # list. [Unit] is where the convention puts it, and sd-switch only diffs unit text
+  # in any case.
+  #
+  # X-SwitchMethod=restart, and it is not decoration. sd-switch's default for a
+  # changed unit is a stop followed by a start -- two jobs -- and walker.service
+  # carries `Requires=elephant.service`, which systemd propagates. So the first
+  # switch to ship this trigger stopped walker along with elephant and then started
+  # only elephant: "Stopping units: elephant.service" at 04:55:42, walker "Stopped"
+  # the same second, walker left inactive until started by hand.
+  #
+  # What a restart buys is NOT that walker is left alone. systemd.unit(5) is explicit
+  # that Requires= "already stops (or restarts) the configuring unit when a listed
+  # unit is explicitly stopped (or restarted)" -- so walker is restarted too, and the
+  # journal shows exactly that. The win is that the propagated action is a restart
+  # rather than a stop, so walker comes back up on its own instead of staying down.
+  #
+  # Recording how the first cut got this wrong, because the check looked sound: it
+  # was verified by hand with `systemctl --user restart elephant.service`, and walker
+  # was `active` afterwards. It was also stopped and started inside that same
+  # transaction -- visible in the journal at 03:55:02, invisible to a status check
+  # after the fact. Hence the sd-switch --dry-run case in
+  # tests/elephant-reindex.sh, which pins the job type rather than a state sampled
+  # once the dust settled.
   #
   # Not keep-old, which sd-switch consults before anything else and which would
   # leave the unit untouched however much its text changed -- the trigger inert.
   # That is the right setting for hyprland-cleanup above, whose ExecStop closes
   # every window; it is exactly wrong here, and the two are easy to confuse.
   #
-  # walker needs no trigger of its own. It reconnects to the socket the restarted
-  # elephant recreates, so it only has to stay running -- which is precisely what
-  # the restart buys.
+  # walker needs no trigger of its own: the propagation above already restarts it.
   systemd.user.services.elephant = lib.mkIf (!isDarwin && isDesktop) {
     Unit.X-Restart-Triggers = [ config.home.path ];
     Unit.X-SwitchMethod = "restart";

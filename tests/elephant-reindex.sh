@@ -117,7 +117,12 @@ check() { # check <what> <expected> <actual>
 
 # The hosts that run walker, read out of the flake rather than written down: a new
 # GUI host added to flake.nix is covered the day it lands.
-hosts=$(nix eval --json "$FLAKE#homeConfigurations" --apply builtins.attrNames 2>"$D/err" \
+# pipefail for this one pipeline only: without it the guard tests jq, and a failed
+# nix eval reaches jq as empty input, exits 0, and leaves $hosts empty -- which
+# surfaces later as "no host enables programs.walker" and sends you looking at the
+# wrong thing. Scoped in a subshell rather than set globally, because several cases
+# below pipe into `grep -q`, which exits early by design.
+hosts=$(set -o pipefail; nix eval --json "$FLAKE#homeConfigurations" --apply builtins.attrNames 2>"$D/err" \
   | jq -r '.[]') || { echo "could not list hosts:" >&2; cat "$D/err" >&2; exit 1; }
 walker_hosts=""
 for host in $hosts; do
@@ -139,6 +144,16 @@ for host in $walker_hosts; do
 
   check "$host: elephant.service switches by restart, not stop-start" \
     restart "$(printf '%s' "$text" | sed -n 's/^X-SwitchMethod=//p')"
+
+  # The unit must be upstream's, not one this config accidentally invented. The
+  # gate below is keyed on programs.walker.enable, but what actually creates this
+  # unit is programs.elephant.installService (default true, set up by the walker
+  # module). Turn that off -- or have upstream stop shipping the unit -- and naming
+  # systemd.user.services.elephant here would plant a bare unit carrying only our
+  # two [Unit] keys and no ExecStart, on exactly the hosts the gate lets through.
+  # A trigger on a unit that cannot start is worse than no trigger.
+  check "$host: elephant.service is a real unit (has an ExecStart)" present \
+    "$(printf '%s' "$text" | grep -q '^ExecStart=' && echo present || echo absent)"
 done
 
 # The gate. The trigger is attached by naming systemd.user.services.elephant from
@@ -199,6 +214,28 @@ else
     printf '%s\n' "$out" | sed 's/^/     /'
     fails=$((fails+1))
   fi
+fi
+
+# X-SwitchMethod=restart is only worth anything because of one edge: walker.service
+# Requires= elephant.service, so systemd propagates elephant's stop or restart to
+# walker. That edge is upstream's, in the walker flake's module, and nothing here
+# would notice it going away -- at which point the method becomes dead weight with
+# a comment explaining a mechanism that no longer applies. Assert it while it is
+# still what the design rests on.
+n=$((n+1))
+walker_home=$(eval_raw "$sdsw_host" home.homeDirectory)
+walker_attr="home.file.\"$walker_home/.config/systemd/user/walker.service\".source"
+if ! walker_text=$(nix eval --raw "$FLAKE#homeConfigurations.$sdsw_host.config.$walker_attr" \
+     --apply builtins.readFile 2>"$D/err"); then
+  echo "FAIL could not read $sdsw_host's rendered walker.service:"; sed 's/^/     /' "$D/err"
+  fails=$((fails+1))
+elif printf '%s' "$walker_text" | grep -q '^Requires=.*elephant\.service'; then
+  echo "ok   walker.service still Requires elephant.service (the propagation edge)"
+else
+  echo "FAIL walker.service no longer Requires elephant.service: nothing propagates"
+  echo "     elephant's restart to walker, so X-SwitchMethod=restart is now dead"
+  echo "     weight and the comment in home.nix describes a mechanism that is gone."
+  fails=$((fails+1))
 fi
 
 # --- the teeth ---------------------------------------------------------------

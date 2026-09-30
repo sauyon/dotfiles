@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "e861637b9d3d",
+  "strategy": "manual-commit",
+  "branch": "drovr/wif-enroll",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "install/wif/admin-setup.sh",
+    "tests/wif-admin-setup.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e8/61637b9d3d/0/metadata.json",
+      "transcript": "/e8/61637b9d3d/0/full.jsonl",
+      "compact_transcript": "/e8/61637b9d3d/0/transcript.jsonl",
+      "content_hash": "/e8/61637b9d3d/0/content_hash.txt",
+      "prompt": "/e8/61637b9d3d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 11579,
+    "cache_read_tokens": 3834488,
+    "output_tokens": 6211,
+    "api_call_count": 8
+  }
+}

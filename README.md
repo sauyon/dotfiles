@@ -1,5 +1,11 @@
 # dotfiles
 
+> **GitHub is a mirror.** The canonical repo is
+> [forge.ko.ag/sauyon/dotfiles](https://forge.ko.ag/sauyon/dotfiles), a Forgejo
+> instance that push-mirrors every branch here on each push, with an 8h fallback
+> sync. The mirror is one-way: a pull request opened on GitHub cannot be merged,
+> and issues there are not watched.
+
 Home Manager configuration for `sauyon`.
 
 ## New machine setup
@@ -9,9 +15,11 @@ For a blank machine (ISO, disk, base Arch install), see
 running.
 
 ```bash
-# 1. Clone into ~/devel/dotfiles
+# 1. Clone into ~/devel/dotfiles — from the forge, not the GitHub mirror, so
+#    `origin` is the remote `hms` pushes to and polls for CI. Anonymous HTTPS
+#    clone works; no forge login is needed until the first push.
 mkdir -p ~/devel
-git clone https://github.com/sauyon/dotfiles ~/devel/dotfiles
+git clone https://forge.ko.ag/sauyon/dotfiles.git ~/devel/dotfiles
 
 # 2. If this is a new host, add a homeConfigurations entry for it in flake.nix
 #    (hostname, gui, gpu). Otherwise the matching entry already exists.

@@ -1,0 +1,1 @@
+can you configure my dotfiles github mirror, and add a note or something that it's a forgejo mirror?

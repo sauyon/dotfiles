@@ -1,0 +1,59 @@
+why is hyprlock time so wrong
+
+---
+
+do the patch then
+
+---
+
+do the patch then, with documentation to drop when fixed upstream
+
+---
+
+<task-notification>
+<task-id>bpiqdglpu</task-id>
+<tool-use-id>toolu_01RDBX8ChLcoWvqUcqBJ3tRq</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/6c224709-d04c-4f6c-a818-73cc775fbfe7/tasks/bpiqdglpu.output</output-file>
+<status>completed</status>
+<summary>Background command "Build the patched hyprlock" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bwa9p6b0f</task-id>
+<tool-use-id>toolu_0128Agu6P6HivgFE2Z4x2ahU</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/6c224709-d04c-4f6c-a818-73cc775fbfe7/tasks/bwa9p6b0f.output</output-file>
+<status>completed</status>
+<summary>Background command "Rebuild the patched hyprlock with files staged" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bt40bag0q</task-id>
+<tool-use-id>toolu_013dtAEL8eFLNSh2dg2sEiAZ</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/6c224709-d04c-4f6c-a818-73cc775fbfe7/tasks/bt40bag0q.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the neighbouring hyprlock-faillock suite" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bppfygqu5</task-id>
+<tool-use-id>toolu_01G7aFvLyNAGLkrGgcPFSddP</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/6c224709-d04c-4f6c-a818-73cc775fbfe7/tasks/bppfygqu5.output</output-file>
+<status>completed</status>
+<summary>Background command "Evaluate each Linux host config for eval breakage" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bcc9atedx</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/6c224709-d04c-4f6c-a818-73cc775fbfe7/tasks/bcc9atedx.output</output-file>
+<status>completed</status>
+<summary>Background command "Evaluate the remaining host configs" completed (exit code 0)</summary>
+</task-notification>

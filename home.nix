@@ -1002,7 +1002,14 @@ let
     done
     [ -n "$host" ] || exit 0
 
+    # fj writes keys.json to its ProjectDirs data dir: on Linux that is
+    # $XDG_DATA_HOME (~/.local/share); on macOS it is ~/Library/Application
+    # Support/forgejo-cli.forgejo-cli, NOT ~/.local/share — so on darwin the XDG
+    # path never exists and the shim must fall back to app-support, or git drops
+    # to a prompt. (fj still reads its *config*, client_ids, from ~/.config on
+    # both, so only this data path is platform-split.)
     keys="''${XDG_DATA_HOME:-$HOME/.local/share}/forgejo-cli/keys.json"
+    [ -r "$keys" ] || keys="$HOME/Library/Application Support/forgejo-cli.forgejo-cli/keys.json"
     [ -r "$keys" ] || exit 0
 
     # expires_at is time::OffsetDateTime's serde tuple, in order:

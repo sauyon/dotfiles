@@ -64,7 +64,7 @@ classify="$here/sts-classify.py"
 host="$(uname -n)"; host="${host%%.*}"
 
 issuer="${KO_WIF_ISSUER:-https://storage.googleapis.com/ko-keys-sauyon/hosts}"
-audience="${KO_WIF_AUDIENCE:-//iam.googleapis.com/projects/484956590837/locations/global/workloadIdentityPools/ko-hosts/providers/bucket}"
+audience="${KO_WIF_AUDIENCE:?set KO_WIF_AUDIENCE -- the workload-identity provider audience. Its value is in the private dotfiles-private repo (README), not here: this script runs during bootstrap, before nix can fetch that input.}"
 subject="${KO_WIF_SUB:-device:$host}"
 removed_key="${KO_WIF_FILE_KEY:-$HOME/.config/ko/wif.pem}"   # R: kid removed from the JWKS
 published_key="${KO_WIF_TPM_KEY:-$HOME/.config/ko/wif-tpm.pem}" # P: kid still published

@@ -105,7 +105,24 @@ jobs:
           git checkout --detach ${{ github.sha }}
           git --no-pager log -1 --oneline
 
+      # The flake now takes a private input (dotfiles-private), and nix fetches
+      # git+https by shelling out to git -- not through its own HTTP client, so
+      # the attic netrc above does nothing for it. Hand git a credential helper
+      # that answers out of the environment: the token stays in the runner's
+      # env, never in argv and never in a file on disk.
+      # Do NOT echo $FORGE_TOKEN or enable `set -x` here.
+      - name: authorise git against the private input
+        env:
+          FORGE_TOKEN: ${{ secrets.FORGE_TOKEN }}
+        run: |
+          set -eu
+          git config --global credential."https://forge.ko.ag".username oauth2
+          git config --global credential."https://forge.ko.ag".helper \
+            '!f() { test "$1" = get && printf "password=%s\n" "$FORGE_TOKEN"; }; f'
+
       - name: build home closures
+        env:
+          FORGE_TOKEN: ${{ secrets.FORGE_TOKEN }}
         run: |
           set -eu
           # --fallback: a substituter that dies mid-NAR otherwise aborts the whole

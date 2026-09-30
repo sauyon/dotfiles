@@ -33,6 +33,16 @@
     mattpocock-skills.flake = false;
     # Seamless OIDC SSH gate (gate binary + nixos/darwin modules).
     ssh-oidc.url = "git+https://codeberg.org/sauyon/ssh-oidc";
+    # Private companion to this repo: the git identity, internal endpoints,
+    # the new-tab links and the per-host posture home.nix hands the Claude
+    # auto-mode classifier. Not a flake -- a plain tree of nix values, like
+    # mattpocock-skills above. It is private because a public repo is the
+    # wrong place to MAINTAIN values that are of no use to anyone else;
+    # credentials are a different problem and stay in secrets.yaml under KMS.
+    # Needed at eval time, so a host must be able to read it: locally that is
+    # git-credential-fj (home.nix), in CI a netrc line from FORGE_TOKEN.
+    dotfiles-private.url = "git+https://forge.ko.ag/sauyon/dotfiles-private.git";
+    dotfiles-private.flake = false;
     # Zen browser. Not in nixpkgs (checked against this lock), so it comes from
     # the community flake, which ships the `zen-beta` package plus a
     # home-manager module built on home-manager's own mkFirefoxModule — so
@@ -44,12 +54,13 @@
     zen-browser.inputs.home-manager.follows = "home-manager";
   };
 
-  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, explore-mcp, drovr, hunk, mattpocock-skills, zen-browser, ssh-oidc, ... }:
+  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, explore-mcp, drovr, hunk, mattpocock-skills, zen-browser, ssh-oidc, dotfiles-private, ... }:
   let
     mkHome = system: machine: home-manager.lib.homeManagerConfiguration {
       pkgs = nixpkgs.legacyPackages.${system};
       extraSpecialArgs = {
         inherit sops-nix walker nixgl explore-mcp drovr hunk mattpocock-skills zen-browser machine;
+        inherit dotfiles-private;
         inherit system;
       };
       modules = [ ./home.nix ];

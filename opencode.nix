@@ -1,4 +1,4 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, pkgs, dotfiles-private, ... }:
 
 let
   opencodeConfig = {
@@ -69,7 +69,7 @@ let
           # 10.9.0.0/24 WireGuard VPN, and the key authorizes inference on a
           # self-hosted model. Fixing it means a TLS sidecar on the Service, not
           # a change on this side.
-          baseURL = "http://10.0.7.240:4000/v1";
+          baseURL = (import "${dotfiles-private}/endpoints.nix").localClassifierUrl;
         };
         # `glm` is litellm's own model-group name, not a lemonade id: it routes
         # lemonade -> Z.ai Coding Plan -> OpenRouter, so a dead local model

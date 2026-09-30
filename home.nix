@@ -10,6 +10,7 @@
   hunk,
   mattpocock-skills,
   zen-browser,
+  dotfiles-private,
   machine,
 
   system,
@@ -21,6 +22,17 @@ let
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
   gpu = machine.gpu or null;
+
+  # Values the public repo deliberately does not carry: see the
+  # `dotfiles-private` flake input for why each one is in there rather than
+  # here. Imported once, used from `private.*` below.
+  private = {
+    identity = import "${dotfiles-private}/identity.nix";
+    endpoints = import "${dotfiles-private}/endpoints.nix";
+    newtabLinks = import "${dotfiles-private}/newtab-links.nix";
+    claudeAutoModeEnvByHost =
+      import "${dotfiles-private}/claude-auto-mode.nix" { inherit hostname; };
+  };
   # Secret Service provider, keyed off one axis so the two halves cannot drift:
   # desktops get gnome-keyring, headless hosts get pass-secret-service (see
   # services.pass-secret-service below). Gating these on different axes — gui vs
@@ -48,7 +60,7 @@ let
   wifKeyFile = "${config.home.homeDirectory}/.config/ko/"
     + (if useWifTpm then "wif-tpm.pem" else "wif.pem");
   wifIssuer = "https://storage.googleapis.com/ko-keys-sauyon/hosts";
-  wifAudience = "//iam.googleapis.com/projects/484956590837/locations/global/workloadIdentityPools/ko-hosts/providers/bucket";
+  wifAudience = private.endpoints.wifAudience;
   # sops-nix runs sops-install-secrets with PATH="" — every path here is absolute.
   koWifToken = pkgs.writeShellScriptBin "ko-wif-token" ''
     export KO_OPENSSL=${pkgs.openssl}/bin/openssl
@@ -1386,6 +1398,30 @@ let
   # profile (see `claudeProfiles`); everything else is rendered identically into
   # each profile's settings.json by the home.file entries below, so per-profile
   # state is fully declarative.
+  # Facts about this host and these repos, handed to the auto-mode classifier as
+  # `autoMode.environment` below. Written by hand rather than captured from
+  # `/auto-mode-setup`: that flow ends by saving into <config dir>/settings.json,
+  # which is a read-only store symlink on every host here, so it can only fail
+  # with `Could not write .../settings.json`. Launching it against a scratch
+  # CLAUDE_CONFIG_DIR does not dodge that -- it resolves the save path from the
+  # live profile, not from the config dir it was started with.
+  #
+  # Entries must be single-line plain text with no double quotes; Claude Code
+  # validates the block and rejects the whole of autoMode if one is malformed.
+  claudeAutoModeEnvShared = [
+    "This user environment is managed declaratively by Nix home-manager from the dotfiles repo at ${config.home.homeDirectory}/devel/dotfiles, which builds six hosts: utsuho, kyuusaku, setsuna, shiori, fujiwara and mari. Everything under /nix/store is read-only on purpose."
+    "A tool that cannot write ~/.claude/settings.json or ~/.config/claude-*/settings.json is hitting that read-only store symlink, not a permissions or disk fault. The fix is an edit to home.nix in the dotfiles repo followed by hms, never a chmod."
+    "Config is applied with the hms wrapper, which pushes, waits for the commit to build in CI on forge.ko.ag, then switches. Its refusals on a dirty tree or on a checkout behind origin/master are intended; a bare home-manager switch is the wrong way around them."
+    "The dotfiles repo is public and single-maintainer, worked directly on master. Committing and pushing there is routine and needs no PR or review gate."
+    "${config.home.homeDirectory}/devel/kube is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow."
+    "Repos under github.com/modular, github.com/modularml and github.com/bentoml are shared work repos: changes there go through a branch and a PR, never a direct push to the default branch."
+    "Secrets are sops-encrypted in the dotfiles repo and decrypted at activation. Passing one to a command by reading its file inline is the normal pattern here; printing one into the terminal or into a file is not."
+    "Per-project toolchains come from mise, direnv and nix develop, so a missing-command failure usually means the command belongs under mise run or nix develop rather than a global install."
+    "A SessionStart hook gives each Claude session a copy of ~/.kube/config with every context matching prod deleted and current-context unset, so kubectl in this session has no production cluster to reach."
+    "That hook does not revoke the underlying SSO credential, so re-running an SSO login or writing a fresh kubeconfig could restore production reach. Those are worth a prompt rather than an auto-approval."
+  ];
+
+
   claudeBaseSettings = {
     hooks = {
       PreToolUse = [
@@ -1610,6 +1646,7 @@ let
         # match is `Bash(cd:*)`, which allows every cd anywhere.
         "Changing directory into a drovr worktree is ALLOWED: a `cd` whose target path contains `/.drovr/wt/` (for example `cd ${config.home.homeDirectory}/devel/dotfiles/.drovr/wt/some-run`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only."
       ];
+      environment = claudeAutoModeEnvShared ++ private.claudeAutoModeEnvByHost;
     };
     # Declare marketplaces here instead of shelling out to `claude plugin
     # marketplace add` at activation: Claude Code registers every entry into
@@ -1653,7 +1690,7 @@ let
         ];
         env = {
           UNIFI_API_TYPE = "local";
-          UNIFI_LOCAL_HOST = "10.0.0.1";
+          UNIFI_LOCAL_HOST = private.endpoints.unifiHost;
           UNIFI_LOCAL_VERIFY_SSL = "false";
         };
       };
@@ -1716,35 +1753,7 @@ let
         })))
     claudeProfileSettings;
 
-  newtabLinks = [
-    { group = "Work"; links = [
-      { name = "Gmail";       url = "https://mail.google.com"; }
-      { name = "Google Docs"; url = "https://docs.google.com"; }
-      { name = "GitHub";      url = "https://github.com"; }
-      { name = "Notion";          url = "https://www.notion.so"; }
-      { name = "Rippling";        url = "https://app.rippling.com"; }
-      { name = "Cloud (prod)";    url = "https://console.modular.com"; }
-      { name = "Cloud (staging)"; url = "https://mcloud-staging.bentoml.ai"; }
-    ];}
-    { group = "Infra"; links = [
-      { name = "Okta";       url = "https://modular.okta.com"; }
-      { name = "AWS";        url = "https://d-906789f3a0.awsapps.com"; }
-      { name = "Datadog";    url = "https://app.datadoghq.com"; }
-      { name = "ArgoCD";     url = "https://argocd.prod.modular-internal.com"; }
-      { name = "BentoML ArgoCD"; url = "https://argocd.tail1beac.ts.net"; }
-      { name = "Tailscale";  url = "https://login.tailscale.com"; }
-      { name = "Cloudflare"; url = "https://dash.cloudflare.com"; }
-      { name = "OpenShift";  url = "https://console.redhat.com"; }
-    ];}
-    { group = "Other"; links = [
-      { name = "Reddit";       url = "https://www.reddit.com"; }
-      { name = "YouTube";      url = "https://www.youtube.com"; }
-      { name = "YT Music";     url = "https://music.youtube.com"; }
-      { name = "Claude";       url = "https://claude.ai"; }
-      { name = "Amazon";       url = "https://www.amazon.com"; }
-      { name = "Zillow";       url = "https://www.zillow.com"; }
-    ];}
-  ];
+  newtabLinks = private.newtabLinks;
 
   renderLink = l: ''<a href="${l.url}">${l.name}</a>'';
   renderGroup = g: ''
@@ -1989,8 +1998,11 @@ in
     ./home/.claude/plugins/local-auto-mode/classifier.py;
   home.file.".claude/plugins/local-auto-mode/prompt.py".source =
     ./home/.claude/plugins/local-auto-mode/prompt.py;
-  home.file.".claude/plugins/local-auto-mode/config.py".source =
-    ./home/.claude/plugins/local-auto-mode/config.py;
+  # Substituted rather than copied: the router's LAN address comes from the
+  # private input, so the checked-in file carries a placeholder.
+  home.file.".claude/plugins/local-auto-mode/config.py".text =
+    builtins.replaceStrings [ "@LOCAL_CLASSIFIER_URL@" ] [ private.endpoints.localClassifierUrl ]
+      (builtins.readFile ./home/.claude/plugins/local-auto-mode/config.py);
 
   # ── Per-profile Claude settings.json (store symlinks, fully declarative) ───
   # force = true replaces any pre-existing regular files (the old runtime-copied
@@ -2313,7 +2325,7 @@ in
   # still the wrong answer, because it made network location stand in for
   # authentication. It also had to enumerate the OTHER cluster nodes by IP:
   # cilium masquerades pod traffic to the node address, so a pod on meiko arrived
-  # as 10.0.7.110, inside any sane "my LAN" range. That list would have had to
+  # as that node's own address, inside any sane "my LAN" range. That list would have had to
   # stay complete forever, and adding a node would have reopened the hole in
   # silence. Deleted, along with the reason to need it.
   #
@@ -2766,6 +2778,25 @@ in
     pkgs.cursor-agent-cli
     pkgs.cloudflare-warp
     pkgs.cryptomator-cli
+    # Beside cryptomator-cli because the two are only useful together here: the
+    # vault holding the dotfiles paper recovery identity lives in the personal
+    # Drive, and cryptomator-cli's `unlock` mounts a LOCAL directory only. So the
+    # vault has to be reachable as a filesystem before it can be unlocked, which
+    # is what rclone provides.
+    #
+    # Deliberate and on record: `rclone config` leaves a Drive refresh token in
+    # ~/.config/rclone/rclone.conf. That is the credential class report A6.3 warns
+    # about -- the same kind Shai-Hulud wave 1 harvested from ~/.config/gcloud --
+    # and shiori is otherwise deliberately bare. Accepted by the human after the
+    # trade was stated. Revoke the token at
+    # https://myaccount.google.com/permissions when the vault work is done, or
+    # keep it scoped to the one Drive path it needs.
+    #
+    # NEVER write the paper key into the vault's Drive folder directly: the vault
+    # is a tree of encrypted blobs, and a file dropped in unencrypted is an
+    # unrevocable master backdoor sitting in cleartext in cloud storage. Mount,
+    # unlock, then write through the mount.
+    pkgs.rclone
   ] ++ lib.optionals (!isDesktop) [
     pkgs.ghostty.terminfo
   ] ++ lib.optionals (!isDarwin) [
@@ -3996,14 +4027,14 @@ in
       signing = {
         format = "openpgp";
         signByDefault = false;
-        key = "git@sjle.co";
+        key = private.identity.signingKey;
       };
 
       lfs.enable = true;
 
       settings = {
-        user.name = "Sauyon Lee";
-        user.email = "git@sjle.co";
+        user.name = private.identity.name;
+        user.email = private.identity.email;
         safe.directory = [
           "/tf/*"
         ];

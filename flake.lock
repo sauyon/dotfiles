@@ -28,6 +28,22 @@
         "type": "github"
       }
     },
+    "dotfiles-private": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1790749765,
+        "narHash": "sha256-UD1WhYA7cw8zruAggOJA94FO/X/qBtoHn0SjefM8/h4=",
+        "ref": "refs/heads/main",
+        "rev": "6af310de2f0a1244ea8153c19c1a88f4e8d215e6",
+        "revCount": 1,
+        "type": "git",
+        "url": "https://forge.ko.ag/sauyon/dotfiles-private.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://forge.ko.ag/sauyon/dotfiles-private.git"
+      }
+    },
     "drovr": {
       "inputs": {
         "flake-utils": "flake-utils",
@@ -342,6 +358,7 @@
     },
     "root": {
       "inputs": {
+        "dotfiles-private": "dotfiles-private",
         "drovr": "drovr",
         "explore-mcp": "explore-mcp",
         "home-manager": "home-manager",

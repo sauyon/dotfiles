@@ -1,0 +1,127 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "8432cd78dc67",
+  "session_id": "987a1f2d-70a8-407a-a2c8-0a3d1295fe50",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-30T06:35:08.848697675Z",
+  "branch": "auto-mode-env",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".forgejo/workflows/nix-home.yml",
+    "docs/ci-nix-home.md",
+    "flake.lock",
+    "flake.nix",
+    "home.nix",
+    "home/.claude/plugins/local-auto-mode/config.py",
+    "install/wif/jwks-refresh-probe.sh",
+    "install/wif/revoke-kid.sh",
+    "opencode.nix",
+    "tests/wif-tpm.sh"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "08cba7721053",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 172,
+    "cache_creation_tokens": 481864,
+    "cache_read_tokens": 13985247,
+    "output_tokens": 114888,
+    "api_call_count": 86
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_014QqmnoGwNRZaMvLBGoZfb8",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "08cba7721053",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 30,
+        "end": 31,
+        "entry_ids": [
+          "b47ed1c6-4145-4b52-ae52-4ad1e137ec61"
+        ],
+        "tool_use_id": "toolu_014QqmnoGwNRZaMvLBGoZfb8"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_014QqmnoGwNRZaMvLBGoZfb8"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_017UUDXnxddd6Yk8YzRboGUB",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "08cba7721053",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 305,
+        "end": 306,
+        "entry_ids": [
+          "9f025df0-7a75-4e9b-924a-04e8cbf53f6f"
+        ],
+        "tool_use_id": "toolu_017UUDXnxddd6Yk8YzRboGUB"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_017UUDXnxddd6Yk8YzRboGUB"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-30T06:35:08.767283964Z",
+    "agent_lines": 97,
+    "agent_removed": 46,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 97,
+    "total_lines_changed": 143,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 188,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/auto-mode-env-review-1/001-home.nix.diff": 67,
+        ".drovr/review/auto-mode-env-review-1/index.md": 27,
+        ".drovr/review/auto-mode-env-review-2/001-home.nix.diff": 67,
+        ".drovr/review/auto-mode-env-review-2/index.md": 27
+      }
+    }
+  ]
+}

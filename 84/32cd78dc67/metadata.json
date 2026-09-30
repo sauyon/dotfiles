@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "8432cd78dc67",
+  "strategy": "manual-commit",
+  "branch": "auto-mode-env",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".forgejo/workflows/nix-home.yml",
+    "docs/ci-nix-home.md",
+    "flake.lock",
+    "flake.nix",
+    "home.nix",
+    "home/.claude/plugins/local-auto-mode/config.py",
+    "install/wif/jwks-refresh-probe.sh",
+    "install/wif/revoke-kid.sh",
+    "opencode.nix",
+    "tests/wif-tpm.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/84/32cd78dc67/0/metadata.json",
+      "transcript": "/84/32cd78dc67/0/full.jsonl",
+      "compact_transcript": "/84/32cd78dc67/0/transcript.jsonl",
+      "content_hash": "/84/32cd78dc67/0/content_hash.txt",
+      "prompt": "/84/32cd78dc67/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 172,
+    "cache_creation_tokens": 481864,
+    "cache_read_tokens": 13985247,
+    "output_tokens": 114888,
+    "api_call_count": 86
+  }
+}

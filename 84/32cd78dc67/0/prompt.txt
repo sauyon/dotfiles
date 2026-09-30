@@ -1,0 +1,37 @@
+qualcomm isn't a customer. it's our parent company.
+
+---
+
+correct. I'm not certain how much of this topology should be public though.
+
+---
+
+is there a better soln than sops here
+
+---
+
+the content is good. I don't want it to be exposed to the public.
+
+---
+
+CI is my homelab. that's fine.
+
+---
+
+help me generally scrub things not useful to others and put them in a private input
+
+---
+
+I think that repo naem is pretty terrible though
+
+---
+
+what? it's not just fleet info. anything private like emails or things should go in there
+
+---
+
+go
+
+---
+
+go

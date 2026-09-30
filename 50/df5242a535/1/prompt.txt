@@ -1,0 +1,11 @@
+you should merge and hms yes
+
+---
+
+<task-notification>
+<task-id>b3crbvi18</task-id>
+<tool-use-id>toolu_01VUAD6eCGLRKU2dG9RUtKUt</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles--claude-worktrees-keyring-no-escrow/caee338d-5fba-4ef9-853a-b8d7dd3edbe4/tasks/b3crbvi18.output</output-file>
+<status>failed</status>
+<summary>Background command "Push to master, wait for CI, then switch" failed with exit code 1</summary>
+</task-notification>

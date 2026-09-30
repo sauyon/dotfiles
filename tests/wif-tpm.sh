@@ -60,7 +60,23 @@ oldkey="${KO_WIF_FILE_KEY:-$HOME/.config/ko/wif.pem}"
 # thing an operator does next. Deleting a private key revokes nothing: authority
 # lives in the JWKS, and whoever copied the file first keeps a working identity.
 # Override for another host; empty disables the check deliberately.
-oldkid_pinned="${KO_WIF_OLD_KID-01HB4BTt8_vvHx6QA2OY2lhRkDsZcO6XaYGIOtd5sZs}"
+#
+# PER HOST, because a superseded file key is a fact about one machine's history,
+# not about the fleet. shiori migrated from a file key and still holds it, so its
+# kid is the thing to watch. fujiwara was enrolled straight to the TPM and never
+# had one. A single pinned value made fujiwara's run report shiori's fact and then
+# warn about deleting a key fujiwara never had -- a check that is about a different
+# machine reads as reassurance about this one.
+case "${KO_WIF_OLD_KID-unset}" in
+  unset)
+    case "$host" in
+      shiori) oldkid_pinned="01HB4BTt8_vvHx6QA2OY2lhRkDsZcO6XaYGIOtd5sZs" ;;
+      # Fresh TPM enrolments have no predecessor. Empty means "not applicable",
+      # which checks 7 and 8 report as such rather than as a pass or a warning.
+      *)      oldkid_pinned="" ;;
+    esac ;;
+  *) oldkid_pinned="$KO_WIF_OLD_KID" ;;
+esac
 # Pinned like the kid, for the same reason, and used by the authority check below.
 audience="${KO_WIF_AUDIENCE:-//iam.googleapis.com/projects/484956590837/locations/global/workloadIdentityPools/ko-hosts/providers/bucket}"
 tcti="${TPM2OPENSSL_TCTI:-device:/dev/tpmrm0}"
@@ -283,7 +299,15 @@ if [ -z "$oldkid" ] && [ -r "$oldkey" ]; then
            | python3 -c 'import json,sys; print(json.load(sys.stdin)["kid"])' 2>/dev/null)
 fi
 if [ -z "$oldkid" ]; then
-  skip "the old file key is no longer authorised: no kid pinned (KO_WIF_OLD_KID) and $oldkey unreadable"
+  # Two different states reach here and only one is a gap. A host with no pinned
+  # predecessor and no key file was enrolled straight to the TPM: there is nothing
+  # to revoke and nothing to watch, which is a clean state, not a missing check.
+  # A host that HAS a predecessor but whose pin was lost is a real gap.
+  if [ -z "$oldkid_pinned" ] && [ ! -e "$oldkey" ]; then
+    skip "the old file key is no longer authorised: not applicable -- $host has no superseded file key (enrolled straight to the TPM), so there is no predecessor to revoke"
+  else
+    skip "the old file key is no longer authorised: no kid pinned (KO_WIF_OLD_KID) and $oldkey unreadable"
+  fi
 elif ! jwks=$(fetch_jwks); then
   # Deliberately a skip and not an ok: "I could not read the JWKS" is not
   # "the key is revoked", and this is the check where confusing the two is how

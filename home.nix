@@ -2907,7 +2907,39 @@ in
     zoom # wayland wrapper bypassing Zoom's xcb-forcing launcher; see above
     pkgs.xauth
     pkgs.xdg-utils
-  ] ++ lib.optionals (hostname == "fujiwara") [
+  ]
+  # waypipe, the Wayland equivalent of `ssh -X`: `waypipe ssh utsuho <app>` runs
+  # the application on the far host and the surface on this one, over the ssh
+  # channel.
+  #
+  # Why a two-host list and not isDesktop. waypipe is never installed for a host,
+  # it is installed for a *pair* -- the invocation starts one waypipe next to the
+  # compositor that will show the window and a second next to the application,
+  # and neither half is any use without the other. shiori (display, no GPU worth
+  # the name) and utsuho (the amd desktop) are the pair that has a reason to
+  # forward; setsuna and mari would run it fine and have nothing to point it at,
+  # and it is not free -- this build links ffmpeg, vulkan-loader and mesa's gbm
+  # for DMABUF and `--video`, so the closure grows on every host it lands on.
+  # Add a host here when it becomes an end, not before.
+  #
+  # Both ends must be the same waypipe: the 0.10 rewrite (C -> Rust) changed the
+  # wire format and waypipe refuses a mismatch rather than negotiating down.
+  # Coming from one flake.lock is what makes that hold, and ../tests/waypipe.sh
+  # asserts the two store paths are identical rather than merely both present.
+  #
+  # The part this package alone does not buy, stated because it is the failure
+  # that looks like a missing package: `waypipe ssh` resolves `waypipe` on the far
+  # end through the non-interactive `$SHELL -c` sshd hands it, which reads .zshenv
+  # and never .zshrc -- the same constraint the MOSH_SERVER_NETWORK_TMOUT note in
+  # zsh.nix describes. It resolves today because home-manager emits its
+  # hm-session-vars.sh source line into .zshenv under `if [[ ! -o login ]]`, and
+  # that file puts ~/.nix-profile/bin first on PATH. So a far end that says
+  # "command not found: waypipe" with the package plainly installed is a .zshenv
+  # problem, not this gate.
+  ++ lib.optionals (builtins.elem hostname [ "shiori" "utsuho" ]) [
+    pkgs.waypipe
+  ]
+  ++ lib.optionals (hostname == "fujiwara") [
     clawpatrol
   ] ++ lib.optionals (hostname == "shiori") [
     # `framework_tool`, Framework's own utility for talking to the embedded

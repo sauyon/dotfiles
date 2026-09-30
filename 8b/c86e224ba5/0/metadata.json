@@ -1,0 +1,89 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "8bc86e224ba5",
+  "session_id": "8d05b0a7-77b4-4807-9e94-a4d95fa51ec8",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-30T05:08:03.617557966Z",
+  "branch": "worktree-keyring-no-escrow",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "home.nix",
+    "tests/gnome-keyring-seal.sh"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "730bc38fb530",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 90,
+    "cache_creation_tokens": 85896,
+    "cache_read_tokens": 3639812,
+    "output_tokens": 39734,
+    "api_call_count": 45
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01N7C6CF3gm1gUXUG6iFZGWP",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "730bc38fb530",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 30,
+        "end": 31,
+        "entry_ids": [
+          "ac14592e-bd6a-4e40-9efd-07551fadb298"
+        ],
+        "tool_use_id": "toolu_01N7C6CF3gm1gUXUG6iFZGWP"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01N7C6CF3gm1gUXUG6iFZGWP"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-30T05:08:03.590430549Z",
+    "agent_lines": 26,
+    "agent_removed": 12,
+    "human_added": 74,
+    "human_modified": 7,
+    "human_removed": 0,
+    "total_committed": 107,
+    "total_lines_changed": 132,
+    "agent_percentage": 28.78787878787879,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 45,
+      "user_lines_removed": 6,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "tests/gnome-keyring-seal.sh": 45
+      },
+      "user_removed_per_file": {
+        "tests/gnome-keyring-seal.sh": 6
+      }
+    }
+  ]
+}

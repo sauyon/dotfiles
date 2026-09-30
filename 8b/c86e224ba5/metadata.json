@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "8bc86e224ba5",
+  "strategy": "manual-commit",
+  "branch": "worktree-keyring-no-escrow",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "home.nix",
+    "tests/gnome-keyring-seal.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/8b/c86e224ba5/0/metadata.json",
+      "transcript": "/8b/c86e224ba5/0/full.jsonl",
+      "compact_transcript": "/8b/c86e224ba5/0/transcript.jsonl",
+      "content_hash": "/8b/c86e224ba5/0/content_hash.txt",
+      "prompt": "/8b/c86e224ba5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 90,
+    "cache_creation_tokens": 85896,
+    "cache_read_tokens": 3639812,
+    "output_tokens": 39734,
+    "api_call_count": 45
+  }
+}

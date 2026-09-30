@@ -74,6 +74,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/polkit-agent.sh          # evaluates 5 hosts + a synthetic one, 17 cases
 ./tests/insecure-packages.sh     # 2 cases per host, plus mari's darwin system
 ./tests/steam-env.sh             # builds the steam wrapper, drives 46 cases
+./tests/even-terminal.sh         # builds the npm package, drives 7 cases
 ```
 
 `hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows
@@ -249,6 +250,19 @@ by luck. The `nix eval` cases cover the wiring, since
 the wrapper and the script can both be correct while the activation entry passes the
 wrong paths — including that the entry keeps its `|| warnEcho`, because activation
 runs under `set -eu` and a bare failure here would abort the entries after it.
+
+`even-terminal.nix` is a `buildNpmPackage` over an npm tarball, which is a shape
+with three ways to build clean and die in someone's hands. The package's own build
+script is `rm -rf dist && tsc` and its `prepack` hook runs it — so `npm pack`
+during the install phase will delete the prebuilt `dist/` unless
+`npmPackFlags = [ "--ignore-scripts" ]` stops it, and the result still has a
+`bin/` that answers `--version`. `node-pty` ships no linux prebuild and is compiled
+here by node-gyp, but is loaded lazily, only once a session spawns an agent. And
+nothing on these hosts provides `node` at all, so the `#!/usr/bin/env node` shebang
+has to have been rewritten. The cases pin each: `--help` (not `--version`) forces
+the command table out of `dist/`, the addon is `dlopen`ed rather than looked for,
+and every CLI case runs under `env -i` with `PATH=/var/empty`, so an unpatched
+shebang fails even on a box that has node installed.
 
 ## System config
 

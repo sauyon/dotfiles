@@ -1680,7 +1680,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ./even-terminal.nix ];
 
   home.stateVersion = "26.05";
 
@@ -2607,6 +2607,11 @@ in
     comma
     cosign
     entire  # git-hook layer checkpointing AI agent sessions alongside commits
+    # Even Realities' G2/R1 bridge for a terminal coding agent; see
+    # even-terminal.nix. Listed for every host rather than gated on isDesktop:
+    # it is a headless HTTP server that the phone connects to, and the glasses
+    # are the display -- a host with no graphical session can still serve it.
+    even-terminal
     jq
     jujutsu
     kimi-code  # Moonshot's Kimi Code CLI (binary: kimi); see kimi-code.nix

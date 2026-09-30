@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "1d5dac8948f0",
+  "strategy": "manual-commit",
+  "branch": "hyprlock-pending-race",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md",
+    "home.nix",
+    "patches/hyprlock-fix-lost-finished-event.patch",
+    "tests/hyprlock-pending-race.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1d/5dac8948f0/0/metadata.json",
+      "transcript": "/1d/5dac8948f0/0/full.jsonl",
+      "compact_transcript": "/1d/5dac8948f0/0/transcript.jsonl",
+      "content_hash": "/1d/5dac8948f0/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 40,
+    "cache_creation_tokens": 19651,
+    "cache_read_tokens": 3238560,
+    "output_tokens": 6948,
+    "api_call_count": 20
+  }
+}

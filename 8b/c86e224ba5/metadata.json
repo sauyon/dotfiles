@@ -3,9 +3,12 @@
   "checkpoint_id": "8bc86e224ba5",
   "strategy": "manual-commit",
   "branch": "worktree-keyring-no-escrow",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
+    "README.md",
+    "docs/new-host.md",
     "home.nix",
+    "secrets.yaml",
     "tests/gnome-keyring-seal.sh"
   ],
   "sessions": [
@@ -15,13 +18,20 @@
       "compact_transcript": "/8b/c86e224ba5/0/transcript.jsonl",
       "content_hash": "/8b/c86e224ba5/0/content_hash.txt",
       "prompt": "/8b/c86e224ba5/0/prompt.txt"
+    },
+    {
+      "metadata": "/8b/c86e224ba5/1/metadata.json",
+      "transcript": "/8b/c86e224ba5/1/full.jsonl",
+      "compact_transcript": "/8b/c86e224ba5/1/transcript.jsonl",
+      "content_hash": "/8b/c86e224ba5/1/content_hash.txt",
+      "prompt": "/8b/c86e224ba5/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 90,
-    "cache_creation_tokens": 85896,
-    "cache_read_tokens": 3639812,
-    "output_tokens": 39734,
-    "api_call_count": 45
+    "input_tokens": 134,
+    "cache_creation_tokens": 107609,
+    "cache_read_tokens": 16406141,
+    "output_tokens": 53529,
+    "api_call_count": 67
   }
 }

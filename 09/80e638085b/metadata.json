@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "0980e638085b",
+  "strategy": "manual-commit",
+  "branch": "worktree-keyring-no-escrow",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "README.md",
+    "home.nix",
+    "tests/elephant-reindex.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/09/80e638085b/0/metadata.json",
+      "transcript": "/09/80e638085b/0/full.jsonl",
+      "compact_transcript": "/09/80e638085b/0/transcript.jsonl",
+      "content_hash": "/09/80e638085b/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 20,
+    "cache_creation_tokens": 11629,
+    "cache_read_tokens": 2803650,
+    "output_tokens": 9550,
+    "api_call_count": 10
+  }
+}

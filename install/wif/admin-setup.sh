@@ -126,11 +126,39 @@ printf 'wif-canary %s' "$(date -u +%FT%TZ)" | gcloud kms encrypt --key="$KEY" --
   --plaintext-file=- --ciphertext-file=- | base64 -w0 > "$out/canary.b64"
 printf 'canary: hello-from-host-key %s\n' "$(date -u +%FT%TZ)" > "$out/test-secrets.plain.yaml"
 if command -v sops >/dev/null; then
-  # needs ADC as the human: gcloud auth application-default login (revoke afterwards, see report A6.3)
-  sops --encrypt --gcp-kms "$KEYRES" "$out/test-secrets.plain.yaml" > "$out/test-secrets.yaml" || \
-    echo "WARN: sops encrypt failed (run: gcloud auth application-default login; then re-run)"
+  # --config /dev/null is load-bearing, not tidiness. The repo's .sops.yaml has one
+  # creation rule, `path_regex: secrets.yaml`, and this file is under install/wif/out/,
+  # so sops matches no rule and refuses with "error loading config: no matching
+  # creation rules found" -- BEFORE it ever contacts GCP. Passing --gcp-kms does not
+  # bypass that. Observed live on 2026-09-30, where it was then misreported as a
+  # credentials problem.
+  if ! sops --config /dev/null --encrypt --gcp-kms "$KEYRES" \
+       "$out/test-secrets.plain.yaml" > "$out/test-secrets.yaml" 2>"$out/.sops.err"; then
+    rm -f "$out/test-secrets.yaml"
+    # Two unrelated failures reach here and they need different actions. Saying
+    # "log in" for the wrong one is not free: A6.3 records that the refresh token
+    # `gcloud auth application-default login` leaves in ~/.config/gcloud is what
+    # Shai-Hulud wave 1 harvested, and that it must be revoked afterwards. Do not
+    # send anyone there on a misdiagnosis.
+    if grep -qi 'creation rule' "$out/.sops.err"; then
+      echo "WARN: sops refused on config, NOT on credentials:" >&2
+      sed 's/^/      /' "$out/.sops.err" >&2
+      echo "      This is the .sops.yaml creation_rules not matching $out/. It is a" >&2
+      echo "      script bug if you see it -- --config /dev/null should prevent it." >&2
+      echo "      Do NOT run an ADC login for this." >&2
+    elif grep -qiE 'credential|default credentials|ADC' "$out/.sops.err"; then
+      echo "WARN: sops could not authenticate to GCP. This step needs ADC as the human:" >&2
+      echo "      gcloud auth application-default login   # then REVOKE it, see report A6.3" >&2
+    else
+      echo "WARN: sops encrypt failed:" >&2
+      sed 's/^/      /' "$out/.sops.err" >&2
+    fi
+    echo "      (this only skips the optional test-secrets file; the JWKS, provider" >&2
+    echo "       and IAM above are already applied)" >&2
+  fi
+  rm -f "$out/.sops.err"
 else
-  echo "WARN: sops not installed here; run: nix run nixpkgs#sops -- --encrypt --gcp-kms $KEYRES $out/test-secrets.plain.yaml > $out/test-secrets.yaml"
+  echo "WARN: sops not installed here; run: nix run nixpkgs#sops -- --config /dev/null --encrypt --gcp-kms $KEYRES $out/test-secrets.plain.yaml > $out/test-secrets.yaml"
 fi
 rm -f "$out/test-secrets.plain.yaml"
 

@@ -1,0 +1,57 @@
+Fix the race that freezes every cmd[update:N] label on the lock screen.
+
+CAsyncResourceManager::enqueue() hands the resource to the gatherer thread on
+its first line and attaches the `finished` listener on its last. The gatherer
+is a single worker that wakes on enqueue, calls render() and emits `finished`
+immediately -- so for a resource that renders fast (any label whose command
+returns promptly, which is every one of ours) the emit can land before the main
+thread reaches listenStatic(). An emit with no listeners is dropped, not
+queued.
+
+Nothing then observes that the resource is ready: onResourceFinished() is never
+scheduled for that id, the widget's onAssetUpdate() never runs, and
+CLabel::m_pendingResource stays true forever. Every later tick of that label
+takes the early return at the top of CLabel::onTimerUpdate() and logs "Trying
+to update label, but a resource is still pending! Skipping update." The label
+is frozen at whatever it last rendered for the rest of the lock, which is how a
+lock screen ends up showing 05:12 at noon -- one observed run logged 29,532 of
+those warnings across a single 6h50m lock.
+
+It is a race, so it bites per-request and a few seconds in rather than at
+startup: on that run the clock (update:1000) and the faillock label
+(update:5000) both lost it while the date label (update:60000) did not.
+
+Registering the listener -- and recording the resource in m_resources, which
+onResourceFinished() looks the id up in -- before the handoff closes the
+window. There is no symmetric hazard: the callback only schedules a 0ms timer,
+and the main thread cannot process it until it has returned from enqueue().
+
+Upstream: https://github.com/hyprwm/hyprlock/issues/1071 (open as of
+2026-09-30, affects 0.9.5, 0.9.6 and main; the reorder below is the fix the
+report proposes). DROP THIS PATCH once nixpkgs carries a hyprlock that does it
+itself -- tests/hyprlock-pending-race.sh fails the moment that happens and
+names what to delete.
+
+--- a/src/renderer/AsyncResourceManager.cpp
++++ b/src/renderer/AsyncResourceManager.cpp
+@@ -254,8 +254,6 @@
+ }
+ 
+ void CAsyncResourceManager::enqueue(ResourceID resourceID, const ASP<IAsyncResource>& resource, const AWP<IWidget>& widget) {
+-    m_gatherer.enqueue(resource);
+-
+     m_resourcesMutex.lock();
+     if (m_resources.contains(resourceID))
+         Log::logger->log(Log::ERR, "Resource already enqueued! This is a bug.");
+@@ -275,6 +273,11 @@
+             },
+             (void*)resourceID);
+     });
++
++    // Hand the resource over last: the gatherer thread renders it and emits
++    // `finished` as soon as it is enqueued, and an emit with no listener
++    // attached is simply dropped.
++    m_gatherer.enqueue(resource);
+ }
+ 
+ void CAsyncResourceManager::onResourceFinished(ResourceID id) {

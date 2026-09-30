@@ -39,11 +39,28 @@
 #   layouts hand elephant an immutable store directory, and home.path still changes
 #   whenever the entry set does.
 #
-#   X-SwitchMethod must not be keep-old. sd-switch consults it before it looks at
-#   anything else, so a unit marked keep-old is left running untouched no matter
-#   how much of its text changed -- the trigger would be inert. That is the right
-#   setting for hyprland-cleanup (whose ExecStop closes every window, see home.nix);
-#   it would be exactly wrong here, and the two are easy to confuse.
+#   The switch has to be a RESTART, not a stop then a start. This is the half the
+#   first cut of the fix got wrong, and it cost the launcher. walker.service carries
+#   `Requires=elephant.service`, and an explicit stop of a required unit propagates
+#   to its dependents -- so sd-switch's default for a changed unit, which is
+#   stop-then-start, took walker down with elephant and then started only elephant
+#   back up. Measured on shiori 2026-09-30 04:55:42: "Stopping units:
+#   elephant.service" in the activation log, walker "Stopped" the same second, and
+#   walker left inactive after the switch finished. A single restart job does not
+#   propagate, which is why `systemctl --user restart elephant.service` by hand had
+#   left walker running and hid the bug from the first round of verification.
+#
+#   So X-SwitchMethod=restart, asserted two ways: that the unit says so, and that
+#   sd-switch actually chooses a restart when handed a before/after pair that
+#   differs only in the trigger. The second is the one that would catch sd-switch
+#   changing its mind; the first only records intent. Neither can observe the
+#   propagation itself -- a dry run does not run systemd -- so what is pinned is the
+#   job type, which is the thing that decides whether propagation happens at all.
+#
+#   keep-old would be worse than either: sd-switch consults it before anything else
+#   and leaves the unit untouched however much its text changed, so the trigger
+#   would be inert. That is the right setting for hyprland-cleanup (whose ExecStop
+#   closes every window, see home.nix) and exactly wrong here.
 #
 # Checked against the *rendered* unit rather than the option value, because an
 # option home-manager accepted and dropped on the floor would pass an option-only
@@ -120,8 +137,8 @@ for host in $walker_hosts; do
   fi
   check "$host: elephant.service names its package-set path" present "$found"
 
-  check "$host: elephant.service is not marked keep-old" \
-    "" "$(printf '%s' "$text" | sed -n 's/^X-SwitchMethod=//p')"
+  check "$host: elephant.service switches by restart, not stop-start" \
+    restart "$(printf '%s' "$text" | sed -n 's/^X-SwitchMethod=//p')"
 done
 
 # The gate. The trigger is attached by naming systemd.user.services.elephant from
@@ -136,6 +153,53 @@ for host in $hosts; do
     "$(nix eval --json "$FLAKE#homeConfigurations.$host.config.systemd.user.services" \
        --apply 's: builtins.elem "elephant" (builtins.attrNames s)' 2>/dev/null)"
 done
+
+# The behaviour, not the intent. The case above reads X-SwitchMethod out of the
+# unit; this one hands sd-switch the actual before/after pair -- two unit dirs
+# differing only in the trigger value, which is exactly what a package-set change
+# produces -- and asserts it chooses a restart. Without the method it prints
+# "Stopping units:" then "Starting units:", two jobs, and the stop is what
+# propagates through walker's Requires= and takes the launcher down.
+#
+# The dry run does not run systemd, so it cannot show the propagation itself. The
+# job type is the lever: propagation happens on a stop and not on a restart, so
+# pinning the job type pins the outcome. sd-switch comes out of the flake rather
+# than $PATH, so this tests the version this config would actually switch with.
+n=$((n+1))
+sdsw_host=${walker_hosts# }; sdsw_host=${sdsw_host%% *}
+if [ -z "$sdsw_host" ]; then
+  echo "FAIL no walker host to render a unit from; sd-switch case not run"
+  fails=$((fails+1))
+elif ! sdsw=$(nix build --no-link --print-out-paths \
+       "$FLAKE#homeConfigurations.$sdsw_host.pkgs.sd-switch" 2>"$D/err"); then
+  echo "FAIL could not build sd-switch from the flake:"; sed 's/^/     /' "$D/err"
+  fails=$((fails+1))
+else
+  mkdir -p "$D/old" "$D/new"
+  unit_text_for "$sdsw_host" > "$D/new/elephant.service"
+  # The only difference: a trigger pointing at a different package set. Any store
+  # path will do -- sd-switch compares text, it does not resolve the path.
+  sed 's|^X-Restart-Triggers=/nix/store/.*-home-manager-path$|X-Restart-Triggers=/nix/store/00000000000000000000000000000000-home-manager-path|' \
+    "$D/new/elephant.service" > "$D/old/elephant.service"
+  if cmp -s "$D/old/elephant.service" "$D/new/elephant.service"; then
+    echo "FAIL the before/after pair is identical: no trigger line to change, so"
+    echo "     sd-switch would see no diff and this case would prove nothing."
+    fails=$((fails+1))
+  elif ! out=$("$sdsw/bin/sd-switch" --user --dry-run \
+         --old-units "$D/old" --new-units "$D/new" 2>"$D/err"); then
+    echo "FAIL sd-switch dry-run failed (no user bus reachable?):"
+    sed 's/^/     /' "$D/err"
+    fails=$((fails+1))
+  elif printf '%s' "$out" | grep -q "^Restarting units: elephant.service$" \
+       && ! printf '%s' "$out" | grep -q "^Stopping units:"; then
+    echo "ok   sd-switch restarts elephant on a trigger change (no stop-start)"
+  else
+    echo "FAIL sd-switch would not restart elephant; walker's Requires= would take"
+    echo "     the launcher down with it. sd-switch said:"
+    printf '%s\n' "$out" | sed 's/^/     /'
+    fails=$((fails+1))
+  fi
+fi
 
 # --- the teeth ---------------------------------------------------------------
 # Every case above is inside a loop over hosts discovered at runtime, so a config

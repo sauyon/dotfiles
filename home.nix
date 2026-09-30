@@ -3142,14 +3142,28 @@ in
   # add never restarted it. The option is a list, so this appends rather than
   # colliding.
   #
-  # No X-SwitchMethod: the default restart is what is wanted. Note the contrast
-  # with hyprland-cleanup above, which is keep-old precisely so a switch does not
-  # run its ExecStop -- keep-old here would leave this trigger inert. Restarting
-  # elephant alone is enough and does not disturb walker: walker.service only
-  # Requires it, and reconnects to the socket the new process recreates (verified
-  # by hand against the live session before this was written).
+  # X-SwitchMethod=restart, and it is not decoration: sd-switch's default for a
+  # changed unit is a stop followed by a start, two separate jobs, and an explicit
+  # stop of a required unit propagates to its dependents. walker.service carries
+  # `Requires=elephant.service`, so the first switch to ship this trigger took the
+  # launcher down -- "Stopping units: elephant.service" at 04:55:42, walker
+  # "Stopped" the same second, then only elephant started back up and walker was
+  # left inactive. A single restart job does not propagate, which is also why
+  # restarting elephant by hand had left walker up and hid this from the first
+  # round of verification. sd-switch --dry-run tells the two apart, and
+  # tests/elephant-reindex.sh drives it.
+  #
+  # Not keep-old, which sd-switch consults before anything else and which would
+  # leave the unit untouched however much its text changed -- the trigger inert.
+  # That is the right setting for hyprland-cleanup above, whose ExecStop closes
+  # every window; it is exactly wrong here, and the two are easy to confuse.
+  #
+  # walker needs no trigger of its own. It reconnects to the socket the restarted
+  # elephant recreates, so it only has to stay running -- which is precisely what
+  # the restart buys.
   systemd.user.services.elephant = lib.mkIf (!isDarwin && isDesktop) {
     Unit.X-Restart-Triggers = [ config.home.path ];
+    Unit.X-SwitchMethod = "restart";
   };
 
   services = {

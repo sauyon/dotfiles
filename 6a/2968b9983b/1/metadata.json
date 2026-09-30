@@ -1,0 +1,109 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "6a2968b9983b",
+  "session_id": "fef791de-78f7-401e-8b77-eb4058767f47",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-30T19:54:57.477149878Z",
+  "branch": "github-mirror-note",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "6c870ed3e70c",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 32,
+    "cache_creation_tokens": 46625,
+    "cache_read_tokens": 925980,
+    "output_tokens": 12629,
+    "api_call_count": 16
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01RvUmTnM1yiKvpJhcLSuK2V",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "6c870ed3e70c",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 128,
+        "end": 129,
+        "entry_ids": [
+          "5ccd453d-3e32-4da3-93e2-bfe1b2f36dba"
+        ],
+        "tool_use_id": "toolu_01RvUmTnM1yiKvpJhcLSuK2V"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01RvUmTnM1yiKvpJhcLSuK2V"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "initial_attribution": {
+    "calculated_at": "2026-09-30T19:54:57.45946224Z",
+    "agent_lines": 0,
+    "agent_removed": 2,
+    "human_added": 54,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 54,
+    "total_lines_changed": 58,
+    "agent_percentage": 3.4482758620689653,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 2012,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/deploy-wif-final-review-1/001-README.md.diff": 37,
+        ".drovr/review/deploy-wif-final-review-1/002-docs_nix-binary-cache.md.diff": 42,
+        ".drovr/review/deploy-wif-final-review-1/003-system_deploy.diff": 119,
+        ".drovr/review/deploy-wif-final-review-1/004-system_secrets.sh.diff": 133,
+        ".drovr/review/deploy-wif-final-review-1/005-tests_system-secrets.sh.diff": 364,
+        ".drovr/review/deploy-wif-final-review-1/index.md": 35,
+        ".drovr/review/edp1-scale-2x-review-1/001-hyprland.nix.diff": 21,
+        ".drovr/review/edp1-scale-2x-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-1/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-2/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-2/index.md": 27,
+        ".drovr/review/ghostty-p10k-osc133-review-1/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-1/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-1/index.md": 29,
+        ".drovr/review/ghostty-p10k-osc133-review-2/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-2/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-2/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-1/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-1/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-1/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-2/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-2/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-2/index.md": 29,
+        ".drovr/review/zen-instead-of-firefox-review-1/001-env.nix.diff": 45,
+        ".drovr/review/zen-instead-of-firefox-review-1/002-flake.lock.diff": 44,
+        ".drovr/review/zen-instead-of-firefox-review-1/003-flake.nix.diff": 30,
+        ".drovr/review/zen-instead-of-firefox-review-1/004-home.nix.diff": 134,
+        ".drovr/review/zen-instead-of-firefox-review-1/index.md": 33
+      }
+    }
+  ]
+}

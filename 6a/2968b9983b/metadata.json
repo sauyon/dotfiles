@@ -3,7 +3,7 @@
   "checkpoint_id": "6a2968b9983b",
   "strategy": "manual-commit",
   "branch": "github-mirror-note",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "README.md"
   ],
@@ -14,13 +14,20 @@
       "compact_transcript": "/6a/2968b9983b/0/transcript.jsonl",
       "content_hash": "/6a/2968b9983b/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/6a/2968b9983b/1/metadata.json",
+      "transcript": "/6a/2968b9983b/1/full.jsonl",
+      "compact_transcript": "/6a/2968b9983b/1/transcript.jsonl",
+      "content_hash": "/6a/2968b9983b/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 126,
-    "cache_creation_tokens": 127320,
-    "cache_read_tokens": 6531612,
-    "output_tokens": 42889,
-    "api_call_count": 63
+    "input_tokens": 158,
+    "cache_creation_tokens": 173945,
+    "cache_read_tokens": 7457592,
+    "output_tokens": 55518,
+    "api_call_count": 79
   }
 }

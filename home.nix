@@ -40,6 +40,17 @@ let
   # the libsecret consumers (git credential helper, huggingface).
   gnomeKeyringHost = !isDarwin && isDesktop;
 
+  # Hosts whose OS is ours to manage: the Arch boxes, the same four system/deploy
+  # converges pacman on. `!isDarwin` is NOT this predicate -- kyuusaku is a Linux
+  # host whose distribution we do not own, which is the reason deploy keeps an
+  # explicit allow-list rather than testing `command -v pacman`, and the reason
+  # this is a list too. A third list rather than a reuse of the two nearby ones,
+  # because each means a different thing: wifHosts is "enrolled in the WIF trust
+  # root", home.nix's `hms` case is "has a Linux CI job", and kyuusaku is absent
+  # from all three for three unrelated reasons.
+  archHosts = [ "utsuho" "setsuna" "shiori" "fujiwara" ];
+  isArchHost = !isDarwin && builtins.elem hostname archHosts;
+
   # ── sops trust root (dotfiles domain) ───────────────────────────────────────
   # Design: ~/devel/reports/Homelab secrets bootstrap trust root.md, Part A.
   # Hosts listed here decrypt secrets.yaml through a device identity: a local
@@ -2707,6 +2718,33 @@ in
   # Enrolment/recovery tool for the TPM-sealed keyring passphrase; the daemon
   # wrapper itself is referenced straight from its unit, so it stays off PATH.
   ++ lib.optional gnomeKeyringHost gnome-keyring-tpm-seal
+  # paru, the AUR helper, on the Arch hosts only -- a pacman frontend in a
+  # profile with no pacman under it (kyuusaku, mari) is a tool that evaluates and
+  # builds fine and fails the moment anyone runs it.
+  #
+  # Why it is HERE and not in system/packages, given that what it installs is
+  # host state: that list ends in `pacman -S`, and paru is itself an AUR package,
+  # in no pacman repo. A `paru` line there would be reported missing on every
+  # host on every deploy and answered with "target not found" -- which reads as a
+  # typo in the list rather than as "this is not that kind of package". Nothing
+  # else about it wants root-side ownership: it reaches host state only by
+  # invoking the host's own pacman under sudo, the way a human does.
+  #
+  # Why nixpkgs' paru and not the AUR's paru-bin, which is the usual way in: this
+  # way the helper arrives from the attic cache like everything else here, with no
+  # makepkg run and no PKGBUILD to trust at bootstrap. The AUR trust surface then
+  # covers only the packages actually wanted from the AUR, rather than including
+  # the tool that fetches them.
+  #
+  # The real cost, stated because it is a genuine one and it is not zero: paru
+  # links libalpm, and this paru carries nixpkgs' copy while the `pacman` it
+  # shells out to for repo work is the host's. They agree today -- `paru
+  # --version` prints the libalpm it loaded (16.0.1) and `pacman -Qi pacman` the
+  # one the host provides (libalpm.so=16, 16.0.1) -- and nixpkgs' half is doing
+  # queries and dependency resolution, not writing the db. If nixpkgs and Arch
+  # ever straddle a libalpm soname bump, re-check that pair before assuming this
+  # still holds; ../tests/aur-helper.sh checks the host gate, not the versions.
+  ++ lib.optional isArchHost pkgs.paru
   ++ (with pkgs; [
     bfs
     btopPkg

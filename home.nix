@@ -3048,6 +3048,41 @@ in
     ];
   };
 
+  # Make a switch that changes the package set restart elephant, so walker sees
+  # apps that were added since the session started. Covered by
+  # tests/elephant-reindex.sh.
+  #
+  # elephant walks $XDG_DATA_DIRS/applications once at startup and then relies on
+  # inotify. Its watch on ~/.nix-profile/share/applications resolves into the store,
+  # and inotify watches inodes: a switch does not rewrite that immutable directory,
+  # it builds a new one and repoints the symlink, so no event ever reaches the
+  # watch. The index stays frozen at whichever generation was current when the unit
+  # last started -- silently, and in both directions. On 2026-09-30 shiori's
+  # elephant had been up since 2026-09-27 against a generation ten switches old:
+  # `vesktop` returned nothing and a `dev.warp.Warp.desktop` that no longer existed
+  # was still offered.
+  #
+  # config.home.path and not some other store path: it is the collection every
+  # desktop entry in the profile comes from, so it changes exactly when the entry
+  # set can change, and not on an unrelated rebuild. Which store path the profile
+  # actually hands elephant is not something to rely on -- under the nix-env layout
+  # share/ symlinks into home-manager-path, under nix's own profile format it is a
+  # merged `-profile` directory with home-manager-path nowhere in the resolved path
+  # -- and the trigger is correct either way. The upstream module already sets
+  # X-Restart-Triggers, but hashes elephant's own settings, which is why a package
+  # add never restarted it. The option is a list, so this appends rather than
+  # colliding.
+  #
+  # No X-SwitchMethod: the default restart is what is wanted. Note the contrast
+  # with hyprland-cleanup above, which is keep-old precisely so a switch does not
+  # run its ExecStop -- keep-old here would leave this trigger inert. Restarting
+  # elephant alone is enough and does not disturb walker: walker.service only
+  # Requires it, and reconnects to the socket the new process recreates (verified
+  # by hand against the live session before this was written).
+  systemd.user.services.elephant = lib.mkIf (!isDarwin && isDesktop) {
+    Unit.X-Restart-Triggers = [ config.home.path ];
+  };
+
   services = {
     hyprpaper = {
       enable = !isDarwin && isDesktop;

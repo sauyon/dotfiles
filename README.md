@@ -76,6 +76,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/gnome-keyring-seal.sh    # builds the script, drives 14 cases with stub tpm2
 ./tests/steam-env.sh             # builds the steam wrapper, drives 46 cases
 ./tests/even-terminal.sh         # builds the npm package, drives 7 cases
+./tests/elephant-reindex.sh      # renders each walker host's unit, drives 8 cases
 ```
 
 `hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows

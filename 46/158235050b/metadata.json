@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "46158235050b",
+  "strategy": "manual-commit",
+  "branch": "worktree-keyring-no-escrow",
+  "checkpoints_count": 4,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/46/158235050b/0/metadata.json",
+      "transcript": "/46/158235050b/0/full.jsonl",
+      "compact_transcript": "/46/158235050b/0/transcript.jsonl",
+      "content_hash": "/46/158235050b/0/content_hash.txt",
+      "prompt": "/46/158235050b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 36948,
+    "cache_read_tokens": 10833431,
+    "output_tokens": 27429,
+    "api_call_count": 33
+  }
+}

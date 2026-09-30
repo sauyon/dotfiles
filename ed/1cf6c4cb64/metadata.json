@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "ed1cf6c4cb64",
+  "strategy": "manual-commit",
+  "branch": "waypipe",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "README.md",
+    "home.nix",
+    "tests/waypipe.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ed/1cf6c4cb64/0/metadata.json",
+      "transcript": "/ed/1cf6c4cb64/0/full.jsonl",
+      "compact_transcript": "/ed/1cf6c4cb64/0/transcript.jsonl",
+      "content_hash": "/ed/1cf6c4cb64/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 185616,
+    "cache_read_tokens": 4713414,
+    "output_tokens": 9733,
+    "api_call_count": 26
+  }
+}

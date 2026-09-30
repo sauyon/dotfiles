@@ -86,7 +86,18 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/steam-env.sh             # builds the steam wrapper, drives 46 cases
 ./tests/even-terminal.sh         # builds the npm package, drives 7 cases
 ./tests/elephant-reindex.sh      # renders each walker host's unit, plus sd-switch's job type
+./tests/hyprlock-pending-race.sh # reads the pinned hyprlock source, 5 cases
 ```
+
+`patches/hyprlock-fix-lost-finished-event.patch` works around
+[hyprwm/hyprlock#1071](https://github.com/hyprwm/hyprlock/issues/1071): the lock
+screen's clock freezes at whatever it showed a few seconds after locking,
+because `CAsyncResourceManager::enqueue()` hands the resource to the gatherer
+thread before attaching the listener that would notice it finished. The test
+exists for the *un*-patching: case 1 reads the source nixpkgs pins and fails the
+day upstream reorders those statements itself, which is the only thing that
+would otherwise tell you the patch has quietly become a no-op. When it fails,
+delete the patch, its entry in `home.nix`, and the test.
 
 `hyprlock-faillock` (in `home.nix`) reproduces pam_faillock's two tally windows
 to tell the lock screen whether the account is locked out. The cases drive the

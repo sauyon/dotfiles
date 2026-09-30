@@ -2974,6 +2974,11 @@ in
       }).overrideAttrs (old: {
         patches = (old.patches or []) ++ [
           ./patches/hyprlock-skip-dtors-on-early-fail.patch
+          # Both are upstream bugs we carry a workaround for, so both have a
+          # test that says when to stop carrying it; this one is guarded by
+          # tests/hyprlock-pending-race.sh, which fails once nixpkgs ships a
+          # hyprlock that already registers the listener first.
+          ./patches/hyprlock-fix-lost-finished-event.patch
         ];
       });
     })

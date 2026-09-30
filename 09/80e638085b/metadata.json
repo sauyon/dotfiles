@@ -3,7 +3,7 @@
   "checkpoint_id": "0980e638085b",
   "strategy": "manual-commit",
   "branch": "worktree-keyring-no-escrow",
-  "checkpoints_count": 7,
+  "checkpoints_count": 9,
   "files_touched": [
     "README.md",
     "home.nix",
@@ -16,13 +16,20 @@
       "compact_transcript": "/09/80e638085b/0/transcript.jsonl",
       "content_hash": "/09/80e638085b/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/09/80e638085b/1/metadata.json",
+      "transcript": "/09/80e638085b/1/full.jsonl",
+      "compact_transcript": "/09/80e638085b/1/transcript.jsonl",
+      "content_hash": "/09/80e638085b/1/content_hash.txt",
+      "prompt": "/09/80e638085b/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 20,
-    "cache_creation_tokens": 11629,
-    "cache_read_tokens": 2803650,
-    "output_tokens": 9550,
-    "api_call_count": 10
+    "input_tokens": 46,
+    "cache_creation_tokens": 33877,
+    "cache_read_tokens": 4708167,
+    "output_tokens": 22679,
+    "api_call_count": 23
   }
 }

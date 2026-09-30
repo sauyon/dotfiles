@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bhc2xgb01</task-id>
+<tool-use-id>toolu_01WsX59EjSuPcok4UUduWkmx</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles--claude-worktrees-keyring-no-escrow/caee338d-5fba-4ef9-853a-b8d7dd3edbe4/tasks/bhc2xgb01.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the full test suite" completed (exit code 0)</summary>
+</task-notification>

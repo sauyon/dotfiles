@@ -1,0 +1,27 @@
+it's auth'd?
+
+---
+
+ok. this is supposed to be 7 days. something is wrong.
+
+---
+
+I'm auth'd
+
+---
+
+❯ mr kube:login
+[kube:login] $ # The REALM url, not the host: this must equal the `iss` Keycloak stamps, which
+context 'ko' set as current and authenticated.
+
+---
+
+are you... not on shiori?
+
+---
+
+go
+
+---
+
+done

@@ -327,3 +327,17 @@ if [[ "$(uname -s)" == Linux ]]; then
   sudo systemctl daemon-reload
   sudo systemctl restart tailscaled
 fi
+
+# ── wireguard: bring up wg-quick@wg0 where a config exists ──────────────────
+# Only the enable is deploy's business. The keypair and wg0.conf live on the
+# host at /etc/wireguard (0600), never in this repo or sops -- the same call
+# the kube repo makes for its nodes' WG keys -- and peer registration is by
+# hand in the UniFi UI ("Kon WireGuard"). Gated on the config's presence so
+# the hosts with no tunnel sail through, and a rebuilt box starts tunneling
+# the moment its config lands.
+# After a change here or a fresh setup, verify with `sudo wg show`: `wg-quick
+# up` exits 0 whether or not a handshake ever lands -- kyuusaku's tunnel sat
+# reading "up" for 12 days without one (kube docs/network-ip-map.md).
+if [[ "$(uname -s)" == Linux && -f /etc/wireguard/wg0.conf ]]; then
+  sudo systemctl enable --now wg-quick@wg0
+fi

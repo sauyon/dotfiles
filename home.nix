@@ -4270,6 +4270,18 @@ in
           User = "ubuntu";
         };
 
+        # shiori -> utsuho rides the UCG's "Kon WireGuard" overlay, not
+        # Tailscale: utsuho's tailscaled is on the work tailnet (tail1beac),
+        # and the personal tailnet (alai-ionian) never meets it. utsuho is a
+        # plain WG client pinned at 10.9.0.6 (kube repo docs/network-ip-map.md),
+        # reachable from the home LAN via the UCG or from anywhere once this
+        # host is a WG client itself. The waypipe pair in home.packages is the
+        # consumer: `waypipe ssh utsuho <app>` runs the app on utsuho and shows
+        # the window here.
+        "utsuho" = {
+          HostName = "10.9.0.6";
+        };
+
         # `bin/coder`, not `bin/.coder-wrapped`: the overlay above sets
         # `postInstall = ""`, which drops nixpkgs' terraform PATH wrapper, so
         # `bin/coder` IS the real binary and no `.coder-wrapped` is produced.

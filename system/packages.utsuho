@@ -1,0 +1,11 @@
+# Host (pacman) packages for utsuho only, layered on ./packages by ./deploy.
+# Same format and the same enforcement: one package per line, # comments, and
+# every deploy converges pacman onto it. See ./packages.shiori's header for the
+# split's rationale.
+
+# WireGuard client tooling for the UCG's "Kon WireGuard" overlay (this host is
+# 10.9.0.6, a plain client -- kube repo docs/network-ip-map.md). Installed by
+# hand when the tunnel was set up on 2026-09-28; listed now so the file is the
+# desired state rather than the manual install being the only record. As with
+# shiori, the keypair and wg0.conf stay on the host, out of the repo and sops.
+wireguard-tools

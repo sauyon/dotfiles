@@ -99,6 +99,35 @@ else
   bad "GOOGLE_APPLICATION_CREDENTIALS is unset before any gcloud call"
 fi
 
+# --- the plaintext canary must not outlive the script --------------------------
+# It is written to out/ -- the directory the admin collects JWKs from -- and
+# removed on the last line. Any exit between the two leaves a file named
+# *secrets*.plain.yaml sitting there, and `set -e` makes that easy: one failing
+# command in the sops diagnosis is enough. A trap removes it however the script
+# leaves.
+# Accepts a trap naming the file directly or via a variable; what matters is that
+# an EXIT trap exists and removes the plaintext, not how the path is spelled.
+if printf '%s' "$src" | grep -E '^trap .*EXIT' | grep -qE 'plain|test-secrets'; then
+  ok "an EXIT trap removes the plaintext canary however the script exits"
+else
+  bad "an EXIT trap removes the plaintext canary however the script exits"$'\n'\
+"      Only the final rm removes it, so any earlier exit leaves plaintext in the"$'\n'\
+"      directory the admin is told to collect from."
+fi
+
+# --- the fallback instruction must not name a file the script deletes ----------
+# The "sops not installed" branch printed a command operating on
+# $out/test-secrets.plain.yaml, which the script then unconditionally removes --
+# so by the time anyone reads it, the file is gone.
+notinstalled=$(printf '%s' "$src" | grep -i 'sops not installed' || true)
+if printf '%s' "$notinstalled" | grep -q 'test-secrets.plain.yaml'; then
+  bad "the 'sops not installed' hint does not reference the deleted plaintext"$'\n'\
+"      it tells the operator to run sops against a path the script removes on"$'\n'\
+"      the next lines: $notinstalled"
+else
+  ok "the 'sops not installed' hint does not reference the deleted plaintext"
+fi
+
 echo
 if [ "$fails" = 0 ]; then echo "$n checks, all good"; else echo "$n checks, $fails failed"; fi
 [ "$fails" = 0 ]

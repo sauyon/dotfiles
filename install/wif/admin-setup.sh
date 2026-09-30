@@ -124,7 +124,13 @@ gcloud kms keys add-iam-policy-binding "$KEY" --keyring="$KEYRING" --location=gl
 # --- canary + sops test file ----------------------------------------------------------------
 printf 'wif-canary %s' "$(date -u +%FT%TZ)" | gcloud kms encrypt --key="$KEY" --keyring="$KEYRING" --location=global \
   --plaintext-file=- --ciphertext-file=- | base64 -w0 > "$out/canary.b64"
-printf 'canary: hello-from-host-key %s\n' "$(date -u +%FT%TZ)" > "$out/test-secrets.plain.yaml"
+# Trapped the moment it exists, not just removed on the happy path. This lands in
+# out/ -- the directory the admin collects JWKs from -- and `set -e` means any
+# failing command between here and the rm leaves a file named *secrets*.plain.yaml
+# sitting in it. out/ has already proved it collects things nobody meant to leave.
+plain="$out/test-secrets.plain.yaml"
+trap 'rm -f "$plain" "$out/.sops.err"' EXIT
+printf 'canary: hello-from-host-key %s\n' "$(date -u +%FT%TZ)" > "$plain"
 if command -v sops >/dev/null; then
   # --config /dev/null is load-bearing, not tidiness. The repo's .sops.yaml has one
   # creation rule, `path_regex: secrets.yaml`, and this file is under install/wif/out/,
@@ -156,11 +162,17 @@ if command -v sops >/dev/null; then
     echo "      (this only skips the optional test-secrets file; the JWKS, provider" >&2
     echo "       and IAM above are already applied)" >&2
   fi
-  rm -f "$out/.sops.err"
 else
-  echo "WARN: sops not installed here; run: nix run nixpkgs#sops -- --config /dev/null --encrypt --gcp-kms $KEYRES $out/test-secrets.plain.yaml > $out/test-secrets.yaml"
+  # Deliberately does NOT name $plain: the trap removes it when this script exits,
+  # so an instruction operating on that path is impossible to follow by the time
+  # anyone reads it. Regenerate the one-line canary instead.
+  echo "WARN: sops not installed here, so the optional test-secrets file was skipped." >&2
+  echo "      To create it later, from this directory:" >&2
+  printf '        %s\n' "printf 'canary: hello-from-host-key %s\\n' \"\$(date -u +%FT%TZ)\" \\" >&2
+  echo "          | nix run nixpkgs#sops -- --config /dev/null --encrypt --gcp-kms $KEYRES \\" >&2
+  echo "              --input-type yaml --output-type yaml /dev/stdin > $out/test-secrets.yaml" >&2
 fi
-rm -f "$out/test-secrets.plain.yaml"
+rm -f "$plain"   # belt and braces; the EXIT trap above is what actually guarantees it
 
 cat > "$out/env.sh" <<EOF
 PROJECT=$PROJECT

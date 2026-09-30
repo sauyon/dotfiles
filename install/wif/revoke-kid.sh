@@ -27,7 +27,7 @@ set -uo pipefail
 
 kid="${1:-}"
 testkey="${2:-}"
-admin="${KO_ADMIN_HOST:-10.0.7.100}"
+admin="${KO_ADMIN_HOST:?set KO_ADMIN_HOST -- the ko.ag admin host. Its value is in the private dotfiles-private repo (README), not here: this script runs during bootstrap, before nix can fetch that input.}"
 issuer="${KO_WIF_ISSUER:-https://storage.googleapis.com/ko-keys-sauyon/hosts}"
 # The bucket object is DERIVED from the issuer, not configured beside it. This
 # script reads the JWKS from $issuer, reduces it, and writes the result to
@@ -46,7 +46,7 @@ if [ "$bucket" != "$bucket_derived" ]; then
   echo "gets revoked in a single command. Set both consistently, or only the issuer." >&2
   exit 1
 fi
-audience="${KO_WIF_AUDIENCE:-//iam.googleapis.com/projects/484956590837/locations/global/workloadIdentityPools/ko-hosts/providers/bucket}"
+audience="${KO_WIF_AUDIENCE:?set KO_WIF_AUDIENCE -- the workload-identity provider audience. Its value lives in the private dotfiles-private repo (README), not in this public one.}"
 subject="${KO_WIF_SUB:-device:$(uname -n | cut -d. -f1)}"
 here="$(cd "$(dirname "$0")" && pwd)"
 repo="$(cd "$here/../.." && pwd)"

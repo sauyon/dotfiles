@@ -10,6 +10,7 @@
   hunk,
   mattpocock-skills,
   zen-browser,
+  dotfiles-private,
   machine,
 
   system,
@@ -21,6 +22,17 @@ let
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
   gpu = machine.gpu or null;
+
+  # Values the public repo deliberately does not carry: see the
+  # `dotfiles-private` flake input for why each one is in there rather than
+  # here. Imported once, used from `private.*` below.
+  private = {
+    identity = import "${dotfiles-private}/identity.nix";
+    endpoints = import "${dotfiles-private}/endpoints.nix";
+    newtabLinks = import "${dotfiles-private}/newtab-links.nix";
+    claudeAutoModeEnvByHost =
+      import "${dotfiles-private}/claude-auto-mode.nix" { inherit hostname; };
+  };
   # Secret Service provider, keyed off one axis so the two halves cannot drift:
   # desktops get gnome-keyring, headless hosts get pass-secret-service (see
   # services.pass-secret-service below). Gating these on different axes — gui vs
@@ -48,7 +60,7 @@ let
   wifKeyFile = "${config.home.homeDirectory}/.config/ko/"
     + (if useWifTpm then "wif-tpm.pem" else "wif.pem");
   wifIssuer = "https://storage.googleapis.com/ko-keys-sauyon/hosts";
-  wifAudience = "//iam.googleapis.com/projects/484956590837/locations/global/workloadIdentityPools/ko-hosts/providers/bucket";
+  wifAudience = private.endpoints.wifAudience;
   # sops-nix runs sops-install-secrets with PATH="" — every path here is absolute.
   koWifToken = pkgs.writeShellScriptBin "ko-wif-token" ''
     export KO_OPENSSL=${pkgs.openssl}/bin/openssl
@@ -1634,7 +1646,7 @@ let
         # match is `Bash(cd:*)`, which allows every cd anywhere.
         "Changing directory into a drovr worktree is ALLOWED: a `cd` whose target path contains `/.drovr/wt/` (for example `cd ${config.home.homeDirectory}/devel/dotfiles/.drovr/wt/some-run`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only."
       ];
-      environment = claudeAutoModeEnvShared;
+      environment = claudeAutoModeEnvShared ++ private.claudeAutoModeEnvByHost;
     };
     # Declare marketplaces here instead of shelling out to `claude plugin
     # marketplace add` at activation: Claude Code registers every entry into
@@ -1678,7 +1690,7 @@ let
         ];
         env = {
           UNIFI_API_TYPE = "local";
-          UNIFI_LOCAL_HOST = "10.0.0.1";
+          UNIFI_LOCAL_HOST = private.endpoints.unifiHost;
           UNIFI_LOCAL_VERIFY_SSL = "false";
         };
       };
@@ -1741,35 +1753,7 @@ let
         })))
     claudeProfileSettings;
 
-  newtabLinks = [
-    { group = "Work"; links = [
-      { name = "Gmail";       url = "https://mail.google.com"; }
-      { name = "Google Docs"; url = "https://docs.google.com"; }
-      { name = "GitHub";      url = "https://github.com"; }
-      { name = "Notion";          url = "https://www.notion.so"; }
-      { name = "Rippling";        url = "https://app.rippling.com"; }
-      { name = "Cloud (prod)";    url = "https://console.modular.com"; }
-      { name = "Cloud (staging)"; url = "https://mcloud-staging.bentoml.ai"; }
-    ];}
-    { group = "Infra"; links = [
-      { name = "Okta";       url = "https://modular.okta.com"; }
-      { name = "AWS";        url = "https://d-906789f3a0.awsapps.com"; }
-      { name = "Datadog";    url = "https://app.datadoghq.com"; }
-      { name = "ArgoCD";     url = "https://argocd.prod.modular-internal.com"; }
-      { name = "BentoML ArgoCD"; url = "https://argocd.tail1beac.ts.net"; }
-      { name = "Tailscale";  url = "https://login.tailscale.com"; }
-      { name = "Cloudflare"; url = "https://dash.cloudflare.com"; }
-      { name = "OpenShift";  url = "https://console.redhat.com"; }
-    ];}
-    { group = "Other"; links = [
-      { name = "Reddit";       url = "https://www.reddit.com"; }
-      { name = "YouTube";      url = "https://www.youtube.com"; }
-      { name = "YT Music";     url = "https://music.youtube.com"; }
-      { name = "Claude";       url = "https://claude.ai"; }
-      { name = "Amazon";       url = "https://www.amazon.com"; }
-      { name = "Zillow";       url = "https://www.zillow.com"; }
-    ];}
-  ];
+  newtabLinks = private.newtabLinks;
 
   renderLink = l: ''<a href="${l.url}">${l.name}</a>'';
   renderGroup = g: ''
@@ -2014,8 +1998,11 @@ in
     ./home/.claude/plugins/local-auto-mode/classifier.py;
   home.file.".claude/plugins/local-auto-mode/prompt.py".source =
     ./home/.claude/plugins/local-auto-mode/prompt.py;
-  home.file.".claude/plugins/local-auto-mode/config.py".source =
-    ./home/.claude/plugins/local-auto-mode/config.py;
+  # Substituted rather than copied: the router's LAN address comes from the
+  # private input, so the checked-in file carries a placeholder.
+  home.file.".claude/plugins/local-auto-mode/config.py".text =
+    builtins.replaceStrings [ "@LOCAL_CLASSIFIER_URL@" ] [ private.endpoints.localClassifierUrl ]
+      (builtins.readFile ./home/.claude/plugins/local-auto-mode/config.py);
 
   # ── Per-profile Claude settings.json (store symlinks, fully declarative) ───
   # force = true replaces any pre-existing regular files (the old runtime-copied
@@ -2338,7 +2325,7 @@ in
   # still the wrong answer, because it made network location stand in for
   # authentication. It also had to enumerate the OTHER cluster nodes by IP:
   # cilium masquerades pod traffic to the node address, so a pod on meiko arrived
-  # as 10.0.7.110, inside any sane "my LAN" range. That list would have had to
+  # as that node's own address, inside any sane "my LAN" range. That list would have had to
   # stay complete forever, and adding a node would have reopened the hole in
   # silence. Deleted, along with the reason to need it.
   #
@@ -4005,14 +3992,14 @@ in
       signing = {
         format = "openpgp";
         signByDefault = false;
-        key = "git@sjle.co";
+        key = private.identity.signingKey;
       };
 
       lfs.enable = true;
 
       settings = {
-        user.name = "Sauyon Lee";
-        user.email = "git@sjle.co";
+        user.name = private.identity.name;
+        user.email = private.identity.email;
         safe.directory = [
           "/tf/*"
         ];

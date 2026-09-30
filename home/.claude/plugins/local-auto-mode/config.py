@@ -6,7 +6,7 @@ from pathlib import Path
 # and 524'd structurally, because litellm sends no bytes until its upstream
 # produces a first token and Cloudflare reads silence as a dead origin. See the
 # kube repo's docs/litellm-access.md.
-ENDPOINT = os.environ.get("LOCAL_CLASSIFIER_URL", "http://10.0.7.240:4000/v1")
+ENDPOINT = os.environ.get("LOCAL_CLASSIFIER_URL", "@LOCAL_CLASSIFIER_URL@")
 # litellm's model-group name, not a lemonade id: it fails over lemonade -> Z.ai
 # -> OpenRouter, so a cold or dead local model degrades instead of erroring.
 MODEL = os.environ.get("LOCAL_CLASSIFIER_MODEL", "glm")

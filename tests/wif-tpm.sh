@@ -78,7 +78,7 @@ case "${KO_WIF_OLD_KID-unset}" in
   *) oldkid_pinned="$KO_WIF_OLD_KID" ;;
 esac
 # Pinned like the kid, for the same reason, and used by the authority check below.
-audience="${KO_WIF_AUDIENCE:-//iam.googleapis.com/projects/484956590837/locations/global/workloadIdentityPools/ko-hosts/providers/bucket}"
+audience="${KO_WIF_AUDIENCE:?set KO_WIF_AUDIENCE -- the workload-identity provider audience. Its value lives in the private dotfiles-private repo (README), not in this public one.}"
 tcti="${TPM2OPENSSL_TCTI:-device:/dev/tpmrm0}"
 issuer="${KO_WIF_ISSUER:-https://storage.googleapis.com/ko-keys-sauyon/hosts}"
 

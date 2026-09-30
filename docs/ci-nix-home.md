@@ -70,3 +70,22 @@ it's automatic. Nothing else to do to *consume* the cache.
   substituter silently failing open, not a cache miss.
 - From a box: after the build, `home-manager switch --flake .#utsuho` should show
   the closure being *fetched* rather than built.
+
+## The private input
+
+The flake takes `dotfiles-private` (`git+https://forge.ko.ag/sauyon/dotfiles-private.git`),
+a non-flake tree holding the values the public repo deliberately does not carry:
+the git identity, internal endpoints, the new-tab links and the per-host posture
+for Claude Code's auto-mode classifier. It is needed at **eval** time, so no host
+and no CI job can evaluate this flake without read access to it.
+
+Locally that access is `git-credential-fj` (declared in `home.nix`), which is why
+a fresh host must `fj login` before its first switch. In CI it is the repo secret
+`FORGE_TOKEN`, a Forgejo token scoped to `read:repository`, handed to git as a
+credential helper that answers from the environment.
+
+**nix fetches `git+https` by shelling out to git**, so the attic `netrc-file`
+does nothing for this input -- a netrc line is the wrong fix and looks like it
+should work. If a run fails with an auth error against `forge.ko.ag`, check that
+`FORGE_TOKEN` is set on the *build* step and not only on the step that configures
+the helper; the helper is invoked by git at fetch time, inside `nix build`.

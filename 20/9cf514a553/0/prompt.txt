@@ -1,0 +1,11 @@
+run hms
+
+---
+
+<task-notification>
+<task-id>bwtej89hb</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/61154736-ffcc-4d9a-82f5-c792a0d75b11/tasks/bwtej89hb.output</output-file>
+<status>failed</status>
+<summary>Background command "Push, wait for CI, then switch via hms" failed with exit code 1</summary>
+</task-notification>

@@ -1324,85 +1324,11 @@ let
     exit 1
   '';
 
-  claude-prof = pkgs.writeShellScriptBin "claude-prof" ''
-    set -euo pipefail
-    CONFIG_HOME="''${XDG_CONFIG_HOME:-$HOME/.config}"
-
-    cmd="''${1:-help}"
-    shift || true
-
-    profile_dir() { echo "$CONFIG_HOME/claude-$1"; }
-
-    case "$cmd" in
-      list|ls)
-        found=0
-        for d in "$CONFIG_HOME"/claude-*/; do
-          [ -d "$d" ] || continue
-          basename "$d" | sed 's/^claude-//'
-          found=1
-        done
-        [ "$found" = 1 ] || echo "No profiles."
-        ;;
-      rm|delete)
-        name="''${1:?usage: claude-prof rm <name>}"
-        dir="$(profile_dir "$name")"
-        [ -d "$dir" ] || { echo "error: profile '$name' not found"; exit 1; }
-        rm -rf "$dir"
-        echo "Deleted profile: $name"
-        ;;
-      run)
-        name="''${1:?usage: claude-prof run <name> [claude-args...]}"
-        shift
-        dir="$(profile_dir "$name")"
-        mkdir -p "$dir"
-
-        # settings.json is a nix-rendered store symlink (see home.file
-        # entries above) — do NOT touch it here. settings.local.json is left
-        # unmanaged so Claude Code can write to it.
-        # CLAUDE.md / commands/ / projects/ symlinks are set up by
-        # home.activation.claudeProfiles. This script only ensures the
-        # profile dir exists (for a brand-new profile before the first
-        # home-manager switch) and applies per-profile env vars.
-
-        # Route clz (zai) directly to Z.AI's Anthropic-compatible endpoint.
-        # Z.AI uses Bearer auth (Authorization header), not x-api-key — the
-        # gateway's split-token dance was unnecessary. See
-        # https://docs.z.ai/devpack/tool/claude for the upstream config.
-        if [ "$name" = "zai" ] && [ -r ~/.config/opencode/zai-key ]; then
-          exec env \
-            CLAUDE_CONFIG_DIR="$dir" \
-            ANTHROPIC_BASE_URL="https://api.z.ai/api/anthropic" \
-            ANTHROPIC_AUTH_TOKEN="$(tr -d '\n' < ~/.config/opencode/zai-key)" \
-            ANTHROPIC_MODEL="glm-5.2" \
-            ANTHROPIC_DEFAULT_OPUS_MODEL="glm-5.2" \
-            ANTHROPIC_DEFAULT_SONNET_MODEL="glm-5.2" \
-            ANTHROPIC_DEFAULT_HAIKU_MODEL="glm-4.7" \
-            CLAUDE_CODE_AUTO_COMPACT_WINDOW="1000000" \
-            claude "$@"
-        else
-          exec env CLAUDE_CONFIG_DIR="$dir" claude "$@"
-        fi
-        ;;
-      help|--help|-h)
-        echo "Usage: claude-prof <command> [args]"
-        echo ""
-        echo "Commands:"
-        echo "  list               list profiles"
-        echo "  run <name> [args]  run claude with the named profile"
-        echo "  rm <name>          delete a profile"
-        ;;
-      *)
-        echo "error: unknown command '$cmd'. Try 'claude-prof help'." >&2
-        exit 1
-        ;;
-    esac
-  '';
-
   args = { inherit config lib pkgs; };
 
-  # The local auto-mode classifier's PreToolUse entry. Currently registered by no
-  # profile — add it back to `claudeBaseSettings.hooks.PreToolUse` to re-enable
-  # (the plugin's files are still installed by home.file below).
+  # The local auto-mode classifier's PreToolUse entry. Currently unregistered —
+  # add it back to `claudeBaseSettings.hooks.PreToolUse` to re-enable (the
+  # plugin's files are still installed by home.file below).
   localAutoModeHook = {
     matcher = ".*";
     hooks = [ {
@@ -1412,23 +1338,22 @@ let
     } ];
   };
 
-  # Base Claude Code settings shared by every profile. Only `model` differs per
-  # profile (see `claudeProfiles`); everything else is rendered identically into
-  # each profile's settings.json by the home.file entries below, so per-profile
-  # state is fully declarative.
+  # The whole of Claude Code's settings, rendered into ~/.claude/settings.json by
+  # `programs.claude-code` below. This used to be a base that three profile
+  # overlays sat on top of; the profiles are gone and this is the only config.
   # Facts about this host and these repos, handed to the auto-mode classifier as
   # `autoMode.environment` below. Written by hand rather than captured from
   # `/auto-mode-setup`: that flow ends by saving into <config dir>/settings.json,
   # which is a read-only store symlink on every host here, so it can only fail
   # with `Could not write .../settings.json`. Launching it against a scratch
   # CLAUDE_CONFIG_DIR does not dodge that -- it resolves the save path from the
-  # live profile, not from the config dir it was started with.
+  # live config dir, not from the one it was started with.
   #
   # Entries must be single-line plain text with no double quotes; Claude Code
   # validates the block and rejects the whole of autoMode if one is malformed.
   claudeAutoModeEnvShared = [
     "This user environment is managed declaratively by Nix home-manager from the dotfiles repo at ${config.home.homeDirectory}/devel/dotfiles, which builds six hosts: utsuho, kyuusaku, setsuna, shiori, fujiwara and mari. Everything under /nix/store is read-only on purpose."
-    "A tool that cannot write ~/.claude/settings.json or ~/.config/claude-*/settings.json is hitting that read-only store symlink, not a permissions or disk fault. The fix is an edit to home.nix in the dotfiles repo followed by hms, never a chmod."
+    "A tool that cannot write ~/.claude/settings.json is hitting that read-only store symlink, not a permissions or disk fault. The fix is an edit to home.nix in the dotfiles repo followed by hms, never a chmod."
     "Config is applied with the hms wrapper, which pushes, waits for the commit to build in CI on forge.ko.ag, then switches. Its refusals on a dirty tree or on a checkout behind origin/master are intended; a bare home-manager switch is the wrong way around them."
     "The dotfiles repo is public and single-maintainer, worked directly on master. Committing and pushing there is routine and needs no PR or review gate."
     "${config.home.homeDirectory}/devel/kube is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow."
@@ -1645,9 +1570,8 @@ let
       defaultMode = "auto";
     };
     # Rules for the auto-mode classifier. It reads ~/.claude/settings.json
-    # (rendered from these base settings via programs.claude-code below) and
-    # unions every autoMode.allow it finds, so one list here covers all profiles
-    # — its SETTINGS_PATHS never looks in the ~/.config/claude-<name>/ dirs.
+    # (rendered from these settings via programs.claude-code below), which is
+    # the only path its SETTINGS_PATHS looks at.
     autoMode = {
       allow = [
         "$defaults"
@@ -1670,9 +1594,8 @@ let
     # marketplace add` at activation: Claude Code registers every entry into
     # <config dir>/plugins/known_marketplaces.json on startup, overwriting a
     # stale same-name entry from this source. This makes the drovr pin
-    # self-correcting on the first launch after a flake.lock bump, and applies to
-    # every profile (base settings render into all) rather than only the ambient
-    # CLAUDE_CONFIG_DIR during the switch. See
+    # self-correcting on the first launch after a flake.lock bump, rather than
+    # only for the ambient CLAUDE_CONFIG_DIR during the switch. See
     # https://code.claude.com/docs/en/plugin-marketplaces.
     #
     # drovr is pinned to the flake.lock'd source tree (its repo root, with
@@ -1720,7 +1643,7 @@ let
         };
       };
     };
-    # `model` intentionally omitted — declared per-profile in `claudeProfiles`.
+    model = "claude-opus-5";
     theme = "dark";
     editorMode = "normal";
     # Ghost-text next-prompt suggestions render in the composer's input line, so
@@ -1738,38 +1661,6 @@ let
       padding = 0;
     };
   };
-
-  # Per-profile overrides. Add a profile here — the home.file entries and
-  # home.activation.claudeProfiles below pick it up automatically. `zai` picks
-  # its model via the ANTHROPIC_MODEL env var at exec time (see claude-prof run),
-  # so its settings.json model field is just the default /model and /config show.
-  claudeProfiles = {
-    personal = {
-      model = "claude-opus-5";
-    };
-    work = {
-      model = "claude-opus-5";
-    };
-    zai = {
-      model = "opus";
-    };
-  };
-
-  # Per-profile full settings = base + per-profile overrides.
-  claudeProfileSettings = lib.mapAttrs
-    (_: overrides: claudeBaseSettings // overrides)
-    claudeProfiles;
-
-  # Rendered JSON files in the Nix store. Each per-profile settings.json also
-  # gets `$schema` injected (the home-manager claude-code module adds it for
-  # ~/.claude/settings.json, but per-profile files bypass that module).
-  claudeProfileSettingsJson = lib.mapAttrs
-    (name: settings:
-      pkgs.writeText "claude-${name}-settings.json"
-        (builtins.toJSON (settings // {
-          "$schema" = "https://json.schemastore.org/claude-code-settings.json";
-        })))
-    claudeProfileSettings;
 
   newtabLinks = private.newtabLinks;
 
@@ -1969,7 +1860,7 @@ in
   # ── herdr integration (Claude) ─────────────────────────────────────────────
   # SessionStart hook script referenced by claudeBaseSettings.hooks.SessionStart
   # above. Vendored verbatim from `herdr integration install claude`; no-op
-  # outside a herdr pane. All profiles reference this one path.
+  # outside a herdr pane.
   home.file.".claude/hooks/herdr-agent-state.sh" = {
     source = ./home/.claude/hooks/herdr-agent-state.sh;
     executable = true;
@@ -2022,64 +1913,10 @@ in
     builtins.replaceStrings [ "@LOCAL_CLASSIFIER_URL@" ] [ private.endpoints.localClassifierUrl ]
       (builtins.readFile ./home/.claude/plugins/local-auto-mode/config.py);
 
-  # ── Per-profile Claude settings.json (store symlinks, fully declarative) ───
-  # force = true replaces any pre-existing regular files (the old runtime-copied
-  # per-profile settings.json). home.activation.claudeProfiles also rm -f's them
-  # before linkGeneration so the byte-identical cmp -s skip doesn't leave the old
-  # file in place.
-  home.file = {
-    ".config/claude-personal/settings.json".source = claudeProfileSettingsJson.personal;
-    ".config/claude-work/settings.json".source     = claudeProfileSettingsJson.work;
-    ".config/claude-zai/settings.json".source      = claudeProfileSettingsJson.zai;
-    ".config/claude-personal/settings.json".force  = true;
-    ".config/claude-work/settings.json".force      = true;
-    ".config/claude-zai/settings.json".force       = true;
-  };
-
-  # settings.local.json is deliberately NOT nix-managed. It used to hold the
-  # kube-direct-push autoMode rule as a store symlink in all four config dirs,
-  # but the classifier unions autoMode.allow across the files it reads, so the
-  # rule works identically from claudeBaseSettings above — and the per-profile
-  # copies were dead weight (classifier.py's SETTINGS_PATHS only reads ~/.claude/).
-  # Leaving these unmanaged keeps them writable for Claude Code's own user-scope
-  # "don't ask again" saves, which a read-only store symlink silently broke.
-
-  # Per-profile setup. Runs after writeBoundary but before linkGeneration so the
-  # rm step forces linkGeneration to create the store symlinks (it skips
-  # identical regular files via cmp -s, leaving the runtime-copied file). Also
-  # creates runtime symlinks for shared user-scope resources (CLAUDE.md,
-  # commands/, projects/) — settings.json is nix-owned via home.file above so
-  # untouched here, and settings.local.json is left unmanaged entirely.
-  home.activation.claudeProfiles = lib.hm.dag.entryBefore [ "linkGeneration" ] ''
-    for name in ${lib.concatStringsSep " " (lib.attrNames claudeProfiles)}; do
-      # Remove pre-existing runtime-copied settings.json so linkGeneration
-      # always creates the store symlink (otherwise an identical regular file
-      # survives cmp -s). Force = true on the home.file entries handles the
-      # pre-collision check; this handles the cmp -s skip.
-      rm -f "$HOME/.config/claude-$name/settings.json"
-
-      # Per-profile shared-resource symlinks (idempotent). CLAUDE.md,
-      # commands/, and projects/ aren't in the store (CLAUDE.md is a single
-      # nix-managed file, the others are runtime dirs Claude writes to) so
-      # they get lazy-created here.
-      dir="$HOME/.config/claude-$name"
-      mkdir -p "$dir"
-      [ -e "$HOME/.claude/CLAUDE.md" ] && [ ! -e "$dir/CLAUDE.md" ] && ln -sf "$HOME/.claude/CLAUDE.md" "$dir/CLAUDE.md"
-      [ -d "$HOME/.claude/commands" ] && [ ! -e "$dir/commands" ] && ln -sf "$HOME/.claude/commands" "$dir/commands"
-      [ -d "$HOME/.claude/projects" ] && [ ! -e "$dir/projects" ] && ln -sf "$HOME/.claude/projects" "$dir/projects"
-      # hooks/ holds the herdr integration script (see home.file above). The
-      # SessionStart command uses an absolute ~/.claude path so the hook fires
-      # regardless, but `herdr integration status` probes CLAUDE_CONFIG_DIR
-      # (a profile dir under claude-prof) for <dir>/hooks/herdr-agent-state.sh
-      # — symlink it in so status reads "current" per profile too.
-      [ -d "$HOME/.claude/hooks" ] && [ ! -e "$dir/hooks" ] && ln -sf "$HOME/.claude/hooks" "$dir/hooks"
-      # skills/ holds the personal (non-plugin) skills rendered by home.file
-      # above. Claude resolves user skills only under CLAUDE_CONFIG_DIR, so
-      # without this link every profile sees an empty skill set and ~/.claude
-      # is the sole profile that can run them.
-      [ -d "$HOME/.claude/skills" ] && [ ! -e "$dir/skills" ] && ln -sf "$HOME/.claude/skills" "$dir/skills"
-    done
-  '';
+  # settings.local.json is deliberately NOT nix-managed. Leaving it unmanaged
+  # keeps it writable for Claude Code's own user-scope "don't ask again" saves,
+  # which a read-only store symlink silently broke. The autoMode rules it once
+  # carried live in `claudeBaseSettings` above instead.
 
   # Gecko 67+ keys profile-per-install via [Install<HASH>] sections in
   # profiles.ini (gated by `Version=2`), overriding `Default=1`. Every nix
@@ -2660,7 +2497,7 @@ in
     Install.WantedBy = [ "timers.target" ];
   };
 
-  # `clp rc` == `claude-prof run personal remote-control`: a persistent server
+  # `clp-rc` == `claude remote-control`: a persistent server
   # letting claude.ai/code and the Claude mobile app drive local sessions in a
   # project. Template unit keyed on the project path so any number can run
   # concurrently and start on the fly (see clp-rc/clp-rc-stop in zsh.nix):
@@ -2668,10 +2505,10 @@ in
   # %I unescapes back to the absolute project path for WorkingDirectory. Verified
   # headless: claude bundles its own node, connects with stdin=null and no TTY,
   # and shuts down gracefully on SIGTERM. RC refuses to start in an untrusted
-  # workspace, so clp-rc pre-accepts the trust dialog in the personal profile.
+  # workspace, so clp-rc pre-accepts the trust dialog in ~/.claude.json.
   systemd.user.services."claude-remote-control@" = lib.mkIf (!isDarwin) {
     Unit = {
-      Description = "Claude Code Remote Control (personal profile) — %I";
+      Description = "Claude Code Remote Control — %I";
       After = [ "network-online.target" ];
       Wants = [ "network-online.target" ];
     };
@@ -2684,7 +2521,7 @@ in
       StandardInput = "null";
       # --spawn worktree: on-demand sessions each get their own git worktree (the
       # pre-created cwd session stays in the project dir). Needs a git repo.
-      ExecStart = "${claude-prof}/bin/claude-prof run personal remote-control --spawn worktree";
+      ExecStart = "${config.home.profileDirectory}/bin/claude remote-control --spawn worktree";
       Restart = "on-failure";
       RestartSec = 10;
     };
@@ -2715,7 +2552,6 @@ in
   };
 
   home.packages = [
-    claude-prof
     # Unpinned: the fork's focus-steal fixes are not in v0.9.1, but upstream
     # #1621 closed COMPLETED and the pin no longer builds under zig 0.16.
     pkgs.herdr
@@ -3801,12 +3637,10 @@ in
     claude-code = {
       enable = true;
       # enableMcpIntegration = true;
-      # ~/.claude/settings.json is the unprofiled fallback (used by `command
-      # claude` and any non-claude-prof invoker). It uses the work profile's
-      # settings so behavior matches `claude-prof run work`. Per-profile
-      # settings.json lives under ~/.config/claude-<name>/ (rendered by home.file
-      # below).
-      settings = claudeProfileSettings.work;
+      # ~/.claude/settings.json is the only Claude config there is: the
+      # ~/.config/claude-<name>/ profile dirs and the claude-prof wrapper that
+      # drove them are gone, so every invocation reads these settings.
+      settings = claudeBaseSettings;
       # No version/src override: nixpkgs now leads upstream's native-binary
       # releases, and its installPhase unzstds a `claude.zst` src that the old
       # uncompressed-binary pin could not satisfy.

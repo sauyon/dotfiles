@@ -73,9 +73,9 @@
       d=$(realpath "$d") || return 1
       git -C "$d" rev-parse --is-inside-work-tree &>/dev/null \
         || echo "clp-rc: warning: $d is not a git repo; --spawn worktree needs one" >&2
-      # Pre-accept the workspace-trust dialog in the personal profile so headless
-      # RC doesn't refuse to start (it can't answer the prompt with no TTY).
-      local cfg="''${XDG_CONFIG_HOME:-$HOME/.config}/claude-personal/.claude.json"
+      # Pre-accept the workspace-trust dialog so headless RC doesn't refuse to
+      # start (it can't answer the prompt with no TTY).
+      local cfg="$HOME/.claude.json"
       if [[ -f "$cfg" ]]; then
         local tmp="$cfg.clp-rc.$$"
         if jq --arg d "$d" '.projects[$d] = ((.projects[$d] // {}) + {hasTrustDialogAccepted: true})' "$cfg" > "$tmp"; then
@@ -445,20 +445,11 @@
     mrk = "mise run kubeconfig";
 
     ca = "cursor-agent";
-    # Route bare `claude` through the personal profile so its runtime state
-    # (.claude.json, .credentials.json, history, sessions, oauthAccount,
-    # tipsHistory, …) lands in ~/.config/claude-personal/, not the unscoped
-    # ~/.claude/ — which is largely nix-managed (store symlink for settings.json
-    # plus activation-managed dirs), so unprofiled invocations would fail on
-    # writes and/or pollute shared state with whatever subscription is logged in.
-    # Use `command claude` for the raw binary.
-    claude = "claude-prof run personal";
-    cl = "claude-prof run work";
-    clw = "claude-prof run work --worktree";
-    clp = "claude-prof run personal";
-    clpw = "claude-prof run personal --worktree";
-    clz = "claude-prof run zai";
-    clzw = "claude-prof run zai --worktree";
+    # `claude` is the raw binary again: the claude-prof wrapper and the
+    # ~/.config/claude-<name>/ profile dirs are gone, so all state lives in
+    # ~/.claude/ under one login.
+    cl = "claude";
+    clw = "claude --worktree";
     gm = "gemini";
 
     z = "zellij";

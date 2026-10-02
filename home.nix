@@ -2878,13 +2878,16 @@ in
       });
     })
     (final: prev: {
-      # Pin coder to match the RDE server (rde.modular.com runs v2.31.10);
-      # nixpkgs ships the older stable 2.28.6 and the CLI warns on every
-      # invocation about the client/server mismatch. The nixpkgs derivation just
+      # Pin coder to match the RDE server (rde.modular.com runs v2.35.7); the
+      # CLI warns on every invocation about a client/server mismatch, in either
+      # direction. nixpkgs drifts to both sides of the server — 2.28.6 when this
+      # pin was first written, 2.36.6 as of this bump — so the pin stays even
+      # when nixpkgs looks newer. Read the server's version off its
+      # `/api/v2/buildinfo` endpoint before bumping. The nixpkgs derivation just
       # fetches a prebuilt release tarball, so bumping is a version + per-system
       # hash swap (no Go/frontend rebuild).
       coder = prev.coder.overrideAttrs (old: rec {
-        version = "2.31.10";
+        version = "2.35.7";
         # Drop the terraform PATH wrapper: terraform is unfree (never cached) and
         # only wraps coder to run provisioners locally, which the client never does.
         postInstall = "";
@@ -2901,10 +2904,10 @@ in
             in
             "https://github.com/coder/coder/releases/download/v${version}/coder_${version}_${systemName}.${ext}";
           hash = {
-            x86_64-linux = "sha256-9ZhLKf0lNIX391BqzsqltiuMwDVJ8J7daRNowrkW4fE=";
-            aarch64-linux = "sha256-DcfCWUcyru3tAbNhaL5qT4okV6eu5/IJS+YhPwBAMqs=";
-            x86_64-darwin = "sha256-Pdd7mgWTexr2eWDMIixe//eFihUyYQszBFPScIaCciI=";
-            aarch64-darwin = "sha256-qYFLcyTXjgWMPjmsThxDQngklT1x36MEkCTtMzn6E6k=";
+            x86_64-linux = "sha256-w3MnVWTWuMk9FomSPs++e1oXkaKu7eEMEpy4f+hTLJo=";
+            aarch64-linux = "sha256-ZN7mEDVmd+QYXU2Y6e1HN2Prg5MG89jpOhtzRdkPYgs=";
+            x86_64-darwin = "sha256-aoTJXBSGqJU+YAxiuosMFKfwZGjwndNG4lsqtHNIBwE=";
+            aarch64-darwin = "sha256-GeaLUwUd4xIsZ2Ry6FRud3MzvNwovumT7tkTehgy9+c=";
           }.${prev.stdenvNoCC.hostPlatform.system};
         };
       });

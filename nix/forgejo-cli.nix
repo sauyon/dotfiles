@@ -30,14 +30,21 @@
 # Single source of truth: any home that consumes `pkgs.forgejo-cli` through
 # this overlay pulls the same binary, so `forge-api.sh`'s per-request
 # `git-credential-fj` re-mint and any bare `fj whoami` see one another.
-{ pkgs }:
+# `base` is the package this one is derived from, passed separately from `pkgs`
+# on purpose.  When this file is instantiated from an overlay, `pkgs` is the
+# overlay's `final`, and `final.forgejo-cli` is *this* expression -- so taking
+# the base from `pkgs` would define the package in terms of itself and eval
+# would hit "infinite recursion" at the first site that forces it (which is
+# home.nix's `home.packages`, not here).  The overlay therefore hands us
+# `prev.forgejo-cli`; a direct `import` with plain nixpkgs can keep the default.
+{ pkgs, base ? pkgs.forgejo-cli }:
 
 let
   cargoDeps = pkgs.rustPlatform.importCargoLock {
     lockFile = ../forgejo-cli-Cargo.lock;
   };
 in
-pkgs.forgejo-cli.overrideAttrs (_: {
+base.overrideAttrs (_: {
   # `cargoDeps` is auto-derived by buildRustPackage from `cargoHash`
   # against `src/Cargo.lock`.  Replacing it here short-circuits that
   # derivation: our lockfile already includes the `fs2` crate the patch

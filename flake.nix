@@ -62,8 +62,14 @@
     # cross-process flock patch so a bare `fj whoami` can never race the
     # `git-credential-fj` shim and burn a refresh_token the helper is about to
     # use.  See ./nix/forgejo-cli.nix for the full reasoning.
-    fjOverlay = final: _prev: {
-      forgejo-cli = import ./nix/forgejo-cli.nix { pkgs = final; };
+    # `prev.forgejo-cli` is the base, not `final.forgejo-cli`: this overlay
+    # *defines* the latter, so feeding it back in is an eval-time self-reference.
+    # Build inputs still come from `final`.
+    fjOverlay = final: prev: {
+      forgejo-cli = import ./nix/forgejo-cli.nix {
+        pkgs = final;
+        base = prev.forgejo-cli;
+      };
     };
     mkHome = system: machine: home-manager.lib.homeManagerConfiguration {
       pkgs = (nixpkgs.legacyPackages.${system}.appendOverlays [ fjOverlay ]);

@@ -2251,6 +2251,34 @@ in
   home.file.".pi/agent/extensions/herdr-agent-state.ts".source =
     ./home/.pi/agent/extensions/herdr-agent-state.ts;
 
+  # ── herdr integration (mcode) ─────────────────────────────────────────────
+  # Hand-rolled — herdr 0.9.1 has no built-in mcode integration, and `mcode`
+  # (MiniMax Code, npm `@minimax-ai/code`) is the only MiniMax-shaped TUI in
+  # this repo that ships an extension surface herdr does not already cover.
+  #
+  # Layout: mcode's `local` marketplace is `~/.minimax/plugins/`. Dropping a
+  # directory with `.claude-plugin/plugin.json` plus a matching
+  # `hooks/hooks.json` there auto-installs and enables it on the next
+  # `mcode plugin list` — no `mcode plugin add` step. mcode reads the
+  # generated plugin via its `CLAUDE_CODE` loader path (the `defaultPath`
+  # for that source format) and emits the hook wanting Claude-Code-shaped
+  # JSON on stdin, with `$CLAUDE_PLUGIN_ROOT` substituted into the
+  # `command` field. Verified by running `mcode exec` against this exact
+  # payload — SessionStart / UserPromptSubmit / PreToolUse / PostToolUse /
+  # Stop / Notification all fire as expected.
+  #
+  # The script is the herdr-protocol-emitting half (mirrors cursor's pattern,
+  # which is shorter than claude's and the closest non-claude analog here);
+  # like all four other vendored integrations, it no-ops unless HERDR_ENV=1.
+  home.file.".minimax/plugins/herdr-agent-state/.claude-plugin/plugin.json".source =
+    ./home/.minimax/plugins/herdr-agent-state/.claude-plugin/plugin.json;
+  home.file.".minimax/plugins/herdr-agent-state/hooks/hooks.json".source =
+    ./home/.minimax/plugins/herdr-agent-state/hooks/hooks.json;
+  home.file.".minimax/plugins/herdr-agent-state/hooks/herdr-agent-state.sh" = {
+    source = ./home/.minimax/plugins/herdr-agent-state/hooks/herdr-agent-state.sh;
+    executable = true;
+  };
+
   # ── Claude plugins ─────────────────────────────────────────────────────────
   home.file.".claude/plugins/local-auto-mode/hooks.json".source =
     ./home/.claude/plugins/local-auto-mode/hooks.json;

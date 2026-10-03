@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "herdr-agent-state",
+  "version": "1.0.0",
+  "description": "Report mcode lifecycle state and session identity to the local herdr socket while a mcode session runs inside a herdr pane. Loaded by mcode's CLAUDE-format plugin loader from ~/.minimax/plugins/herdr-agent-state/.claude-plugin/plugin.json; the matching hooks/hooks.json declares the lifecycle events.",
+  "author": {
+    "name": "dotfiles"
+  }
+}

@@ -8,8 +8,10 @@
 # bounded by. So any run that outlived the token's remaining life started 401ing
 # mid-poll, and hms sat there printing "still waiting" at a dead token until the
 # deadline. The push in the same invocation kept working, because that goes
-# through git-credential-fj, which checks the expiry and pokes `fj whoami` to
-# refresh. Only the polling path lacked it.
+# through git-credential-fj, which re-mints an expired grant -- today by
+# exec'ing `fj git-credential`, which refreshes under fj's own lock; when this
+# was written, by poking `fj whoami` under flock(1). Only the polling path
+# lacked it.
 #
 # So the contract these pin is narrow and mechanical: hms asks the credential
 # helper for a token **per request**, not once per run. Case 1 is the regression;

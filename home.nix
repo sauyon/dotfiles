@@ -1324,6 +1324,249 @@ let
     exit 1
   '';
 
+  # `hmeval` — answer "does this still evaluate?" without turning the laptop
+  # into a build farm, and run the tests/ suite somewhere other than here.
+  #
+  # The default is LOCAL, because the question is usually cheap. Nix's evaluator
+  # is single-threaded, so evaluation alone cannot saturate 24 cores — what does
+  # is a build that evaluation starts: an import-from-derivation, or an input
+  # that has to be realised before the expression referencing it can be read.
+  # `--max-jobs 0` forbids exactly that. Nix then substitutes from attic or
+  # stops with "cannot build ... max-jobs = 0", which is a far better outcome
+  # than twenty minutes of fans: it means the answer needs the runner, and
+  # `--ci` is one flag away.
+  #
+  # The systemd scope on top is belt-and-braces for the part --max-jobs cannot
+  # bound — parallel substituter downloads and nix's own GC/daemon traffic.
+  #
+  # `--ci` pushes the WORKING TREE, dirty or not, to a throwaway `eval/<host>`
+  # branch and reads the answer out of nix-eval.yml's job log. That is the whole
+  # point: the case worth offloading is the one where you have just edited
+  # home.nix and have not committed anything, which `hms` deliberately refuses.
+  # It builds the commit with `commit-tree` against a private index, so your
+  # real index, HEAD and working tree are never touched.
+  hmeval = pkgs.writeShellScriptBin "hmeval" ''
+    set -euo pipefail
+
+    # Seams, all defaulted to the real thing — tests/hmeval.sh drives the built
+    # script through them, the way tests/hms-ci-poll.sh drives hms.
+    repo="''${HMEVAL_REPO:-$HOME/devel/dotfiles}"
+    forge="https://forge.ko.ag"
+    slug="sauyon/dotfiles"
+    curl="''${HMEVAL_CURL:-${lib.getExe pkgs.curl}}"
+    jq=${lib.getExe pkgs.jq}
+    grep=${lib.getExe pkgs.gnugrep}
+    awk=${lib.getExe pkgs.gawk}
+    token_cmd="''${HMEVAL_TOKEN_CMD:-${git-credential-fj}/bin/git-credential-fj}"
+    wait_seconds="''${HMEVAL_WAIT_SECONDS:-1800}"
+    nix_cmd="''${HMEVAL_NIX:-nix}"
+    quota="''${HMEVAL_CPUQUOTA:-200%}"
+    memmax="''${HMEVAL_MEMORYMAX:-8G}"
+
+    # Hardcoded for the same reason hms hardcodes its CI-host list: asking the
+    # flake which configurations exist costs a full evaluation, which is the
+    # thing this script exists to avoid paying for. Out of step with
+    # flake.nix => a host silently never gets checked, so keep them together.
+    all_hosts="utsuho setsuna fujiwara shiori kyuusaku mari"
+
+    mode=eval
+    ci=0
+    hosts=""
+    tests=""
+    attr=""
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        -c|--ci)    ci=1 ;;
+        -t|--tests)
+          mode=tests; ci=1
+          # Bare --tests means every script in tests/; names after it narrow it.
+          while [ $# -gt 1 ] && case "$2" in -*) false ;; *) true ;; esac; do
+            tests="$tests $2"; shift
+          done ;;
+        -a|--attr|-e|--expr)
+          [ $# -ge 2 ] || { echo "hmeval: $1 needs an attribute path" >&2; exit 2; }
+          mode=attr; attr="$2"; shift ;;
+        -h|--help)
+          echo "usage: hmeval [--ci] [host...]           evaluate host activation packages"
+          echo "       hmeval [--ci] --attr <attrpath>   evaluate one attribute under the flake"
+          echo "       hmeval --tests [script...]        run tests/ on the runner (implies --ci)"
+          echo
+          echo "  default is local: --max-jobs 0 --cores 1 inside a CPUQuota=$quota scope,"
+          echo "  so it can never become a build. --ci pushes the working tree (dirty or"
+          echo "  not) to eval/<host> and reads nix-eval.yml's answer back."
+          exit 0 ;;
+        -*) echo "hmeval: unknown flag $1 (try --help)" >&2; exit 2 ;;
+        *)  hosts="$hosts $1" ;;
+      esac
+      shift
+    done
+    hosts="''${hosts# }"; tests="''${tests# }"
+    [ -n "$hosts" ] || hosts="$all_hosts"
+
+    ########################################################################
+    # Local: bounded evaluation.
+    ########################################################################
+    if [ "$ci" -eq 0 ]; then
+      # A --max-jobs 0 failure is the interesting one, so say what it means
+      # rather than leaving nix's "cannot build" to look like a broken config.
+      bounded() {
+        # systemd-run is best-effort: a user manager that is not there (or is
+        # the broken HOME=/ one a passwordless login leaves behind) must not
+        # stop an evaluation that nice+max-jobs already bounds.
+        if systemd-run --user --scope --quiet --collect \
+             -p CPUQuota="$quota" -p MemoryMax="$memmax" -p MemorySwapMax=0 \
+             -- true >/dev/null 2>&1; then
+          systemd-run --user --scope --quiet --collect \
+            -p CPUQuota="$quota" -p MemoryMax="$memmax" -p MemorySwapMax=0 \
+            -- nice -n 19 "$@"
+        else
+          nice -n 19 "$@"
+        fi
+      }
+      # One nix invocation per target, so a host that fails to evaluate names
+      # itself instead of aborting the whole list. nix's own stderr is left
+      # alone — the `error:` lines it prints are the entire point of running
+      # this, and swallowing them to print a tidy FAILED would be worse.
+      eval_one() {
+        local label="$1" target="$2" out
+        if out=$(bounded "$nix_cmd" eval --raw --max-jobs 0 --cores 1 "$target"); then
+          printf '  %-10s %s\n' "$label" "$out"
+        else
+          printf '  %-10s FAILED\n' "$label" >&2
+          return 1
+        fi
+      }
+
+      rc=0
+      if [ "$mode" = attr ]; then
+        eval_one "$attr" ".#$attr" || rc=1
+      else
+        for h in $hosts; do
+          eval_one "$h" ".#homeConfigurations.$h.activationPackage.drvPath" || rc=1
+        done
+      fi
+      if [ "$rc" -ne 0 ]; then
+        echo >&2
+        echo "hmeval: if that said \"cannot build ... max-jobs = 0\", the config needs" >&2
+        echo "hmeval: something built (IFD, or an input attic does not have). That is" >&2
+        echo "hmeval: the runner's job: re-run as 'hmeval --ci'." >&2
+      fi
+      exit $rc
+    fi
+
+    ########################################################################
+    # CI: push the working tree to a scratch branch and read the job log.
+    ########################################################################
+    [ -d "$repo/.git" ] || { echo "hmeval: $repo is not a git repo" >&2; exit 1; }
+
+    branch="eval/$(uname -n)"
+    pushed=""
+    tmp=$(mktemp -d)
+    cleanup() {
+      rm -rf "$tmp"
+      # Leaving scratch branches on a public repo is litter, and a stale one
+      # would also re-trigger nix-eval.yml on the next force-push with an older
+      # request still in it. Best-effort: a failed delete is not worth an error
+      # over a result we already printed.
+      [ -z "$pushed" ] || git -C "$repo" push --quiet origin ":refs/heads/$branch" 2>/dev/null || true
+    }
+    trap cleanup EXIT
+
+    source ${./home/scripts/forge-api.sh}
+
+    # The request file the workflow parses. Single-line values only: it is read
+    # with `while IFS='=' read -r k v` in pure bash (the nix image has no awk or
+    # sed), so a newline would silently become a second key.
+    case "$mode$hosts$tests$attr" in
+      *$'\n'*) echo "hmeval: newline in an argument" >&2; exit 2 ;;
+    esac
+    request="mode=$mode
+hosts=$hosts
+tests=$tests
+attr=$attr
+"
+
+    # Build the commit against a private index: `git add -A` against the real
+    # one would stage the user's whole working tree behind their back, and this
+    # script has no business touching their index, HEAD or checkout.
+    (
+      export GIT_INDEX_FILE="$tmp/index"
+      git -C "$repo" read-tree HEAD
+      git -C "$repo" add -A
+      blob=$(printf '%s' "$request" | git -C "$repo" hash-object -w --stdin)
+      git -C "$repo" update-index --add --cacheinfo "100644,$blob,.hmeval-request"
+      git -C "$repo" write-tree > "$tmp/tree"
+    )
+    tree=$(cat "$tmp/tree")
+    sha=$(git -C "$repo" commit-tree "$tree" -p HEAD \
+            -m "hmeval: $mode on $(git -C "$repo" rev-parse --short HEAD)")
+
+    if ! git -C "$repo" push --force --quiet origin "$sha:refs/heads/$branch"; then
+      echo "hmeval: could not push $branch — see git's error above." >&2
+      exit 1
+    fi
+    pushed=1
+    # Progress goes to stderr, results to stdout, so `hmeval --ci | grep ...`
+    # sees the answer and nothing else. The local path above holds the same
+    # contract for the same reason.
+    echo "hmeval: $mode @ ''${sha:0:7} -> $branch" >&2
+
+    if ! write_curlrc; then
+      echo "hmeval: no forge.ko.ag token from $token_cmd — try 'fj auth login'." >&2
+      exit 1
+    fi
+    echo 0 > "$tmp/code"
+
+    printf 'hmeval: waiting for a run' >&2
+    if ! run=$(await_run "$sha" nix-eval.yml 90); then
+      echo >&2
+      if [ -s "$tmp/poll_ok" ]; then
+        echo "hmeval: no run appeared for ''${sha:0:7} — is nix-eval.yml on master?" >&2
+      else
+        echo "hmeval: $(api_why)" >&2
+      fi
+      exit 1
+    fi
+    echo >&2; echo "hmeval: run $run — $forge/$slug/actions/runs/$run" >&2
+
+    if ! status=$(await_status "$run" "$wait_seconds"); then
+      echo >&2
+      echo "hmeval: run $run never finished within ''${wait_seconds}s." >&2
+      echo "hmeval: check $forge/$slug/actions/runs/$run." >&2
+      exit 1
+    fi
+    echo >&2
+
+    log="$tmp/job.log"
+    if ! fetch_job_log "$run" "$log"; then
+      echo "hmeval: run $run $status, but the log would not come: $(api_why)" >&2
+      echo "hmeval: read it at $forge/$slug/actions/runs/$run" >&2
+      exit 1
+    fi
+
+    # Every log line carries a timestamp prefix. hms hardcodes it at 29 chars
+    # and cuts there, which is fine for finding `error:` lines but not here: an
+    # off-by-one in that width leaves a stray character glued to the marker, the
+    # anchored match fails, and a perfectly good run reports no output at all.
+    # So measure the prefix off the opening marker instead of assuming it, and
+    # strip exactly that much from the lines between. Unanchored on purpose.
+    #
+    # If the markers ever drift out of step with nix-eval.yml this prints
+    # nothing, so say so rather than exiting silently green.
+    body=$("$awk" '
+      !inside && match($0, /---8<--- hmeval$/) { inside = 1; off = RSTART; next }
+      inside && match($0, /---8<--- end$/)     { inside = 0 }
+      inside { print substr($0, off) }' "$log" || true)
+    if [ -n "$body" ]; then
+      printf '%s\n' "$body"
+    else
+      echo "hmeval: no result block in the log — markers out of step with nix-eval.yml?" >&2
+      cut -c30- "$log" | tail -30 >&2
+    fi
+
+    [ "$status" = success ] || { echo "hmeval: run $run $status" >&2; exit 1; }
+  '';
+
   args = { inherit config lib pkgs; };
 
   # The local auto-mode classifier's PreToolUse entry. Currently unregistered —
@@ -2258,8 +2501,12 @@ in
       # Gracefully close all Hyprland windows, then optionally exit Hyprland.
       set -euo pipefail
 
+      # The config backend is Lua, so `hyprctl dispatch` evaluates its argument
+      # as `hl.dispatch(<expr>)` -- the legacy word syntax ("closewindow
+      # address:0x...") is a Lua parse error, exits 7, and the `|| true` here
+      # swallowed it silently. Same migration as the focus bind in hyprland.nix.
       hyprctl clients -j | ${pkgs.jq}/bin/jq -r '.[].address' | while read -r addr; do
-        hyprctl dispatch closewindow "address:$addr" || true
+        hyprctl dispatch "hl.dsp.window.close({ window = [[address:$addr]] })" || true
       done
 
       # Wait for windows to close (up to 5s)
@@ -2270,7 +2517,7 @@ in
       done
 
       if [ "''${1:-}" != "--no-exit" ]; then
-        hyprctl dispatch exit
+        hyprctl dispatch "hl.dsp.exit()"
       fi
     '';
   };
@@ -2556,6 +2803,7 @@ in
     # #1621 closed COMPLETED and the pin no longer builds under zig 0.16.
     pkgs.herdr
     hms
+    hmeval
     kcs
   ]
   # Enrolment/recovery tool for the TPM-sealed keyring passphrase; the daemon

@@ -1,0 +1,157 @@
+# Ad-hoc evaluation and test runs on the in-cluster runner, so a "does this
+# still evaluate?" check costs nothing on the laptop.
+#
+# Driven by `hmeval --ci` (home.nix), which commits the working tree — dirty or
+# not — to an `eval/**` branch and reads the result back out of this job's log.
+# The branch is throwaway and `hmeval` deletes it afterwards.
+#
+# This does NOT push to attic. nix-home.yml owns the closure cache; this job
+# only answers a question, so a scratch eval cannot poison the cache with paths
+# built from a commit that never reached master.
+name: nix-eval
+
+on:
+  push:
+    branches: ["eval/**"]
+  workflow_dispatch:
+
+# Unlike nix-home.yml, this one cancels. A closure build that gets discarded
+# wastes twenty minutes of work someone is waiting on; a superseded eval is
+# just a stale answer, and `hmeval` is already watching the newer run.
+concurrency:
+  group: nix-eval-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  eval:
+    # Same runner and image as nix-home.yml, for the same reasons — see
+    # docs/ci-nix-home.md before changing either. In particular: no `uses:`
+    # steps (the image has no node), and no awk/sed/grep, which is why the
+    # request file below is parsed in pure bash.
+    runs-on: privileged
+    container:
+      image: nixos/nix@sha256:1a711b619c8a713eff32c3f8d8781b3b4d0130cb91c0a57f67e87abfeeb90b01
+    env:
+      NIX_CONFIG: |
+        experimental-features = nix-command flakes
+        netrc-file = /root/.config/nix/netrc
+        extra-substituters = http://attic.attic.svc.cluster.local/kube
+        extra-trusted-public-keys = kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=
+        max-jobs = 6
+        cores = 4
+        sandbox = true
+      # Pinned the same way nix-home.yml pins its attic-client: the image ships
+      # no coreutils/grep/jq, and the test scripts in tests/ assume a normal
+      # userland. One rev for both, so a bump moves them together.
+      TOOLS_REV: 29916453413845e54a65b8a1cf996842300cd299
+    steps:
+      - name: authorise nix against attic
+        env:
+          ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+        run: |
+          set -eu
+          mkdir -p /root/.config/nix
+          umask 077
+          printf 'machine %s password %s\n' \
+            attic.attic.svc.cluster.local "$ATTIC_TOKEN" \
+            > /root/.config/nix/netrc
+          printf 'machine %s password %s\n' \
+            attic.ko.ag "$ATTIC_TOKEN" \
+            >> /root/.config/nix/netrc
+
+      - name: checkout
+        run: |
+          set -eu
+          git clone https://forge.ko.ag/${{ github.repository }}.git .
+          git checkout --detach ${{ github.sha }}
+          git --no-pager log -1 --oneline
+
+      # Do NOT echo $FORGE_TOKEN or enable `set -x` here.
+      - name: authorise git against the private input
+        env:
+          FORGE_TOKEN: ${{ secrets.FORGE_TOKEN }}
+        run: |
+          set -eu
+          git config --global credential."https://forge.ko.ag".username oauth2
+          git config --global credential."https://forge.ko.ag".helper \
+            '!f() { test "$1" = get && printf "password=%s\n" "$FORGE_TOKEN"; }; f'
+
+      # The whole contract with `hmeval` is this file plus the two markers
+      # below. Keep them in step: hmeval slices the job log between them, so a
+      # renamed marker silently turns every run into "no output".
+      - name: run the request
+        run: |
+          set -eu
+
+          req=.hmeval-request
+          if [ ! -f "$req" ]; then
+            echo "no $req in this commit — nothing to run."
+            echo "This workflow is driven by \`hmeval --ci\`; pushing an eval/**"
+            echo "branch by hand does not carry a request."
+            exit 1
+          fi
+
+          # Pure bash: no awk/sed/grep in this image. Values are single-line by
+          # construction (hmeval rejects newlines before it writes the file).
+          mode=; hosts=; tests=; attr=
+          while IFS='=' read -r k v; do
+            case "$k" in
+              mode)  mode=$v ;;
+              hosts) hosts=$v ;;
+              tests) tests=$v ;;
+              attr)  attr=$v ;;
+            esac
+          done < "$req"
+
+          echo "hmeval: mode=$mode"
+          echo "---8<--- hmeval"
+          rc=0
+
+          case "$mode" in
+            eval)
+              # --no-link/--raw keeps this to evaluation plus whatever IFD the
+              # config genuinely needs; nothing is pushed anywhere.
+              for h in $hosts; do
+                if out=$(nix eval --raw ".#homeConfigurations.$h.activationPackage.drvPath"); then
+                  printf '  %-10s %s\n' "$h" "$out"
+                else
+                  printf '  %-10s FAILED\n' "$h"
+                  rc=1
+                fi
+              done
+              ;;
+            attr)
+              if out=$(nix eval --raw ".#$attr"); then
+                printf '  %s\n' "$out"
+              else
+                printf '  FAILED: .#%s\n' "$attr"
+                rc=1
+              fi
+              ;;
+            tests)
+              # tests/*.sh are ordinary shell: they want coreutils, grep, sed
+              # and jq, none of which the nix image has. Run them inside a
+              # pinned shell rather than teaching each script to cope.
+              tools="github:NixOS/nixpkgs/$TOOLS_REV"
+              for t in $tests; do
+                echo "  === $t"
+                if nix shell \
+                     "$tools#bash" "$tools#coreutils" "$tools#gnugrep" \
+                     "$tools#gnused" "$tools#gawk" "$tools#git" \
+                     "$tools#jq" "$tools#diffutils" \
+                     -c bash "$t"; then
+                  echo "  === $t PASSED"
+                else
+                  echo "  === $t FAILED"
+                  rc=1
+                fi
+              done
+              ;;
+            *)
+              echo "  unknown mode: $mode"
+              rc=1
+              ;;
+          esac
+
+          echo "---8<--- end"
+          exit $rc

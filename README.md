@@ -65,6 +65,26 @@ Why this is worth a wait: see `docs/ci-nix-home.md`. The short version is that
 the runner has far more of everything than these boxes, and its output is
 bit-identical to what a local build would produce.
 
+## Checking changes: `hmeval`
+
+`hmeval` answers "does this still evaluate?" without building anything, and
+unlike `hms` it is happy with a dirty tree.
+
+```bash
+hmeval                 # every host, locally, bounded to two cores
+hmeval utsuho          # just this one
+hmeval --ci            # same question, on the runner
+hmeval --tests         # run tests/*.sh on the runner (implies --ci)
+```
+
+Local is the default and cannot turn into a build: it passes `--max-jobs 0`, so
+nix substitutes or stops. If it stops, the answer needs a builder and `--ci` is
+one flag away — that pushes your working tree, uncommitted edits included, to a
+throwaway `eval/<host>` branch and reads the result back out of CI.
+
+Details, and the contract between the script and `.forgejo/workflows/nix-eval.yml`:
+`docs/ci-nix-eval.md`.
+
 ## Tests
 
 Nothing here has a suite; the exception is anything whose logic is a model of
@@ -79,6 +99,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
 ./tests/aur-helper.sh            # evaluates 6 hosts, 8 cases
 ./tests/hms-ci-poll.sh           # drives 7 cases against the built hms
+./tests/hmeval.sh                # drives 27 cases against the built hmeval
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
 ./tests/polkit-agent.sh          # evaluates 5 hosts + a synthetic one, 17 cases
 ./tests/insecure-packages.sh     # 2 cases per host, plus mari's darwin system

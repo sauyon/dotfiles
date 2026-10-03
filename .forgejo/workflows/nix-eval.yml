@@ -80,6 +80,17 @@ jobs:
       # below. Keep them in step: hmeval slices the job log between them, so a
       # renamed marker silently turns every run into "no output".
       - name: run the request
+        env:
+          # Load-bearing, and not obviously so. The credential helper configured
+          # in the previous step answers out of $FORGE_TOKEN *at the moment nix
+          # shells out to git*, which is here — so a helper installed globally
+          # but an env set only on the earlier step leaves this one answering
+          # with an empty password. The failure is not an auth error either; it
+          # surfaces as `error: Failed to fetch git repository
+          # 'https://forge.ko.ag/sauyon/dotfiles-private.git'` partway down a
+          # stack trace about home.activation, which reads like a broken config.
+          # nix-home.yml sets it on its build step for exactly this reason.
+          FORGE_TOKEN: ${{ secrets.FORGE_TOKEN }}
         run: |
           set -eu
 

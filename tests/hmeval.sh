@@ -274,6 +274,28 @@ check "--ci: exits 0 with an unusually wide prefix" "$rc" 0
 check "--ci: still finds the block, and strips the prefix cleanly" \
   "$(cat "$D/out")" "  utsuho     /nix/store/wide-prefix.drv"
 
+echo "== an unchanged tree still produces a new commit"
+# commit-tree is deterministic, so without a nonce a second run over an
+# unchanged tree re-creates the sha the branch already holds. git then sends
+# nothing, no push event fires, no run starts, and hmeval waits out its poll
+# before reporting "no run appeared" -- which reads as a broken workflow. This
+# only became reachable when the branch stopped being deleted, since a creation
+# is always a ref change.
+setup_repo; setup_nix
+setup_forge success "$(fenced "  utsuho     /nix/store/x.drv")"
+( sleep 0.2; arm_forge_for_push ) &
+rc=$(run_hmeval --ci utsuho); wait
+first=$(cat "$D/sha")
+setup_forge success "$(fenced "  utsuho     /nix/store/x.drv")"
+( sleep 0.2; arm_forge_for_push ) &
+rc=$(run_hmeval --ci utsuho); wait
+second=$(cat "$D/sha")
+if [ "$first" != "$second" ] && [ -n "$first" ] && [ "$first" != none ]; then
+  ok "--ci: back-to-back runs push distinct commits"
+else
+  bad "--ci: back-to-back runs push distinct commits" "both were [$first]"
+fi
+
 echo
 echo "$((n - fails))/$n passed"
 [ "$fails" -eq 0 ]

@@ -1578,8 +1578,18 @@ attr=$attr
       git -C "$repo" write-tree > "$tmp/tree"
     )
     tree=$(cat "$tmp/tree")
+    # The nonce is load-bearing, and only since the branch stopped being
+    # deleted. commit-tree is deterministic: same tree, same parent, same
+    # message, same one-second timestamp gives the same sha. Re-running hmeval
+    # with nothing changed — the most ordinary thing to do — then force-pushes
+    # the sha the branch already points at, git sends nothing, no push event
+    # fires, and hmeval waits out its 90 seconds before reporting "no run
+    # appeared for <sha>", which reads like a broken workflow rather than like
+    # a no-op push. Deleting the branch used to hide this by making every push
+    # a branch creation. A nonce is cheaper than either.
     sha=$(git -C "$repo" commit-tree "$tree" -p HEAD \
-            -m "hmeval: $mode on $(git -C "$repo" rev-parse --short HEAD)")
+            -m "hmeval: $mode on $(git -C "$repo" rev-parse --short HEAD)" \
+            -m "nonce: $(date -u +%s%N)-$$")
 
     if ! git -C "$repo" push --force --quiet origin "$sha:refs/heads/$branch"; then
       echo "hmeval: could not push $branch — see git's error above." >&2

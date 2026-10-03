@@ -3281,6 +3281,23 @@ in
     # transfers on these hosts.
     waypipe
   ]
+  ++ lib.optionals (hostname == "shiori") [
+    # work-slack: pull utsuho's Slack onto this display over the WG overlay.
+    # Two things the bare `waypipe ssh utsuho slack` gets wrong: Slack is
+    # single-instance per session, so a copy running on utsuho's own desktop
+    # swallows the launch (the far end exits 0 and nothing forwards) -- quit
+    # it first; and Electron's default X11 backend has no server at the far
+    # end of a waypipe connection ("Missing X server or $DISPLAY"), while the
+    # nixpkgs wrapper's NIXOS_OZONE_WL only adds --ozone-platform-hint=auto,
+    # which this Electron still resolves to X11 -- name Wayland explicitly.
+    # waypipe splits the remote argv itself, so an env-assignment prefix would
+    # be exec'd as the program name.
+    (pkgs.writeShellScriptBin "work-slack" ''
+      set -euo pipefail
+      ssh utsuho 'pkill -x slack || true'
+      exec waypipe ssh utsuho slack --ozone-platform=wayland
+    '')
+  ]
   ++ lib.optionals (hostname == "fujiwara") [
     clawpatrol
   ] ++ lib.optionals (hostname == "shiori") [

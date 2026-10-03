@@ -1,0 +1,1 @@
+I should be a nix trusted user. configure it.

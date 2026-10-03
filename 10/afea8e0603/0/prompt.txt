@@ -15,3 +15,11 @@ doesn't fujiwara also work cloud
 ---
 
 doesn't fujiwara also work local..........
+
+---
+
+no, but it accesses fine using the local mcp no
+
+---
+
+ok where do I get a local mode key then

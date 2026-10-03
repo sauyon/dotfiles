@@ -1,0 +1,239 @@
+<pasted_content id="41ed">
+You are implement **task 1** of a drovr run. You are the single writer this phase. Your
+scope is EXACTLY the one task brief in the `## Context from the driver` section — not the whole
+plan. If that section says none was supplied, your scope is this task's entry in `plan.md`. Do
+not start other
+tasks; later tasks run as their own fresh phases.
+
+## Do
+
+0. **Bind this checklist to tracked task state — before you start step 1.**
+
+   > When a skill or briefing gives you a numbered checklist, create **one tracked item per step**
+   > using whatever task tool this harness exposes — `TodoWrite`, or `TaskCreate`/`TaskUpdate` —
+   > before you start step 1. Mark each in-progress when you start it and complete when its
+   > evidence is in hand. If the harness exposes no task tool, write the checklist to
+   > `~/.local/share/drovr/runs/wif-enroll-2/checklist.md` when inside a run, or `CHECKLIST.md` at the
+   > repo root otherwise, and tick items there. An untracked checklist decays with the context
+   > window; that decay is the exact failure drovr exists to fight.
+
+1. **Keep the ask channel open — the whole phase, not just at a gate.**
+
+   > **Ask the human when you need to, mid-phase — do not guess and write the guess down.** Two
+   > triggers, either one is enough: **new information is discovered** that the spec or plan did not
+   > anticipate, or **a question is found** that you cannot resolve from the code or the run's
+   > artifacts. Post it and carry on with whatever does not depend on the answer:
+   >
+   >     drovr ask wif-enroll-2 --question "<what you need decided>" \
+   >       [--context <text> | --context-file <path>] \
+   >       [--option <value>=<label>]... [--recommend <value>]
+   >
+   > `ask` returns immediately, printing the ask id and the page to point the human at. Then
+   > background `drovr ask wait wif-enroll-2 [--timeout-ms <ms>]` and end your turn: `0` answered, `2`
+   > timeout — re-arm, the question is still on disk and still on screen — `5` the run was cancelled,
+   > `1` error. On `0` stdout carries the answers as JSON: the asks that wait was armed on, each with
+   > its latest answer, or — when nothing was outstanding — the whole folded interview, which is how
+   > a wait re-armed just after the human answered still hands you the answer. A timeout costs
+   > nothing; a guess costs the run.
+
+   **`ask wait` is the ONE wait you may end your turn on — and step 6 is not it.** The rule there
+   is the same rule, not a different one: never park on something nothing will come to wake you
+   from. A backgrounded review panel is exactly that, which is why step 6 forbids it.
+   An ask is the opposite — it puts a question in front of a human, and their answer is what
+   un-parks you. So: post the ask, do whatever does not depend on the answer, and only then
+   background the wait and end the turn.
+
+2. **Read** the task brief and the accumulated interfaces in the `## Context from the driver`
+   section, then read the real code you
+   will touch (read-only explorers for anything you only need to understand, not change).
+3. **Record the review base — before writing any code.** Run
+   `drovr code-review base wif-enroll-2 task-1` so `HEAD` is captured as this task's pre-task SHA
+   (the automatic review panel diffs `base..HEAD`). Do this first; editing before recording
+   would move the base past your own changes. **Re-entry:** if this message seeds you with a
+   `~/.local/share/drovr/runs/wif-enroll-2/task-1-review.json` (the driver re-entered you after the
+   panel found changes), do NOT re-record the base — fix **every Critical and every Important**
+   in that file, then run the rest of the steps (verify, self-review, report — steps 5–8). **A
+   nit is advisory:** fix it or not, your call, and record each one you leave with
+   `drovr code-review defer` so the next round does not re-raise it. Fixing one is not free —
+   it is new code the next round reviews, on lines no gate asked anyone to touch.
+4. **Implement test-first — apply `drovr:tdd`.** The test to write first is the one named in
+   this task's verification; keep it scoped to this task's interfaces so the folded-forward
+   contracts stay accurate.
+5. **Verify before claiming done — apply `drovr:verification-before-completion`** on this
+   task's tests and the build/linter.
+6. **Self-review before reporting done — apply `drovr:code-review`** (read-only reviewers,
+   foreground). Do NOT declare the task done off your own judgment. The skill has the how-to
+   and the check order; the one constraint below is repeated here because the whole run
+   depends on it: **run the reviewers in the FOREGROUND (blocking) — do NOT set
+   `run_in_background`, and do NOT yield or schedule a
+   wakeup waiting on them.** A backgrounded reviewer leaves you parked mid-turn, which drovr
+   cannot distinguish from completion and which stalls the run until a human nudges the pane;
+   blocking keeps you working straight through to your final step. This is IN ADDITION to the
+   pipeline's final review phase — catch it here, cheaply, before it cascades.
+
+   **Two roles, one gate.** Anyone may RUN the panel, as often as they like —
+   it is a test suite. Only the **driver's** run is the **gate**: a clean
+   verdict on a panel you ran yourself is evidence, never permission to
+   report done.
+
+   So `drovr code-review run wif-enroll-2 task-1` is yours to use, freely — but a clean verdict
+   from a panel *you* invoked buys you a fix list, not a finish. You are done when this task's
+   own verification passes (step 5) and you have resolved what review found; never *because* a
+   panel came back clean, and never with a panel standing in for step 5. Record each one in your
+   report's `## Author-run panels` table (step 7). The driver runs its own panel after you
+   report, and that verdict is the one that decides whether the task advances — it has already
+   caught an Important on the identical commit an author-run panel called clean.
+
+   Two mechanics if you do run it. **Commit first, and keep committing:** the panel's committed
+   scope is `git diff base..HEAD`. Commit nothing and that range contains nothing —
+   `drovr code-review run` now refuses that outright (exit 1), because it used to return a clean
+   verdict on it (see `forge.ko.ag/drovr/drovr/issues`). Committing *once* is not enough either: whatever
+   you leave uncommitted after that is outside `base..HEAD`, and while the reviewer's brief does
+   put the working tree in scope alongside the diff, it does not reliably reach it — untracked
+   files never appear in a `git diff` at all. What you have not committed may not be reviewed.
+   **Keep it in the foreground and loop on exit 2:** re-running the
+   same command resumes the panel in flight, so a slow one costs you a loop, not a stall. Do not
+   background it and do not yield waiting on it — the driver may background its waits because it
+   can end its turn; you cannot.
+7. **Write a task report** to `~/.local/share/drovr/runs/wif-enroll-2/task1-report.md`:
+   - what changed (files + the interfaces you actually implemented, verbatim),
+   - test/verification output proving it works,
+   - the self-review: what the reviewers found and how you resolved each Critical/
+     Important finding (and any you deferred, with why),
+   - **an `## Author-run panels` section**, one table row per `drovr code-review run` you
+     invoked yourself, including the ones that came back clean. Three columns, so the claim can
+     be checked against the artifacts rather than taken on trust:
+
+     | Iteration `<i>` | Head SHA, from `<run_dir>/task-1-review-<i>.head` | Verdict |
+
+     The iteration is the panel's own number, not your round count — read it off the
+     `task-1-review-<i>-<angle>.json` files it wrote. **Verdict is exactly one of five
+     words**, matching how the run actually ended (drovr's `ReviewOutcome`, exit code in
+     brackets):
+
+     - `clean` [0] — a real range was reviewed, nothing blocking. Derive it the way drovr
+       does, not from memory: `changes` if any finding in that iteration's per-angle files
+       has severity `critical` or `important`, else `clean`. (`<task>-review.json` is
+       overwritten each pass and is NOT evidence about iteration `<i>`; the per-angle files
+       are.)
+     - `changes` [3] — at least one blocking finding.
+     - `timeout` [2] — reviewers had not all finished. Not a verdict about the code.
+     - `empty-range` [1] — refused: `base..head` contained nothing. Not a verdict either,
+       and the one most easily mistaken for a pass.
+     - `error` [1] — setup failure; the panel never ran.
+
+     A row you cannot classify is a row you should not summarise — say which and why.
+     Write "none" if you ran no panel; an absent section is indistinguishable from an
+     undisclosed one,
+   - any interface that drifted from the plan, and why (the next task binds to reality, not
+     the plan's guess),
+   - anything the final review phase should still scrutinize.
+8. **Author your handoff, then signal completion — your FINAL actions, in order.**
+   a. **Author the handoff.** Compress your own context — you hold the whole session — into the
+      fixed 7-section handoff (see `drovr:handoff` / the handoff template) and write it to
+      `~/.local/share/drovr/runs/wif-enroll-2/implement-task-1-HANDOFF.md`, **git pointers
+      mandatory**. This folds your real interfaces forward to the next task; nothing compresses
+      it for you. Record exact signatures; report your dead-ends honestly.
+   b. **Signal completion.** Run:
+      ```
+      drovr phase done wif-enroll-2 implement-task-1
+      ```
+      This **refuses until the handoff in (a) exists** — the handoff and this marker are one
+      atomic step. The marker is the ONLY signal the driver uses to detect that this phase
+      finished — herdr "idle" does not count (it also fires while you are merely waiting on a
+      reviewer). Run it last, once, after everything else; do not run it if you are stopping
+      blocked.
+## The run's task
+
+Dotfiles trust root Part A: (task-1) remove kyuusaku from the secrets fleet by gating all sops secrets off for that host; (task-2) enroll utsuho as a TPM device identity using utsuho's own gcloud login for the admin half. Context file carries verified state, decisions and the step list. Gate stays closed (setsuna, mari pending).
+
+That is the whole run, for orientation only. **Your scope is the task brief in the context section below**, not this run-level statement.
+
+## Context from the driver
+
+# Handoff: dotfiles trust root, Part A — kyuusaku out, utsuho in
+
+Spec: /home/sauyon/devel/reports/Homelab secrets bootstrap trust root.md, Part A. Prior run
+notes: ~/.local/share/drovr/runs/wif-enroll/{implement-task-1-HANDOFF.md,implement-task-2-HANDOFF.md,
+task1-report.md,task2-report.md} — read both handoffs first; every decision there stands.
+Artifact explaining the live system: https://claude.ai/artifact/A3ZJQtJeozbRqHgvjSj8cp
+
+## Verified 2026-10-02 (forge master ba07dc9 or later)
+- home.nix: `wifHosts = [ "shiori" "fujiwara" ]`, `wifTpmHosts = [ "shiori" "fujiwara" ]`.
+  Five secrets declared unconditionally (home.nix ~2011-2045): modularApiKey
+  (~/.config/local-auto-mode/api-key), koAgApiKey (~/.config/opencode/ko-ag-key), zaiApiKey
+  (~/.config/opencode/zai-key), modularApiUrl (~/.config/opencode/mcloud-base-url), unifiApiKey
+  (~/.config/unifi/api-key). Consumers: opencode.nix ~128-160 (every key file guarded by
+  `[ -r ]`/`[ -e ]`), pi.nix ~126-145 (guarded). So absent secrets degrade gracefully.
+- Live bucket JWKS (https://storage.googleapis.com/ko-keys-sauyon/hosts/.well-known/jwks.json)
+  holds exactly two kids: REDACTED (shiori, TPM) and
+  REDACTED (fujiwara, TPM).
+- utsuho: reachable from shiori as `ssh utsuho` (BatchMode ok). Arch, /dev/tpmrm0 present,
+  user in tss, nix on PATH, gcloud on PATH with sauyon@gmail.com ACTIVE (plus unrelated work
+  service accounts — never touch those), ~/.config/sops/gcp-key.json present, sops-nix healthy
+  on gcp-key.json, ~/devel/dotfiles clean at master. No ~/.config/ko yet.
+- fujiwara (10.0.7.100) is behind an interactive ssh-oidc gate: NOT reachable non-interactively
+  from shiori or utsuho. Do not plan on it. The admin half runs ON UTSUHO instead (its gcloud
+  is the human). utsuho thereby becomes the admin workstation of report A1 #5 — note it in the
+  report status, nothing else changes.
+- kyuusaku: a work box (home /local/mnt/workspace/kyuusaku, gui=false). The human decided it
+  must NOT get a device identity and does not need these secrets. It is removed from the
+  dotfiles secrets fleet entirely.
+- .sops.yaml still has nix-key + host-key + paper age recipient (one OR group). The migration
+  gate stays CLOSED in this run: setsuna and mari (system + user) are still on gcp-key.json.
+  Do not drop nix-key.
+
+## Decisions (do not re-litigate)
+- All decisions in the two prior handoffs: keys generated ON the device, never copied; only the
+  public JWK moves; admin-setup.sh REPLACES the JWKS so pass ALL current kids (fetch the live
+  JWKS and append; commit b822612 made it refuse a replace that drops a published kid); no
+  Google credentials on devices (utsuho already has gcloud as the human — that is pre-existing,
+  do not add more, do not run `gcloud auth application-default login` anywhere); secrets never
+  through `drovr ask`; TPM key via the tpm2-openssl provider exactly as shiori/fujiwara
+  (install/wif/tpm-keygen.sh); verify with the sops-install-secrets temp-manifest pattern before
+  any switch; `hms` is the switch (it pushes, waits for CI, switches) — if the classifier refuses
+  it, retry once, then `drovr ask` with the exact command.
+- kyuusaku removal shape: a host predicate in home.nix (e.g. `secretsHost = hostname != "kyuusaku"`
+  or an allowlist mirroring wifHosts' style) that gates ALL `sops.secrets.*` and the sops
+  environment; sops-nix must not fail on kyuusaku with zero secrets (if the module still runs
+  sops-install-secrets, make sure it succeeds with an empty manifest — test by building
+  `.#homeConfigurations.kyuusaku.activationPackage` and inspecting the manifest; CI does not
+  build kyuusaku). Consumers already tolerate absence; confirm opencode.json still renders.
+  Update home.nix:1384 `all_hosts` only if that list is about secrets (read its purpose first).
+- Review: drovr code-review run <run> <task> in the FOREGROUND from your pane; fix every
+  Critical/Important; defer nits on record. The task-2 handoff warns the panel's correctness
+  angle died often; a read-only Explore agent as a substitute correctness reviewer found real
+  findings — budget for that.
+
+## Tasks for THIS run (two phases; the driver starts each)
+- task-1: kyuusaku out of the secrets fleet (home.nix gating + build proof). Commit.
+- task-2: enroll utsuho: (a) over ssh, run install/wif/tpm-keygen.sh on utsuho (device side,
+  prints public JWK; copy ONLY the JWK back); (b) on utsuho, run install/wif/admin-setup.sh
+  with the two live JWKs plus utsuho's (nix shell nixpkgs#google-cloud-sdk nixpkgs#sops nixpkgs#jq;
+  `unset GOOGLE_APPLICATION_CREDENTIALS` first so gcloud/sops use the human login, exactly as the
+  script does); (c) wifHosts/wifTpmHosts += "utsuho"; commit; (d) verify on utsuho with the
+  temp-manifest pattern against the live credential config BEFORE switching; (e) `hms` on
+  utsuho (ask if refused); (f) confirm sops-nix.service clean and secrets present on utsuho;
+  then remove ~/.config/sops/gcp-key.json from utsuho ONLY after (f) — it still decrypts the
+  CLUSTER domain for the human's `kube` work, so DO NOT delete it; leave it, say so in the handoff.
+  (Correction: gcp-key.json on utsuho stays. It is the cluster-domain credential.)
+- Out of scope: setsuna, mari, dropping nix-key, the enroller, the report edits (driver does
+  those from the handoff).
+
+## Interfaces
+- Everything in the prior handoffs' §4. Live kid list above. Bucket write from utsuho:
+  `gcloud storage cp --content-type=application/json --cache-control='public, max-age=60' jwks.json gs://ko-keys-sauyon/hosts/.well-known/jwks.json`
+  (admin-setup.sh does this; prefer the script).
+- Push route: utsuho has forge credentials (it is the human's main workstation; `hms` pushes).
+
+## Done when
+
+The task's tests pass, you have run read-only reviewers (in the foreground) and
+addressed their Critical/Important findings, `task1-report.md` is written, you have authored
+`implement-task-1-HANDOFF.md`, and you have run `drovr phase done wif-enroll-2 implement-task-1` as
+your final action. Reference source by path; do not paste large diffs into the report or handoff.
+
+If you cannot complete the task (blocked, or the plan contradicts reality), STOP and say so
+plainly in the report — a failed task halts the loop rather than cascading a broken interface
+forward.
+</pasted_content id="41ed">

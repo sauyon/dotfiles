@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b8l3fzhuc</task-id>
+<tool-use-id>toolu_01PHB5CAmr54eECneCGxjLjt</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/ea7f88b6-ae53-4e56-b94b-bb4466b6b5a1/tasks/b8l3fzhuc.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the full test suite" completed (exit code 0)</summary>
+</task-notification>

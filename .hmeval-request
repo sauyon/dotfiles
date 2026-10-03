@@ -1,0 +1,4 @@
+mode=tests
+hosts=utsuho setsuna fujiwara shiori kyuusaku mari
+tests=mcode.sh
+attr=

@@ -1,0 +1,11 @@
+Two instructions from the human (2026-10-02). (1) setsuna will be decommissioned: remove it from secretsHosts in home.nix exactly the way kyuusaku was removed in 192bb65, update tests/secrets-fleet.sh accordingly, and build .#homeConfigurations.setsuna.activationPackage (CI builds setsuna, so it must evaluate; confirm its activation no longer contains sops). Keep this a separate commit from the utsuho enrollment. (2) The human explicitly authorises pushing the branch and running hms on utsuho for this run — proceed without asking; if the classifier refuses hms, retry once, then post a drovr ask with the exact command. After setsuna's removal the only principal still on gcp-key.json is mari (system + user); say so in your handoff. Everything else in your brief stands.
+
+---
+
+<task-notification>
+<task-id>bu5c61s5o</task-id>
+<tool-use-id>toolu_019JFcMZYuTuHEVYTbWowpnN</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles--drovr-wt-wif-enroll-2/c43382c7-6e6c-4fdf-8902-0027a6f27a2f/tasks/bu5c61s5o.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the human's answer on the push route" completed (exit code 0)</summary>
+</task-notification>

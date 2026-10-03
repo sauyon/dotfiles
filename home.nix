@@ -1001,84 +1001,32 @@ let
   # withLibsecret override wasn't, so it recompiled git on every nixpkgs bump.
   gitWithLibsecret = pkgs.gitFull;
 
-  # Git credential helper backed by fj's own login store, so fj is the single
-  # place a Forgejo token lives (forge.ko.ag is HTTPS-only via a Cloudflare
-  # tunnel). fj has no `git-credential` subcommand, so this shim reads keys.json
-  # directly.
+  # Git credential helper: now just `fj git-credential` under the name git and
+  # the scripts here already call. It stays a wrapper rather than having call
+  # sites use `fj git-credential` directly because every one of them invokes it
+  # as a single argv[0] -- forge-api.sh does `"$token_cmd" get` -- and a
+  # two-word command would not survive that.
   #
-  # forge.ko.ag is a `fj auth login` OAuth grant (LoginInfo::OAuth), not a
-  # `fj auth add-token` application token: the access token in keys.json carries
-  # an expires_at roughly an hour out, and only fj can mint a new one. Handing
-  # git an expired one fails the push outright — the shim exits 0 with a
-  # credential, so git never falls through to a prompt or to another helper.
-  # So when the stored expiry has passed, poke fj first: any authenticated call
-  # runs LoginInfo::refresh + KeyInfo::save (upstream src/keys.rs) and rewrites
-  # keys.json in place, and the read below then picks up the new token.
+  # What used to be here: ~55 lines of bash that parsed keys.json's expires_at
+  # tuple with jq, poked `fj whoami` under flock(1) to force a refresh, then
+  # grepped the new token back out. fj does all of it now (our fork's
+  # src/git_credential.rs; see nix/forgejo-cli.nix), and removing the shim is
+  # not just tidiness -- the two could not coexist. The shim took
+  # $XDG_RUNTIME_DIR/git-credential-fj.lock and *then* ran fj; once fj locked
+  # its own refresh cycle on that same path, the child blocked on a lock its
+  # own parent held (flock(2) belongs to the open file description, so it is
+  # not inherited), the parent waited on the child, and every git operation
+  # needing a refresh hung forever. One process taking the lock once cannot
+  # deadlock against itself.
   #
-  # Gate the poke on the expiry rather than running it every time. fj's save()
-  # is a truncate-in-place write with no locking, and a rotation whose new
-  # refresh token never reaches disk wedges the login permanently with "token
-  # was already used"; recovering needs `fj auth login`, which shells out to
-  # xdg-open and is useless on this box over SSH. Same reason for the flock:
-  # it keeps two concurrent git operations from racing a rotation against each
-  # other. (macOS has no flock(1) in $PATH, so mari pokes unserialized — one
-  # laptop, one user, and the window is a single expiry instant.)
-  #
-  # Application logins have no expires_at, so they skip the poke entirely and
-  # this stays a pure keys.json read for them.
+  # The semantics the shim worked for are unchanged, only relocated: fj
+  # refreshes when expires_at has passed, serializes it on
+  # $XDG_RUNTIME_DIR/fj-refresh.lock with a 60s bound, and on a wedged lock
+  # falls through to the stored token rather than erroring -- so git still
+  # never drops to a prompt, which is the behaviour that matters here (this box
+  # is reached over SSH, where `fj auth login`'s xdg-open is useless).
   git-credential-fj = pkgs.writeShellScriptBin "git-credential-fj" ''
-    set -euo pipefail
-
-    # Only `get` is ours to answer — fj owns store/erase.
-    [ "''${1:-}" = "get" ] || exit 0
-
-    host=""
-    while IFS='=' read -r key value; do
-      [ -n "$key" ] || break
-      case "$key" in
-        host) host="$value" ;;
-      esac
-    done
-    [ -n "$host" ] || exit 0
-
-    # fj writes keys.json to its ProjectDirs data dir: on Linux that is
-    # $XDG_DATA_HOME (~/.local/share); on macOS it is ~/Library/Application
-    # Support/forgejo-cli.forgejo-cli, NOT ~/.local/share — so on darwin the XDG
-    # path never exists and the shim must fall back to app-support, or git drops
-    # to a prompt. (fj still reads its *config*, client_ids, from ~/.config on
-    # both, so only this data path is platform-split.)
-    keys="''${XDG_DATA_HOME:-$HOME/.local/share}/forgejo-cli/keys.json"
-    [ -r "$keys" ] || keys="$HOME/Library/Application Support/forgejo-cli.forgejo-cli/keys.json"
-    [ -r "$keys" ] || exit 0
-
-    # expires_at is time::OffsetDateTime's serde tuple, in order:
-    # [year, day-of-year, hour, minute, second, nanos, offset-h, offset-m,
-    # offset-s]. jq's mktime wants [year, month0, mday, h, m, s, wday, yday]
-    # and is UTC-based, so build January 1st and add the ordinal by hand.
-    # `-e` makes "still valid" exit 0; anything else — expired, absent
-    # (Application login or unknown host), or unparseable — exits nonzero.
-    if ! ${lib.getExe pkgs.jq} -e --arg h "$host" '
-      .hosts[$h].expires_at
-      | if type == "array" and length >= 9 then
-          ([.[0], 0, 1, .[2], .[3], .[4], 0, 0] | mktime)
-            + (.[1] - 1) * 86400
-            - (.[6] * 3600 + .[7] * 60 + .[8])
-          > now
-        else true end
-    ' "$keys" >/dev/null 2>&1; then
-      # Best-effort: a failed refresh still falls through to whatever is on
-      # disk rather than dropping git to a terminal prompt.
-      ${lib.optionalString (!isDarwin) ''${pkgs.util-linux}/bin/flock -w 60 "''${XDG_RUNTIME_DIR:-''${TMPDIR:-/tmp}}/git-credential-fj.lock" \''}
-        ${lib.getExe pkgs.forgejo-cli} -H "$host" whoami >/dev/null 2>&1 || true
-    fi
-
-    # A nonzero exit aborts git's whole operation rather than falling through
-    # to a prompt, so a half-written keys.json degrades to "no credential".
-    token=$(${lib.getExe pkgs.jq} -r --arg h "$host" '.hosts[$h].token // empty' "$keys" 2>/dev/null) || exit 0
-    [ -n "$token" ] || exit 0
-
-    # Forgejo ignores the basic-auth username when the password is a token.
-    printf 'username=oauth2\npassword=%s\n' "$token"
+    exec ${lib.getExe pkgs.forgejo-cli} git-credential "$@"
   '';
 
   # `hms` — switch this host, but let the forge do the building.
@@ -3292,10 +3240,18 @@ in
     # which this Electron still resolves to X11 -- name Wayland explicitly.
     # waypipe splits the remote argv itself, so an env-assignment prefix would
     # be exec'd as the program name.
+    #
+    # --video h264 because the path is the internet, not a LAN: utsuho lives
+    # at the office while shiori is home (60ms RTT, 22ms jitter over its
+    # office wifi), and raw DMABUF forwarding over that stutters. H.264 turns
+    # the window content into a video stream; the far end encodes on the
+    # Radeon 890M (RADV) through the Vulkan ICDs the waypipe wrapper above
+    # injects. bpf=<bits/frame> on the flag is the quality knob if the link
+    # ever gets worse.
     (pkgs.writeShellScriptBin "work-slack" ''
       set -euo pipefail
       ssh utsuho 'pkill -x slack || true'
-      exec waypipe ssh utsuho slack --ozone-platform=wayland
+      exec waypipe --video h264 ssh utsuho slack --ozone-platform=wayland
     '')
   ]
   ++ lib.optionals (hostname == "fujiwara") [

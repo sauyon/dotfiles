@@ -1,0 +1,9 @@
+how do I exit hyprland
+
+---
+
+and is there a way to turn the screen off in tty
+
+---
+
+no but I don't want to do that because I don't want to be logge din

@@ -3042,6 +3042,17 @@ in
       ];
     })
 
+    # The emoji font, and it has to be its own package. Everything Noto above is
+    # text -- NotoSans Nerd Font for the UI, NotoSans/NotoSerif/NotoSansMono in
+    # the google-fonts set -- and not one of them carries an emoji glyph, so
+    # "we have Noto" is true and emoji still render as tofu. Missing, it fails
+    # silently: `fc-match emoji` returns whatever Noto sorts first rather than
+    # erroring. Ungated, like google-fonts beside it: ~10 MiB, and a headless
+    # host that renders a document wants the glyphs too. fontconfig's own
+    # 60-generic.conf binds the `emoji` generic to the family name this ships,
+    # so installing it is the whole fix -- see ../tests/emoji-font.sh.
+    noto-fonts-color-emoji
+
     claude-agent-acp
     coder
     comma

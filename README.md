@@ -109,6 +109,7 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/elephant-reindex.sh      # renders each walker host's unit, plus sd-switch's job type
 ./tests/hyprlock-pending-race.sh # reads the pinned hyprlock source, 5 cases
 ./tests/waypipe.sh               # evaluates 6 hosts, builds the wrapper, 17 cases
+./tests/emoji-font.sh            # evaluates 6 hosts, builds the font, 13 cases
 ```
 
 `patches/hyprlock-fix-lost-finished-event.patch` works around

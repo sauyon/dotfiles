@@ -4435,9 +4435,15 @@ in
         "akane" = {
           Port = 59049;
         };
+        # kanon over the UCG's "Kon WireGuard" overlay, not Tailscale: shiori's
+        # tailscaled is logged out, and kanon is reachable at its LAN address
+        # from any WG client once 10.0.10.0/24 is in the tunnel's routes (kube
+        # repo docs/network-ip-map.md, "A plain WG client needs the home DHCP
+        # pool, not a /32"). Literal IP rather than the bare name so the alias
+        # does not also depend on the overlay's resolver winning in resolv.conf.
         "kanon" = {
           User = "root";
-          HostName = "kanon.alai-ionian.ts.net";
+          HostName = "10.0.10.47";
           Port = 59048;
         };
         "yui mio meiko ritsu mugi azusa" = {

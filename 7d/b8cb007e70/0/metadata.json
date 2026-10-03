@@ -1,0 +1,76 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "7db8cb007e70",
+  "session_id": "1ae58029-389c-4927-a912-cc660be39e2a",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-03T09:03:29.935502349Z",
+  "branch": "master",
+  "checkpoints_count": 3,
+  "save_step_count": 1,
+  "files_touched": [
+    "flake.nix",
+    "forgejo-cli-Cargo.lock",
+    "nix/forgejo-cli.nix",
+    "patches/forgejo-cli-keys-flock.patch"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "201b95e8483f",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 112,
+    "cache_creation_tokens": 120325,
+    "cache_read_tokens": 4929537,
+    "output_tokens": 53819,
+    "api_call_count": 56
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01HB9CShJbtdx8RshZTyequX",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:verification-before-completion"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "201b95e8483f",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 268,
+        "end": 269,
+        "entry_ids": [
+          "dc11c6e6-5a22-43db-900f-74987418855e"
+        ],
+        "tool_use_id": "toolu_01HB9CShJbtdx8RshZTyequX"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01HB9CShJbtdx8RshZTyequX"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:verification-before-completion",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-03T09:03:29.817750709Z",
+    "agent_lines": 3294,
+    "agent_removed": 0,
+    "human_added": 16,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 3311,
+    "total_lines_changed": 3311,
+    "agent_percentage": 99.48655995167624,
+    "metric_version": 2
+  }
+}

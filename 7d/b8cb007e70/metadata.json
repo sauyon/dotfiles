@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "7db8cb007e70",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "flake.nix",
+    "forgejo-cli-Cargo.lock",
+    "nix/forgejo-cli.nix",
+    "patches/forgejo-cli-keys-flock.patch"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7d/b8cb007e70/0/metadata.json",
+      "transcript": "/7d/b8cb007e70/0/full.jsonl",
+      "compact_transcript": "/7d/b8cb007e70/0/transcript.jsonl",
+      "content_hash": "/7d/b8cb007e70/0/content_hash.txt",
+      "prompt": "/7d/b8cb007e70/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 112,
+    "cache_creation_tokens": 120325,
+    "cache_read_tokens": 4929537,
+    "output_tokens": 53819,
+    "api_call_count": 56
+  }
+}

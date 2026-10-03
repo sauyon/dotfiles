@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "5ee4d7efec64",
+  "strategy": "manual-commit",
+  "branch": "waypipe-vulkan",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/5e/e4d7efec64/0/metadata.json",
+      "transcript": "/5e/e4d7efec64/0/full.jsonl",
+      "compact_transcript": "/5e/e4d7efec64/0/transcript.jsonl",
+      "content_hash": "/5e/e4d7efec64/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 70,
+    "cache_creation_tokens": 64551,
+    "cache_read_tokens": 8571977,
+    "output_tokens": 52614,
+    "api_call_count": 35
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "ff85e108ac65",
+  "strategy": "manual-commit",
+  "branch": "fix/ssh-oidc-escalation-pin",
+  "checkpoints_count": 4,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/ff/85e108ac65/0/metadata.json",
+      "transcript": "/ff/85e108ac65/0/full.jsonl",
+      "compact_transcript": "/ff/85e108ac65/0/transcript.jsonl",
+      "content_hash": "/ff/85e108ac65/0/content_hash.txt",
+      "prompt": "/ff/85e108ac65/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 240,
+    "cache_creation_tokens": 184127,
+    "cache_read_tokens": 16375552,
+    "output_tokens": 81692,
+    "api_call_count": 120
+  }
+}

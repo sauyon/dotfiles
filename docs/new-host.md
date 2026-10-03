@@ -123,7 +123,15 @@ kubectl -n bootstrap create secret generic sops-gcp-key \
    polkit, the attic netrc, the remote-builder key, patched tailscaled — so the
    next step downloads CI's build;
 3. does the Home Manager switch for `<host>` (via `nix run` the first time);
-4. runs `tailscale up` if it isn't up;
+4. runs `tailscale up` if it isn't up — Tailscale here is the **work** VPN
+   (`tail1beac.ts.net`); the patched systemd unit + the
+   `tailscale-ssh-skip-logind-session` patch are a work-VPN concern, not
+   anything residential. The personal tailnet (`alai-ionian`) is
+   intentionally empty in this repo, and a host that does not need the work
+   hop (most non-workstation hosts) can stay logged out — `system/deploy`
+   still leaves tailscaled running but inactive, which is the intended
+   posture for `shiori`. **mari is not reached over Tailscale** — see
+   `docs/darwin-remote-builder.md`;
 5. on exit, however it exits: runs `install/finalize-ssh.sh` (disables sshd
    unless a working ssh-oidc gate is installed), then removes the
    `99-bootstrap` sudoers drop-in from step 3.

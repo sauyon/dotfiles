@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "092b4e48554e",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "forgejo-cli-Cargo.lock",
+    "nix/forgejo-cli.nix",
+    "patches/forgejo-cli-keys-flock.patch",
+    "tests/hms-ci-poll.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/09/2b4e48554e/0/metadata.json",
+      "transcript": "/09/2b4e48554e/0/full.jsonl",
+      "compact_transcript": "/09/2b4e48554e/0/transcript.jsonl",
+      "content_hash": "/09/2b4e48554e/0/content_hash.txt",
+      "prompt": "/09/2b4e48554e/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 52,
+    "cache_creation_tokens": 324515,
+    "cache_read_tokens": 7752881,
+    "output_tokens": 18467,
+    "api_call_count": 27
+  }
+}

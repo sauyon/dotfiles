@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "2b40a0a3bf5a",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "home.nix",
+    "tests/hyprland-graceful-exit.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2b/40a0a3bf5a/0/metadata.json",
+      "transcript": "/2b/40a0a3bf5a/0/full.jsonl",
+      "compact_transcript": "/2b/40a0a3bf5a/0/transcript.jsonl",
+      "content_hash": "/2b/40a0a3bf5a/0/content_hash.txt",
+      "prompt": "/2b/40a0a3bf5a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 202,
+    "cache_creation_tokens": 224714,
+    "cache_read_tokens": 14863977,
+    "output_tokens": 105502,
+    "api_call_count": 101,
+    "subagent_tokens": {
+      "input_tokens": 70,
+      "cache_creation_tokens": 164168,
+      "cache_read_tokens": 1644856,
+      "output_tokens": 760,
+      "api_call_count": 35
+    }
+  }
+}

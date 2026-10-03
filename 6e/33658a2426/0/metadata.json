@@ -1,0 +1,77 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "6e33658a2426",
+  "session_id": "868b6e6d-2618-4041-b828-28443c133844",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-03T00:59:18.009355491Z",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    ".forgejo/workflows/nix-eval.yml",
+    "README.md",
+    "home.nix",
+    "home/scripts/forge-api.sh",
+    "tests/hmeval.sh"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "9d0a86784b73",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 60,
+    "cache_creation_tokens": 68186,
+    "cache_read_tokens": 2289820,
+    "output_tokens": 20092,
+    "api_call_count": 30
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01SRMB4YiauZzHXDmfj1QbWW",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "9d0a86784b73",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 95,
+        "end": 96,
+        "entry_ids": [
+          "0729fd2d-9928-4a59-bb62-e31248be6954"
+        ],
+        "tool_use_id": "toolu_01SRMB4YiauZzHXDmfj1QbWW"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01SRMB4YiauZzHXDmfj1QbWW"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-03T00:59:17.983130427Z",
+    "agent_lines": 840,
+    "agent_removed": 0,
+    "human_added": 107,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 949,
+    "total_lines_changed": 949,
+    "agent_percentage": 88.51422550052686,
+    "metric_version": 2
+  }
+}

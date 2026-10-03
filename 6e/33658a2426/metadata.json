@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "6e33658a2426",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".forgejo/workflows/nix-eval.yml",
+    "README.md",
+    "home.nix",
+    "home/scripts/forge-api.sh",
+    "tests/hmeval.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6e/33658a2426/0/metadata.json",
+      "transcript": "/6e/33658a2426/0/full.jsonl",
+      "compact_transcript": "/6e/33658a2426/0/transcript.jsonl",
+      "content_hash": "/6e/33658a2426/0/content_hash.txt",
+      "prompt": "/6e/33658a2426/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 60,
+    "cache_creation_tokens": 68186,
+    "cache_read_tokens": 2289820,
+    "output_tokens": 20092,
+    "api_call_count": 30
+  }
+}

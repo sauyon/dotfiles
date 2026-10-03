@@ -1,0 +1,33 @@
+why don't you do this?
+
+---
+
+what the hell? it doesn't expire and I didn't revoke it, so how has this happened
+
+---
+
+can you go through fujiwara to confirm it's not a network path issue
+
+---
+
+doesn't fujiwara also work cloud
+
+---
+
+doesn't fujiwara also work local..........
+
+---
+
+no, but it accesses fine using the local mcp no
+
+---
+
+ok where do I get a local mode key then
+
+---
+
+Zen can’t connect to the server at 10.0.0.1
+
+---
+
+it was 10.9.0.1. where do I put the key

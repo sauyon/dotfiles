@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "dfe4862ee95c",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".forgejo/workflows/nix-eval.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/df/e4862ee95c/0/metadata.json",
+      "transcript": "/df/e4862ee95c/0/full.jsonl",
+      "compact_transcript": "/df/e4862ee95c/0/transcript.jsonl",
+      "content_hash": "/df/e4862ee95c/0/content_hash.txt",
+      "prompt": "/df/e4862ee95c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 10289,
+    "cache_read_tokens": 2571867,
+    "output_tokens": 7725,
+    "api_call_count": 12
+  }
+}

@@ -2223,7 +2223,17 @@ in
   # JSON on stdin, with `$CLAUDE_PLUGIN_ROOT` substituted into the
   # `command` field. Verified by running `mcode exec` against this exact
   # payload — SessionStart / UserPromptSubmit / PreToolUse / PostToolUse /
-  # Stop / Notification all fire as expected.
+  # Stop / Notification all fire as expected. SessionEnd is registered as
+  # a hook in `hooks.json` so when mcode grows one (today it does not),
+  # `pane.release_agent` fires immediately and the agent slot in the
+  # sidebar disappears without waiting for herdr's prompt-return safety
+  # net. Until then, that safety net ("clear the agent once the pane is
+  # back at its shell prompt") is what cleans the pane up — and it only
+  # fires when herdr recognises the source, which is why the script uses
+  # `source = "herdr:mcode"` rather than the bare name herdr's published
+  # docs recommend. Same probe that proved the source requirement also
+  # showed the bare name's reports were ACK'd with `{"type":"ok"}` but
+  # never reached the panel state.
   #
   # The script is the herdr-protocol-emitting half (mirrors cursor's pattern,
   # which is shorter than claude's and the closest non-claude analog here);

@@ -1,21 +1,37 @@
 #!/bin/sh
 # Vendored into ~/.minimax/plugins/herdr-agent-state/hooks/. Fires on every
 # mcode lifecycle event declared in the same directory's hooks.json and,
-# inside a herdr pane, publishes state/session RPCs to the local herdr
-# socket. No-op unless HERDR_PANE_ID is set in mcode's environment, so
-# inert outside a herdr pane.
+# inside a herdr pane, publishes state/session/release RPCs to the local
+# herdr socket. No-op unless HERDR_PANE_ID is set in mcode's environment,
+# so inert outside a herdr pane.
 #
-# Action → state map (set by hooks.json's `command:` per event):
-#   sessionstart → pane.report_agent_session (new identity, state=working)
+# Action → herdr-RPC map (set by hooks.json's `command:` per event):
+#   sessionstart → pane.report_agent_session (state=working; new identity)
 #   working      → pane.report_agent        state=working
 #   idle         → pane.report_agent        state=idle
 #   blocked      → pane.report_agent        state=blocked
+#   sessionend   → pane.release_agent       (clears the pane's agent slot)
 #
 # mcode's CLAUDE-format hook emitter sends Claude-Code-shaped JSON on
 # stdin: { hook_event_name, session_id, transcript_path, cwd, source, ... }.
-# Verified empirically with `mcode exec --permission off` that
-# SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, and
-# Notification all fire and carry the expected keys.
+# Verified empirically with `mcode exec --permission off --prompt-mode tui`
+# against mcode 0.6.2 that SessionStart, UserPromptSubmit, PreToolUse,
+# PostToolUse, Stop, and Notification all fire and carry the expected
+# keys. SessionEnd is registered as a hook so mcode picks it up the day
+# it grows one, but today mcode never fires it on a normal exit — see
+# the comment on `source` below for why that still ends up clean.
+#
+# The `source` value we send is `herdr:mcode`, even though the herdr docs
+# at herdr.dev/add-herdr-support say to avoid the `herdr:` prefix (treating
+# it as reserved for herdr's own integrations). On herdr 0.9.1 — what this
+# repo runs — a probe of the API socket shows bare sources are
+# acknowledged with `{"type":"ok"}` but the state changes are silently
+# dropped, while `herdr:`-prefixed sources actually update
+# pane.agent_status. The same prefix is also what lets herdr's exit
+# safety net ("clear the agent slot once the pane returns to its shell
+# prompt") recognise and remove our entries on mcode quit. `agent` stays
+# `mcode` (not `herdr:mcode`) because that field is the panel display
+# name, not the integration tag.
 #
 # mcode filters env when spawning hook subprocesses: only CLAUDE_*,
 # MINIMAX_*, and a few basics (TERM, HOSTNAME, HOSTTYPE) are preserved;
@@ -62,13 +78,22 @@ state_for_action() {
     working)      printf '%s' "working" ;;
     idle         ) printf '%s' "idle" ;;
     blocked      ) printf '%s' "blocked" ;;
-    *) exit 0 ;;
   esac
 }
 
-state="$(state_for_action "$action")"
+method_for_action() {
+  case "$1" in
+    sessionstart) printf '%s' "pane.report_agent_session" ;;
+    sessionend  ) printf '%s' "pane.release_agent"         ;;
+    working | idle | blocked) printf '%s' "pane.report_agent" ;;
+  esac
+}
 
-HERDR_ACTION="$action" HERDR_STATE="$state" python3 - <<'PY'
+state="$(state_for_action "$action" || true)"
+method="$(method_for_action "$action" || true)"
+[ -n "$method" ] || exit 0
+
+HERDR_ACTION="$action" HERDR_STATE="$state" HERDR_METHOD="$method" python3 - <<'PY'
 import json
 import os
 import random
@@ -80,8 +105,9 @@ pane_id = os.environ.get("HERDR_PANE_ID")
 socket_path = os.environ.get("HERDR_SOCKET_PATH")
 action = os.environ.get("HERDR_ACTION", "")
 state = os.environ.get("HERDR_STATE", "")
+method = os.environ.get("HERDR_METHOD", "")
 
-if not pane_id or not socket_path or not state:
+if not pane_id or not socket_path or not method:
     raise SystemExit(0)
 
 try:
@@ -110,36 +136,42 @@ if action == "sessionstart":
     if isinstance(src, str) and src:
         session_start_source = src
 
-# `source` identifies our integration to herdr. Per herdr's add-herdr-support
-# guide, the `herdr:` prefix is reserved for herdr's own integrations; an
-# outside source name gets a `{"type":"ok"}` from herdr's API but the report
-# is silently discarded. Use a stable, plain identifier here.
-source = "mcode"
+# `source` identifies our integration to herdr. The 0.9.1 server honours
+# `herdr:`-prefixed sources (claude, opencode, etc. all use one) and
+# silently drops bare-name reports on the floor. Prefix ours so the panel
+# state actually changes and the exit-time safety net can find us again.
+source = "herdr:mcode"
 agent = "mcode"
 request_id = f"{source}:{int(time.time() * 1000)}:{random.randrange(1_000_000):06d}"
 report_seq = time.time_ns()
 
-params = {
-    "pane_id": pane_id,
-    "source": source,
-    "agent": agent,
-    "seq": report_seq,
-    "state": state,
-}
-if session_id:
-    params["agent_session_id"] = session_id
-if transcript_path:
-    params["agent_session_path"] = transcript_path
-if session_start_source:
-    params["session_start_source"] = session_start_source
-
-# SessionStart is the canonical identity-carrying event — report the
-# session via pane.report_agent_session first, so herdr binds the
-# session_id for the pane before any working/idle transitions.
-method = (
-    "pane.report_agent_session" if action == "sessionstart" else "pane.report_agent"
-)
-request = {"id": request_id, "method": method, "params": params}
+# release_agent is the bare shutdown signal: name only, no state or session.
+if method == "pane.release_agent":
+    request = {
+        "id": request_id,
+        "method": method,
+        "params": {
+            "pane_id": pane_id,
+            "source": source,
+            "agent": agent,
+            "seq": report_seq,
+        },
+    }
+else:
+    params = {
+        "pane_id": pane_id,
+        "source": source,
+        "agent": agent,
+        "seq": report_seq,
+        "state": state,
+    }
+    if session_id:
+        params["agent_session_id"] = session_id
+    if transcript_path:
+        params["agent_session_path"] = transcript_path
+    if session_start_source:
+        params["session_start_source"] = session_start_source
+    request = {"id": request_id, "method": method, "params": params}
 
 try:
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)

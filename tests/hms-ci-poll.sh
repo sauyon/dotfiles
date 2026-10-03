@@ -240,6 +240,22 @@ else
     "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
 fi
 
+# `--fallback` is hard-coded into `switch_now` (home.nix) so a NAR the in-cluster
+# attic Service can't deliver — Service reload, an attestation blip, anything
+# short of the cluster actually being unreachable — degrades to a local build for
+# that one path, rather than aborting the whole switch after ten minutes of
+# transfer. Mirrors `--fallback` on the CI build step (`.forgejo/workflows/nix-home.yml`).
+# Pin here so a future edit that drops the flag breaks loudly instead of
+# reviving the 10-minute-stall class on box-side switches.
+setup_repo; mktoken good; mkcurl good success; mkswitch
+run >/dev/null
+if [ -f "$D/switched" ] && grep -q -F -- '--fallback' "$D/switched"; then
+  report "switch_now passes --fallback to home-manager switch" ok
+else
+  report "switch_now passes --fallback to home-manager switch" no \
+    "switch argv=[$(cat "$D/switched" 2>/dev/null)]"
+fi
+
 # Only the first password line is the token. Asserting through a real request
 # rather than by reading the curlrc: what matters is that the forge receives a
 # usable header, and a multiline token fails that whether it truncates, splits

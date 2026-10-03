@@ -57,11 +57,31 @@ out-of-band). The substituter URL itself was switched from
 The change is the box-side twin of what CI did first: substituting through
 Cloudflare was the surface the 601 s response ceiling lived on, and taking it
 out of the path removed the 307 / stream-error class that made pulls flaky from
-boxes. `--fallback` runs the CI build step had on `nix-home.yml:132` stay —
-that flag is correct for the *server* side, where a path the runner itself
-built an hour ago can still fail to re-fetch; the box side does not have that
-problem because the wire no longer goes through Cloudflare. Not adding it here
-because masks-loud-failures are exactly what we *don't* want on the wire.
+boxes.
+
+`hms`'s `switch_now` (`home.nix`) passes `-- --fallback` to `home-manager
+switch`, mirroring the `--fallback` the CI build step passes on
+`nix-home.yml:132`. With Cloudflare gone the failure mode is different on each
+side, but the knob is the same:
+
+- **CI side.** The substituter is the very Service the runner just pushed to,
+  seconds to minutes earlier. A NAR the Service can't hand back is almost
+  always a transient hiccup — Service reload, RTT spike, attestation blip —
+  and a 25-minute build ending in `no substituter that can build it` is a worse
+  outcome than that one path being built locally. `--fallback` degrades that.
+- **Box side.** The substituter is the same Service, but the boxes' reach to
+  it is the *Kon WireGuard overlay* (shiori via the profile committed in
+  `c8c17274`; the other Linux boxes carry the same tunnel out-of-band). A
+  switch that lands 30 seconds after you ran `hms` already told you things were
+  green; aborting it at minute 10 because the in-cluster Service happened to
+  reload during one NAR transfer is the *same* worse outcome. `--fallback`
+  degrades that too.
+
+The earlier draft of this paragraph argued --fallback masked a real wire
+breakage, which the Cloudflare ceiling very much was; with Cloudflare out of
+the path, what `--fallback` masks is a per-NAR transient, not the cause of
+the failure class. hms --local goes through the same `switch_now` and gets the
+same flag.
 
 ## Bootstrap (producing side)
 

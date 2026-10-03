@@ -1126,7 +1126,15 @@ let
     done
 
     switch_now() {
-      exec ''${HMS_SWITCH_CMD:-home-manager switch} --flake "$repo#$host" ''${hm_args[@]+"''${hm_args[@]}"}
+      # -- --fallback: mirrors `.forgejo/workflows/nix-home.yml`'s build step (and
+      # the equivalent on the vulnix scan). A NAR the in-cluster attic Service
+      # can't deliver — Service down, cluster netrc expired, transient 5xx — falls
+      # through to a local build for that one path rather than aborting the whole
+      # switch after 10 minutes of transfer. Cloudflare's 600 s ceiling is no
+      # longer on the wire (c8c17274 promoted shiori's Kon WireGuard profile, and
+      # 10929ef9 moved substituters off `attic.ko.ag`), so this flag now costs a
+      # single local build per outage instead of every run.
+      exec ''${HMS_SWITCH_CMD:-home-manager switch} --flake "$repo#$host" -- --fallback ''${hm_args[@]+"''${hm_args[@]}"}
     }
 
     # mari (darwin) has no Linux CI job; nix-home.yml builds only these.

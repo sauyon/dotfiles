@@ -7,6 +7,8 @@
 # need any of the five secrets in the first place. So it is out of the fleet
 # entirely: no sops.secrets, no sops environment, no sops-nix unit, and no
 # consumer that would read a secret file that is never going to exist.
+# setsuna is out for the same effect and a different reason: it is being
+# decommissioned, and enrolling it would only mint a device key to revoke.
 #
 # What is protected here:
 #
@@ -14,7 +16,7 @@
 #   when sops.secrets is empty -- no sops-install-secrets, no manifest, no
 #   sops-nix.service, no activation step. That is what keeps an unenrolled host
 #   from failing every activation on a decrypt it cannot do. A single secret
-#   left declared for kyuusaku (a new one added without the gate) would switch
+#   left declared for an out host (a new one added without the gate) would switch
 #   the whole module back on, so the check is "the set is empty", not "these
 #   five are gone".
 #
@@ -45,11 +47,11 @@ FLAKE="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 [ -f "$FLAKE/flake.nix" ] || { echo "no flake.nix in: $FLAKE" >&2; exit 1; }
 echo "testing $FLAKE"
 
-IN=(utsuho setsuna shiori fujiwara mari)
-OUT=(kyuusaku)
-LINUX_IN=(utsuho setsuna shiori fujiwara)
+IN=(utsuho shiori fujiwara mari)
+OUT=(kyuusaku setsuna)
+LINUX_IN=(utsuho shiori fujiwara)
 WIF=(shiori fujiwara utsuho)
-GCP_KEY=(setsuna mari)
+GCP_KEY=(mari)
 
 D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
 fails=0; n=0

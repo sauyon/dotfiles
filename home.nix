@@ -56,11 +56,12 @@ let
   #
   # The secrets fleet: hosts that decrypt secrets.yaml at all. kyuusaku is a work
   # box that will never get a device identity and needs none of these secrets,
-  # so it is out entirely -- no sops.secrets, which is what switches sops-nix's
-  # module (unit, activation, sops-install-secrets) off for it. An allowlist, not
-  # `!= "kyuusaku"`, so a new host starts out of the fleet: it cannot decrypt
-  # anything until enrolled anyway. tests/secrets-fleet.sh pins the split.
-  secretsHosts = [ "utsuho" "setsuna" "shiori" "fujiwara" "mari" ];
+  # and setsuna is being decommissioned, so enrolling it would only mint a key to
+  # revoke later. Both are out entirely -- no sops.secrets, which is what
+  # switches sops-nix's module (unit, activation, sops-install-secrets) off for
+  # them. An allowlist, not `!= "kyuusaku"`, so a new host starts out of the
+  # fleet: it cannot decrypt anything until enrolled anyway. tests/secrets-fleet.sh pins the split.
+  secretsHosts = [ "utsuho" "shiori" "fujiwara" "mari" ];
   isSecretsHost = builtins.elem hostname secretsHosts;
 
   # Hosts listed here decrypt secrets.yaml through a device identity: a local

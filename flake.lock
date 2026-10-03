@@ -52,11 +52,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1790651645,
-        "narHash": "sha256-AXWZpmXCD2Qa++ST3GaZPRXtOBWC6S/gHO7T7Zlveig=",
+        "lastModified": 1791015459,
+        "narHash": "sha256-AmLdXjcNtvcujMV84Um4ujAtKn301yKbtqGHHOmudn4=",
         "ref": "refs/heads/main",
-        "rev": "222f51c0774de235a2a0ab40fa029f754146949a",
-        "revCount": 1212,
+        "rev": "e6780368435c3528bedb57ebadb8876945d5d209",
+        "revCount": 1213,
         "type": "git",
         "url": "https://forge.ko.ag/drovr/drovr.git"
       },
@@ -398,11 +398,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1791011491,
-        "narHash": "sha256-W4IR2X5mzQk/39picqJprEhGNw7Zde+xzgQrE1fKBC0=",
+        "lastModified": 1791015068,
+        "narHash": "sha256-Igh7eL0fkgHzeX2F7B5ZukITw/JfJCIdc+qPIaNmcto=",
         "ref": "refs/heads/main",
-        "rev": "be8c0e70945a455aa1c736aff6f6506936555b15",
-        "revCount": 156,
+        "rev": "4518c1278ba1c55f307e0fb2a162690034fc5d1c",
+        "revCount": 157,
         "type": "git",
         "url": "https://forge.ko.ag/sauyon/ssh-oidc"
       },

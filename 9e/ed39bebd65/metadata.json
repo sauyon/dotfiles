@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "9eed39bebd65",
+  "strategy": "manual-commit",
+  "branch": "drovr/tests-audit",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "README.md",
+    "docs/ci-nix-eval.md",
+    "flake.nix",
+    "home.nix",
+    "nix/cryptomator-cli.nix",
+    "tests/aur-helper.sh",
+    "tests/cryptomator-cli.sh",
+    "tests/emoji-font.sh",
+    "tests/even-terminal.sh",
+    "tests/gnome-keyring-seal.sh",
+    "tests/hidpi-dconf-split.sh",
+    "tests/mcode.sh",
+    "tests/secrets-fleet.sh",
+    "tests/steam-env.sh",
+    "tests/steam-ui-scaling.sh",
+    "tests/waypipe.sh",
+    "tests/wif-tpm.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9e/ed39bebd65/0/metadata.json",
+      "transcript": "/9e/ed39bebd65/0/full.jsonl",
+      "compact_transcript": "/9e/ed39bebd65/0/transcript.jsonl",
+      "content_hash": "/9e/ed39bebd65/0/content_hash.txt",
+      "prompt": "/9e/ed39bebd65/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 202,
+    "cache_creation_tokens": 118185,
+    "cache_read_tokens": 30743234,
+    "output_tokens": 58351,
+    "api_call_count": 101
+  }
+}

@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>b9vvia7no</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/449b7b9f-1a8f-462a-be17-3bb7be705152/tasks/b9vvia7no.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the full suite from the main checkout" completed (exit code 0)</summary>
+</task-notification>

@@ -1,0 +1,64 @@
+# shiori's end of the Kon WireGuard overlay (the UCG's), as NetworkManager
+# keyfile. Installed by ../network.sh, deliberately NOT by ./deploy's etc/ copy
+# -- that copy preserves this repo's 644, and NetworkManager ignores a keyfile
+# carrying secrets unless it is 600 and root-owned.
+#
+# Two values are absent on purpose and spliced in at install time from whatever
+# profile is already on the device:
+#
+#   private-key               this device's, under [wireguard]
+#   the [wireguard-peer.*] id the home server's public key
+#
+# Neither belongs in a public repo, and the private key is per-device, so there
+# is nothing to share between hosts anyway.
+#
+# The shape here is the split tunnel, and it is load-bearing: allowed-ips is
+# 0.0.0.0/0 so the peer may *carry* anything, while ip4-auto-default-route=false
+# stops that from becoming a default route and the three route= lines name what
+# actually goes over the tunnel. A full tunnel here once blacked the host out.
+
+[connection]
+id=Kon-shiori
+uuid=e1722ba7-25e3-4aa3-86a0-74e4cf00b703
+type=wireguard
+interface-name=Kon-shiori
+autoconnect=true
+
+[wireguard]
+mtu=1368
+ip4-auto-default-route=false
+ip6-auto-default-route=false
+
+[wireguard-peer.@PEER_PUBKEY@]
+allowed-ips=0.0.0.0/0;::/0;
+# A name, not the literal WAN address: the home line is a dynamic residential
+# lease, and NetworkManager re-resolves this on activation. The old profile
+# pinned the IP, so an IP change would have presented exactly as the outage this
+# file is a response to.
+endpoint=kanon.ko.ag:51820
+# The old profile had no keepalive, so the NAT mapping the home server held for
+# this peer aged out with nothing to re-punch it. 25s is the usual floor for
+# surviving a consumer NAT.
+persistent-keepalive=25
+
+[ipv4]
+method=manual
+address1=10.9.0.2/32
+# The overlay's resolver stays, even with the search domain set: fujiwara.ko.ag
+# and friends have no public A record (measured -- the public ko.ag zone carries
+# kanon and forge, not the fleet), so the suffix needs an authority that does.
+dns=10.9.0.1;
+dns-search=ko.ag;
+never-default=true
+route1=10.9.0.0/24
+route2=10.0.7.0/24
+route3=10.0.10.0/24
+
+[ipv6]
+method=manual
+address1=fd38:b020:137a:f48f::4/128
+dns=fd38:b020:137a:f48f::1;
+dns-search=ko.ag;
+never-default=true
+route1=fd38:b020:137a:f48f::/64
+addr-gen-mode=default

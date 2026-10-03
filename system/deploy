@@ -193,6 +193,33 @@ fi
 find etc/ -type d | while read -r d; do sudo mkdir -p "/${d}"; done
 find etc/ -type f | while read -r f; do sudo cp -v "${f}" "/${f}"; done
 
+# The Kon WireGuard profile is NOT under etc/, and the copy above is why: it
+# preserves this repo's 644, and NetworkManager ignores a keyfile carrying
+# secrets unless it is 600 and root-owned -- it would have been copied into
+# place, skipped, and the live profile's private key lost with it.
+#
+# install_wg_profile writes it 600 root:root and carries the two per-device
+# values (this device's private key, the home server's public key) over from
+# whatever is already installed, so neither has to live in this repo.
+#
+# Reload, but do not bring the tunnel up: this deploy may well be running over
+# it, and `con up` on an active WireGuard profile drops the session for as long
+# as the rehandshake takes. The 90-kon-wg-rebind dispatcher hook is what
+# reactivates it, on the event that actually invalidates the binding.
+case "${host}" in
+shiori)
+  # shellcheck source=./network.sh
+  . ./network.sh
+  if install_wg_profile kon-wireguard/Kon-shiori.nmconnection \
+       /etc/NetworkManager/system-connections/Kon-shiori.nmconnection; then
+    sudo nmcli connection reload
+    echo "system/deploy: Kon WireGuard profile installed; it takes effect on the profile's next activation."
+  else
+    echo "system/deploy: Kon WireGuard profile not installed; continuing." >&2
+  fi
+  ;;
+esac
+
 # polkit only scans /usr/share/polkit-1/actions for action definitions, which
 # etc/ can't reach; install Bitwarden's unlock action there so its "system
 # authentication" biometric prompt is authorized on this non-NixOS host.

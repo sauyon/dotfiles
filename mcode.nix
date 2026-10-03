@@ -20,9 +20,12 @@
 #   T=https://registry.npmjs.org/@minimax-ai/code/-/code-$V.tgz
 #   nix store prefetch-file --json --hash-type sha256 "$T"   # -> src.hash
 #   mkdir -p /tmp/mc && curl -fsSL "$T" | tar xz -C /tmp/mc --strip-components=1
-#   nix shell nixpkgs#nodejs --command npm install --prefix /tmp/mc \
+#   nix shell nixpkgs#nodejs_22 --command npm install --prefix /tmp/mc \
 #     --package-lock-only --ignore-scripts
 #   cp /tmp/mc/package-lock.json mcode-package-lock.json
+#
+# `nodejs_22` there, not `nodejs`, to match the `nodejs` pin below: the lock
+# should be written by the same npm that will read it under `npm ci`.
 #
 # Then set `npmDepsHash` to lib.fakeHash, build once, and take the hash the
 # mismatch prints.
@@ -31,10 +34,36 @@ let
 in
 {
   nixpkgs.overlays = [
-    (final: prev: {
+    (final: prev:
+    let
+      # Node 22, not this nixpkgs' default 24, and the pin is load-bearing:
+      # on 24 the TUI SIGABRTs about a second after launch, at "Starting
+      # server...".
+      #
+      # Node 24's `node_object_wrap.h` grew cleanup hooks, so `~ObjectWrap`
+      # calls `node::RemoveEnvironmentCleanupHook(v8::Isolate::GetCurrent(),
+      # ...)`, and that CHECKs `Environment::GetCurrent(isolate) != nullptr`
+      # (src/api/hooks.cc:142). But `ObjectWrap`'s weak callback — which is
+      # what frees the wrapper — runs inside V8's first-pass weak callbacks,
+      # where no context is entered, so `GetCurrent` has nothing to return and
+      # the CHECK aborts the process. better-sqlite3's `Statement` derives from
+      # `node::ObjectWrap`, mcode's session store churns prepared statements
+      # while the TUI boots, and the first collection that reaps a dead one
+      # takes the process down. Node 22's header has no such hooks, so there is
+      # nothing to assert on; `engines` here is ">=22.19 <23 || >=24 <27", and
+      # upstream's own installer ships a 22.x runtime.
+      #
+      # The pin covers the build as much as the runtime: `node_object_wrap.h`
+      # is a header, compiled into the addon, so what matters is which node's
+      # headers node-gyp built better-sqlite3 against. `installCheckPhase`
+      # below holds this down — see `mcode-gc-stress.cjs`.
+      #
+      # To unpin: build with `prev.nodejs` and see whether installCheck passes.
+      nodejs = prev.nodejs_22;
+    in {
       mcode = prev.buildNpmPackage {
         pname = "mcode";
-        inherit version;
+        inherit version nodejs;
 
         src = prev.fetchurl {
           url =
@@ -47,18 +76,21 @@ in
 
           # Drop the root postinstall (`node ./verify-native-install.mjs`). It
           # is a diagnostic for npm-based installs — open an in-memory database,
-          # `SELECT 1`, print a verdict — and it gets the verdict right here:
-          # "[MCode] Native SQLite check passed." Then the process SIGABRTs on
-          # the way out, inside better-sqlite3's `Database` destructor:
+          # `SELECT 1`, print a verdict — and it gets the verdict right: "[MCode]
+          # Native SQLite check passed." On Node 24 it then SIGABRTed on the way
+          # out, and npm, seeing only the signal, failed the install.
           #
-          #   node::RemoveEnvironmentCleanupHook ... Assertion `(env) != nullptr'
-          #
-          # which is teardown ordering between the addon and this nixpkgs' Node
-          # 24.20.0, not a broken build — npm sees only the signal and fails the
-          # install. `installCheckPhase` below asserts the same two things the
-          # script does, from the built output, so nothing is lost by removing
-          # it. Re-check on a Node bump: if the abort is gone upstream, this
-          # patch can go.
+          # That abort was not about this script and not about teardown
+          # ordering: it was the ObjectWrap/GC bug the `nodejs` pin above
+          # describes, which the script happened to trigger by leaving a dead
+          # statement for the collector. The pin fixes it at the cause — the
+          # script now exits 0 — so this deletion is no longer load-bearing for
+          # that reason. It is kept because the build has never been run without
+          # it and the postinstall buys nothing here: `installCheckPhase` below
+          # asserts everything the script does, from the built output, and then
+          # some. To drop it, delete the `jq` line and check the build still
+          # passes; `npmPackFlags` below handles the other place npm would run
+          # it.
           ${prev.jq}/bin/jq 'del(.scripts.postinstall)' package.json > package.json.new
           mv package.json.new package.json
         '';
@@ -138,6 +170,19 @@ in
           $out/bin/mcode --version
 
           [ -n "$(find $out/lib/node_modules -name better_sqlite3.node -print -quit)" ]
+
+          # Neither check above survives contact with a running session: both
+          # exit before a garbage collection reaps a prepared statement, which
+          # is when the SIGABRT `mcode-gc-stress.cjs` describes fires. Run the
+          # stress loop against the addon just built.
+          #
+          # Located via package.json, not via the .node: node-gyp leaves a
+          # second copy of the addon under build/Release/obj.target/, and `find
+          # -quit` is free to return either one.
+          betterSqlite3="$(dirname "$(find $out/lib/node_modules \
+            -path '*/better-sqlite3/package.json' -print -quit)")"
+          [ -f "$betterSqlite3/package.json" ]
+          ${nodejs}/bin/node ${./mcode-gc-stress.cjs} "$betterSqlite3"
 
           runHook postInstallCheck
         '';

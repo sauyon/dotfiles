@@ -398,11 +398,11 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1791009186,
-        "narHash": "sha256-Awi2s8RqABTzKlUo9Xiy9fe4ukSqCJgVRZcb8qpvpyA=",
+        "lastModified": 1791011491,
+        "narHash": "sha256-W4IR2X5mzQk/39picqJprEhGNw7Zde+xzgQrE1fKBC0=",
         "ref": "refs/heads/main",
-        "rev": "fbee5598905dc617236c2472cdc80079dc423c1d",
-        "revCount": 155,
+        "rev": "be8c0e70945a455aa1c736aff6f6506936555b15",
+        "revCount": 156,
         "type": "git",
         "url": "https://forge.ko.ag/sauyon/ssh-oidc"
       },

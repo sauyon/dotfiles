@@ -51,11 +51,14 @@ lib32-vulkan-icd-loader
 # it one is the whole edit if it ever wants this.
 thermald
 
-# WireGuard client tooling for the UCG's "Kon WireGuard" overlay: this host
-# reaches utsuho (10.9.0.6, the waypipe pair in home.nix) over WG because
-# utsuho's tailscaled is on the work tailnet and the two tailnets never meet.
-# Only the tooling lives here -- the keypair and wg0.conf stay on the host at
-# /etc/wireguard (0600), not in this repo or sops, the same call the kube repo
-# makes for its nodes' WG keys; peer registration is by hand in the UniFi UI.
-# ./deploy enables wg-quick@wg0 once that config exists.
+# WireGuard tooling for the UCG's "Kon WireGuard" overlay: this host reaches
+# utsuho (10.9.0.6, the waypipe pair in home.nix) over WG because utsuho's
+# tailscaled is on the work tailnet and the two tailnets never meet. The
+# client itself is the NetworkManager connection "Kon-shiori" (10.9.0.2),
+# created by hand in nm-connection-editor -- not wg-quick, so ./deploy's
+# wg-quick step never fires here; this package is what provides `wg show`,
+# the only quick way to tell a live tunnel from one that never handshook
+# (kyuusaku's sat "up" for 12 days without one). The key lives in the NM
+# profile under /etc/NetworkManager/system-connections/, not in this repo or
+# sops; peer registration is by hand in the UniFi UI.
 wireguard-tools

@@ -2,10 +2,13 @@ creation_rules:
   - path_regex: secrets.yaml
     # Transition: nix-key (cluster SA key, existing hosts) AND host-key (device WIF
     # identities, see reports/…trust root.md Part A). One key group = either decrypts.
-    # nix-key is removed here once every dotfiles principal is enrolled and the
-    # human confirms the paper recipient below is printed and stored (A7
-    # migration gate). The recipient now exists; the printing is not yet
-    # confirmed, so nix-key stays.
+    # nix-key is removed here once every dotfiles principal is enrolled AND the
+    # recovery identity at rest in the Cryptomator vault has been verified
+    # readable (A7 migration gate, §15 of the run log). The vault is the
+    # recovery root on its own: passphrase-encrypted, scrypt N=32768,
+    # format 8, SIV_CTRMAC; storage compromise yields ciphertext and an
+    # offline attack bounded by the passphrase, not by KMS availability.
+    # No paper print required.
     gcp_kms: "projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/nix-key,projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/host-key"
     # Offline paper recovery (report A6.4, A7 step 1). Same creation rule as
     # gcp_kms, so it is the same key group: this recipient ALONE decrypts, with

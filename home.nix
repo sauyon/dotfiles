@@ -68,7 +68,7 @@ let
   # it against the JWKS in the ko-keys-sauyon bucket, and the federated token
   # decrypts with KMS host-key. No decryption key on the host. Hosts NOT listed
   # keep the cluster-domain path (gcp-key.json -> nix-key) until enrolled.
-  wifHosts = [ "shiori" "fujiwara" ];
+  wifHosts = [ "shiori" "fujiwara" "utsuho" ];
   useWif = builtins.elem hostname wifHosts;
   # Hosts whose device key lives in the TPM (install/wif/tpm-keygen.sh) instead
   # of in a file. A separate list from wifHosts because it is a separate fact:
@@ -76,7 +76,7 @@ let
   # published) before and independently of where it keeps the private half.
   # Listing a host here before its TPM key's JWK is in the bucket JWKS gives it
   # an STS 401 at the next activation — publish first, switch second.
-  wifTpmHosts = [ "shiori" "fujiwara" ];
+  wifTpmHosts = [ "shiori" "fujiwara" "utsuho" ];
   useWifTpm = useWif && !isDarwin && builtins.elem hostname wifTpmHosts;
   wifKeyFile = "${config.home.homeDirectory}/.config/ko/"
     + (if useWifTpm then "wif-tpm.pem" else "wif.pem");

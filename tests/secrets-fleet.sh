@@ -29,6 +29,14 @@
 #   secret it is a server that fails every start. It is registered only where
 #   the secret exists.
 #
+#   Within the fleet, who is enrolled. A member decrypts either through its
+#   device identity (wifHosts: the credential config is the store-built
+#   external_account file) or through the cluster-domain gcp-key.json. Listing a
+#   host in wifHosts before its JWK is published 401s it at the next activation,
+#   and dropping one silently moves it back onto the key the migration is
+#   retiring, so the split is pinned. Where the WIF key lives (TPM or file) is
+#   tests/wif-tpm.sh's job, on the device.
+#
 #   ./tests/secrets-fleet.sh            # tests this checkout
 #   ./tests/secrets-fleet.sh /path/to/flake
 set -u
@@ -40,6 +48,8 @@ echo "testing $FLAKE"
 IN=(utsuho setsuna shiori fujiwara mari)
 OUT=(kyuusaku)
 LINUX_IN=(utsuho setsuna shiori fujiwara)
+WIF=(shiori fujiwara utsuho)
+GCP_KEY=(setsuna mari)
 
 D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
 fails=0; n=0
@@ -100,6 +110,16 @@ for h in "${IN[@]}"; do
 done
 for h in "${LINUX_IN[@]}"; do
   check "$h runs the sops-nix user unit"        true    "$(fact "$h" .unit)"
+done
+
+# --- enrolled ----------------------------------------------------------------
+echo
+cred() { fact "$1" '.env.GOOGLE_APPLICATION_CREDENTIALS // "" | if endswith("-wif-hosts.json") then "device identity" elif endswith("/.config/sops/gcp-key.json") then "gcp-key.json" else . end'; }
+for h in "${WIF[@]}"; do
+  check "$h decrypts through its device identity" '"device identity"' "$(cred "$h")"
+done
+for h in "${GCP_KEY[@]}"; do
+  check "$h still decrypts through gcp-key.json"  '"gcp-key.json"'    "$(cred "$h")"
 done
 
 # --- the teeth ---------------------------------------------------------------

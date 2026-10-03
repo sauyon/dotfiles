@@ -128,8 +128,22 @@ let
   hidpi = let
     scale = if hostname == "setsuna" || hostname == "fujiwara" then 1.25 else 1.0;
     enabled = scale != 1.0;
+    # Which of the two mechanisms carries `scale` to GTK. text-scaling-factor
+    # goes through dconf and is read at runtime via a live dconf D-Bus service,
+    # so it only works on a host that has one; GDK_DPI_SCALE is read straight
+    # out of the environment and works anywhere. Exactly one per host — setting
+    # both multiplies them, which is the double-scaling the laptopScale comment
+    # below also guards against.
+    #
+    # A flag, not a `hostname ==` at each use site: the hosts this picks out are
+    # not "setsuna" in any meaningful sense, they are the hosts with a dconf
+    # service, and the two use sites (GDK_DPI_SCALE, dconf.settings) have to
+    # stay each other's exact complement. Deriving it once here is what makes
+    # that checkable. It is emphatically NOT the gate on dconf.enable — see the
+    # dconf block for what keying those together cost.
+    viaDconf = hostname == "setsuna";
   in {
-    inherit scale enabled;
+    inherit scale enabled viaDconf;
     qtFontDpi = builtins.floor (96.0 * scale);
     cursorSize = if enabled then 48 else 24;
     waybarFontSize = if enabled then 20 else 17;
@@ -2203,9 +2217,9 @@ in
     // (lib.optionalAttrs hidpi.enabled {
       QT_FONT_DPI = toString hidpi.qtFontDpi;
     })
-    # setsuna scales GTK via dconf (text-scaling-factor); other HiDPI hosts have
-    # no dconf D-Bus service, so use GDK_DPI_SCALE instead.
-    // (lib.optionalAttrs (hidpi.enabled && hostname != "setsuna") {
+    # The non-dconf half of hidpi.viaDconf: a scaled host without a dconf D-Bus
+    # service cannot use text-scaling-factor, so it gets GDK_DPI_SCALE instead.
+    // (lib.optionalAttrs (hidpi.enabled && !hidpi.viaDconf) {
       GDK_DPI_SCALE = toString hidpi.scale;
     })
     # Steam's desktop UI is CEF, and X11. force_zero_scaling hands it the panel's
@@ -3601,8 +3615,31 @@ in
   };
 
   dconf = {
-    enable = hostname == "setsuna";
-    settings = lib.optionalAttrs (hostname == "setsuna") {
+    # NOT gated on the scaling decision below, which is what 3d6d403 (2026-05-26,
+    # "gate dconf.enable on the setsuna hostname") made it and what left every
+    # GTK app rendering light on a config that asks for dark. dconf.settings is
+    # not only the text-scaling-factor this file declares: home-manager's own
+    # gtk3 module writes color-scheme, gtk-theme, icon-theme, cursor-theme,
+    # cursor-size and font-name into the same attrset, computed from the gtk.*
+    # options set above, on every desktop host.
+    # This option gates whether any of it is applied (hm's modules/misc/dconf.nix
+    # `config = mkIf (cfg.enable && databases != [])`), so keying it to the one
+    # host that scales via dconf discarded six keys to protect one.
+    #
+    # The symptom was invisible from the usual place to look: gtk-3.0/settings.ini
+    # is written by a different code path and stayed correct, reading
+    # gtk-application-prefer-dark-theme=true, while the XDG portal — which answers
+    # org.freedesktop.appearance color-scheme out of dconf — reported 0, "no
+    # preference". Gecko and every other portal-aware toolkit then picks light.
+    # Covered by tests/hidpi-dconf-split.sh.
+    #
+    # Hosts with no dconf D-Bus service are not a reason to gate: hm's activation
+    # falls back to `dbus-run-session` when DBUS_SESSION_BUS_ADDRESS is unset, and
+    # on a host that never reads the database the keys are inert, not harmful.
+    enable = !isDarwin && isDesktop;
+    # The scaling half, and the exact complement of the GDK_DPI_SCALE block
+    # above — a host must carry `scale` by one mechanism or the other, never both.
+    settings = lib.optionalAttrs (hidpi.enabled && hidpi.viaDconf) {
       "org/gnome/desktop/interface" = {
         text-scaling-factor = hidpi.scale;
       };

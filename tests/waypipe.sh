@@ -56,10 +56,17 @@ has_pkg() { # has_pkg <host>
   packages_for "$1" | jq -e --arg p "$PKG" 'any(. == $p)' >/dev/null
 }
 
-# The store path of one host's waypipe, so the two ends can be compared. Empty
-# if that host has none.
+# The .drv of the waypipe actually in one host's profile, so the two ends can be
+# compared. Empty if that host has none.
+#
+# Deliberately NOT `homeConfigurations.$1.pkgs.waypipe`: that is the bare nixpkgs
+# package, which is identical across hosts no matter what the profile installs, so
+# a wrap applied to one end only would still have compared equal. What has to
+# match is what each end will actually exec.
 waypipe_drv() { # waypipe_drv <host>
-  nix eval --raw "$FLAKE#homeConfigurations.$1.pkgs.$PKG" 2>/dev/null || true
+  nix eval --raw "$FLAKE#homeConfigurations.$1.config.home.packages" \
+    --apply 'ps: let m = builtins.filter (p: (p.pname or "") == "waypipe") ps;
+                 in if m == [ ] then "" else (builtins.head m).drvPath' 2>/dev/null || true
 }
 
 check() { # check <desc> <expected: yes|no> <host>
@@ -110,10 +117,122 @@ fi
 n=$((n + 1))
 a=$(waypipe_drv "${PAIR[0]}"); b=$(waypipe_drv "${PAIR[1]}")
 if [ -n "$a" ] && [ "$a" = "$b" ]; then
-  echo "ok   both ends are the same $PKG ($(basename "$a"))"
+  echo "ok   both ends build the same $PKG ($(basename "$a"))"
 else
   echo "FAIL the two ends differ: ${PAIR[0]}=${a:-<none>} ${PAIR[1]}=${b:-<none>}"
   fails=$((fails + 1))
+fi
+
+# --- the Vulkan ICD (the GPU path) -------------------------------------------
+# waypipe 0.10+ rewrote DMABUF handling onto Vulkan (src/dmabuf.rs), so the
+# `dmabuf: true` the binary advertises is only half the story: it also needs a
+# Vulkan *driver* at runtime, and a nix-built loader on a non-NixOS host does not
+# get one. The host's own manifest does not save it -- Arch's
+# /usr/share/vulkan/icd.d/radeon_icd.json names the bare soname
+# `libvulkan_radeon.so`, which a store-built waypipe has no path to resolve, so
+# the loader finds a manifest and still comes up empty:
+#
+#   ERR waypipe-server src/dmabuf.rs:970:
+#       Failed to create Vulkan instance: Unable to find a Vulkan driver
+#
+# That error is reported to the client, which drops the dmabuf protocols, and the
+# far-end app then fails in GTK with "Failed to initialize GTK" or the even less
+# helpful "Gtk: Failed to open display" -- no window, nothing naming Vulkan.
+# `--no-gpu` papers over it by forcing shared memory. These cases are about the
+# wrapper that fixes it instead, because the symptom points nowhere near the cause.
+drv_for() { # drv_for <host>
+  nix eval --raw "$FLAKE#homeConfigurations.$1.config.home.packages" \
+    --apply 'ps: (builtins.head (builtins.filter (p: (p.pname or "") == "waypipe") ps)).drvPath' 2>"$D/err"
+}
+
+n=$((n + 1))
+if drv=$(drv_for shiori) && store=$(nix-store --realise "$drv" 2>>"$D/err" | tail -1) && [ -n "$store" ]; then
+  echo "ok   waypipe realises for shiori ($(basename "$store"))"
+  BIN="$store/bin/waypipe"
+else
+  echo "FAIL could not realise shiori's waypipe:"; cat "$D/err" >&2
+  fails=$((fails + 1)); BIN=""
+fi
+
+# The wrapper has to be a wrapper. Before this change $out/bin/waypipe is the
+# bare ELF and every assertion below is about a string that is simply absent.
+# Read the value the wrapper really produces, by running the wrapper with its
+# final `exec` rewritten into a printenv. Everything above that line -- the
+# prefix arithmetic makeWrapper emits, which is five lines of bash parameter
+# expansion per entry -- runs verbatim, so this tests the resulting value
+# including order and de-duplication. A regex over the script does not: the
+# emitted code mentions VK_ICD_FILENAMES on lines that contain no path at all,
+# and an earlier version of this test matched one of those and passed vacuously.
+icd_value=""
+n=$((n + 1))
+if [ -n "$BIN" ]; then
+  icd_value=$(sed 's#^exec .*#printenv VK_ICD_FILENAMES#' "$BIN" \
+    | env -u VK_ICD_FILENAMES bash 2>/dev/null | tail -1)
+fi
+if [ -n "$icd_value" ]; then
+  echo "ok   wrapper exports VK_ICD_FILENAMES when the environment had none"
+else
+  echo "FAIL wrapper exports no VK_ICD_FILENAMES: the Vulkan/DMABUF path cannot initialise"
+  fails=$((fails + 1))
+fi
+
+# Every manifest named must exist. A path that 404s is the failure mode a string
+# match cannot see: the var is set, the loader reads nothing, and the error is
+# byte-identical to having no wrapper at all.
+n=$((n + 1))
+if [ -n "$icd_value" ]; then
+  missing=""
+  IFS=':' read -r -a icds <<< "$icd_value"
+  for f in "${icds[@]}"; do
+    case "$f" in /nix/store/*) [ -r "$f" ] || missing="$missing $f" ;; esac
+  done
+  if [ -z "$missing" ]; then
+    echo "ok   every store ICD manifest named exists (${#icds[@]} entries)"
+  else
+    echo "FAIL ICD manifests named but absent:$missing"
+    fails=$((fails + 1))
+  fi
+else
+  echo "FAIL no ICD list to check"; fails=$((fails + 1))
+fi
+
+# Both GPUs of the pair, from ONE derivation. shiori is Intel (anv) and utsuho is
+# AMD (radv), and the two ends must stay the same store path -- see the case
+# above -- so the wrapper cannot be keyed on the host's gpu attr. Listing both is
+# what lets one package serve both ends; the loader skips an ICD whose device is
+# not present.
+for want in intel_icd radeon_icd; do
+  n=$((n + 1))
+  case "$icd_value" in
+    *"$want"*) echo "ok   ICD list covers $want" ;;
+    *) echo "FAIL ICD list does not cover $want: one end of the pair has no driver"
+       fails=$((fails + 1)) ;;
+  esac
+done
+
+# The wrap must not have cost us the feature it exists to serve.
+n=$((n + 1))
+if [ -n "$BIN" ] && "$BIN" --version 2>/dev/null | grep -q "dmabuf: true"; then
+  echo "ok   wrapped waypipe still reports dmabuf: true"
+else
+  echo "FAIL wrapped waypipe does not report dmabuf: true"
+  fails=$((fails + 1))
+fi
+
+# --prefix, not --set: a host that grows a working system ICD must keep it. The
+# store entries have to come first, though, or the broken host manifest is what
+# the loader tries first.
+n=$((n + 1))
+if [ -n "$BIN" ]; then
+  combined=$(sed 's#^exec .*#printenv VK_ICD_FILENAMES#' "$BIN" \
+    | VK_ICD_FILENAMES=/sentinel/host_icd.json bash 2>/dev/null | tail -1)
+  case "$combined" in
+    /nix/store/*:*/sentinel/host_icd.json) echo "ok   pre-set VK_ICD_FILENAMES is kept, after ours" ;;
+    *"/sentinel/host_icd.json") echo "FAIL ours do not come first: $combined"; fails=$((fails + 1)) ;;
+    *) echo "FAIL a pre-set VK_ICD_FILENAMES was discarded: $combined"; fails=$((fails + 1)) ;;
+  esac
+else
+  echo "FAIL no wrapper to check prefix behaviour"; fails=$((fails + 1))
 fi
 
 # --- the teeth ---------------------------------------------------------------

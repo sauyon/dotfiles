@@ -1066,6 +1066,55 @@ let
   # Refuses on a dirty tree: CI builds a pushed commit, so an uncommitted switch
   # is one CI can never reproduce, and silently building it locally would hide
   # that. `--local` is the escape hatch for exactly that case.
+  # waypipe, wrapped so its DMABUF path can actually find a GPU.
+  #
+  # waypipe 0.10 rewrote DMABUF handling onto Vulkan (src/dmabuf.rs), so the
+  # `dmabuf: true` the binary advertises is a build-time fact, not a runtime one:
+  # it also needs a Vulkan driver, and a store-built loader on an Arch box has no
+  # way to find one. The host's own manifest is not a fallback -- Arch's
+  # /usr/share/vulkan/icd.d/radeon_icd.json names the bare soname
+  # `libvulkan_radeon.so`, which a nix binary cannot resolve, so the loader reads
+  # a manifest and still reports none. Measured on utsuho 2026-10-02:
+  #
+  #   ERR waypipe-server src/dmabuf.rs:970:
+  #       Failed to create Vulkan instance: Unable to find a Vulkan driver
+  #
+  # waypipe then tells the client to drop the dmabuf protocols and the far-end
+  # application dies in GTK init -- "Failed to initialize GTK", or from ghostty
+  # the even blanker "Gtk: Failed to open display". No window and nothing naming
+  # Vulkan, which is why this is worth a comment rather than a one-liner.
+  #
+  # Why not nixGL, the wrapper this repo already reaches for: nixGLIntel sets
+  # GBM_BACKENDS_PATH, LIBGL_DRIVERS_PATH, LIBVA_DRIVERS_PATH,
+  # __EGL_VENDOR_LIBRARY_FILENAMES and LD_LIBRARY_PATH -- and no Vulkan variable
+  # at all. It would have changed nothing here. nixgl's separate nixVulkanIntel
+  # does set VK_ICD_FILENAMES, but it also overwrites LD_LIBRARY_PATH (warning on
+  # stderr as it goes) and drags in validation layers, for one variable we can set
+  # ourselves.
+  #
+  # Both manifests, from one derivation, named rather than globbed:
+  #   - Both, because shiori is Intel (anv) and utsuho AMD (radv), and the loader
+  #     skips an ICD whose device is absent. Keying this on `gpu` would give the
+  #     two ends different store paths, and waypipe refuses a version mismatch --
+  #     see ../tests/waypipe.sh, which asserts the two ends are byte-identical.
+  #   - Named, because `builtins.readDir "${pkgs.mesa}/share/..."` is
+  #     import-from-derivation, and CI evaluates every host without building.
+  #     A filename that moves upstream therefore fails a test, not an eval.
+  # --prefix, not --set: the host's own manifests stay behind ours, so a box that
+  # grows a working system ICD is not cut off from it.
+  waypipe = pkgs.waypipe.overrideAttrs (old: {
+    nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
+    postFixup = (old.postFixup or "") + ''
+      wrapProgram $out/bin/waypipe \
+        --prefix VK_ICD_FILENAMES : "${
+          lib.concatStringsSep ":" [
+            "${pkgs.mesa}/share/vulkan/icd.d/intel_icd.x86_64.json"
+            "${pkgs.mesa}/share/vulkan/icd.d/radeon_icd.x86_64.json"
+          ]
+        }"
+    '';
+  });
+
   hms = pkgs.writeShellScriptBin "hms" ''
     set -euo pipefail
 
@@ -3122,7 +3171,9 @@ in
   # "command not found: waypipe" with the package plainly installed is a .zshenv
   # problem, not this gate.
   ++ lib.optionals (builtins.elem hostname [ "shiori" "utsuho" ]) [
-    pkgs.waypipe
+    # The nixGL-less Vulkan wrap, defined up top; pkgs.waypipe bare cannot do GPU
+    # transfers on these hosts.
+    waypipe
   ]
   ++ lib.optionals (hostname == "fujiwara") [
     clawpatrol

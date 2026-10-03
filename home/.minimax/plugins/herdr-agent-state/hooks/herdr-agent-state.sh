@@ -30,13 +30,24 @@ action="${1:-}"
 
 # Recover HERDR_* from the parent (mcode)'s environ when not already in our
 # own. Skip silently when running outside a herdr pane (no env to recover).
+#
+# Loop instead of `eval "export $herdr_env"` — eval prepends `export` to line
+# 1 only, so subsequent `HERDR_FOO=val` lines run as command names and the
+# values never land. `export "KEY=val"` sets and exports a single variable
+# in one POSIX-portable builtin.
 if [ -z "${HERDR_PANE_ID:-}" ] && [ -n "${PPID:-}" ] && [ -r "/proc/$PPID/environ" ]; then
   herdr_env="$(tr '\0' '\n' </proc/"$PPID"/environ 2>/dev/null \
     | grep -E '^HERDR_(ENV|SOCKET_PATH|PANE_ID|TAB_ID|WORKSPACE_ID)=' \
     || true)"
   if [ -n "$herdr_env" ]; then
-    # shellcheck disable=SC2086
-    eval "export $herdr_env"
+    OLD_IFS="${IFS}"
+    IFS='
+'
+    for line in $herdr_env; do
+      [ -n "$line" ] || continue
+      export "$line" 2>/dev/null || true
+    done
+    IFS="${OLD_IFS}"
   fi
 fi
 
@@ -49,8 +60,8 @@ state_for_action() {
   case "$1" in
     sessionstart) printf '%s' "working" ;;
     working)      printf '%s' "working" ;;
-    idle)         printf '%s' "idle" ;;
-    blocked)      printf '%s' "blocked" ;;
+    idle         ) printf '%s' "idle" ;;
+    blocked      ) printf '%s' "blocked" ;;
     *) exit 0 ;;
   esac
 }
@@ -99,7 +110,11 @@ if action == "sessionstart":
     if isinstance(src, str) and src:
         session_start_source = src
 
-source = "herdr:mcode"
+# `source` identifies our integration to herdr. Per herdr's add-herdr-support
+# guide, the `herdr:` prefix is reserved for herdr's own integrations; an
+# outside source name gets a `{"type":"ok"}` from herdr's API but the report
+# is silently discarded. Use a stable, plain identifier here.
+source = "mcode"
 agent = "mcode"
 request_id = f"{source}:{int(time.time() * 1000)}:{random.randrange(1_000_000):06d}"
 report_seq = time.time_ns()

@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "ab86a21c8259",
+  "strategy": "manual-commit",
+  "branch": "drovr/hidpi-dconf-split",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "home.nix",
+    "tests/hidpi-dconf-split.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ab/86a21c8259/0/metadata.json",
+      "transcript": "/ab/86a21c8259/0/full.jsonl",
+      "compact_transcript": "/ab/86a21c8259/0/transcript.jsonl",
+      "content_hash": "/ab/86a21c8259/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 142,
+    "cache_creation_tokens": 208330,
+    "cache_read_tokens": 10625196,
+    "output_tokens": 64802,
+    "api_call_count": 71
+  }
+}

@@ -2520,33 +2520,55 @@ in
 
       # The config backend is Lua, so `hyprctl dispatch` evaluates its argument
       # as `hl.dispatch(<expr>)` -- the legacy word syntax ("closewindow
-      # address:0x...") is a Lua parse error, exits 7, and the `|| true` here
+      # address:0x...") is a Lua parse error, exits 7, and a bare `|| true`
       # swallowed it. Same migration as the focus bind in hyprland.nix.
-      hyprctl clients -j | ${pkgs.jq}/bin/jq -r '.[].address' | while read -r addr; do
-        hyprctl dispatch "hl.dsp.window.close({ window = [[address:$addr]] })" || true
-      done
+      #
+      # Every hyprctl call that gathers state is `|| <default>`: under
+      # `pipefail` a dead compositor or a stale socket would otherwise abort
+      # the script here, before the refusal branch and before the
+      # notification -- and from a keybind that notification is the only thing
+      # the user ever sees. The final exit dispatch is deliberately bare: if
+      # that one fails, the nonzero status is the right outcome.
+      addrs=$(hyprctl clients -j | ${pkgs.jq}/bin/jq -r '.[].address') || addrs=
+      # Split out of the pipeline so `|| addrs=` can catch a dead compositor
+      # under `pipefail` -- that split is what removes the abort, not the
+      # subshell it also happens to drop. Fed by here-string rather than
+      # re-piping so `read -r` still handles the lines: no IFS splitting, no
+      # globbing. An empty $addrs still yields one empty read, hence the guard.
+      while read -r addr; do
+        [ -n "$addr" ] || continue
+        hyprctl dispatch "hl.dsp.window.close({ window = [[address:$addr]] })" \
+          || echo "hyprland-graceful-exit: close dispatch failed for $addr" >&2
+      done <<< "$addrs"
 
       # Seeded before the loop, and re-clamped inside it: `for i in $(seq ...)`
       # runs zero times if seq is missing, and an empty `hyprctl clients`
       # leaves jq printing nothing -- either way `set -u` would abort on $count
-      # in the messages below, which is exactly where the notification is the
-      # only thing the user would ever see.
-      count=1
+      # below, which is exactly where the notification is the only output.
+      # Every degenerate value therefore fails toward refusing, never toward
+      # exiting, and count_known keeps the message honest about which it was.
+      count=1; count_known=no
       for i in $(seq 1 10); do
         count=$(hyprctl clients -j | ${pkgs.jq}/bin/jq 'length') || count=
-        # The empty-string arm is spelled as a separate -n test below: the
-        # usual doubled-quote case pattern would close this Nix string.
-        case "$count" in *[!0-9]*) count=1 ;; esac
-        [ -n "$count" ] || count=1
-        [ "$count" -eq 0 ] && break
+        case "$count" in
+          ""|*[!0-9]*) count=1; count_known=no ;;
+          *)           count_known=yes ;;
+        esac
+        [ "$count_known" = yes ] && [ "$count" -eq 0 ] && break
         sleep 0.5
       done
+
+      if [ "$count_known" = yes ]; then
+        headline="$count window(s) refused to close"
+      else
+        headline="could not tell whether any windows are still open"
+      fi
 
       if [ "$noexit" = yes ]; then
         # ExecStop path: say so, but never fail the unit during shutdown. The
         # session is going down regardless, so refusing achieves nothing.
         if [ "$count" -ne 0 ]; then
-          echo "hyprland-graceful-exit: $count window(s) refused to close" >&2
+          echo "hyprland-graceful-exit: $headline" >&2
         fi
         exit 0
       fi
@@ -2556,16 +2578,25 @@ in
       # honest evidence the closes landed. Without this the script would exit
       # the session with windows still open, discarding unsaved work, which is
       # the one thing "graceful" is supposed to prevent. Ghostty triggers it on
-      # its own: a surface with a live process puts up a close confirmation.
+      # its own: a surface with a live process puts up a close confirmation,
+      # which makes refusing the common path and --force the way out.
       if [ "$count" -ne 0 ] && [ "$force" = no ]; then
-        stuck=$(hyprctl clients -j \
-          | ${pkgs.jq}/bin/jq -r '.[] | "  \(.class): \(.title)"' | head -5)
-        echo "hyprland-graceful-exit: $count window(s) refused to close; not exiting" >&2
-        echo "$stuck" >&2
+        stuck=
+        if [ "$count_known" = yes ]; then
+          stuck=$(hyprctl clients -j \
+            | ${pkgs.jq}/bin/jq -r '.[:5][] | "  \(.class): \(.title)"') || stuck=
+        fi
+        echo "hyprland-graceful-exit: $headline; not exiting" >&2
+        [ -n "$stuck" ] && echo "$stuck" >&2
         # stderr from a keybind lands in the Hyprland log, where nobody looks.
+        #
+        # The next three lines are flush left ON PURPOSE: they sit at this
+        # block's minimum indentation, which is what Nix strips, so they reach
+        # notify-send at column 0. Indenting them to match their neighbours
+        # would put literal spaces in the message the user reads.
         if command -v notify-send >/dev/null 2>&1; then
           notify-send -u critical "Hyprland exit cancelled" \
-            "$count window(s) refused to close. Confirm them, or run
+            "$headline. To exit anyway, run
       hyprland-graceful-exit --force
 
       $stuck" || true

@@ -1,0 +1,115 @@
+--- a/Cargo.toml	2026-07-18 16:44:14.000000000 -0700
++++ b/Cargo.toml	2026-10-03 01:21:47.971607430 -0700
+@@ -41,6 +41,7 @@
+ comrak = { version = "0.54.0", default-features = false }
+ directories = "6.0.0"
+ eyre = "0.6.12"
++fs2 = "0.4"
+ fluent-bundle = "0.16.0"
+ fluent-datetime = "0.2.0"
+ fluent-syntax = "0.12.0"
+--- a/src/keys.rs	2026-07-18 16:44:14.000000000 -0700
++++ b/src/keys.rs	2026-10-03 01:22:06.517457602 -0700
+@@ -1,14 +1,85 @@
+ use forgejo_api::{Auth, Forgejo};
++use fs2::FileExt;
+ use std::{
+     collections::{BTreeMap, BTreeSet},
+     io::ErrorKind,
+-    path::Path,
++    path::{Path, PathBuf},
+ };
+ use tokio::io::AsyncWriteExt;
+ use url::Url;
+ 
+ use crate::{ftl_eyre, ftl_println};
+ 
++// Serialize every refresh-token spend against a single OS-level flock, so a
++// bare `fj whoami` cannot race the `git-credential-fj` helper. Forgejo rotates
++// refresh tokens on every use and treats reuse as compromise evidence, so two
++// clients that each hold the same `refresh_token` see one succeed and the other
++// die with "token was already used" — even when their only contention is reading
++// `keys.json` between each other's writes. The lock path is the same one the
++// bash helper uses (and falls back through), so the helper and `fj` itself
++// share a single rendezvous point.
++//
++// Uses `fs2::FileExt::lock_exclusive` (a thin wrapper over `flock(2)`).
++// The kernel releases the lock on process exit, so a crash between the read
++// and the save cannot strand the grant. The two unix cfg-gated items below
++// leave the Windows build alone; the locking concern is no worse than it was
++// before.
++#[cfg(unix)]
++struct RefreshLock(std::fs::File);
++
++#[cfg(unix)]
++impl RefreshLock {
++    fn acquire() -> eyre::Result<Self> {
++        use std::os::unix::fs::OpenOptionsExt;
++        let path = lock_path();
++        if let Some(parent) = path.parent() {
++            // Best-effort: the parent is /run/user/<uid> or /tmp, both already
++            // present in practice. A failure here surfaces on the open() below
++            // anyway; trying to mkdir unconditionally would mask a real error.
++            let _ = std::fs::create_dir_all(parent);
++        }
++        let file = std::fs::OpenOptions::new()
++            .create(true)
++            .write(true)
++            .mode(0o600)
++            .open(&path)
++            .map_err(|e| eyre::eyre!("opening refresh lock {}: {}", path.display(), e))?;
++        file.lock_exclusive()
++            .map_err(|e| eyre::eyre!("acquiring refresh lock {}: {}", path.display(), e))?;
++        Ok(Self(file))
++    }
++}
++
++#[cfg(unix)]
++impl Drop for RefreshLock {
++    fn drop(&mut self) {
++        // Best-effort: `flock(2)` releases when the kernel tears the process
++        // down, so a missing unlock here just means the next racer waits the
++        // lifetime of the current syscall it interrupted — never longer than
++        // one network round-trip.
++        let _ = FileExt::unlock(&self.0);
++    }
++}
++
++#[cfg(unix)]
++fn lock_path() -> PathBuf {
++    if let Some(p) = std::env::var_os("FJ_LOCK_FILE") {
++        if !p.is_empty() {
++            return PathBuf::from(p);
++        }
++    }
++    let base = std::env::var_os("XDG_RUNTIME_DIR")
++        .filter(|s| !s.is_empty())
++        .map(PathBuf::from)
++        .or_else(|| {
++            std::env::var_os("TMPDIR")
++                .filter(|s| !s.is_empty())
++                .map(PathBuf::from)
++        })
++        .unwrap_or_else(|| PathBuf::from("/tmp"));
++    base.join("git-credential-fj.lock")
++}
++
+ #[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+ pub struct KeyInfo {
+     pub hosts: BTreeMap<String, LoginInfo>,
+@@ -95,6 +166,15 @@
+     }
+ 
+     pub async fn get_api(&mut self, url: &Url) -> eyre::Result<Forgejo> {
++        // Serialize cross-process refreshes, then re-read under the lock so we
++        // see concurrent writes. Without the reload, a process that loaded
++        // keys.json before another process's refresh would still be carrying
++        // the pre-rotation `refresh_token` at the point it acquires the lock —
++        // exactly the stale-data condition we are coordinating against. The
++        // reload happens before the `match` so both branches see fresh data.
++        #[cfg(unix)]
++        let _lock = RefreshLock::acquire()?;
++        *self = Self::load().await?;
+         match self.get_login(url) {
+             Some(login) => {
+                 let was_refreshed = login.refresh(url).await?;

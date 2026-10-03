@@ -58,8 +58,15 @@
 
   outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, explore-mcp, drovr, hunk, mattpocock-skills, zen-browser, ssh-oidc, dotfiles-private, ... }:
   let
+    # Single overlay applied to every host's `pkgs`: `fj` (forgejo-cli) gets the
+    # cross-process flock patch so a bare `fj whoami` can never race the
+    # `git-credential-fj` shim and burn a refresh_token the helper is about to
+    # use.  See ./nix/forgejo-cli.nix for the full reasoning.
+    fjOverlay = final: _prev: {
+      forgejo-cli = import ./nix/forgejo-cli.nix { pkgs = final; };
+    };
     mkHome = system: machine: home-manager.lib.homeManagerConfiguration {
-      pkgs = nixpkgs.legacyPackages.${system};
+      pkgs = (nixpkgs.legacyPackages.${system}.appendOverlays [ fjOverlay ]);
       extraSpecialArgs = {
         inherit sops-nix walker nixgl explore-mcp drovr hunk mattpocock-skills zen-browser machine;
         inherit dotfiles-private;
@@ -244,5 +251,14 @@
       import ./nix/cryptomator-cli.nix {
         pkgs = nixpkgs.legacyPackages.x86_64-linux;
       };
+    # Patched forgejo-cli.  Same source as upstream v0.6.0 plus the cross-process
+    # refresh-lock patch; the overlay above is the production path, this is for
+    # `nix build .#fj` / tests that want the binary in isolation.
+    packages.x86_64-linux.fj = import ./nix/forgejo-cli.nix {
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+    };
+    packages.aarch64-darwin.fj = import ./nix/forgejo-cli.nix {
+      pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+    };
   };
 }

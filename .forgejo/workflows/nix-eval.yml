@@ -107,6 +107,13 @@ jobs:
           echo "---8<--- hmeval"
           rc=0
 
+          # $hosts and $tests are unquoted in the loops below ON PURPOSE: they
+          # are space-separated lists and the word splitting is the mechanism.
+          # Quoting them turns the whole list into one argument, which fails as
+          # "attribute 'utsuho setsuna ...' missing" rather than as a syntax
+          # error, so it looks like a broken flake instead of a broken quote.
+          # hmeval guarantees they contain no other whitespace.
+
           case "$mode" in
             eval)
               # --no-link/--raw keeps this to evaluation plus whatever IFD the

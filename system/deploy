@@ -230,8 +230,13 @@ sudo systemctl restart systemd-oomd
 
 # ── attic binary cache: make nix read nix.custom.conf + render the pull token ──
 # nix.custom.conf adds attic.ko.ag/kube as an extra substituter; the cache is
-# PRIVATE, so the nix daemon needs a read token. We are not a nix `trusted-user`,
-# so both the config and the token must reach the daemon at the system level.
+# PRIVATE, so the nix daemon needs a read token. Both the config and the token
+# must reach the daemon at the system level: the daemon runs as root, it is the
+# process that fetches from the substituter, and it must have both before any
+# login session exists. The `sauyon` trusted-user grant in nix.custom.conf does
+# not change that -- it only means a restricted setting passed from a shell is
+# honoured rather than ignored, and the grant itself has to be made from /etc
+# because a non-trusted user cannot vote itself trusted.
 #
 #   • Determinate Nix auto-`!include`s nix.custom.conf from /etc/nix/nix.conf and
 #     merges /etc/determinate/netrc.custom (via config.json) into its netrc.

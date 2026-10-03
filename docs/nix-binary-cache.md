@@ -12,12 +12,19 @@ there); this file is the *consumer* side only.
   token** presented via netrc — there is no anonymous read.
 - **Public signing key** (safe to commit, not a secret):
   `kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=`
-- **These boxes are Arch + Determinate Nix, multi-user, with `trusted-users =
-  root`.** This is the crux: nix **ignores** `substituters` /
-  `trusted-public-keys` / `netrc-file` set in a *non-trusted* user's
-  `~/.config/nix/nix.conf`. So the cache config must reach the **daemon**, i.e.
-  live under `/etc`, not in home-manager. That is why this is wired through
-  `system/deploy` (sudo → `/etc`) rather than `home.nix`.
+- **These boxes are Arch + Determinate Nix, multi-user.** This is the crux: nix
+  **ignores** `substituters` / `trusted-public-keys` / `netrc-file` set in a
+  *non-trusted* user's `~/.config/nix/nix.conf`. So the cache config must reach
+  the **daemon**, i.e. live under `/etc`, not in home-manager. That is why this
+  is wired through `system/deploy` (sudo → `/etc`) rather than `home.nix`.
+- **`trusted-users` is `root sauyon`**, as of the `extra-trusted-users` line in
+  `system/etc/nix/nix.custom.conf`. That does *not* move any of the above into
+  home-manager, for two reasons: the grant itself is a restricted setting, so it
+  can only be made from `/etc` (a non-trusted user cannot vote itself trusted),
+  and the daemon is what fetches from the cache, so the token has to be readable
+  by root at a path that exists before any login session does. What the grant
+  buys is a one-off `--option substituters …` from a shell being honoured rather
+  than dropped with a warning.
 
 ## How it is wired (Linux: utsuho, setsuna, fujiwara, shiori)
 

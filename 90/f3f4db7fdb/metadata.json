@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "90f3f4db7fdb",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "home/.minimax/plugins/herdr-agent-state/hooks/herdr-agent-state.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/90/f3f4db7fdb/0/metadata.json",
+      "transcript": "/90/f3f4db7fdb/0/full.jsonl",
+      "compact_transcript": "/90/f3f4db7fdb/0/transcript.jsonl",
+      "content_hash": "/90/f3f4db7fdb/0/content_hash.txt",
+      "prompt": "/90/f3f4db7fdb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 64,
+    "cache_creation_tokens": 258553,
+    "cache_read_tokens": 6681474,
+    "output_tokens": 56688,
+    "api_call_count": 32
+  }
+}

@@ -49,7 +49,24 @@ whatever gets committed next. So the tree is assembled against a private
 `GIT_INDEX_FILE` and committed with `git commit-tree`: your index, HEAD and
 working tree are never written. `tests/hmeval.sh` pins that.
 
-The scratch branch is deleted when the command exits.
+It carries whatever is on disk, which includes **other sessions' uncommitted
+work** when more than one agent is editing this repo. That is the intended
+behaviour — it evaluates your actual tree — but it means a red result may belong
+to somebody else's half-finished edit. Read the `error:` line before assuming it
+is about your change.
+
+The scratch branch is **not** deleted when the command exits, which is
+deliberate and counter-intuitive. A branch deletion is itself a push event on
+`refs/heads/eval/<host>`, so it matches this workflow's `branches: ["eval/**"]`
+and starts a run of its own. That run joins the same concurrency group, and
+`cancel-in-progress: true` then has it kill whichever real run is in flight —
+and because the forge processes the deletion slightly behind the push, what it
+kills is the *next* invocation's run. Runs 140, 141 and 142 were each cancelled
+by the cleanup of the invocation before them, which presents as flaky CI with
+nothing in the log pointing at cleanup.
+
+So one `eval/<host>` ref per host stays on the repo, force-pushed over on every
+run. Nothing reads it in between.
 
 ## The contract between the two halves
 
@@ -92,6 +109,15 @@ It also cancels in-progress runs on a new push, unlike `nix-home.yml`. A
 discarded closure build wastes twenty minutes someone is waiting on; a
 superseded eval is just a stale answer, and `hmeval` is already watching the
 newer run.
+
+## tests/ and the runner's hostname
+
+Several scripts in `tests/` build the thing they test from
+`homeConfigurations.$(cat /etc/hostname)`, which is meaningless in a container
+whose hostname is its own ID. The workflow writes `TEST_HOST` (utsuho) into
+`/etc/hostname` before running them, so every script using that idiom works
+without growing a new seam. The container is ephemeral; nothing outlives the
+job.
 
 ## Known duplication
 

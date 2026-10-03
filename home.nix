@@ -1459,18 +1459,25 @@ let
     ########################################################################
     [ -d "$repo/.git" ] || { echo "hmeval: $repo is not a git repo" >&2; exit 1; }
 
+    # One branch per host, force-pushed over, and deliberately NOT deleted
+    # afterwards.
+    #
+    # Deleting it looks tidier and is actively harmful: a deletion is itself a
+    # push event on refs/heads/eval/<host>, so it matches nix-eval.yml's
+    # `branches: ["eval/**"]` and starts a run of its own. That run lands in the
+    # same concurrency group, and `cancel-in-progress: true` then has it kill
+    # whichever real run is in flight. Because the forge processes the deletion
+    # a little behind the push, what it kills is the *next* invocation's run,
+    # not its own — runs 140, 141 and 142 were all cancelled this way, each by
+    # the cleanup of the invocation before it, which reads as flaky CI rather
+    # than as anything to do with cleanup.
+    #
+    # So the stale branch stays. It is one ref per host on a repo that is
+    # already public, it is overwritten on the next run, and nothing reads it
+    # between runs.
     branch="eval/$(uname -n)"
-    pushed=""
     tmp=$(mktemp -d)
-    cleanup() {
-      rm -rf "$tmp"
-      # Leaving scratch branches on a public repo is litter, and a stale one
-      # would also re-trigger nix-eval.yml on the next force-push with an older
-      # request still in it. Best-effort: a failed delete is not worth an error
-      # over a result we already printed.
-      [ -z "$pushed" ] || git -C "$repo" push --quiet origin ":refs/heads/$branch" 2>/dev/null || true
-    }
-    trap cleanup EXIT
+    trap 'rm -rf "$tmp"' EXIT
 
     source ${./home/scripts/forge-api.sh}
 
@@ -1505,7 +1512,6 @@ attr=$attr
       echo "hmeval: could not push $branch — see git's error above." >&2
       exit 1
     fi
-    pushed=1
     # Progress goes to stderr, results to stdout, so `hmeval --ci | grep ...`
     # sees the answer and nothing else. The local path above holds the same
     # contract for the same reason.
@@ -2501,24 +2507,73 @@ in
       # Gracefully close all Hyprland windows, then optionally exit Hyprland.
       set -euo pipefail
 
+      # Parsed rather than matched positionally: the old `[ "$1" != --no-exit ]`
+      # sent every typo (--noexit) down the exit path, which now has teeth.
+      noexit=no; force=no
+      for a in "$@"; do
+        case "$a" in
+          --no-exit) noexit=yes ;;
+          --force)   force=yes ;;
+          *) echo "hyprland-graceful-exit: unknown argument: $a" >&2; exit 2 ;;
+        esac
+      done
+
       # The config backend is Lua, so `hyprctl dispatch` evaluates its argument
       # as `hl.dispatch(<expr>)` -- the legacy word syntax ("closewindow
       # address:0x...") is a Lua parse error, exits 7, and the `|| true` here
-      # swallowed it silently. Same migration as the focus bind in hyprland.nix.
+      # swallowed it. Same migration as the focus bind in hyprland.nix.
       hyprctl clients -j | ${pkgs.jq}/bin/jq -r '.[].address' | while read -r addr; do
         hyprctl dispatch "hl.dsp.window.close({ window = [[address:$addr]] })" || true
       done
 
-      # Wait for windows to close (up to 5s)
+      # Seeded before the loop, and re-clamped inside it: `for i in $(seq ...)`
+      # runs zero times if seq is missing, and an empty `hyprctl clients`
+      # leaves jq printing nothing -- either way `set -u` would abort on $count
+      # in the messages below, which is exactly where the notification is the
+      # only thing the user would ever see.
+      count=1
       for i in $(seq 1 10); do
-        count=$(hyprctl clients -j | ${pkgs.jq}/bin/jq 'length')
+        count=$(hyprctl clients -j | ${pkgs.jq}/bin/jq 'length') || count=
+        # The empty-string arm is spelled as a separate -n test below: the
+        # usual doubled-quote case pattern would close this Nix string.
+        case "$count" in *[!0-9]*) count=1 ;; esac
+        [ -n "$count" ] || count=1
         [ "$count" -eq 0 ] && break
         sleep 0.5
       done
 
-      if [ "''${1:-}" != "--no-exit" ]; then
-        hyprctl dispatch "hl.dsp.exit()"
+      if [ "$noexit" = yes ]; then
+        # ExecStop path: say so, but never fail the unit during shutdown. The
+        # session is going down regardless, so refusing achieves nothing.
+        if [ "$count" -ne 0 ]; then
+          echo "hyprland-graceful-exit: $count window(s) refused to close" >&2
+        fi
+        exit 0
       fi
+
+      # A dispatch that selects nothing still exits 0 -- Hyprland validates the
+      # dispatcher path, not the selector -- so the window count is the only
+      # honest evidence the closes landed. Without this the script would exit
+      # the session with windows still open, discarding unsaved work, which is
+      # the one thing "graceful" is supposed to prevent. Ghostty triggers it on
+      # its own: a surface with a live process puts up a close confirmation.
+      if [ "$count" -ne 0 ] && [ "$force" = no ]; then
+        stuck=$(hyprctl clients -j \
+          | ${pkgs.jq}/bin/jq -r '.[] | "  \(.class): \(.title)"' | head -5)
+        echo "hyprland-graceful-exit: $count window(s) refused to close; not exiting" >&2
+        echo "$stuck" >&2
+        # stderr from a keybind lands in the Hyprland log, where nobody looks.
+        if command -v notify-send >/dev/null 2>&1; then
+          notify-send -u critical "Hyprland exit cancelled" \
+            "$count window(s) refused to close. Confirm them, or run
+      hyprland-graceful-exit --force
+
+      $stuck" || true
+        fi
+        exit 1
+      fi
+
+      hyprctl dispatch "hl.dsp.exit()"
     '';
   };
 

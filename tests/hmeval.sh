@@ -211,9 +211,17 @@ else
   bad "--ci: pushed a scratch commit" "no commit found on the origin"
 fi
 
-echo "== --ci cleans up after itself"
-check "--ci: scratch branch deleted from origin" \
-  "$(git -C "$D/origin.git" for-each-ref --format='%(refname)' refs/heads/eval | wc -l | tr -d ' ')" 0
+echo "== --ci leaves the scratch branch in place"
+# Deliberately NOT deleted. A deletion is a push event on the same ref, so it
+# starts a nix-eval.yml run of its own, and cancel-in-progress then has that run
+# kill whichever real run is in flight -- the next invocation's, since the forge
+# processes the deletion slightly behind the push. Runs 140-142 were each
+# cancelled by the cleanup of the invocation before them. Flipping this
+# assertion back to 0 reintroduces that, and it presents as flaky CI.
+check "--ci: scratch branch kept for the next force-push" \
+  "$(git -C "$D/origin.git" for-each-ref --format='%(refname)' refs/heads/eval | wc -l | tr -d ' ')" 1
+check "--ci: and it points at the commit we pushed" \
+  "$(git -C "$D/origin.git" rev-parse "refs/heads/eval/$(uname -n)")" "$(cat "$D/sha")"
 
 echo "== --ci reports the runner's answer"
 check "--ci: prints the fenced result block" \

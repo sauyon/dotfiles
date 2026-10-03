@@ -171,6 +171,13 @@ let
   # This multiplies with hidpi.scale, so keep at most one of the two off 1 per
   # host: setsuna/fujiwara scale apps, shiori scales the compositor.
   laptopScale = if hostname == "shiori" then 2 else 1;
+  # Xft.dpi for ~/.Xresources, derived from whichever axis is active on the
+  # host. Same product property as the laptopScale coordinate above: hidpi and
+  # laptopScale never both move off 1 on the same host, so the active scale is
+  # exactly the non-1 one. Floor mirrors hidpi.qtFontDpi's typographic rounding
+  # so all three dpi knobs (Xft.dpi, QT_FONT_DPI, GDK_DPI_SCALE) describe the
+  # same logical density.
+  xftDpi = builtins.floor (96.0 * (if hidpi.enabled then hidpi.scale else 1.0) * laptopScale);
   noDpmsOutputs = [
     "HDMI-A-1"
   ];
@@ -2315,10 +2322,11 @@ in
       GDK_DPI_SCALE = toString hidpi.scale;
     })
     # Steam's desktop UI is CEF, and X11. force_zero_scaling hands it the panel's
-    # real pixels with no DPI hint, and it reads neither Xft.dpi nor GDK_DPI_SCALE,
-    # so on a laptopScale host it draws at 1/laptopScale of physical size. This is
-    # the one factor it does read, and CEF re-lays-out at it instead of upscaling a
-    # bitmap -- so the client comes back to size and stays crisp, rather than
+    # real pixels with no DPI hint, and Xft.dpi (see ~/.Xresources below) only
+    # reaches the X server's fontconfig+Pango layer: CEF consults neither, so on a
+    # laptopScale host it still draws at 1/laptopScale of physical size. This is
+    # the one factor CEF does read, and it re-lays-out at it instead of upscaling
+    # a bitmap -- so the client comes back to size and stays crisp, rather than
     # trading the force_zero_scaling win away for the whole of XWayland.
     #
     # An env var and not -forcedesktopscaling on the .desktop Exec: the tray's
@@ -2328,6 +2336,22 @@ in
     // (lib.optionalAttrs (laptopScale != 1) {
       STEAM_FORCE_DESKTOPUI_SCALING = toString laptopScale;
     });
+
+  # ~/.Xresources is the only fan-out for Xft.dpi before fontconfig / Xft-bridged
+  # toolkits (GTK, Qt, EFL, Java, anything Pango-backed). One global value per X
+  # server, so this is the chosen scale for every XWayland client, not whatever
+  # output the window is on; for the multi-output hosts this is a known
+  # compromise (see hyprland.nix's force_zero_scaling comment). Loaded via
+  # `xrdb -merge` from hyprland.start, not from a systemd user unit, because the
+  # X session's resource database belongs to its wayland-compositing Xwayland
+  # instance -- anything started by the user manager before Hyprland lands on
+  # `:0` would push values into a DB no client reads.
+  home.file.".Xresources" = lib.mkIf (!isDarwin && isDesktop) {
+    text = ''
+      ! Managed by home.nix; do not edit by hand.
+      Xft.dpi: ${toString xftDpi}
+    '';
+  };
 
   # TERMINFO_DIRS is already set under systemd by home-manager's generic-linux
   # module; exclude it here to avoid a conflicting definition.

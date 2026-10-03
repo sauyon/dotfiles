@@ -103,13 +103,27 @@ in
       # laptopScale in home.nix); a genuine no-op where every monitor is scale 1,
       # since Hyprland takes the XWayland scale from the largest monitor scale.
       #
-      # Deliberate trade, and the cost is the whole of XWayland, not a badly
-      # behaved subset: nothing here sets GDK_SCALE/Xft.dpi/QT_FONT_DPI on a
-      # laptopScale host (hidpi.enabled is false there), so X11 clients get no
-      # scaling hint and draw at half physical size on a 2x output. Crisp and
-      # small is preferred over blurry and correctly sized. The X11 cursor goes
-      # the same way -- XCURSOR_SIZE is home.pointerCursor.size, which also
-      # feeds HYPRCURSOR_SIZE, so it cannot be raised for X11 alone.
+      # Trade carries two known costs, neither app-local:
+      #
+      #   1. Xft.dpi is one value for the whole X server (see ~/.Xresources,
+      #      xftDpi in home.nix): a shiori window on the laptop panel and the
+      #      same window dragged to the 4K 32" external both read 192 dpi. On the
+      #      multi-monitor hosts (setsuna, fujiwara) this is the chosen DPI
+      #      everywhere, which sits ~30-40 % high against the externals' actual
+      #      ~140 dpi -- text scales larger than the panel's natural size, but
+      #      not harshly so. Better than either dropping Xft.dpi (which puts
+      #      steam-native XWayland apps back at 96 on the laptop panel) or
+      #      ground-truth synthesis per `wl_output` (multi-monitor has no
+      #      canonical answer; Mutter ships per-DPI from g-s-d, no wlroots
+      #      compositor does the same).
+      #   2. Steam's CEF ignores Xft.dpi and reads only
+      #      STEAM_FORCE_DESKTOPUI_SCALING; the env-var override at home.nix
+      #      handles it. Without that override Steam sizes by raw surface
+      #      (2880x1920) into a 96-dpi layout and the whole of XWayland's font
+      #      scaling story is moot for that one client.
+      #
+      # The X11 cursor goes the same way -- XCURSOR_SIZE is home.pointerCursor.size, which
+      # also feeds HYPRCURSOR_SIZE, so it cannot be raised for X11 alone.
       xwayland.force_zero_scaling = true;
 
       misc = {
@@ -187,13 +201,19 @@ in
     ];
 
     # exec-once equivalents. The module already emits a hyprland.start hook for
-    # the systemd/D-Bus activation env, so we only add our own programs.
+    # the systemd/D-Bus activation env, so we only add our own programs. The
+    # xrdb -merge ahead of mako/elephant/everything-else is load-bearing: the X
+    # server's resource database only exists across the lifetime of its
+    # Xwayland instance, so anything `xrdb`-loaded before Hyprland starts pushes
+    # values into a DB the compositor's Xwayland never reads. Loading it from
+    # hyprland.start makes it the first thing to touch X for this session.
     on = [
       {
         _args = [
           "hyprland.start"
           (mkLuaInline ''
             function()
+              hl.exec_cmd("${pkgs.xorg.xrdb}/bin/xrdb -merge ${config.home.homeDirectory}/.Xresources")
               hl.exec_cmd("mako")
               hl.exec_cmd("hypr-fullscreen-inhibit")
               hl.exec_cmd("elephant")

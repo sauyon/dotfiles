@@ -3,7 +3,7 @@
   "checkpoint_id": "87678d0c88f9",
   "strategy": "manual-commit",
   "branch": "nix-trusted-user",
-  "checkpoints_count": 3,
+  "checkpoints_count": 8,
   "files_touched": [
     "docs/nix-binary-cache.md",
     "system/deploy",
@@ -23,13 +23,20 @@
       "compact_transcript": "/87/678d0c88f9/1/transcript.jsonl",
       "content_hash": "/87/678d0c88f9/1/content_hash.txt",
       "prompt": "/87/678d0c88f9/1/prompt.txt"
+    },
+    {
+      "metadata": "/87/678d0c88f9/2/metadata.json",
+      "transcript": "/87/678d0c88f9/2/full.jsonl",
+      "compact_transcript": "/87/678d0c88f9/2/transcript.jsonl",
+      "content_hash": "/87/678d0c88f9/2/content_hash.txt",
+      "prompt": "/87/678d0c88f9/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 76,
-    "cache_creation_tokens": 129860,
-    "cache_read_tokens": 2530623,
-    "output_tokens": 37078,
-    "api_call_count": 38
+    "input_tokens": 150,
+    "cache_creation_tokens": 219924,
+    "cache_read_tokens": 5412699,
+    "output_tokens": 83004,
+    "api_call_count": 75
   }
 }

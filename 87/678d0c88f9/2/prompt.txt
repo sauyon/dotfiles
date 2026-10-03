@@ -1,0 +1,33 @@
+why can't I ssh fujiwara now
+
+---
+
+I ssh'd 10.0.7.100. which is the actual ip. and it doesn't fucking work
+
+---
+
+STOP. RECOMMENDING. TAILSCALE. YOU SHIT.
+
+---
+
+why is dns fucking relevant at all
+
+---
+
+why is dns fucking relevant at all
+
+---
+
+can't you investigate the router with unifi
+
+---
+
+my search domain should be set to ko.ag. no dns should be necessary or even configured.
+
+---
+
+I just had to disable and reenable wireguard? is it really that fucking flaky?
+
+---
+
+why is it unable to self-heal

@@ -1,0 +1,1 @@
+a bunch of emoji are not rendering. shouldn't the noto fonts have them?

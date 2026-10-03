@@ -281,6 +281,17 @@ let
     meta.mainProgram = "clawpatrol";
   };
 
+  # cryptomator-cli, with liburing and libnuma pulled into LD_LIBRARY_PATH so
+  # jFuse can dlopen them from /nix/store at runtime, instead of falling
+  # through to /usr/lib via /etc/ld.so.cache. Read nix/cryptomator-cli.nix
+  # for the full reasoning; in two sentences: the host's transient
+  # /run/user/1000/ldshim handled it until its tmpfs went away on a reboot,
+  # and /usr/lib on a Nix binary's loader path breaks Nix-built glibc. Same
+  # derivation flake.nix exposes as `cryptomator-cli-wrapped` so the test
+  # script builds one and asserts against the same binary the live profile
+  # ships.
+  cryptomator-cli = import ./nix/cryptomator-cli.nix { inherit pkgs; };
+
   # Cumora (cumora.ai) — closed-source, invite-only desktop chat app, not in
   # nixpkgs. The electron-updater feed at https://updates.cumora.ai/latest-linux.yml
   # is the source of truth for version + sha512 when bumping. Wrap the AppImage
@@ -3095,7 +3106,7 @@ in
     pkgs.python3Packages.grip
     pkgs.cursor-agent-cli
     pkgs.cloudflare-warp
-    pkgs.cryptomator-cli
+    cryptomator-cli
     # Beside cryptomator-cli because the two are only useful together here: the
     # vault holding the dotfiles paper recovery identity lives in the personal
     # Drive, and cryptomator-cli's `unlock` mounts a LOCAL directory only. So the

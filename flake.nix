@@ -236,5 +236,13 @@
           ./patches/tailscale-ssh-skip-logind-session-for-locked-homed-user.patch
         ];
       });
+    # cryptomator-cli with liburing and libnuma pulled in as LD_LIBRARY_PATH
+    # entries (see ./nix/cryptomator-cli.nix for why). Same wrapper home.nix
+    # installs; the test at tests/cryptomator-cli.sh builds this output so
+    # it asserts against the exact derivation the live profile carries.
+    packages.x86_64-linux.cryptomator-cli-wrapped =
+      import ./nix/cryptomator-cli.nix {
+        pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      };
   };
 }

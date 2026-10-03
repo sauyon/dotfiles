@@ -125,13 +125,18 @@
           nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
           # Self-hosted attic binary cache (kube cluster); signing key is public.
+          # Same as the Linux boxes (system/etc/nix/nix.custom.conf): pull from the
+          # in-cluster Service over WireGuard so Cloudflare's 601 s response ceiling
+          # is out of the path. http, not https — the Service is cluster-internal.
           # Assumes nix-darwin manages nix (nix.enable = true). If mari moves to
           # Determinate Nix, relocate this to /etc/determinate like the Linux boxes.
-          nix.settings.extra-substituters = [ "https://attic.ko.ag/kube" ];
+          nix.settings.extra-substituters = [ "http://attic.attic.svc.cluster.local/kube" ];
           nix.settings.extra-trusted-public-keys = [ "kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=" ];
           # Private cache → read token via netrc, rendered as root by sops-nix.
+          # The machine name MUST match `extra-substituters' host — netrc matches on
+          # host, and a stale `attic.ko.ag` would silently auth the wrong URL.
           sops.secrets.atticPullToken = { };
-          sops.templates."attic-netrc".content = "machine attic.ko.ag password ${config.sops.placeholder.atticPullToken}";
+          sops.templates."attic-netrc".content = "machine attic.attic.svc.cluster.local password ${config.sops.placeholder.atticPullToken}";
           nix.settings.netrc-file = config.sops.templates."attic-netrc".path;
 
           # Remote builder: Linux boxes delegate aarch64-darwin builds here over

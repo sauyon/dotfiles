@@ -324,8 +324,8 @@ if ! sudo grep -qF 'nix.custom.conf' /etc/nix/nix.conf 2>/dev/null; then
   echo '!include nix.custom.conf' | sudo tee -a /etc/nix/nix.conf >/dev/null
 fi
 
-install_secret ../secrets.yaml atticPullToken /etc/determinate/netrc.custom 'machine attic.ko.ag password '
-install_secret ../secrets.yaml atticPullToken /etc/nix/netrc 'machine attic.ko.ag password '
+install_secret ../secrets.yaml atticPullToken /etc/determinate/netrc.custom 'machine attic.attic.svc.cluster.local password '
+install_secret ../secrets.yaml atticPullToken /etc/nix/netrc 'machine attic.attic.svc.cluster.local password '
 
 # ── remote builder: SSH key the nix daemon uses to reach mari ─────────────────
 # nix.custom.conf delegates aarch64-darwin builds to sauyon@mari-1 over Tailscale;

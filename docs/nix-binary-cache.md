@@ -1,9 +1,10 @@
 # Consuming the self-hosted attic binary cache
 
 These dotfiles configure every machine to pull from the self-hosted **attic**
-binary cache on the kube cluster (`https://attic.ko.ag/kube`, cache name
-`kube`). Build/server side lives in the `kube` repo (`docs/nix-binary-cache.md`
-there); this file is the *consumer* side only.
+binary cache on the kube cluster. Cache name `kube`; reachable as
+`kube` regardless of which URL you use to reach it, so this doc is about *that*
+cache, not a particular hostname. Build/server side lives in the `kube` repo
+(`docs/nix-binary-cache.md` there); this file is the *consumer* side only.
 
 ## Key facts
 
@@ -28,12 +29,22 @@ there); this file is the *consumer* side only.
 
 ## How it is wired (Linux: utsuho, setsuna, fujiwara, shiori)
 
-Three pieces, all applied by `./system/deploy` (sudo):
+Three pieces, all applied by `./system/deploy` (sudo).
+
+**Transport.** `extra-substituters` points at the cluster's in-cluster Service,
+`http://attic.attic.svc.cluster.local/kube` — the same URL the CI workflows
+already use. Boxes reach the cluster's network either directly (LAN) or through
+WireGuard: shiori tunnels via the `kon-wireguard` profile installed by
+`system/deploy`; the others carry the same tunnel out-of-band. **The public
+`https://attic.ko.ag/kube` is no longer a substituter** for the boxes: routing
+through Cloudflare is what produced the 307 / 601 s stream-error class, and the
+fix is to keep Cloudflare out of the path. CI likewise avoids it
+(`.forgejo/workflows/nix-home.yml`); the boxes are now consistent.
 
 1. `system/etc/nix/nix.custom.conf` → `/etc/nix/nix.custom.conf`
-   Determinate `!include`s this from `/etc/nix/nix.conf`. Adds the substituter
-   and trusted key with the **`extra-`** forms (append, don't replace — keeps
-   `cache.nixos.org` and FlakeHub).
+   Determinate `!include`s this from `/etc/nix/nix.conf`. Adds the in-cluster
+   substituter and trusted key with the **`extra-`** forms (append, don't replace
+   — keeps `cache.nixos.org` and FlakeHub).
 
 2. `system/etc/determinate/config.json` → `/etc/determinate/config.json`
    ```json
@@ -50,8 +61,11 @@ Three pieces, all applied by `./system/deploy` (sudo):
 
 3. `/etc/determinate/netrc.custom` (root, `0600`) — **rendered at deploy time**,
    never committed. `system/deploy` decrypts `atticPullToken` from `secrets.yaml`
-   (GCP KMS, as the user) and `sudo install`s `machine attic.ko.ag password
-   <token>` to `/etc`. Then it restarts `nix-daemon`.
+   (GCP KMS, as the user) and `sudo install`s `machine
+   attic.attic.svc.cluster.local password <token>` to `/etc`. The machine name
+   has to match `extra-substituters`' host — netrc matches on host, and a
+   stale `attic.ko.ag` line there silently auths the wrong URL after this
+   swap. `system/deploy` then `sudo systemctl restart nix-daemon`.
 
 To apply on a machine: `./system/deploy` (needs your sudo password, plus
 whatever credential that host decrypts with).
@@ -80,7 +94,7 @@ and that evaluation necessarily precedes installing the netrc it is about to
 write — so the first thing a deploy does is reach attic uncredentialed:
 
 ```
-warning: unable to download 'https://attic.ko.ag/kube/nix-cache-info': HTTP error 401
+warning: unable to download 'http://attic.attic.svc.cluster.local/kube/nix-cache-info': HTTP error 401
 ```
 
 Bootstrap ordering, not a failure, and it recurs on every deploy. The warning
@@ -89,8 +103,8 @@ the deploy has finished and restarted `nix-daemon`. To tell them apart, check th
 cache directly rather than reading warnings:
 
 ```sh
-nix store info --store https://attic.ko.ag/kube   # exit 0 = authenticated
-ls -l /etc/determinate/netrc.custom               # 0 bytes = never provisioned
+nix store info --store http://attic.attic.svc.cluster.local/kube   # exit 0 = authenticated
+ls -l /etc/determinate/netrc.custom                                # 0 bytes = never provisioned
 ```
 
 ## How it is wired (darwin: mari)
@@ -120,6 +134,6 @@ re-run `./system/deploy` (Linux) / `darwin-rebuild switch` (mari).
 ## Verify
 
 ```sh
-nix config show | grep attic.ko.ag                 # substituter is active
-nix store info --store https://attic.ko.ag/kube    # prints Store URL = auth OK (was 401)
+nix config show | grep attic.attic.svc.cluster.local                 # substituter is active
+nix store info --store http://attic.attic.svc.cluster.local/kube     # prints Store URL = auth OK (was 401)
 ```

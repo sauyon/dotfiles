@@ -42,12 +42,14 @@ Two things changed in the move:
 
 ## It needs the attic token even though it only reads
 
-`attic.ko.ag` is not anonymously readable (401), and nix treats a substituter it
-cannot authenticate to as absent — with no warning. The Woodpecker version of
-this pipeline passed `--extra-substituters` with no credential at all, so it
-never substituted anything and rebuilt the closure from source every week. The
-workflow now writes a netrc from the repo secret `ATTIC_TOKEN` before the first
-nix command. Do not "simplify" that step away as push-only.
+The cache (regardless of which URL you reach it at — `https://attic.ko.ag/kube`
+or the in-cluster Service `http://attic.attic.svc.cluster.local/kube`) is not
+anonymously readable. nix treats a substituter it cannot authenticate to as
+absent — with no warning. The Woodpecker version of this pipeline passed
+`--extra-substituters` with no credential at all, so it never substituted
+anything and rebuilt the closure from source every week. The workflow now
+writes a netrc from the repo secret `ATTIC_TOKEN` before the first nix command.
+Do not "simplify" that step away as push-only.
 
 ## Verify
 

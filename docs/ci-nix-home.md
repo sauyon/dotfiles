@@ -3,8 +3,10 @@
 Push to `master` (touching any nix/home source) builds the **Linux**
 home-manager closures — `homeConfigurations.{utsuho,setsuna,fujiwara}.activationPackage`
 — on the in-cluster `forgejo-runner` at `forge.ko.ag`, and pushes them to the
-`kube` attic cache (`attic.ko.ag/kube`). Then `home-manager switch --flake .#<host>`
-just downloads the prebuilt closure instead of compiling locally.
+in-cluster attic Service (`http://attic.attic.svc.cluster.local/kube`, cache
+name `kube`). Box-side pulls use that same URL — see `docs/nix-binary-cache.md`.
+Then `home-manager switch --flake .#<host>` just downloads the prebuilt closure
+instead of compiling locally.
 
 mari (aarch64-darwin) is omitted — an x86_64-linux job can't build darwin; darwin
 still builds on mari itself.
@@ -42,12 +44,24 @@ with a later `programs = { gpg = { … } }` block, which nix 2.24 rejects as a
 duplicate attribute. The image is pinned to 2.35.1. When bumping it, confirm the
 new image still has git, still lacks node, and still ships `sandbox = false`.
 
-## Consuming side (unchanged)
+## Consuming side
 
-The boxes pull from `attic.ko.ag/kube` via `system/etc/nix/nix.custom.conf`
-(deployed by `system/deploy`). On plain upstream nix (e.g. utsuho) the deploy
-adds the `!include` + renders the pull token to `/etc/nix/netrc`; on Determinate
-it's automatic. Nothing else to do to *consume* the cache.
+The boxes pull from the in-cluster attic Service over whatever reaches the
+cluster network — LAN, or WireGuard (`kon-wireguard`, installed by
+`system/deploy:213` for shiori; the other Linux boxes carry the same tunnel
+out-of-band). The substituter URL itself was switched from
+`https://attic.ko.ag/kube` to `http://attic.attic.svc.cluster.local/kube` in
+`system/etc/nix/nix.custom.conf`; `flake.nix` carries the same change for
+`mari`. Wires through `system/deploy` are documented in `docs/nix-binary-cache.md`.
+
+The change is the box-side twin of what CI did first: substituting through
+Cloudflare was the surface the 601 s response ceiling lived on, and taking it
+out of the path removed the 307 / stream-error class that made pulls flaky from
+boxes. `--fallback` runs the CI build step had on `nix-home.yml:132` stay —
+that flag is correct for the *server* side, where a path the runner itself
+built an hour ago can still fail to re-fetch; the box side does not have that
+problem because the wire no longer goes through Cloudflare. Not adding it here
+because masks-loud-failures are exactly what we *don't* want on the wire.
 
 ## Bootstrap (producing side)
 
@@ -65,11 +79,13 @@ it's automatic. Nothing else to do to *consume* the cache.
 
 - The `build-and-push` job goes green at
   <https://forge.ko.ag/sauyon/dotfiles/actions>.
-- The build log should show paths being *fetched* from `https://attic.ko.ag/kube`,
-  not built. If it compiles from scratch, the netrc step is broken — that is the
-  substituter silently failing open, not a cache miss.
-- From a box: after the build, `home-manager switch --flake .#utsuho` should show
-  the closure being *fetched* rather than built.
+- The build log should show paths being *fetched* from
+  `http://attic.attic.svc.cluster.local/kube`, not built. If it compiles from
+  scratch, the netrc step is broken — that is the substituter silently failing
+  open, not a cache miss.
+- From a box: after the build, `home-manager switch --flake .#utsuho` should
+  show the closure being *fetched* (from `http://attic.attic.svc.cluster.local/kube`)
+  rather than built.
 
 ## The private input
 

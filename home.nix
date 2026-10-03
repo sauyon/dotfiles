@@ -1720,7 +1720,7 @@ let
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ./even-terminal.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ./even-terminal.nix ./mcode.nix ];
 
   home.stateVersion = "26.05";
 
@@ -2631,6 +2631,7 @@ in
     jujutsu
     kimi-code  # Moonshot's Kimi Code CLI (binary: kimi); see kimi-code.nix
     lnav
+    mcode  # MiniMax Code CLI (binary: mcode); see mcode.nix
     mise
     mosh
     opencode

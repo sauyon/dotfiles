@@ -1,0 +1,5 @@
+help me connect to the Hacker Dojo wifi. user fiiedkwzf@mozmail.com pass 17364
+
+---
+
+I have permissions to use nmcli without fucking root

@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "a1ea5828d3f1",
+  "strategy": "manual-commit",
+  "branch": "drovr/mcode-rest",
+  "checkpoints_count": 4,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/a1/ea5828d3f1/0/metadata.json",
+      "transcript": "/a1/ea5828d3f1/0/full.jsonl",
+      "compact_transcript": "/a1/ea5828d3f1/0/transcript.jsonl",
+      "content_hash": "/a1/ea5828d3f1/0/content_hash.txt",
+      "prompt": "/a1/ea5828d3f1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 36,
+    "cache_creation_tokens": 26418,
+    "cache_read_tokens": 4195090,
+    "output_tokens": 15807,
+    "api_call_count": 18
+  }
+}

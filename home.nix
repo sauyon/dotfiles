@@ -53,6 +53,16 @@ let
 
   # ── sops trust root (dotfiles domain) ───────────────────────────────────────
   # Design: ~/devel/reports/Homelab secrets bootstrap trust root.md, Part A.
+  #
+  # The secrets fleet: hosts that decrypt secrets.yaml at all. kyuusaku is a work
+  # box that will never get a device identity and needs none of these secrets,
+  # so it is out entirely -- no sops.secrets, which is what switches sops-nix's
+  # module (unit, activation, sops-install-secrets) off for it. An allowlist, not
+  # `!= "kyuusaku"`, so a new host starts out of the fleet: it cannot decrypt
+  # anything until enrolled anyway. tests/secrets-fleet.sh pins the split.
+  secretsHosts = [ "utsuho" "setsuna" "shiori" "fujiwara" "mari" ];
+  isSecretsHost = builtins.elem hostname secretsHosts;
+
   # Hosts listed here decrypt secrets.yaml through a device identity: a local
   # P-256 key under ~/.config/ko (see wifKeyFile) signs a 5-minute JWT, Google STS validates
   # it against the JWKS in the ko-keys-sauyon bucket, and the federated token
@@ -1933,7 +1943,9 @@ attr=$attr
       "ralph-loop@claude-plugins-official" = true;
       "drovr@drovr" = true;
     };
-    mcpServers = {
+    # unifi `cat`s its key at launch rather than degrading without it, so it is
+    # registered only where sops writes that key (see isSecretsHost).
+    mcpServers = lib.optionalAttrs isSecretsHost {
       unifi = {
         type = "stdio";
         command = "sh";
@@ -1947,6 +1959,7 @@ attr=$attr
           UNIFI_LOCAL_VERIFY_SSL = "false";
         };
       };
+    } // {
       explore-mcp = {
         type = "stdio";
         command = "${explore-mcp-pkg}/bin/explore-mcp";
@@ -2042,11 +2055,11 @@ in
   # sops-nix still asserts *some* age/gpg key source, and sops-install-secrets
   # opens the configured keyFile at runtime — so declare an empty managed file
   # to satisfy both.
-  home.file.".config/sops/age-unused.txt".text = "";
+  home.file.".config/sops/age-unused.txt" = lib.mkIf isSecretsHost { text = ""; };
   sops.age.keyFile = "${config.home.homeDirectory}/.config/sops/age-unused.txt";
   sops.age.sshKeyPaths = [];
   sops.gnupg.sshKeyPaths = [];
-  sops.environment =
+  sops.environment = lib.mkIf isSecretsHost (
     if useWif then {
       GOOGLE_APPLICATION_CREDENTIALS = "${wifCredentialConfig}";
       # Required by Google's auth library for executable-sourced credentials. The
@@ -2054,42 +2067,46 @@ in
       GOOGLE_EXTERNAL_ACCOUNT_ALLOW_EXECUTABLES = "1";
     } else {
       GOOGLE_APPLICATION_CREDENTIALS = "${config.home.homeDirectory}/.config/sops/gcp-key.json";
+    });
+
+  # Every secret is behind isSecretsHost, as one set: a single one declared for
+  # a host outside the fleet switches the whole sops-nix module back on there.
+  sops.secrets = lib.mkIf isSecretsHost {
+    # ── Modular API (local auto-mode classifier) ────────────────────────────────
+    modularApiKey = {
+      path = "${config.home.homeDirectory}/.config/local-auto-mode/api-key";
+      mode = "0600";
     };
 
-  # ── Modular API (local auto-mode classifier) ────────────────────────────────
-  sops.secrets.modularApiKey = {
-    path = "${config.home.homeDirectory}/.config/local-auto-mode/api-key";
-    mode = "0600";
-  };
+    # ── ko.ag API (opencode provider + local-auto-mode classifier) ─────────────
+    # This is now litellm's MASTER KEY, not the old CF AI Gateway token: ai.ko.ag
+    # was deleted and both consumers dial the router's LAN address directly. The
+    # same value must exist in the cluster as the `litellm-master-key` Secret in
+    # the litellm / hakobiya / opencode namespaces — rotating here without
+    # rotating there 401s everything. See the kube repo's docs/litellm-access.md.
+    koAgApiKey = {
+      path = "${config.home.homeDirectory}/.config/opencode/ko-ag-key";
+      mode = "0600";
+    };
 
-  # ── ko.ag API (opencode provider + local-auto-mode classifier) ─────────────
-  # This is now litellm's MASTER KEY, not the old CF AI Gateway token: ai.ko.ag
-  # was deleted and both consumers dial the router's LAN address directly. The
-  # same value must exist in the cluster as the `litellm-master-key` Secret in
-  # the litellm / hakobiya / opencode namespaces — rotating here without
-  # rotating there 401s everything. See the kube repo's docs/litellm-access.md.
-  sops.secrets.koAgApiKey = {
-    path = "${config.home.homeDirectory}/.config/opencode/ko-ag-key";
-    mode = "0600";
-  };
+    # ── Z.AI API (opencode zai / zai-coding-plan providers) ───────────────────
+    zaiApiKey = {
+      path = "${config.home.homeDirectory}/.config/opencode/zai-key";
+      mode = "0600";
+    };
 
-  # ── Z.AI API (opencode zai / zai-coding-plan providers) ───────────────────
-  sops.secrets.zaiApiKey = {
-    path = "${config.home.homeDirectory}/.config/opencode/zai-key";
-    mode = "0600";
-  };
+    # ── Modular private endpoint base URL (opencode mcloud provider) ────────────
+    # Kept in sops so the internal hostname never lands in the committed config.
+    modularApiUrl = {
+      path = "${config.home.homeDirectory}/.config/opencode/mcloud-base-url";
+      mode = "0600";
+    };
 
-  # ── Modular private endpoint base URL (opencode mcloud provider) ────────────
-  # Kept in sops so the internal hostname never lands in the committed config.
-  sops.secrets.modularApiUrl = {
-    path = "${config.home.homeDirectory}/.config/opencode/mcloud-base-url";
-    mode = "0600";
-  };
-
-  # ── UniFi API key (unifi-mcp-server) ───────────────────────────────────────
-  sops.secrets.unifiApiKey = {
-    path = "${config.home.homeDirectory}/.config/unifi/api-key";
-    mode = "0600";
+    # ── UniFi API key (unifi-mcp-server) ───────────────────────────────────────
+    unifiApiKey = {
+      path = "${config.home.homeDirectory}/.config/unifi/api-key";
+      mode = "0600";
+    };
   };
 
   # ── Global Claude preferences (loaded into every conversation) ────────────

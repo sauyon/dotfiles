@@ -1,0 +1,13 @@
+what's eating all my cpu and why is it not showing up in btop
+
+---
+
+it can't actually be claude though that doesn't make sense
+
+---
+
+why did you edit proc_per_core, that's not what I wanted. I only saw a few 4% items and it definitely didn't add up to a full 100%
+
+---
+
+I think it was claude running nix eval but for some reason those are hidden

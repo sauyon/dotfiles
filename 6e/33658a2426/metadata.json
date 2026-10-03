@@ -3,7 +3,7 @@
   "checkpoint_id": "6e33658a2426",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 2,
+  "checkpoints_count": 5,
   "files_touched": [
     ".forgejo/workflows/nix-eval.yml",
     "README.md",
@@ -18,6 +18,13 @@
       "compact_transcript": "/6e/33658a2426/0/transcript.jsonl",
       "content_hash": "/6e/33658a2426/0/content_hash.txt",
       "prompt": "/6e/33658a2426/0/prompt.txt"
+    },
+    {
+      "metadata": "/6e/33658a2426/1/metadata.json",
+      "transcript": "/6e/33658a2426/1/full.jsonl",
+      "compact_transcript": "/6e/33658a2426/1/transcript.jsonl",
+      "content_hash": "/6e/33658a2426/1/content_hash.txt",
+      "prompt": "/6e/33658a2426/1/prompt.txt"
     }
   ],
   "token_usage": {

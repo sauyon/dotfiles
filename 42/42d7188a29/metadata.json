@@ -3,7 +3,7 @@
   "checkpoint_id": "4242d7188a29",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 5,
+  "checkpoints_count": 8,
   "files_touched": [
     "home.nix",
     "mcode-package-lock.json",
@@ -23,13 +23,20 @@
       "compact_transcript": "/42/42d7188a29/1/transcript.jsonl",
       "content_hash": "/42/42d7188a29/1/content_hash.txt",
       "prompt": "/42/42d7188a29/1/prompt.txt"
+    },
+    {
+      "metadata": "/42/42d7188a29/2/metadata.json",
+      "transcript": "/42/42d7188a29/2/full.jsonl",
+      "compact_transcript": "/42/42d7188a29/2/transcript.jsonl",
+      "content_hash": "/42/42d7188a29/2/content_hash.txt",
+      "prompt": "/42/42d7188a29/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 152,
-    "cache_creation_tokens": 148499,
-    "cache_read_tokens": 10249760,
-    "output_tokens": 70826,
-    "api_call_count": 76
+    "input_tokens": 190,
+    "cache_creation_tokens": 240628,
+    "cache_read_tokens": 11886579,
+    "output_tokens": 104664,
+    "api_call_count": 95
   }
 }

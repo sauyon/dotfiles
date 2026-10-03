@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "83b3a7ac24f9",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "home.nix",
+    "tests/hmeval.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/83/b3a7ac24f9/0/metadata.json",
+      "transcript": "/83/b3a7ac24f9/0/full.jsonl",
+      "compact_transcript": "/83/b3a7ac24f9/0/transcript.jsonl",
+      "content_hash": "/83/b3a7ac24f9/0/content_hash.txt",
+      "prompt": "/83/b3a7ac24f9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 159404,
+    "cache_read_tokens": 8274021,
+    "output_tokens": 72083,
+    "api_call_count": 72,
+    "subagent_tokens": {
+      "input_tokens": 30,
+      "cache_creation_tokens": 73901,
+      "cache_read_tokens": 708871,
+      "output_tokens": 294,
+      "api_call_count": 15
+    }
+  }
+}

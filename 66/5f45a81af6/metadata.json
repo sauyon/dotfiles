@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "665f45a81af6",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "home.nix",
+    "home/.minimax/plugins/herdr-agent-state/.claude-plugin/plugin.json",
+    "home/.minimax/plugins/herdr-agent-state/hooks/herdr-agent-state.sh",
+    "home/.minimax/plugins/herdr-agent-state/hooks/hooks.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/66/5f45a81af6/0/metadata.json",
+      "transcript": "/66/5f45a81af6/0/full.jsonl",
+      "compact_transcript": "/66/5f45a81af6/0/transcript.jsonl",
+      "content_hash": "/66/5f45a81af6/0/content_hash.txt",
+      "prompt": "/66/5f45a81af6/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 13033,
+    "cache_read_tokens": 5137649,
+    "output_tokens": 7683,
+    "api_call_count": 14
+  }
+}

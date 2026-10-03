@@ -2,10 +2,11 @@
 # Vendored into ~/.minimax/plugins/herdr-agent-state/hooks/. Fires on every
 # mcode lifecycle event declared in the same directory's hooks.json and,
 # inside a herdr pane, publishes state/session RPCs to the local herdr
-# socket. No-op unless HERDR_ENV=1, so inert outside a herdr pane.
+# socket. No-op unless HERDR_PANE_ID is set in mcode's environment, so
+# inert outside a herdr pane.
 #
 # Action → state map (set by hooks.json's `command:` per event):
-#   sessionstart → pane.report_agent_session (new identity, working)
+#   sessionstart → pane.report_agent_session (new identity, state=working)
 #   working      → pane.report_agent        state=working
 #   idle         → pane.report_agent        state=idle
 #   blocked      → pane.report_agent        state=blocked
@@ -14,12 +15,30 @@
 # stdin: { hook_event_name, session_id, transcript_path, cwd, source, ... }.
 # Verified empirically with `mcode exec --permission off` that
 # SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, and
-# Notification all fire and carry the expected keys. stderr paths are
-# recorded so the JSON cannot accidentally be lost on a `cat` failure.
+# Notification all fire and carry the expected keys.
+#
+# mcode filters env when spawning hook subprocesses: only CLAUDE_*,
+# MINIMAX_*, and a few basics (TERM, HOSTNAME, HOSTTYPE) are preserved;
+# HERDR_* and anything else not on mcode's whitelist is dropped. We recover
+# HERDR_* by reading the parent mcode process's /proc/<ppid>/environ —
+# mcode itself inherits HERDR_* from the spawning herdr pane, so this
+# round-trips through mcode's filter without modifying mcode.
 
 set -eu
 
 action="${1:-}"
+
+# Recover HERDR_* from the parent (mcode)'s environ when not already in our
+# own. Skip silently when running outside a herdr pane (no env to recover).
+if [ -z "${HERDR_PANE_ID:-}" ] && [ -n "${PPID:-}" ] && [ -r "/proc/$PPID/environ" ]; then
+  herdr_env="$(tr '\0' '\n' </proc/"$PPID"/environ 2>/dev/null \
+    | grep -E '^HERDR_(ENV|SOCKET_PATH|PANE_ID|TAB_ID|WORKSPACE_ID)=' \
+    || true)"
+  if [ -n "$herdr_env" ]; then
+    # shellcheck disable=SC2086
+    eval "export $herdr_env"
+  fi
+fi
 
 [ "${HERDR_ENV:-}" = "1" ] || exit 0
 [ -n "${HERDR_SOCKET_PATH:-}" ] || exit 0

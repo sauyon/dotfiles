@@ -1,0 +1,79 @@
+can you install waypipe here and on utsuho
+
+---
+
+<task-notification>
+<task-id>b6bgeq6ug</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/797087a6-1943-4314-9838-37a672472b62/tasks/b6bgeq6ug.output</output-file>
+<status>completed</status>
+<summary>Background command "Push and switch via hms (CI build, blocks ~10 min)" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+done
+
+---
+
+<task-notification>
+<task-id>b356937l9</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/797087a6-1943-4314-9838-37a672472b62/tasks/b356937l9.output</output-file>
+<status>failed</status>
+<summary>Background command "Re-run hms unpiped (push, wait for CI, switch)" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bys8r1j2g</task-id>
+<tool-use-id>toolu_01XXnqk6Nf4oipNjRN3oqTBc</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/797087a6-1943-4314-9838-37a672472b62/tasks/bys8r1j2g.output</output-file>
+<status>completed</status>
+<summary>Background command "Re-run hms with nix fallback enabled" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+it should be installed now
+
+---
+
+activating wireguard killed my network.
+
+---
+
+ok do it. but why is it donw
+
+---
+
+ok do it. but why is it down
+
+---
+
+isn't the peer the unifi router...?
+
+---
+
+I downloaded the new profile
+
+---
+
+done
+
+---
+
+is that a tpm key?
+
+---
+
+get rid of this. I don't want a normal key.
+
+---
+
+you can back it up in case I need it later
+
+---
+
+you can back it up in case I need it later, just prevent it from being picked up by default.

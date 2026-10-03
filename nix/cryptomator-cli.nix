@@ -53,4 +53,52 @@ pkgs.cryptomator-cli.overrideAttrs (old: {
     wrapProgram $out/bin/cryptomator-cli \
       --prefix LD_LIBRARY_PATH : ${pkgs.liburing}/lib:${pkgs.numactl}/lib
   '';
+
+  # Every claim above is a fact about $out, so it is checked here rather than
+  # from outside. tests/cryptomator-cli.sh used to do this; it could only ever
+  # run against a store path somebody had already built and installed, which is
+  # the one situation where a broken wrap has already shipped.
+  #
+  # Nothing here runs the binary: cryptomator-cli wants a vault and a
+  # passphrase, and the failure this guards against is a dlopen at the moment a
+  # vault operation happens, not at startup. So the assertions are about what
+  # the loader will be able to find when that dlopen comes.
+  doInstallCheck = true;
+  installCheckPhase = (old.installCheckPhase or "") + ''
+    runHook preInstallCheck
+
+    bin=$out/bin/cryptomator-cli
+    inner=$out/bin/.cryptomator-cli-wrapped
+
+    # The two libraries jFuse dlopens and the upstream bundle omits. Read out of
+    # the wrapper rather than interpolated again, so this checks what shipped.
+    # `|| true` because a no-match grep is exactly the failure being checked
+    # for, and stdenv runs with `set -e`: without it the phase dies on the
+    # assignment and prints none of the messages below.
+    uring=$(grep -o '/nix/store/[^:"]*liburing[^:"]*/lib' "$bin" | head -1 || true)
+    numa=$(grep -o '/nix/store/[^:"]*numactl[^:"]*/lib' "$bin" | head -1 || true)
+    [ -n "$uring" ] || { echo "wrapper names no store liburing path" >&2; exit 1; }
+    [ -n "$numa" ]  || { echo "wrapper names no store numactl path" >&2; exit 1; }
+    [ -e "$uring/liburing.so.2" ] \
+      || { echo "no liburing.so.2 under $uring" >&2; exit 1; }
+    [ -e "$numa/libnuma.so.1" ] \
+      || { echo "no libnuma.so.1 under $numa" >&2; exit 1; }
+
+    # The "Why not just LD_LIBRARY_PATH=/usr/lib" trap, asserted. A Nix binary
+    # that reaches /usr/lib picks up the host glibc and dies on a missing
+    # symbol, so the loader path must never widen to it.
+    if grep -q '/usr/lib' "$bin"; then
+      echo "wrapper mentions /usr/lib:" >&2
+      grep -n '/usr/lib' "$bin" >&2
+      exit 1
+    fi
+
+    # wrapProgram must have WRAPPED upstream's wrapper, not replaced it:
+    # upstream substitutes its bundled fuse into LD_LIBRARY_PATH, and a clobber
+    # leaves libfuse.so.3 unresolvable while both checks above still pass.
+    grep -q '/nix/store/[^:"]*fuse[^:"]*' "$inner" \
+      || { echo "inner wrapper $inner names no store fuse path" >&2; exit 1; }
+
+    runHook postInstallCheck
+  '';
 })

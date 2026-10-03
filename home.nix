@@ -60,7 +60,7 @@ let
   # revoke later. Both are out entirely -- no sops.secrets, which is what
   # switches sops-nix's module (unit, activation, sops-install-secrets) off for
   # them. An allowlist, not `!= "kyuusaku"`, so a new host starts out of the
-  # fleet: it cannot decrypt anything until enrolled anyway. tests/secrets-fleet.sh pins the split.
+  # fleet: it cannot decrypt anything until enrolled anyway.
   secretsHosts = [ "utsuho" "shiori" "fujiwara" "mari" ];
   isSecretsHost = builtins.elem hostname secretsHosts;
 
@@ -717,10 +717,13 @@ let
   # three directories it prepends, and verified against the built wrapper under
   # `env -i`.
   #
-  # STEAM_BIN is a seam for tests/steam-env.sh and nothing else sets it. It is not
-  # a privilege boundary: anything that can write this process's environment could
-  # exec what it liked regardless -- and could more durably just rewrite the Exec=
-  # line of the 0644 desktop file this change installs.
+  # STEAM_BIN was a test seam and now has no consumer -- tests/steam-env.sh was
+  # removed. Left in place because it is inert (nothing sets it, so the default
+  # is what runs) and because removing it would rewrite the shipped wrapper for
+  # no functional gain. It is not a privilege boundary either way: anything that
+  # can write this process's environment could exec what it liked regardless --
+  # and could more durably just rewrite the Exec= line of the 0644 desktop file
+  # this change installs.
   steam = pkgs.writeShellScriptBin "steam" ''
     set -u
     export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
@@ -729,9 +732,9 @@ let
   '';
 
   # The Exec= rewrite that points the packaged steam.desktop at the wrapper above.
-  # A repo script rather than an inline writeShellScript so tests/steam-env.sh can
-  # drive the real thing directly, the way tests/thermald-setup.sh drives
-  # system/thermald-setup; its own header carries the reasoning.
+  # A repo script rather than an inline writeShellScript, the way
+  # system/thermald-setup is one: it can then be read and run directly instead of
+  # only existing inside a built generation. Its own header carries the reasoning.
   steam-desktop-override = ./home/steam-desktop-override;
 
   hypr-fullscreen-inhibit = pkgs.writeShellScriptBin "hypr-fullscreen-inhibit" ''
@@ -1117,8 +1120,8 @@ let
   # Both manifests, from one derivation, named rather than globbed:
   #   - Both, because shiori is Intel (anv) and utsuho AMD (radv), and the loader
   #     skips an ICD whose device is absent. Keying this on `gpu` would give the
-  #     two ends different store paths, and waypipe refuses a version mismatch --
-  #     see ../tests/waypipe.sh, which asserts the two ends are byte-identical.
+  #     two ends different store paths, and waypipe refuses a version mismatch,
+  #     so both ends must resolve to byte-identical manifests.
   #   - Named, because `builtins.readDir "${pkgs.mesa}/share/..."` is
   #     import-from-derivation, and CI evaluates every host without building.
   #     A filename that moves upstream therefore fails a test, not an eval.
@@ -3075,7 +3078,7 @@ in
   # one the host provides (libalpm.so=16, 16.0.1) -- and nixpkgs' half is doing
   # queries and dependency resolution, not writing the db. If nixpkgs and Arch
   # ever straddle a libalpm soname bump, re-check that pair before assuming this
-  # still holds; ../tests/aur-helper.sh checks the host gate, not the versions.
+  # still holds.
   ++ lib.optional isArchHost pkgs.paru
   ++ (with pkgs; [
     bfs
@@ -3114,7 +3117,7 @@ in
     # erroring. Ungated, like google-fonts beside it: ~10 MiB, and a headless
     # host that renders a document wants the glyphs too. fontconfig's own
     # 60-generic.conf binds the `emoji` generic to the family name this ships,
-    # so installing it is the whole fix -- see ../tests/emoji-font.sh.
+    # so installing it is the whole fix.
     noto-fonts-color-emoji
 
     claude-agent-acp
@@ -3261,8 +3264,8 @@ in
   #
   # Both ends must be the same waypipe: the 0.10 rewrite (C -> Rust) changed the
   # wire format and waypipe refuses a mismatch rather than negotiating down.
-  # Coming from one flake.lock is what makes that hold, and ../tests/waypipe.sh
-  # asserts the two store paths are identical rather than merely both present.
+  # Coming from one flake.lock is what makes that hold -- the two ends need
+  # identical store paths, not merely a waypipe present on each.
   #
   # The part this package alone does not buy, stated because it is the failure
   # that looks like a missing package: `waypipe ssh` resolves `waypipe` on the far
@@ -3785,7 +3788,6 @@ in
     # gtk-application-prefer-dark-theme=true, while the XDG portal — which answers
     # org.freedesktop.appearance color-scheme out of dconf — reported 0, "no
     # preference". Gecko and every other portal-aware toolkit then picks light.
-    # Covered by tests/hidpi-dconf-split.sh.
     #
     # Hosts with no dconf D-Bus service are not a reason to gate: hm's activation
     # falls back to `dbus-run-session` when DBUS_SESSION_BUS_ADDRESS is unset, and

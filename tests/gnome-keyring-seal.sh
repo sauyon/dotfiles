@@ -28,8 +28,7 @@ set -u
 # host is pinned to shiori rather than read from /etc/hostname, because nothing in
 # these cases is host-specific and `gnomeKeyringHost` is false on headless and
 # darwin hosts -- where the filter below would return [] and `builtins.head` would
-# throw, reported only as "could not evaluate". Both conventions are spelled out in
-# tests/steam-env.sh and tests/even-terminal.sh.
+# throw, reported only as "could not evaluate".
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 SCRIPT="${1:-}"

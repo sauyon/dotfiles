@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bujgbr51m</task-id>
+<tool-use-id>toolu_015F15u8NPSTeVG1XtDegyRA</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/1ae58029-389c-4927-a912-cc660be39e2a/tasks/bujgbr51m.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the switch to finish via log sentinel" completed (exit code 0)</summary>
+</task-notification>

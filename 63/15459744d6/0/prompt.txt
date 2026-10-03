@@ -1,0 +1,57 @@
+<task-notification>
+<task-id>btzcz3vte</task-id>
+<tool-use-id>toolu_01M5rRsLuCPJ93Rr9yRQM2es</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/1ae58029-389c-4927-a912-cc660be39e2a/tasks/btzcz3vte.output</output-file>
+<status>completed</status>
+<summary>Background command "Build fj from the fork with the fixed check" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bjajfluj0</task-id>
+<tool-use-id>toolu_01SDFDLJ2zR5Su8txq9BtoQi</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/1ae58029-389c-4927-a912-cc660be39e2a/tasks/bjajfluj0.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the hms CI poll test suite" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+retry
+
+---
+
+<task-notification>
+<task-id>bbykpbspy</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/1ae58029-389c-4927-a912-cc660be39e2a/tasks/bbykpbspy.output</output-file>
+<status>completed</status>
+<summary>Background command "Switch this host via hms" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>bhjmc07gm</task-id>
+<tool-use-id>toolu_01MKp1zgnQsDKD3DtfUYGetP</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/1ae58029-389c-4927-a912-cc660be39e2a/tasks/bhjmc07gm.output</output-file>
+<status>completed</status>
+<summary>Background command "Run hms from the clean worktree" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+when what finishe
+
+---
+
+when what finishes
+
+---
+
+that's not right. you fucked something up.
+
+---
+
+hms will always output something immediately

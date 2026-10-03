@@ -44,6 +44,9 @@ jobs:
       # no coreutils/grep/jq, and the test scripts in tests/ assume a normal
       # userland. One rev for both, so a bump moves them together.
       TOOLS_REV: 29916453413845e54a65b8a1cf996842300cd299
+      # Which host tests/ should believe it is running on; see the tests branch
+      # below. Any host with a full desktop config will do.
+      TEST_HOST: utsuho
     steps:
       - name: authorise nix against attic
         env:
@@ -147,6 +150,20 @@ jobs:
               fi
               ;;
             tests)
+              # Several scripts in tests/ build the thing they test by way of
+              # `homeConfigurations.$(cat /etc/hostname)` — fine on a box that
+              # is one of the hosts, useless in a container whose hostname is
+              # its own ID. Run 137 died twice over with
+              #
+              #   does not provide attribute
+              #   'homeConfigurations.328998cea6c4.config.home.packages'
+              #
+              # Rather than teach eight scripts a new seam, tell the ephemeral
+              # container it is a host. It only ever needs to be *a* host whose
+              # config contains the script under test; utsuho has all of them.
+              printf '%s' "$TEST_HOST" > /etc/hostname
+              echo "  (as $TEST_HOST)"
+
               # tests/*.sh are ordinary shell: they want coreutils, grep, sed
               # and jq, none of which the nix image has. Run them inside a
               # pinned shell rather than teaching each script to cope.

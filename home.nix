@@ -4125,18 +4125,27 @@ in
         # Reaching past the wrapper — correct before that override — now names a
         # file that does not exist, and home-manager will not clobber the stale
         # working ~/.ssh/config to tell you so.
+        #
+        # No `--global-config`, though `coder config-ssh` emits it and these two
+        # blocks were first transcribed from its output. It only names the
+        # directory that is already the default — but coder also reads it as
+        # "file-based tokens, ignore the keyring" (see --use-keyring in `coder
+        # --help`, default true). With the flag, `coder login` puts the session
+        # in the keyring while these ProxyCommands keep reading
+        # ~/.config/coderv2/session: ssh fails on a stale token while `coder`
+        # itself looks signed in. Leave it off so both read the one store.
         "coder.*" = {
           UserKnownHostsFile = "/dev/null";
           ConnectTimeout = "0";
           StrictHostKeyChecking = "no";
           LogLevel = "ERROR";
-          ProxyCommand = "${pkgs.coder}/bin/coder --global-config ${config.home.homeDirectory}/.config/coderv2 ssh --stdio --ssh-host-prefix coder. %h";
+          ProxyCommand = "${pkgs.coder}/bin/coder ssh --stdio --ssh-host-prefix coder. %h";
         };
         # `header` is the escape hatch for a block header carrying Nix string
         # context (the store path), which can't live in an attr name.
         "*.coder-proxy" = {
           header = "Match host *.coder !exec \"${pkgs.coder}/bin/coder connect exists %h\"";
-          ProxyCommand = "${pkgs.coder}/bin/coder --global-config ${config.home.homeDirectory}/.config/coderv2 ssh --stdio --hostname-suffix coder %h";
+          ProxyCommand = "${pkgs.coder}/bin/coder ssh --stdio --hostname-suffix coder %h";
         };
         "*.coder" = {
           UserKnownHostsFile = "/dev/null";

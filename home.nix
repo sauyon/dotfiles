@@ -3698,6 +3698,33 @@ in
     # wanted.
     zen-browser = {
       enable = isDesktop;
+      # Without this Zen has no GL at all — not degraded acceleration, no EGL
+      # vendor whatsoever, so WebGL reports itself unsupported and
+      # /proc/<pid>/maps across every Zen process shows zero GL libraries.
+      #
+      # The flake's wrapper puts nix's libglvnd on LD_LIBRARY_PATH but ships no
+      # DRI drivers (the closure carries mesa-libgbm and nothing else). glvnd
+      # therefore falls through its vendor-dir list to the host's
+      # /usr/share/glvnd/egl_vendor.d/50_mesa.json and dlopens Arch's
+      # /usr/lib/libEGL_mesa.so.0 into a process running nix's glibc. Measured
+      # 2026-10-02 with LD_DEBUG=libs under the wrapper's exact environment:
+      #
+      #   libm.so.6: version lookup error: version `GLIBC_2.43' not found
+      #     (required by /usr/lib/libgallium-26.2.2-arch1.1.so) (fatal)
+      #
+      # Arch is on glibc 2.44, nixpkgs here is pinned (see the flake.lock
+      # revert for mosh) at 2.42, and the vendor load is fatal: eglGetDisplay
+      # returns NULL with EGL_BAD_DISPLAY. The same probe under `nixGL` gets
+      # eglInitialize -> 1.5, Mesa Project — because nixGL points
+      # LIBGL_DRIVERS_PATH and the glvnd vendor dirs at nixpkgs' own mesa, so
+      # the host's is never opened and the glibc skew stops mattering.
+      #
+      # This is the module's own option (hm-module/package.nix), which applies
+      # config.lib.nixGL.wrap to the selected package — the same wrap ghostty,
+      # hyprlock, hyprpaper and cumora already get. Gated like
+      # targets.genericLinux.nixGL.* below, since that wrap is only configured
+      # on desktop Linux.
+      nixGL.enable = !isDarwin && isDesktop;
       # No configPath here, unlike the firefox block — and NOT because of
       # env.nix's MOZ_LEGACY_PROFILES=1. That var only opts gecko out of
       # dedicated (profile-per-install) mode; it never picks the directory. The

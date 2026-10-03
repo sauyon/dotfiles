@@ -1,0 +1,299 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "b8435a55b3d8",
+  "session_id": "89707064-2a18-4846-99bd-4e058556d8be",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-03T23:24:47.934819283Z",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    "docs/ci-nix-home.md",
+    "docs/ci-vulnix-scan.md",
+    "docs/nix-binary-cache.md",
+    "flake.nix",
+    "system/deploy",
+    "system/etc/nix/nix.custom.conf"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "b26c08df38d9",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 230,
+    "cache_creation_tokens": 319219,
+    "cache_read_tokens": 14147579,
+    "output_tokens": 80762,
+    "api_call_count": 115
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01XUC4mJRfu2JToAGXJEYSLt",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:tdd"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "b26c08df38d9",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 107,
+        "end": 108,
+        "entry_ids": [
+          "923671aa-a699-4e17-965f-3b17ade36153"
+        ],
+        "tool_use_id": "toolu_01XUC4mJRfu2JToAGXJEYSLt"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01XUC4mJRfu2JToAGXJEYSLt"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:tdd",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01E8shkZDVDPssD6ebo2G1cH",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "b26c08df38d9",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 400,
+        "end": 401,
+        "entry_ids": [
+          "16bfc971-a031-470a-acd2-f775469f1aaf"
+        ],
+        "tool_use_id": "toolu_01E8shkZDVDPssD6ebo2G1cH"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01E8shkZDVDPssD6ebo2G1cH"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01LWkKDyNWFNUxsKqPi6ZAV4",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:verification-before-completion"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "b26c08df38d9",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 477,
+        "end": 478,
+        "entry_ids": [
+          "1ff044a5-155f-45d4-890b-2db5131c73f8"
+        ],
+        "tool_use_id": "toolu_01LWkKDyNWFNUxsKqPi6ZAV4"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01LWkKDyNWFNUxsKqPi6ZAV4"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:verification-before-completion",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_014yLmgF32upgGfkchRrYRst",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "b26c08df38d9",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 585,
+        "end": 586,
+        "entry_ids": [
+          "127e01fb-726c-482e-b1aa-cf75fe8306c0"
+        ],
+        "tool_use_id": "toolu_014yLmgF32upgGfkchRrYRst"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_014yLmgF32upgGfkchRrYRst"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-03T23:24:47.840586578Z",
+    "agent_lines": 49,
+    "agent_removed": 29,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 11,
+    "total_committed": 49,
+    "total_lines_changed": 89,
+    "agent_percentage": 87.64044943820225,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 5812,
+      "user_lines_removed": 12,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/deploy-wif-final-review-1/001-README.md.diff": 37,
+        ".drovr/review/deploy-wif-final-review-1/002-docs_nix-binary-cache.md.diff": 42,
+        ".drovr/review/deploy-wif-final-review-1/003-system_deploy.diff": 119,
+        ".drovr/review/deploy-wif-final-review-1/004-system_secrets.sh.diff": 133,
+        ".drovr/review/deploy-wif-final-review-1/005-tests_system-secrets.sh.diff": 364,
+        ".drovr/review/deploy-wif-final-review-1/index.md": 35,
+        ".drovr/review/edp1-scale-2x-review-1/001-hyprland.nix.diff": 21,
+        ".drovr/review/edp1-scale-2x-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-1/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-2/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-2/index.md": 27,
+        ".drovr/review/ghostty-p10k-osc133-review-1/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-1/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-1/index.md": 29,
+        ".drovr/review/ghostty-p10k-osc133-review-2/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-2/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-2/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-1/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-1/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-1/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-2/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-2/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-2/index.md": 29,
+        ".drovr/review/kanon-wg-route-review-1/001-home.nix.diff": 21,
+        ".drovr/review/kanon-wg-route-review-1/index.md": 27,
+        ".drovr/review/kanon-wg-route-review-2/001-home.nix.diff": 21,
+        ".drovr/review/kanon-wg-route-review-2/index.md": 27,
+        ".drovr/review/ssh-oidc-escalation-pin-review-1/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-escalation-pin-review-1/index.md": 27,
+        ".drovr/review/ssh-oidc-escalation-pin-review-2/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-escalation-pin-review-2/index.md": 27,
+        ".drovr/review/ssh-oidc-pin-review-1/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-pin-review-1/index.md": 27,
+        ".drovr/review/ssh-oidc-pin-review-2/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-pin-review-2/index.md": 27,
+        ".drovr/review/ssh-oidc-pin-review-3/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-pin-review-3/002-flake.nix.diff": 36,
+        ".drovr/review/ssh-oidc-pin-review-3/003-forgejo-cli-Cargo.lock.diff": 3120,
+        ".drovr/review/ssh-oidc-pin-review-3/004-nix_forgejo-cli.nix.diff": 72,
+        ".drovr/review/ssh-oidc-pin-review-3/005-patches_forgejo-cli-keys-flock.patch.diff": 121,
+        ".drovr/review/ssh-oidc-pin-review-3/index.md": 35,
+        ".drovr/review/zen-instead-of-firefox-review-1/001-env.nix.diff": 45,
+        ".drovr/review/zen-instead-of-firefox-review-1/002-flake.lock.diff": 44,
+        ".drovr/review/zen-instead-of-firefox-review-1/003-flake.nix.diff": 30,
+        ".drovr/review/zen-instead-of-firefox-review-1/004-home.nix.diff": 134,
+        ".drovr/review/zen-instead-of-firefox-review-1/index.md": 33,
+        "docs/darwin-remote-builder.md": 10,
+        "docs/new-host.md": 9,
+        "docs/nix-binary-cache.md": 4,
+        "flake.nix": 7,
+        "scripts/migrate-claude-personal-sessions": 63,
+        "system/deploy": 2,
+        "system/etc/nix/nix.custom.conf": 17
+      },
+      "user_removed_per_file": {
+        "docs/new-host.md": 1,
+        "docs/nix-binary-cache.md": 3,
+        "flake.nix": 2,
+        "system/deploy": 2,
+        "system/etc/nix/nix.custom.conf": 4
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 5700,
+      "user_lines_removed": 0,
+      "agent_lines_added": 172,
+      "agent_lines_removed": 41,
+      "user_added_per_file": {
+        ".drovr/review/deploy-wif-final-review-1/001-README.md.diff": 37,
+        ".drovr/review/deploy-wif-final-review-1/002-docs_nix-binary-cache.md.diff": 42,
+        ".drovr/review/deploy-wif-final-review-1/003-system_deploy.diff": 119,
+        ".drovr/review/deploy-wif-final-review-1/004-system_secrets.sh.diff": 133,
+        ".drovr/review/deploy-wif-final-review-1/005-tests_system-secrets.sh.diff": 364,
+        ".drovr/review/deploy-wif-final-review-1/index.md": 35,
+        ".drovr/review/edp1-scale-2x-review-1/001-hyprland.nix.diff": 21,
+        ".drovr/review/edp1-scale-2x-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-1/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-2/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-2/index.md": 27,
+        ".drovr/review/ghostty-p10k-osc133-review-1/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-1/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-1/index.md": 29,
+        ".drovr/review/ghostty-p10k-osc133-review-2/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-2/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-2/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-1/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-1/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-1/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-2/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-2/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-2/index.md": 29,
+        ".drovr/review/kanon-wg-route-review-1/001-home.nix.diff": 21,
+        ".drovr/review/kanon-wg-route-review-1/index.md": 27,
+        ".drovr/review/kanon-wg-route-review-2/001-home.nix.diff": 21,
+        ".drovr/review/kanon-wg-route-review-2/index.md": 27,
+        ".drovr/review/ssh-oidc-escalation-pin-review-1/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-escalation-pin-review-1/index.md": 27,
+        ".drovr/review/ssh-oidc-escalation-pin-review-2/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-escalation-pin-review-2/index.md": 27,
+        ".drovr/review/ssh-oidc-pin-review-1/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-pin-review-1/index.md": 27,
+        ".drovr/review/ssh-oidc-pin-review-2/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-pin-review-2/index.md": 27,
+        ".drovr/review/ssh-oidc-pin-review-3/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-pin-review-3/002-flake.nix.diff": 36,
+        ".drovr/review/ssh-oidc-pin-review-3/003-forgejo-cli-Cargo.lock.diff": 3120,
+        ".drovr/review/ssh-oidc-pin-review-3/004-nix_forgejo-cli.nix.diff": 72,
+        ".drovr/review/ssh-oidc-pin-review-3/005-patches_forgejo-cli-keys-flock.patch.diff": 121,
+        ".drovr/review/ssh-oidc-pin-review-3/index.md": 35,
+        ".drovr/review/zen-instead-of-firefox-review-1/001-env.nix.diff": 45,
+        ".drovr/review/zen-instead-of-firefox-review-1/002-flake.lock.diff": 44,
+        ".drovr/review/zen-instead-of-firefox-review-1/003-flake.nix.diff": 30,
+        ".drovr/review/zen-instead-of-firefox-review-1/004-home.nix.diff": 134,
+        ".drovr/review/zen-instead-of-firefox-review-1/index.md": 33
+      }
+    }
+  ]
+}

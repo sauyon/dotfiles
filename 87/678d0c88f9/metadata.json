@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "87678d0c88f9",
+  "strategy": "manual-commit",
+  "branch": "nix-trusted-user",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/nix-binary-cache.md",
+    "system/deploy",
+    "system/etc/nix/nix.custom.conf"
+  ],
+  "sessions": [
+    {
+      "metadata": "/87/678d0c88f9/0/metadata.json",
+      "transcript": "/87/678d0c88f9/0/full.jsonl",
+      "compact_transcript": "/87/678d0c88f9/0/transcript.jsonl",
+      "content_hash": "/87/678d0c88f9/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 66851,
+    "cache_read_tokens": 974076,
+    "output_tokens": 11490,
+    "api_call_count": 14
+  }
+}

@@ -87,8 +87,19 @@ Details, and the contract between the script and `.forgejo/workflows/nix-eval.ym
 
 ## Tests
 
-Nothing here has a suite; the exception is anything whose logic is a model of
-someone else's, where a comment claiming the model is right proves nothing.
+Nothing here has a suite. Two things earn one, and a case has to fail silently
+either way — anything you would notice the first time you used it does not:
+
+  * **Logic that is a model of someone else's.** A comment claiming the model is
+    right proves nothing; rename the thing upstream and nix still builds.
+  * **An operation that cannot be taken back.** Removing a kid from the
+    published JWKS de-authorises the fleet instantly, and every visible signal
+    stays green while it happens.
+
+Host-membership lists and package-build smoke tests used to be in here and are
+not any more: a drifted host gate shows up the first time you run the tool, and
+what a build produced belongs to that derivation's own `installCheckPhase`,
+where it gates the build instead of being checked after the fact.
 
 ```bash
 ./tests/hyprlock-faillock.sh     # builds the script, then drives 33 cases
@@ -96,21 +107,28 @@ someone else's, where a comment claiming the model is right proves nothing.
 ./tests/system-secrets.sh        # sources system/secrets.sh, drives 20 cases
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live zsh config
-./tests/steam-ui-scaling.sh      # evaluates 3 hosts, drives 4 cases
-./tests/aur-helper.sh            # evaluates 6 hosts, 8 cases
 ./tests/hms-ci-poll.sh           # drives 7 cases against the built hms
 ./tests/hmeval.sh                # drives 27 cases against the built hmeval
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
 ./tests/polkit-agent.sh          # evaluates 5 hosts + a synthetic one, 17 cases
 ./tests/insecure-packages.sh     # 2 cases per host, plus mari's darwin system
 ./tests/gnome-keyring-seal.sh    # builds the script, drives 14 cases with stub tpm2
-./tests/steam-env.sh             # builds the steam wrapper, drives 46 cases
-./tests/even-terminal.sh         # builds the npm package, drives 7 cases
-./tests/mcode.sh                 # builds the npm package, drives 7 cases
 ./tests/elephant-reindex.sh      # renders each walker host's unit, plus sd-switch's job type
 ./tests/hyprlock-pending-race.sh # reads the pinned hyprlock source, 5 cases
-./tests/waypipe.sh               # evaluates 6 hosts, builds the wrapper, 17 cases
-./tests/emoji-font.sh            # evaluates 6 hosts, builds the font, 13 cases
+./tests/hyprland-graceful-exit.sh # drives the built script under a stub hyprctl
+./tests/bootstrap-ssh-finalize.sh # drives install/finalize-ssh.sh, stubbed systemctl
+
+# The WIF kit. These guard the trust root, so most are offline and static on
+# purpose: `wif-tpm.sh` is the only one that talks to Google, and it does a real
+# token exchange with the superseded file key on every run (see its header).
+./tests/sops-recipients.sh       # .sops.yaml's one key group, and what secrets.yaml is encrypted to
+./tests/wif-jwks.sh              # jwks-remove-kid.py's refusals, on crafted files
+./tests/wif-publish-guard.sh     # jwks-publish-guard.py, the de-authorise-the-fleet preflight
+./tests/wif-sts-classify.sh      # sts-classify.py: accepted vs rejected vs void
+./tests/wif-keygen.sh            # device-keygen.sh: the key path the system signs with
+./tests/wif-admin-setup.sh       # static contracts on the trust-root publisher
+./tests/wif-revoke-kid.sh        # static contracts on revoke-kid.sh's measurement
+./tests/wif-tpm.sh               # the TPM device key, and whether the old one is revoked
 ```
 
 `patches/hyprlock-fix-lost-finished-event.patch` works around
@@ -166,19 +184,6 @@ the real script with stub `pacman`/`sudo`/`systemctl` on `PATH`, asserting both
 halves: a host without the package does nothing at all, and a converged host
 escalates zero times.
 
-`paru` (in `home.nix`) is the AUR helper, and the test is about one predicate:
-`isArchHost`, which is deliberately not `!isDarwin`. kyuusaku is a Linux host
-whose distribution is not ours -- the same reason `system/deploy` keeps an
-explicit four-host allow-list instead of testing for pacman -- so `!isDarwin`
-would hand it a pacman frontend with no pacman under it, a tool that evaluates
-and builds fine and fails the moment anyone runs it. It is nixpkgs' paru rather
-than the AUR's `paru-bin` so that the helper itself arrives from the attic cache
-with no makepkg run and no PKGBUILD trusted at bootstrap, which leaves the AUR
-trust surface covering only the packages actually wanted from there. The cases
-evaluate all six host configs and assert membership both ways, plus two teeth:
-paru dropped from `home.packages` entirely, or handed to every host, each turns
-half the suite vacuous while leaving it green.
-
 The `_ghostty_saved_ps1` priming in `zsh.nix` is a model of ghostty's
 `ghostty-integration`: it pre-sets variables private to that script so its own
 `ps1_changed` guard fires on the first precmd, which is what stops the PS1
@@ -196,16 +201,6 @@ the shell over via `ZDOTDIR` before it. Driving that second path takes
 `SHELL=/bin/sh`, because `script -c` otherwise runs the command through zsh and
 that outer shell quietly eats the handoff -- so two cases check the paths are
 still distinct before the rest trusts them.
-
-`STEAM_FORCE_DESKTOPUI_SCALING` (in `home.nix`) models Steam's side of a bargain
-Hyprland can't enforce: `xwayland.force_zero_scaling` hands X11 clients real
-pixels and no DPI hint, and Steam's CEF UI reads neither `Xft.dpi` nor
-`GDK_DPI_SCALE`, so on a scaled panel it draws tiny until told its own factor.
-The cases evaluate three hosts and derive every expectation from the config
-itself — the var must equal the scale that host's eDP-1 monitor rule asks for,
-and be unset where there is no such rule — so the pair can't drift apart
-silently, which is the only way this fails. A fourth case asserts a scaled host
-still exists, since otherwise all three would pass vacuously.
 
 `hyprpolkitagent` (in `home.nix`) is the unit whose absence is silent: polkit has
 no prompt of its own, so with no agent registered it refuses every `auth_self`
@@ -314,44 +309,6 @@ to authenticate*, so the caller sees the identical bare `PermissionDenied` it se
 with no agent at all, and `RestartSec` brings the unit back looking healthy. A
 green eval says the unit is shaped right, not that a prompt can be drawn; the
 check that answers that is `coredumpctl list hyprpolkitagent` after trying one.
-
-The `steam` wrapper (in `home.nix`) and `home/steam-desktop-override` model the two
-places nix's profile and a pacman-installed app collide. Steam shells out to
-`xdg-user-dir`, `~/.nix-profile/bin` precedes `/usr/bin`, and nix's loader can't
-satisfy what Arch's `libc.so.6` leaves undefined — `__pointer_chk_guard`; and
-`GIO_EXTRA_MODULES` points Steam's steamrt3c runtime (`steamrt64/pv-runtime`, glib
-2.66.8) at a gvfs module its older glib can't load. The wrapper prepends the host's
-directories rather than sanitising nix away, because `xdg-open` exists *only* in the
-profile here and is how Steam opens a link — though only CEF resolves it through
-`PATH`; `steamclient.so` hardcodes an absolute `/usr/bin/xdg-open` that isn't
-installed. So the cases assert both directions: a fix that satisfies one and breaks
-the other looks correct from either side alone. Five of them are there because the
-obvious assertion passes with the bug still in place — the `xdg-user-dir` case reads
-through `readlink` (profile entries are symlinks, so the unresolved name is never a
-store path); the `xdg-open` case *executes* it under a Steam-shaped
-`LD_LIBRARY_PATH` rather than resolving it (a `command -v` check can only fail when
-the case above it already has); a first case asserts the `/usr/bin`-vs-profile
-collision still exists at all, without which the rest can pass having measured
-nothing; the wiring case compares argument *order*, since checking that each path
-merely appears somewhere passes a src/dst transposition; and the fixture's wrapper
-path deliberately does not end in `-steam`, so the cleanup marker can't be satisfied
-by luck. The `nix eval` cases cover the wiring, since
-the wrapper and the script can both be correct while the activation entry passes the
-wrong paths — including that the entry keeps its `|| warnEcho`, because activation
-runs under `set -eu` and a bare failure here would abort the entries after it.
-
-`even-terminal.nix` is a `buildNpmPackage` over an npm tarball, which is a shape
-with three ways to build clean and die in someone's hands. The package's own build
-script is `rm -rf dist && tsc` and its `prepack` hook runs it — so `npm pack`
-during the install phase will delete the prebuilt `dist/` unless
-`npmPackFlags = [ "--ignore-scripts" ]` stops it, and the result still has a
-`bin/` that answers `--version`. `node-pty` ships no linux prebuild and is compiled
-here by node-gyp, but is loaded lazily, only once a session spawns an agent. And
-nothing on these hosts provides `node` at all, so the `#!/usr/bin/env node` shebang
-has to have been rewritten. The cases pin each: `--help` (not `--version`) forces
-the command table out of `dist/`, the addon is `dlopen`ed rather than looked for,
-and every CLI case runs under `env -i` with `PATH=/var/empty`, so an unpatched
-shebang fails even on a box that has node installed.
 
 ## System config
 

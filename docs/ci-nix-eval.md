@@ -11,7 +11,7 @@ hmeval utsuho mari          # just these
 hmeval --attr 'homeConfigurations.utsuho.config.programs.zen-browser.package.drvPath'
 hmeval --ci                 # same question, on the runner
 hmeval --tests              # tests/*.sh on the runner (implies --ci)
-hmeval --tests tests/waypipe.sh tests/hmeval.sh
+hmeval --tests tests/wif-jwks.sh tests/hmeval.sh
 ```
 
 Progress goes to stderr and results to stdout, so `hmeval | grep` sees the

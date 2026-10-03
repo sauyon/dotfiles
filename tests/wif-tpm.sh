@@ -77,8 +77,41 @@ case "${KO_WIF_OLD_KID-unset}" in
     esac ;;
   *) oldkid_pinned="$KO_WIF_OLD_KID" ;;
 esac
-# Pinned like the kid, for the same reason, and used by the authority check below.
-audience="${KO_WIF_AUDIENCE:?set KO_WIF_AUDIENCE -- the workload-identity provider audience. Its value lives in the private dotfiles-private repo (README), not in this public one.}"
+# The provider audience the authority check below signs for. KO_WIF_AUDIENCE
+# overrides; unset, it is read out of the credential config this host actually
+# signs with, because that is where the value already lives on an enrolled box.
+#
+# This used to be `${KO_WIF_AUDIENCE:?...}`, which is why it changed: an unset
+# variable aborted the file at this line, before a single case ran -- including
+# every case that needs no audience at all. This file's own header calls a thing
+# that stops the checks "a failure of the test, not an exemption", and names
+# `needed` as how to report one. A bash abort reports nothing and checks
+# nothing, and the value it demanded is not in this public repo, so the whole
+# file was dead on any shell that had not sourced the private one.
+#
+# Deriving it does cost the cross-check further down its teeth -- it exists to
+# catch an override pointing at a different trust root, and cannot compare a
+# value to itself -- so that case reports a skip when the value came from here.
+# Export KO_WIF_AUDIENCE to get it back.
+audience="${KO_WIF_AUDIENCE:-}"
+audience_derived=0
+if [ -z "$audience" ]; then
+  aud_cfg=$(cd "$repo" && nix eval --raw \
+    ".#homeConfigurations.$host.config.sops.environment.GOOGLE_APPLICATION_CREDENTIALS" \
+    2>/dev/null || true)
+  case "${aud_cfg:-}" in
+    /nix/store/*)
+      if [ ! -e "$aud_cfg" ]; then
+        (cd "$repo" && nix build --no-link \
+          ".#homeConfigurations.$host.activationPackage" 2>/dev/null) || true
+      fi
+      if [ -e "$aud_cfg" ]; then
+        audience=$(grep -o -- '--aud [^ "]*' "$aud_cfg" | head -1 || true)
+        audience=${audience#--aud }
+        [ -n "$audience" ] && audience_derived=1
+      fi ;;
+  esac
+fi
 tcti="${TPM2OPENSSL_TCTI:-device:/dev/tpmrm0}"
 issuer="${KO_WIF_ISSUER:-https://storage.googleapis.com/ko-keys-sauyon/hosts}"
 
@@ -336,7 +369,15 @@ else
   # instead -- that assumption is exactly what this check exists to catch, and
   # nothing here has measured IAM binding removal, provider disablement or KMS
   # key-version destruction. Measure before relying on any of them.
-  if [ ! -r "$oldkey" ]; then
+  if [ -z "$audience" ]; then
+    # Without an audience STS answers 400/invalid_request and the case below
+    # lands in its "refused the REQUEST, not the key" skip -- which is honest
+    # about what happened and useless as a verdict on the thing this check
+    # decides. Say so here instead, as a failure: on a host holding a device key
+    # this is a broken run, per the header.
+    needed "the old file key can no longer mint an STS token: no audience to ask with" \
+           "neither KO_WIF_AUDIENCE nor $host's credential config supplied one"
+  elif [ ! -r "$oldkey" ]; then
     skip "the old file key can no longer mint an STS token: $oldkey is gone, so this can NEVER"$'\n'"      be checked again -- that is 'unknown', not 'revoked'. Keep the old key until this"$'\n'"      check has gone green at least once, THEN delete it."
   else
     tok="$work/old.jwt"
@@ -440,7 +481,15 @@ else
     # cross-check them against the credential config the host actually runs.
     cfg_iss=$(grep -o -- '--iss [^ "]*' "$cfg" | head -1); cfg_iss=${cfg_iss#--iss }
     cfg_aud=$(grep -o -- '--aud [^ "]*' "$cfg" | head -1); cfg_aud=${cfg_aud#--aud }
-    if [ "$cfg_iss" = "$issuer" ] && [ "$cfg_aud" = "$audience" ]; then
+    if [ "$audience_derived" = 1 ]; then
+      # The audience came out of this very file, so comparing them would be a
+      # tautology dressed as a check. The issuer half is still worth asserting.
+      if [ "$cfg_iss" = "$issuer" ]; then
+        skip "the issuer and audience these checks used are the ones $host actually signs for:"$'\n'"      issuer matches, audience was READ from this config so it cannot be cross-checked"$'\n'"      against it. Export KO_WIF_AUDIENCE to restore this case."
+      else
+        bad "the issuer and audience these checks used are the ones $host actually signs for"$'\n'"      tested issuer:  $issuer"$'\n'"      config issuer:  $cfg_iss"
+      fi
+    elif [ "$cfg_iss" = "$issuer" ] && [ "$cfg_aud" = "$audience" ]; then
       ok "the issuer and audience these checks used are the ones $host actually signs for"
     else
       bad "the issuer and audience these checks used are the ones $host actually signs for"$'\n'"      tested:  $issuer"$'\n'"               $audience"$'\n'"      config:  $cfg_iss"$'\n'"               $cfg_aud"

@@ -4674,7 +4674,7 @@ in
           HostName = "10.0.10.47";
           Port = 59048;
         };
-        "yui mio meiko ritsu mugi azusa" = {
+        "yui mio meiko ritsu mugi azusa" = private.endpoints.clusterSsh // {
           ForwardAgent = true;
         };
         "testserver" = {

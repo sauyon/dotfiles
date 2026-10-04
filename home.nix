@@ -1939,7 +1939,7 @@ attr=$attr
         command = "sh";
         args = [
           "-c"
-          "UNIFI_API_KEY=$(cat ${config.home.homeDirectory}/.config/unifi/api-key) exec ${config.home.homeDirectory}/.local/share/mise/shims/uvx unifi-mcp-server"
+          "UNIFI_API_KEY=$(cat ${config.home.homeDirectory}/.config/unifi/local-api-key) exec ${config.home.homeDirectory}/.local/share/mise/shims/uvx unifi-mcp-server"
         ];
         env = {
           UNIFI_API_TYPE = "local";
@@ -2093,6 +2093,21 @@ in
     # ── UniFi API key (unifi-mcp-server) ───────────────────────────────────────
     unifiApiKey = {
       path = "${config.home.homeDirectory}/.config/unifi/api-key";
+      mode = "0600";
+    };
+
+    # The Site Manager (cloud) key above and this one are NOT interchangeable, and
+    # they are indistinguishable by eye -- both 32 alphanumeric characters. Only
+    # behaviour separates them, measured 2026-10-03:
+    #   unifiApiKey       -> api.ui.com 200, local gateway 401
+    #   unifiLocalApiKey  -> api.ui.com 401, local gateway 200
+    # unifi-mcp-server with UNIFI_API_TYPE="local" talks to the gateway under
+    # /proxy/network/, so it needs THIS one. The cloud key 401s there and the
+    # failure is indistinguishable from a revoked credential -- which is exactly
+    # how a working key got diagnosed as dead twice. Mint this one in the UniFi OS
+    # console (Admins -> your admin -> API Key), NOT at unifi.ui.com.
+    unifiLocalApiKey = {
+      path = "${config.home.homeDirectory}/.config/unifi/local-api-key";
       mode = "0600";
     };
   };

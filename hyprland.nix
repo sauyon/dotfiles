@@ -221,6 +221,23 @@ in
         ];
       }
 
+      # Pin Vesktop to workspace 8. Vesktop is the user's Discord client and
+      # should live on ws8 regardless of where it was launched from. WM_CLASS is
+      # "Vesktop" (capital V) -- from the StartupWMClass in
+      # /nix/store/.../share/applications/vesktop.desktop. Static windowrulev2
+      # would also work; using a window.open handler keeps the per-window
+      # behaviour colocated with the rest of this file's hooks.
+      {
+        _args = [
+          "window.open"
+          (mkLuaInline ''
+            function(w)
+              if w.class ~= "Vesktop" then return end
+              hl.dispatch(hl.dsp.window.move({ workspace = 8, window = w }))
+            end'')
+        ];
+      }
+
       # Float Zen's extension popups (Bitwarden's is the one that prompted this).
       #
       # This cannot be a window_rule. `float` is a *static* effect: Hyprland

@@ -59,6 +59,21 @@ base.overrideAttrs (old: {
     lockFile = ../forgejo-cli-Cargo.lock;
   };
 
+  # tests/git_credential.rs redirects the key store with XDG_DATA_HOME, which is
+  # how `directories::ProjectDirs` finds keys.json on Linux. macOS resolves data
+  # dirs through Apple's standard paths (~/Library/Application Support) and
+  # ignores XDG_DATA_HOME, so on darwin every case reads an empty store: the
+  # known-host case prints no token, and the two lock cases "give up and serve
+  # the stored token" with nothing to serve. The subcommand itself is fine on
+  # darwin -- a real `fj git-credential get` against the live keys.json serves
+  # the token -- so skip these three here (CI builds Linux and runs the full
+  # suite) and lean on installCheckPhase below, whose checks are path-agnostic.
+  checkFlags = pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+    "--skip=get_emits_username_and_token_for_a_known_host"
+    "--skip=get_gives_up_on_a_wedged_lock_and_serves_the_stored_token"
+    "--skip=get_waits_for_another_process_to_leave_the_refresh_lock"
+  ];
+
   # Build-time facts about $out belong here rather than in tests/ (see README's
   # "## Tests").  Both assertions below are about the contract home.nix depends
   # on, and both would have caught shipping nixpkgs' fj by mistake.

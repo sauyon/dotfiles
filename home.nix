@@ -1126,15 +1126,20 @@ let
     done
 
     switch_now() {
-      # -- --fallback: mirrors `.forgejo/workflows/nix-home.yml`'s build step (and
-      # the equivalent on the vulnix scan). A NAR the in-cluster attic Service
-      # can't deliver — Service down, cluster netrc expired, transient 5xx — falls
-      # through to a local build for that one path rather than aborting the whole
-      # switch after 10 minutes of transfer. Cloudflare's 600 s ceiling is no
-      # longer on the wire (c8c17274 promoted shiori's Kon WireGuard profile, and
-      # 10929ef9 moved substituters off `attic.ko.ag`), so this flag now costs a
-      # single local build per outage instead of every run.
-      exec ''${HMS_SWITCH_CMD:-home-manager switch} --flake "$repo#$host" -- --fallback ''${hm_args[@]+"''${hm_args[@]}"}
+      # --option fallback true: mirrors `.forgejo/workflows/nix-home.yml`'s build
+      # step (and the equivalent on the vulnix scan). A NAR the in-cluster attic
+      # Service can't deliver — Service down, cluster netrc expired, transient
+      # 5xx — falls through to a local build for that one path rather than
+      # aborting the whole switch after 10 minutes of transfer. Cloudflare's
+      # 600 s ceiling is no longer on the wire (c8c17274 promoted shiori's Kon
+      # WireGuard profile, and 10929ef9 moved substituters off `attic.ko.ag`), so
+      # this now costs a single local build per outage instead of every run.
+      #
+      # Spelled `--option fallback true`, not the `--fallback` shorthand: the
+      # home-manager CLI does not forward bare nix-build flags (and has no `--`
+      # passthrough), but `--option NAME VALUE` is on its allowlist, and it hands
+      # that straight to nix-build.
+      exec ''${HMS_SWITCH_CMD:-home-manager switch} --flake "$repo#$host" --option fallback true ''${hm_args[@]+"''${hm_args[@]}"}
     }
 
     # mari (darwin) has no Linux CI job; nix-home.yml builds only these.

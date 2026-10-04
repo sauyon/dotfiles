@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "e3cbe2ff5332",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "hyprland.nix",
+    "tests/hyprland-vesktop-workspace.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e3/cbe2ff5332/0/metadata.json",
+      "transcript": "/e3/cbe2ff5332/0/full.jsonl",
+      "compact_transcript": "/e3/cbe2ff5332/0/transcript.jsonl",
+      "content_hash": "/e3/cbe2ff5332/0/content_hash.txt",
+      "prompt": "/e3/cbe2ff5332/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 1666,
+    "cache_read_tokens": 2176999,
+    "output_tokens": 932,
+    "api_call_count": 3
+  }
+}

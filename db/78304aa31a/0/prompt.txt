@@ -1,0 +1,13 @@
+Error: [config.invalid] Model "kimi-code/k3" is not configured in config.toml.
+
+---
+
+Error: [config.invalid] Model "kimi-code/k3" is not configured in config.toml. in kimi code
+
+---
+
+/login
+
+---
+
+continue

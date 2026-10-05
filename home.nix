@@ -2115,6 +2115,22 @@ in
       path = "${config.home.homeDirectory}/.config/unifi/local-api-key";
       mode = "0600";
     };
+
+    # ── Kimi Code OAuth tokens (kimi CLI, shared across the fleet) ────────────
+    # kimi stores its OAuth tokens as ~/.kimi-code/credentials/<name>.json,
+    # mode 0600, where <name> derives from the provider's oauth_host — not from
+    # anything per-device (kimi-code.nix pins that provider block, which is
+    # what makes the filename below stable on every box). So one `/login`
+    # seeds the whole fleet: this is the exact JSON kimi wrote on the seeding
+    # box. Caveat (mirrored in kimi-code.nix): each box refreshes access
+    # tokens independently, and a switch re-deploys this copy over the box's
+    # locally-refreshed one. If the upstream refresh token rolls on use, the
+    # last box to refresh wins and this copy goes stale — re-seed with
+    # `/login` on one box, then update the secret from its credentials file.
+    kimiCodeCredentials = {
+      path = "${config.home.homeDirectory}/.kimi-code/credentials/kimi-code-env-0e4f99c69cc27850.json";
+      mode = "0600";
+    };
   };
 
   # ── Global Claude preferences (loaded into every conversation) ────────────
@@ -3522,7 +3538,7 @@ in
 
   qt = lib.optionalAttrs (!isDarwin && isDesktop) {
     enable = true;
-    platformTheme.name = "gtk2";
+    platformTheme.name = "gtk3";
   };
 
   programs.walker = lib.optionalAttrs (!isDarwin && isDesktop) {

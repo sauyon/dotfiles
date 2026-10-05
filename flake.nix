@@ -119,7 +119,7 @@
       modules = [
         sops-nix.darwinModules.sops
         ssh-oidc.darwinModules.default
-        ({ config, ... }: {
+        ({ config, pkgs, lib, ... }: {
           programs.zsh.enable = true;
           nix.enable = true;
           nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -156,7 +156,32 @@
           sops.age.keyFile = "/etc/sops/age-unused.txt";
           sops.age.sshKeyPaths = [ ];
           sops.gnupg.sshKeyPaths = [ ];
-          sops.environment.GOOGLE_APPLICATION_CREDENTIALS = "/Users/sauyon/.config/sops/gcp-key.json";
+          # The device WIF identity, the same one homeConfigurations.mari signs
+          # with -- nix/wif-credentials.nix's header says why mari has one
+          # identity and not two. What forces this is dropping nix-key from
+          # .sops.yaml: the cluster service-account key this used to point at is
+          # no longer a recipient of secrets.yaml, so a configuration still
+          # aimed at it has nothing left that it can decrypt.
+          #
+          # The signing key stays in the human's home (0600), and this
+          # activation runs as root, which can read it. That is the arrangement
+          # gcp-key.json already had, so no new ordering constraint arrives with
+          # the switch: both want /Users mounted, neither wants a login session.
+          sops.environment = {
+            GOOGLE_APPLICATION_CREDENTIALS = "${import ./nix/wif-credentials.nix {
+              inherit pkgs lib;
+              hostname = "mari";
+              keyFile = "/Users/sauyon/.config/ko/wif.pem";
+              # Darwin has no TPM at all, which is why home.nix keeps wifTpmHosts
+              # as a list separate from wifHosts.
+              useTpm = false;
+              audience = (import "${dotfiles-private}/endpoints.nix").wifAudience;
+            }}";
+            # Required by Google's auth library for executable-sourced credentials.
+            # The config above is a read-only store path, so this is a constraint,
+            # not a risk.
+            GOOGLE_EXTERNAL_ACCOUNT_ALLOW_EXECUTABLES = "1";
+          };
           # Human key(s). With the OIDC gate active, its always-accept
           # AuthorizedKeysCommand (not this file) decides the publickey stage for
           # the `sauyon` login; the builder carve-out is handled separately

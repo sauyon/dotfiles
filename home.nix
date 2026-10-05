@@ -94,45 +94,18 @@ let
   useWifTpm = useWif && !isDarwin && builtins.elem hostname wifTpmHosts;
   wifKeyFile = "${config.home.homeDirectory}/.config/ko/"
     + (if useWifTpm then "wif-tpm.pem" else "wif.pem");
-  wifIssuer = "https://storage.googleapis.com/ko-keys-sauyon/hosts";
   wifAudience = private.endpoints.wifAudience;
-  # sops-nix runs sops-install-secrets with PATH="" — every path here is absolute.
-  koWifToken = pkgs.writeShellScriptBin "ko-wif-token" ''
-    export KO_OPENSSL=${pkgs.openssl}/bin/openssl
-    ${lib.optionalString (!isDarwin) "export KO_TIMEDATECTL=/usr/bin/timedatectl"}
-    ${lib.optionalString useWifTpm ''
-      # openssl loads the TPM key only through this provider, and finds providers
-      # by OPENSSL_MODULES. Both come from the same `pkgs`, which is the point —
-      # but note nothing enforces that at runtime: tpm2.so's RUNPATH holds no
-      # openssl at all, so it resolves libcrypto from the loading process and any
-      # ABI-compatible OpenSSL 3.x would load it. The pairing is a build-time
-      # header dependency, kept honest here by both names coming from one pkgs.
-      export OPENSSL_MODULES=${pkgs.tpm2-openssl}/lib/ossl-modules
-      # Same reason as gnome-keyring-tpm above: the nixpkgs TSS defaults to
-      # tcti-abrmd, a resource-manager daemon this host does not run. /dev/tpmrm0
-      # is the kernel's own resource manager and needs only the tss group.
-      export TPM2OPENSSL_TCTI=device:/dev/tpmrm0
-    ''}
-    exec ${pkgs.python3}/bin/python3 ${./home/scripts/ko-wif-token.py} "$@"
-  '';
-  # Non-secret by construction (GCP documents credential configs as safe to commit).
-  wifCredentialConfig = pkgs.writeText "wif-hosts.json" (builtins.toJSON {
-    type = "external_account";
+  # Shared with darwinConfigurations.mari in flake.nix: that configuration needs
+  # the identical credential for this same host and runs as root, so it cannot
+  # see this `let`. Both callers passing the same (hostname, keyFile, audience)
+  # is what makes mari one device identity rather than two -- the reasoning is
+  # in nix/wif-credentials.nix's header.
+  wifCredentialConfig = import ./nix/wif-credentials.nix {
+    inherit pkgs lib hostname;
+    keyFile = wifKeyFile;
+    useTpm = useWifTpm;
     audience = wifAudience;
-    subject_token_type = "urn:ietf:params:oauth:token-type:jwt";
-    token_url = "https://sts.googleapis.com/v1/token";
-    credential_source.executable = {
-      command = lib.concatStringsSep " " [
-        "${koWifToken}/bin/ko-wif-token"
-        "--key" wifKeyFile
-        "--iss" wifIssuer
-        "--sub" "device:${hostname}"
-        "--aud" wifAudience
-        "--adc"
-      ];
-      timeout_millis = 10000;
-    };
-  });
+  };
 
   # Emacs is NOT part of the desktop stack: it runs headless as a daemon and is
   # reached over tty/SSH with `emacsclient -t` (zsh.nix's non_gui branch already

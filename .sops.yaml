@@ -1,15 +1,24 @@
 creation_rules:
   - path_regex: secrets.yaml
-    # Transition: nix-key (cluster SA key, existing hosts) AND host-key (device WIF
-    # identities, see reports/…trust root.md Part A). One key group = either decrypts.
-    # nix-key is removed here once every dotfiles principal is enrolled AND the
-    # recovery identity at rest in the Cryptomator vault has been verified
-    # readable (A7 migration gate, §15 of the run log). The vault is the
-    # recovery root on its own: passphrase-encrypted, scrypt N=32768,
-    # format 8, SIV_CTRMAC; storage compromise yields ciphertext and an
-    # offline attack bounded by the passphrase, not by KMS availability.
-    # No paper print required.
-    gcp_kms: "projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/nix-key,projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/host-key"
+    # host-key alone, as of Part A item 4 (reports/…trust root.md). Every
+    # dotfiles principal now reaches it through its own WIF device identity --
+    # home.nix `wifHosts` for the user configs, darwinConfigurations.mari for
+    # mari's system config -- so nix-key, the cluster service account's key that
+    # every host used to share, is no longer a recipient. It was dropped once
+    # all four principals were enrolled AND the live JWKS served all four kids;
+    # dropping it earlier would have locked out whichever host was still on the
+    # shared credential.
+    #
+    # Editing this list does NOT re-wrap the existing file -- `sops updatekeys
+    # secrets.yaml` does, under a credential holding ENCRYPT on host-key (the
+    # device identities are decrypt-only by design, so none of them can).
+    # tests/sops-recipients.sh is what notices when that step was forgotten.
+    #
+    # Recovery root is the Cryptomator vault on the personal Drive:
+    # passphrase-encrypted, scrypt N=32768, format 8, SIV_CTRMAC; a storage
+    # compromise yields ciphertext and an offline attack bounded by the
+    # passphrase, not by KMS availability. No paper print required.
+    gcp_kms: "projects/sauyon-dotfiles/locations/global/keyRings/nix-keyring/cryptoKeys/host-key"
     # Offline paper recovery (report A6.4, A7 step 1). Same creation rule as
     # gcp_kms, so it is the same key group: this recipient ALONE decrypts, with
     # no Google account and no network. Do not move it into `key_groups` -- that

@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ lib, pkgs, ... }:
 
 # Kimi Code CLI (binary `kimi`) — Moonshot's TypeScript terminal agent,
 # github.com/MoonshotAI/kimi-code. Not in nixpkgs, so we package the upstream
@@ -54,6 +54,35 @@ let
         hash = "sha256-S6tvlsLCiTaLfwWgT2ZzfFOlnOdA+TLY8UkkBYR1jvs=";
       };
     }.${system} or null;
+
+  # The keys of ~/.kimi-code/config.toml this repo owns, as JSON for the
+  # activation merge below. Everything NOT in here — the [models.*] catalogue
+  # a `/models` refresh writes, the [services.*] blocks, [thinking], any
+  # hand-edit — is kimi's to keep.
+  #
+  # Pinning [providers."managed:kimi-code"] is not just tidiness: kimi derives
+  # the on-disk OAuth credential name from the provider's oauth_host
+  # ("kimi-code-env-<hash>", stored as ~/.kimi-code/credentials/<name>.json),
+  # NOT from anything per-device. With the same base_url/oauth_host every box
+  # resolves the SAME filename — kimi-code-env-0e4f99c69cc27850.json — which
+  # is exactly the file the kimiCodeCredentials sops secret in home.nix
+  # deploys. Drift here (say upstream moves the default host and a box picks
+  # it up via /login) and that box silently mints a new credential name the
+  # shared secret no longer applies to.
+  kimiOwnedConfig = pkgs.writers.writeJSON "kimi-code-owned-config.json" {
+    default_permission_mode = "yolo"; # "Never Ask"; per docs: manual/yolo/auto
+    default_model = "kimi-code/k3";
+    providers."managed:kimi-code" = {
+      type = "kimi";
+      base_url = "https://api.kimi.ai/coding/v1";
+      api_key = "";
+      oauth = {
+        storage = "file";
+        key = "oauth/kimi-code-env-0e4f99c69cc27850";
+        oauth_host = "https://auth.kimi.ai";
+      };
+    };
+  };
 in
 {
   nixpkgs.overlays = [
@@ -144,4 +173,57 @@ in
         };
       })
   ];
+
+  # config.toml is MERGED, not replaced — the same shape as pi's settings.json
+  # (see pi.nix), for the same reason: kimi treats this file as read-write
+  # state. `/login` rewrites the oauth block, a `/models` refresh rewrites
+  # every [models.*] table, `/secondary-model` writes defaults. Rendering it
+  # from the store (home.file) would either fight the agent at every switch or
+  # lose silently the first time kimi's atomic write replaces the symlink with
+  # a regular file. So at every activation only the keys in kimiOwnedConfig
+  # are set, deep-merged over whatever kimi last wrote.
+  #
+  # The file is TOML and jq cannot read TOML, so the merge round-trips through
+  # remarshal: toml2json | jq deep-merge (`*`; owned keys win, everything else
+  # survives) | json2toml, written to $DEST.new and renamed into place, per
+  # the pi.nix atomicity pattern. Verified against the live file: the
+  # round-trip is data-identical (parsed TOML before == after) and the merge
+  # is idempotent.
+  #
+  # default_model is the one owned key that can dangle: it names a
+  # [models.*] table, and those only exist once kimi has fetched its
+  # catalogue. Pinned over an empty file (fresh box, or a config that got
+  # truncated) it makes every launch die with `config.invalid: Model
+  # "kimi-code/k3" is not configured in config.toml` — `/login` does not
+  # repair it. So the merge drops default_model while the catalogue lacks
+  # it; kimi picks its own default, and the next switch after a `/models`
+  # refresh pins ours.
+  #
+  # The marker file under oauth/ is touched only if absent: kimi's file-backed
+  # token storage keeps the actual tokens in credentials/<name>.json and uses
+  # the oauth/ entry as a create-if-absent marker, so an empty file is the
+  # correct content and re-creating it is all a fresh box needs.
+  #
+  # The credentials file itself is NOT written here — it arrives via the
+  # kimiCodeCredentials sops secret (home.nix), shared across the fleet so one
+  # `/login` seeds every box. Caveat: access tokens expire and each box
+  # refreshes independently, and a switch re-deploys the sops copy over
+  # whatever the box refreshed to locally. If the upstream refresh token rolls
+  # on use, the last box to refresh wins and the sops copy goes stale —
+  # re-seeding means running `/login` on one box and updating the secret from
+  # its freshly-written credentials file.
+  home.activation.kimiCodeConfig = lib.hm.dag.entryAfter [ "writeBoundary" "sops-nix" ] ''
+    DEST="$HOME/.kimi-code/config.toml"
+    $DRY_RUN_CMD mkdir -p "$HOME/.kimi-code/oauth"
+    [ -f "$DEST" ] || $DRY_RUN_CMD sh -c ': > "'"$DEST"'"'
+    $DRY_RUN_CMD ${pkgs.remarshal}/bin/toml2json "$DEST" "$DEST.json"
+    $DRY_RUN_CMD ${pkgs.jq}/bin/jq --slurpfile owned "${kimiOwnedConfig}" \
+      '. * $owned[0] | if .models[.default_model] then . else del(.default_model) end' \
+      "$DEST.json" > "$DEST.merged.json"
+    $DRY_RUN_CMD ${pkgs.remarshal}/bin/json2toml "$DEST.merged.json" "$DEST.new"
+    $DRY_RUN_CMD mv "$DEST.new" "$DEST"
+    $DRY_RUN_CMD rm -f "$DEST.json" "$DEST.merged.json"
+    MARKER="$HOME/.kimi-code/oauth/kimi-code-env-0e4f99c69cc27850"
+    [ -e "$MARKER" ] || $DRY_RUN_CMD touch "$MARKER"
+  '';
 }

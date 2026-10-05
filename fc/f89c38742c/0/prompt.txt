@@ -1,0 +1,57 @@
+can you help me setup a distrobox that mirrors setsuna with all the work stuff on it, which I can enter easily, and also can access my wayland sockets to launch eg slack
+
+---
+
+you could create an encrypted home with eg systemd-homed though no? also, this host is arch. the box itself can share most system things. just don't want eg crowdstrike falcon going through my shit
+
+---
+
+would a vm not severely impact battery
+
+---
+
+would it make sense to use another box as my work connected pc? could I still get slack on this machine?
+
+---
+
+setsuna is my old laptop. really I want a new machine
+
+---
+
+utsuho is my work laptop. install there then
+
+---
+
+can you ping and see first though how bad that would be? it's on wifi and so am I.
+
+---
+
+you can use fujiwara as a jump to reach utsuho
+
+---
+
+why do you say we don't have avahi?
+
+---
+
+what? 10.0.7.100 *is* fujiwara
+
+---
+
+utsuho is at my office. I don't know what you're talking about
+
+---
+
+could I use mari then
+
+---
+
+it's fine. mari is specifically enrolled.
+
+---
+
+really I want to do something like x forwarding
+
+---
+
+I absolutely. DO NOT. want to run a vm

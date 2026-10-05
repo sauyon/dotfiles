@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "fcf89c38742c",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".drovr/review/work-waypipe-review-1/001-home.nix.diff",
+    ".drovr/review/work-waypipe-review-1/002-tests_work.sh.diff",
+    ".drovr/review/work-waypipe-review-1/index.md",
+    ".drovr/review/work-waypipe-review-2/001-home.nix.diff",
+    ".drovr/review/work-waypipe-review-2/002-tests_work.sh.diff",
+    ".drovr/review/work-waypipe-review-2/index.md",
+    ".drovr/review/work-waypipe-review-3/001-home.nix.diff",
+    ".drovr/review/work-waypipe-review-3/002-tests_work.sh.diff",
+    ".drovr/review/work-waypipe-review-3/index.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fc/f89c38742c/0/metadata.json",
+      "transcript": "/fc/f89c38742c/0/full.jsonl",
+      "compact_transcript": "/fc/f89c38742c/0/transcript.jsonl",
+      "content_hash": "/fc/f89c38742c/0/content_hash.txt",
+      "prompt": "/fc/f89c38742c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 7850,
+    "cache_read_tokens": 1772177,
+    "output_tokens": 5891,
+    "api_call_count": 8
+  }
+}

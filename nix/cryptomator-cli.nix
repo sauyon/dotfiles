@@ -40,8 +40,8 @@ pkgs.cryptomator-cli.overrideAttrs (old: {
   # pkgs.makeWrapper is a setup-hook whose `wrapProgram` shell helper wraps an
   # existing $out/bin/<name> in place. Native build input, not a build-time
   # binary call -- a `lib.getExe` invocation against it returns a non-existent
-  # path. Matching the waypipe override (home.nix:1116) which uses the same
-  # hook.
+  # path. Matching the waypipe override (dotfiles-private/waypipe.nix) which
+  # uses the same hook.
   nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
   # Upstream's wrapper sets LD_LIBRARY_PATH to $fuseLib and prepends ${fuseLib}
   # in front of whatever the caller passed. With our --prefix additions, the

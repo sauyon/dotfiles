@@ -32,6 +32,11 @@ let
     newtabLinks = import "${dotfiles-private}/newtab-links.nix";
     claudeAutoModeEnvByHost =
       import "${dotfiles-private}/claude-auto-mode.nix" { inherit hostname; };
+    # The waypipe pair, work-slack forward (+ its launcher entry) and the
+    # ssh block reaching utsuho: pair membership and overlay addresses are
+    # topology the public repo does not carry.
+    waypipe =
+      import "${dotfiles-private}/waypipe.nix" { inherit pkgs lib hostname; };
   };
   # Secret Service provider, keyed off one axis so the two halves cannot drift:
   # desktops get gnome-keyring, headless hosts get pass-secret-service (see
@@ -50,6 +55,14 @@ let
   # from all three for three unrelated reasons.
   archHosts = [ "utsuho" "setsuna" "shiori" "fujiwara" ];
   isArchHost = !isDarwin && builtins.elem hostname archHosts;
+
+  # The employer-owned boxes. Anything that exists only to reach the work
+  # world (the Slack desktop app, today) gates on this so it never lands on a
+  # personal host. shiori still gets at work Slack, but through the
+  # work-slack waypipe forward (private.waypipe), which runs the app on
+  # utsuho -- nothing work-side is installed locally there.
+  workHosts = [ "utsuho" "kyuusaku" ];
+  isWorkHost = builtins.elem hostname workHosts;
 
   # ── sops trust root (dotfiles domain) ───────────────────────────────────────
   # Design: ~/devel/reports/Homelab secrets bootstrap trust root.md, Part A.
@@ -1046,55 +1059,6 @@ let
   # Refuses on a dirty tree: CI builds a pushed commit, so an uncommitted switch
   # is one CI can never reproduce, and silently building it locally would hide
   # that. `--local` is the escape hatch for exactly that case.
-  # waypipe, wrapped so its DMABUF path can actually find a GPU.
-  #
-  # waypipe 0.10 rewrote DMABUF handling onto Vulkan (src/dmabuf.rs), so the
-  # `dmabuf: true` the binary advertises is a build-time fact, not a runtime one:
-  # it also needs a Vulkan driver, and a store-built loader on an Arch box has no
-  # way to find one. The host's own manifest is not a fallback -- Arch's
-  # /usr/share/vulkan/icd.d/radeon_icd.json names the bare soname
-  # `libvulkan_radeon.so`, which a nix binary cannot resolve, so the loader reads
-  # a manifest and still reports none. Measured on utsuho 2026-10-02:
-  #
-  #   ERR waypipe-server src/dmabuf.rs:970:
-  #       Failed to create Vulkan instance: Unable to find a Vulkan driver
-  #
-  # waypipe then tells the client to drop the dmabuf protocols and the far-end
-  # application dies in GTK init -- "Failed to initialize GTK", or from ghostty
-  # the even blanker "Gtk: Failed to open display". No window and nothing naming
-  # Vulkan, which is why this is worth a comment rather than a one-liner.
-  #
-  # Why not nixGL, the wrapper this repo already reaches for: nixGLIntel sets
-  # GBM_BACKENDS_PATH, LIBGL_DRIVERS_PATH, LIBVA_DRIVERS_PATH,
-  # __EGL_VENDOR_LIBRARY_FILENAMES and LD_LIBRARY_PATH -- and no Vulkan variable
-  # at all. It would have changed nothing here. nixgl's separate nixVulkanIntel
-  # does set VK_ICD_FILENAMES, but it also overwrites LD_LIBRARY_PATH (warning on
-  # stderr as it goes) and drags in validation layers, for one variable we can set
-  # ourselves.
-  #
-  # Both manifests, from one derivation, named rather than globbed:
-  #   - Both, because shiori is Intel (anv) and utsuho AMD (radv), and the loader
-  #     skips an ICD whose device is absent. Keying this on `gpu` would give the
-  #     two ends different store paths, and waypipe refuses a version mismatch,
-  #     so both ends must resolve to byte-identical manifests.
-  #   - Named, because `builtins.readDir "${pkgs.mesa}/share/..."` is
-  #     import-from-derivation, and CI evaluates every host without building.
-  #     A filename that moves upstream therefore fails a test, not an eval.
-  # --prefix, not --set: the host's own manifests stay behind ours, so a box that
-  # grows a working system ICD is not cut off from it.
-  waypipe = pkgs.waypipe.overrideAttrs (old: {
-    nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.makeWrapper ];
-    postFixup = (old.postFixup or "") + ''
-      wrapProgram $out/bin/waypipe \
-        --prefix VK_ICD_FILENAMES : "${
-          lib.concatStringsSep ":" [
-            "${pkgs.mesa}/share/vulkan/icd.d/intel_icd.x86_64.json"
-            "${pkgs.mesa}/share/vulkan/icd.d/radeon_icd.x86_64.json"
-          ]
-        }"
-    '';
-  });
-
   hms = pkgs.writeShellScriptBin "hms" ''
     set -euo pipefail
 
@@ -2601,6 +2565,11 @@ in
     '';
   };
 
+  # The work-slack launcher entry for shiori, from dotfiles-private with the
+  # rest of the waypipe pair. Lands in the same ~/.local/share as
+  # Zoom.desktop above, so elephant/walker see it.
+  xdg.dataFile."applications/work-slack.desktop" = private.waypipe.workSlackDesktop;
+
   # ── Herdr ───────────────────────────────────────────────────────────────────
   xdg.configFile."herdr/config.toml".source = ./home/herdr/config.toml;
 
@@ -3263,7 +3232,6 @@ in
     pkgs.hyprpicker
     pkgs.psi-notify
     pkgs.pwvucontrol
-    pkgs.slack
     # Discord client. Was dropped while its build pulled pnpm-10.29.2, which
     # nixpkgs marks insecure (CVE-2026-48995, CVE-2026-50014). Under the current
     # flake.lock it is vesktop 1.6.7 built with pnpm-11.27.0, which nixpkgs does
@@ -3278,64 +3246,20 @@ in
     pkgs.xauth
     pkgs.xdg-utils
   ]
-  # waypipe, the Wayland equivalent of `ssh -X`: `waypipe ssh utsuho <app>` runs
-  # the application on the far host and the surface on this one, over the ssh
-  # channel.
-  #
-  # Why a two-host list and not isDesktop. waypipe is never installed for a host,
-  # it is installed for a *pair* -- the invocation starts one waypipe next to the
-  # compositor that will show the window and a second next to the application,
-  # and neither half is any use without the other. shiori (display, no GPU worth
-  # the name) and utsuho (the amd desktop) are the pair that has a reason to
-  # forward; setsuna and mari would run it fine and have nothing to point it at,
-  # and it is not free -- this build links ffmpeg, vulkan-loader and mesa's gbm
-  # for DMABUF and `--video`, so the closure grows on every host it lands on.
-  # Add a host here when it becomes an end, not before.
-  #
-  # Both ends must be the same waypipe: the 0.10 rewrite (C -> Rust) changed the
-  # wire format and waypipe refuses a mismatch rather than negotiating down.
-  # Coming from one flake.lock is what makes that hold -- the two ends need
-  # identical store paths, not merely a waypipe present on each.
-  #
-  # The part this package alone does not buy, stated because it is the failure
-  # that looks like a missing package: `waypipe ssh` resolves `waypipe` on the far
-  # end through the non-interactive `$SHELL -c` sshd hands it, which reads .zshenv
-  # and never .zshrc -- the same constraint the MOSH_SERVER_NETWORK_TMOUT note in
-  # zsh.nix describes. It resolves today because home-manager emits its
-  # hm-session-vars.sh source line into .zshenv under `if [[ ! -o login ]]`, and
-  # that file puts ~/.nix-profile/bin first on PATH. So a far end that says
-  # "command not found: waypipe" with the package plainly installed is a .zshenv
-  # problem, not this gate.
-  ++ lib.optionals (builtins.elem hostname [ "shiori" "utsuho" ]) [
-    # The nixGL-less Vulkan wrap, defined up top; pkgs.waypipe bare cannot do GPU
-    # transfers on these hosts.
-    waypipe
+  # The Slack desktop app is a work-only install (see workHosts up top). On
+  # shiori the way in is the work-slack waypipe forward (private.waypipe),
+  # not a local copy -- a local Slack there would sign the personal laptop
+  # into the work workspace for no reason, since utsuho's is the one that
+  # stays logged in.
+  ++ lib.optionals (!isDarwin && isDesktop && isWorkHost) [
+    pkgs.slack
   ]
-  ++ lib.optionals (hostname == "shiori") [
-    # work-slack: pull utsuho's Slack onto this display over the WG overlay.
-    # Two things the bare `waypipe ssh utsuho slack` gets wrong: Slack is
-    # single-instance per session, so a copy running on utsuho's own desktop
-    # swallows the launch (the far end exits 0 and nothing forwards) -- quit
-    # it first; and Electron's default X11 backend has no server at the far
-    # end of a waypipe connection ("Missing X server or $DISPLAY"), while the
-    # nixpkgs wrapper's NIXOS_OZONE_WL only adds --ozone-platform-hint=auto,
-    # which this Electron still resolves to X11 -- name Wayland explicitly.
-    # waypipe splits the remote argv itself, so an env-assignment prefix would
-    # be exec'd as the program name.
-    #
-    # --video h264 because the path is the internet, not a LAN: utsuho lives
-    # at the office while shiori is home (60ms RTT, 22ms jitter over its
-    # office wifi), and raw DMABUF forwarding over that stutters. H.264 turns
-    # the window content into a video stream; the far end encodes on the
-    # Radeon 890M (RADV) through the Vulkan ICDs the waypipe wrapper above
-    # injects. bpf=<bits/frame> on the flag is the quality knob if the link
-    # ever gets worse.
-    (pkgs.writeShellScriptBin "work-slack" ''
-      set -euo pipefail
-      ssh utsuho 'pkill -x slack || true'
-      exec waypipe --video h264 ssh utsuho slack --ozone-platform=wayland
-    '')
-  ]
+  # waypipe and the work-slack forward: the pair membership, the
+  # Vulkan-wrapped package and the launcher script all live in
+  # dotfiles-private/waypipe.nix (the topology is private, see the
+  # dotfiles-private input comment in flake.nix); this splices its per-host
+  # package list.
+  ++ private.waypipe.packages
   ++ lib.optionals (hostname == "fujiwara") [
     clawpatrol
   ] ++ lib.optionals (hostname == "shiori") [
@@ -4723,18 +4647,6 @@ in
           User = "ubuntu";
         };
 
-        # shiori -> utsuho rides the UCG's "Kon WireGuard" overlay, not
-        # Tailscale: utsuho's tailscaled is on the work tailnet (tail1beac),
-        # and the personal tailnet (alai-ionian) never meets it. utsuho is a
-        # plain WG client pinned at 10.9.0.6 (kube repo docs/network-ip-map.md),
-        # reachable from the home LAN via the UCG or from anywhere once this
-        # host is a WG client itself. The waypipe pair in home.packages is the
-        # consumer: `waypipe ssh utsuho <app>` runs the app on utsuho and shows
-        # the window here.
-        "utsuho" = {
-          HostName = "10.9.0.6";
-        };
-
         # `bin/coder`, not `bin/.coder-wrapped`: the overlay above sets
         # `postInstall = ""`, which drops nixpkgs' terraform PATH wrapper, so
         # `bin/coder` IS the real binary and no `.coder-wrapped` is produced.
@@ -4769,7 +4681,11 @@ in
           StrictHostKeyChecking = "no";
           LogLevel = "ERROR";
         };
-      };
+        # shiori -> utsuho rides the WG overlay, and the overlay address is
+        # topology the public repo does not carry, so the utsuho block lives
+        # in dotfiles-private/waypipe.nix next to the waypipe pair that is
+        # its consumer.
+      } // private.waypipe.sshSettings;
     };
 
     starship = {

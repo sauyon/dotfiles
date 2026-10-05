@@ -2120,15 +2120,19 @@ in
     # kimi stores its OAuth tokens as ~/.kimi-code/credentials/<name>.json,
     # mode 0600, where <name> derives from the provider's oauth_host — not from
     # anything per-device (kimi-code.nix pins that provider block, which is
-    # what makes the filename below stable on every box). So one `/login`
-    # seeds the whole fleet: this is the exact JSON kimi wrote on the seeding
-    # box. Caveat (mirrored in kimi-code.nix): each box refreshes access
-    # tokens independently, and a switch re-deploys this copy over the box's
-    # locally-refreshed one. If the upstream refresh token rolls on use, the
-    # last box to refresh wins and this copy goes stale — re-seed with
-    # `/login` on one box, then update the secret from its credentials file.
+    # what makes the filename stable on every box). So one `/login` seeds the
+    # whole fleet: this is the exact JSON kimi wrote on the seeding box.
+    #
+    # STAGING path, not the live one: kimi rewrites the credentials file on
+    # every token refresh, so a sops-nix managed path would roll the box back
+    # to this snapshot at every switch — and with rolling refresh tokens the
+    # snapshot is already consumed, which is an instant fleet-wide logout
+    # (observed 2026-10-05). kimi-code.nix's activation copies this seed into
+    # place only when the box has no credentials file at all. To re-seed the
+    # fleet: `/login` on one box, then update this secret from its freshly
+    # written credentials file.
     kimiCodeCredentials = {
-      path = "${config.home.homeDirectory}/.kimi-code/credentials/kimi-code-env-0e4f99c69cc27850.json";
+      path = "${config.home.homeDirectory}/.kimi-code/credentials-seed.json";
       mode = "0600";
     };
   };

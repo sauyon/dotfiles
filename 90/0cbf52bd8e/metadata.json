@@ -3,8 +3,9 @@
   "checkpoint_id": "900cbf52bd8e",
   "strategy": "manual-commit",
   "branch": "wif-item4",
-  "checkpoints_count": 2,
+  "checkpoints_count": 8,
   "files_touched": [
+    ".sops.yaml",
     "flake.nix",
     "home.nix"
   ],
@@ -15,6 +16,13 @@
       "compact_transcript": "/90/0cbf52bd8e/0/transcript.jsonl",
       "content_hash": "/90/0cbf52bd8e/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/90/0cbf52bd8e/1/metadata.json",
+      "transcript": "/90/0cbf52bd8e/1/full.jsonl",
+      "compact_transcript": "/90/0cbf52bd8e/1/transcript.jsonl",
+      "content_hash": "/90/0cbf52bd8e/1/content_hash.txt",
+      "prompt": "/90/0cbf52bd8e/1/prompt.txt"
     }
   ],
   "token_usage": {

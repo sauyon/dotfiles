@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "b8b1876ed2ba",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".drovr/review/vesktop-review-1/001-.gitignore.diff",
+    ".drovr/review/vesktop-review-1/002-.sops.yaml.diff",
+    ".drovr/review/vesktop-review-1/003-home.nix.diff",
+    ".drovr/review/vesktop-review-1/004-home_scripts_ko-wif-token.py.diff",
+    ".drovr/review/vesktop-review-1/005-install_wif_admin-setup.sh.diff",
+    ".drovr/review/vesktop-review-1/006-install_wif_device-keygen.sh.diff",
+    ".drovr/review/vesktop-review-1/007-install_wif_device-test.sh.diff",
+    ".drovr/review/vesktop-review-1/008-secrets.yaml.diff",
+    ".drovr/review/vesktop-review-13/001-README.md.diff",
+    ".drovr/review/vesktop-review-13/002-home.nix.diff",
+    ".drovr/review/vesktop-review-13/003-tests_insecure-packages.sh.diff",
+    ".drovr/review/vesktop-review-13/index.md",
+    ".drovr/review/vesktop-review-14/001-README.md.diff",
+    ".drovr/review/vesktop-review-14/002-home.nix.diff",
+    ".drovr/review/vesktop-review-14/003-tests_insecure-packages.sh.diff",
+    ".drovr/review/vesktop-review-14/index.md",
+    ".drovr/review/vesktop-review-15/001-README.md.diff",
+    ".drovr/review/vesktop-review-15/002-home.nix.diff",
+    ".drovr/review/vesktop-review-15/003-tests_insecure-packages.sh.diff",
+    ".drovr/review/vesktop-review-15/index.md",
+    ".drovr/review/vesktop-review-2/001-env.nix.diff",
+    ".drovr/review/vesktop-review-2/002-home.nix.diff",
+    ".drovr/review/vesktop-review-2/003-home_warp_keybindings.yaml.diff",
+    ".drovr/review/vesktop-review-2/004-home_warp_tab_configs_startup_config.toml.diff",
+    ".drovr/review/vesktop-review-2/005-home_warp_user_preferences.json.diff",
+    ".drovr/review/vesktop-review-2/006-hyprland.nix.diff",
+    ".drovr/review/vesktop-review-2/index.md",
+    ".drovr/review/vesktop-review-3/001-home.nix.diff",
+    ".drovr/review/vesktop-review-3/002-tests_system-packages.sh.diff",
+    ".drovr/review/vesktop-review-3/index.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b8/b1876ed2ba/0/metadata.json",
+      "transcript": "/b8/b1876ed2ba/0/full.jsonl",
+      "compact_transcript": "/b8/b1876ed2ba/0/transcript.jsonl",
+      "content_hash": "/b8/b1876ed2ba/0/content_hash.txt",
+      "prompt": "/b8/b1876ed2ba/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 56,
+    "cache_creation_tokens": 217053,
+    "cache_read_tokens": 6155293,
+    "output_tokens": 10657,
+    "api_call_count": 28,
+    "subagent_tokens": {
+      "input_tokens": 106,
+      "cache_creation_tokens": 189631,
+      "cache_read_tokens": 2166238,
+      "output_tokens": 627,
+      "api_call_count": 53
+    }
+  }
+}

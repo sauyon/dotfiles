@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "fb1a6f095ee6",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".drovr/review/task-2-review-10/001-home.nix.diff",
+    ".drovr/review/task-2-review-10/002-home_scripts_ko-wif-token.py.diff",
+    ".drovr/review/task-2-review-10/003-install_wif_jwks-remove-kid.py.diff",
+    ".drovr/review/task-2-review-10/004-install_wif_revoke-kid.sh.diff",
+    ".drovr/review/task-2-review-10/005-install_wif_tpm-keygen.sh.diff",
+    ".drovr/review/task-2-review-10/006-tests_wif-jwks.sh.diff",
+    ".drovr/review/task-2-review-10/007-tests_wif-tpm.sh.diff",
+    ".drovr/review/task-2-review-10/index.md",
+    ".drovr/review/task-2-review-11/001-home.nix.diff",
+    ".drovr/review/task-2-review-11/002-home_scripts_ko-wif-token.py.diff",
+    ".drovr/review/task-2-review-11/003-install_wif_jwks-remove-kid.py.diff",
+    ".drovr/review/task-2-review-11/004-install_wif_revoke-kid.sh.diff",
+    ".drovr/review/task-2-review-11/005-install_wif_tpm-keygen.sh.diff",
+    ".drovr/review/task-2-review-11/006-tests_wif-jwks.sh.diff",
+    ".drovr/review/task-2-review-11/007-tests_wif-tpm.sh.diff",
+    ".drovr/review/task-2-review-11/index.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fb/1a6f095ee6/0/metadata.json",
+      "transcript": "/fb/1a6f095ee6/0/full.jsonl",
+      "compact_transcript": "/fb/1a6f095ee6/0/transcript.jsonl",
+      "content_hash": "/fb/1a6f095ee6/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 11185,
+    "cache_read_tokens": 3924900,
+    "output_tokens": 9720,
+    "api_call_count": 9,
+    "subagent_tokens": {
+      "input_tokens": 16,
+      "cache_creation_tokens": 289674,
+      "cache_read_tokens": 1904052,
+      "output_tokens": 693,
+      "api_call_count": 8
+    }
+  }
+}

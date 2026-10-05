@@ -1,0 +1,144 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "321ccc18a107",
+  "session_id": "7167f835-c8f1-431a-84e7-7d7b851ed3cc",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-05T23:40:15.50494732Z",
+  "branch": "master",
+  "checkpoints_count": 4,
+  "save_step_count": 1,
+  "files_touched": [
+    ".drovr/review/mcode-sigabrt-review-2/001-home.nix.diff",
+    ".drovr/review/mcode-sigabrt-review-2/002-mcode-gc-stress.cjs.diff",
+    ".drovr/review/mcode-sigabrt-review-2/003-mcode.nix.diff",
+    ".drovr/review/mcode-sigabrt-review-2/index.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "17118a434471",
+  "checkpoint_transcript_start": 224,
+  "transcript_lines_at_start": 224,
+  "compact_transcript_start": 36,
+  "token_usage": {
+    "input_tokens": 48,
+    "cache_creation_tokens": 23626,
+    "cache_read_tokens": 2268295,
+    "output_tokens": 13367,
+    "api_call_count": 24
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01RH9MZhNbYRWyQTT9FJHdhJ",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "6cddb19eb141",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 30,
+        "end": 31,
+        "entry_ids": [
+          "64ec2a56-38c5-4a8d-bfc1-d8cca681943e"
+        ],
+        "tool_use_id": "toolu_01RH9MZhNbYRWyQTT9FJHdhJ"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01RH9MZhNbYRWyQTT9FJHdhJ"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_016hLuqrxTDntPdT5aX5TzJe",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:verification-before-completion"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "17118a434471",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 257,
+        "end": 258,
+        "entry_ids": [
+          "ebb71d87-7010-4af3-ab82-986e70b356c4"
+        ],
+        "tool_use_id": "toolu_016hLuqrxTDntPdT5aX5TzJe"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_016hLuqrxTDntPdT5aX5TzJe"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:verification-before-completion",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 5
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-05T23:40:15.461304866Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 5246,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 5246,
+    "total_lines_changed": 7077,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 296,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/mcode-sigabrt-review-1/001-mcode-gc-stress.cjs.diff": 46,
+        ".drovr/review/mcode-sigabrt-review-1/002-mcode.nix.diff": 111,
+        ".drovr/review/mcode-sigabrt-review-1/index.md": 29,
+        "home.nix": 11,
+        "tests/emoji-font.sh": 99
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 582,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/mcode-sigabrt-review-1/001-mcode-gc-stress.cjs.diff": 46,
+        ".drovr/review/mcode-sigabrt-review-1/002-mcode.nix.diff": 111,
+        ".drovr/review/mcode-sigabrt-review-1/index.md": 29,
+        ".drovr/review/mcode-sigabrt-review-2/001-home.nix.diff": 22,
+        ".drovr/review/mcode-sigabrt-review-2/002-mcode-gc-stress.cjs.diff": 46,
+        ".drovr/review/mcode-sigabrt-review-2/003-mcode.nix.diff": 111,
+        ".drovr/review/mcode-sigabrt-review-2/index.md": 31,
+        ".drovr/review/mcode-sigabrt-review-3/001-mcode-gc-stress.cjs.diff": 46,
+        ".drovr/review/mcode-sigabrt-review-3/002-mcode.nix.diff": 111,
+        ".drovr/review/mcode-sigabrt-review-3/index.md": 29
+      }
+    }
+  ]
+}

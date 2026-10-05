@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.10.6",
+  "checkpoint_id": "321ccc18a107",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".drovr/review/mcode-sigabrt-review-2/001-home.nix.diff",
+    ".drovr/review/mcode-sigabrt-review-2/002-mcode-gc-stress.cjs.diff",
+    ".drovr/review/mcode-sigabrt-review-2/003-mcode.nix.diff",
+    ".drovr/review/mcode-sigabrt-review-2/index.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/32/1ccc18a107/0/metadata.json",
+      "transcript": "/32/1ccc18a107/0/full.jsonl",
+      "compact_transcript": "/32/1ccc18a107/0/transcript.jsonl",
+      "content_hash": "/32/1ccc18a107/0/content_hash.txt",
+      "prompt": "/32/1ccc18a107/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 48,
+    "cache_creation_tokens": 23626,
+    "cache_read_tokens": 2268295,
+    "output_tokens": 13367,
+    "api_call_count": 24
+  }
+}

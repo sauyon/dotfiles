@@ -16,7 +16,7 @@
 # stale lock pins the old dependency set onto the new tarball and `npm ci`
 # aborts on the sync check.
 #
-#   V=0.6.2
+#   V=0.6.3
 #   T=https://registry.npmjs.org/@minimax-ai/code/-/code-$V.tgz
 #   nix store prefetch-file --json --hash-type sha256 "$T"   # -> src.hash
 #   mkdir -p /tmp/mc && curl -fsSL "$T" | tar xz -C /tmp/mc --strip-components=1
@@ -30,7 +30,7 @@
 # Then set `npmDepsHash` to lib.fakeHash, build once, and take the hash the
 # mismatch prints.
 let
-  version = "0.6.2";
+  version = "0.6.3";
 in
 {
   nixpkgs.overlays = [
@@ -68,7 +68,7 @@ in
         src = prev.fetchurl {
           url =
             "https://registry.npmjs.org/@minimax-ai/code/-/code-${version}.tgz";
-          hash = "sha256-3tEBFEfUKuNC0sYvJZXzAkYWa3+rEjFuk6TQr/rbTMc=";
+          hash = "sha256-ZEf4gUFx4dAYarv7CWD8JI0XqQ0SiCB0/9yC8Ly6SlA=";
         };
 
         postPatch = ''
@@ -95,7 +95,7 @@ in
           mv package.json.new package.json
         '';
 
-        npmDepsHash = "sha256-9h1OwKKL53S32mQaDr03feC/l9rG7hL6Id2Qn5KKXys=";
+        npmDepsHash = "sha256-AV6b7biSuvRqyRIySqcW803iNNiw/sK2s2lVoNqckH8=";
 
         # `chunks/` ships prebuilt (esbuild output) and the package declares no
         # build script at all — only a postinstall. Left to its default,

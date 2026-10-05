@@ -273,10 +273,10 @@ let
   # on other hosts.
   clawpatrol = pkgs.stdenv.mkDerivation rec {
     pname = "clawpatrol";
-    version = "0.2.11";
+    version = "0.5.14";
     src = pkgs.fetchurl {
       url = "https://github.com/denoland/clawpatrol/releases/download/v${version}/clawpatrol-linux-amd64";
-      sha256 = "b6f8e017c65e51f7b538306a64965c1112154b970b37da8c61d669237e1fec22";
+      sha256 = "adc38871c2064e6d7beb348ccf99aa2d688b751e6f859b49ea4adf422b7b2356";
     };
     dontUnpack = true;
     nativeBuildInputs = [ pkgs.autoPatchelfHook ];
@@ -307,10 +307,10 @@ let
   cumora =
     let
       pname = "cumora";
-      version = "0.1.61";
+      version = "0.18.7";
       src = pkgs.fetchurl {
         url = "https://updates.cumora.ai/Cumora-${version}.AppImage";
-        hash = "sha512-+VSifBxRjeu9Y4kFVowhid1uF/htuHo2Mv5UVNiGXLgVLOFapvVd3xeKk8Cv5fgZo0yjPrAzq7EQ5PEsOQjgvA==";
+        hash = "sha512-r3sm2UhPAAiv/XjnHJ3lZg35U7UrEOu2fKkwsxSWS77p9InbkqeVqD9NyjTgapM/wAWrEOguuuYM0/28WpuIYw==";
       };
       appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
     in
@@ -3354,8 +3354,8 @@ in
   nixpkgs.overlays = [
     (final: prev: {
       nur = import (builtins.fetchTarball {
-        url = "https://github.com/nix-community/NUR/archive/4b22de075887985d445668c4634ae148618c6a41.tar.gz";
-        sha256 = "1fkb8bv1qfls4gvvim91pgxms6vidm093ycc3vwnacygjgbv5hqh";
+        url = "https://github.com/nix-community/NUR/archive/96aecc66d33c99f1c6e2896fe6c16eb4c65f1f41.tar.gz";
+        sha256 = "178k629ja0ncyix5gpy3nnjq2d5x2lz0dmlgfa0fqn5ayvsglh91";
       }) {
         nurpkgs = prev;
         pkgs = prev;
@@ -3408,8 +3408,8 @@ in
         src = prev.fetchFromGitHub {
           owner = "sauyon";
           repo = "mosh";
-          rev = "91b48f1061072e910cdb8ecd672988628cfa05ed";
-          sha256 = "00f1v6xm53gr0hfsnmdhgqbdnfkdbd0sv6sdkhqrln3acrcsrwzh";
+          rev = "decd9b705eb81626f694335b8d5940538beb06da";
+          sha256 = "0xfjwb5ckqvfzr72z9650k80qmj18i0myqj34yjbmhw3j3c27hja";
         };
         # nixpkgs cherry-picks an upstream macOS compile fix already in our base
         # — drop it to avoid "patch already applied".
@@ -3456,14 +3456,14 @@ in
     (final: prev: {
       claude-agent-acp = prev.buildNpmPackage rec {
         pname = "claude-agent-acp";
-        version = "0.33.1";
+        version = "0.86.0";
         src = prev.fetchFromGitHub {
           owner = "agentclientprotocol";
           repo = "claude-agent-acp";
           rev = "v${version}";
-          hash = "sha256-FwcIJf/tfH6prDFKtOo7X1mTocibf4Ne6JHOS9ITG8U=";
+          hash = "sha256-tyjvhLnbhBtR13y+KpqEsTpUy4oOy8km8cErH9QeaZ0=";
         };
-        npmDepsHash = "sha256-y795LyNjSJjTpIqtA5bC/AgeFLghM0yU5xQRD3m+Ajs=";
+        npmDepsHash = "sha256-WNbT/hg6MszAYTogSundzh537UHNjJU6Lf2KR44pTvc=";
         dontNpmPrune = true;
       };
     })

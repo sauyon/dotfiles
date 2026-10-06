@@ -31,11 +31,11 @@
     "dotfiles-private": {
       "flake": false,
       "locked": {
-        "lastModified": 1791244420,
-        "narHash": "sha256-0uolQ4MjoMViDb9TENQAu2crY6HiEJiMNAq3S50ndg0=",
+        "lastModified": 1791246715,
+        "narHash": "sha256-wTO0XbxoObknlpl3XqknYnZXpr6apO5MwDBMauvzTsI=",
         "ref": "refs/heads/main",
-        "rev": "990c006db59fd935cdaa540a88e1f3e6b0067e9a",
-        "revCount": 4,
+        "rev": "23bfb970019fc1cde1c8d849f7862768ef670870",
+        "revCount": 6,
         "type": "git",
         "url": "https://forge.ko.ag/sauyon/dotfiles-private.git"
       },

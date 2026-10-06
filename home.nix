@@ -2565,10 +2565,11 @@ in
     '';
   };
 
-  # The work-slack launcher entry for shiori, from dotfiles-private with the
-  # rest of the waypipe pair. Lands in the same ~/.local/share as
-  # Zoom.desktop above, so elephant/walker see it.
+  # The work-slack and work-browser launcher entries for shiori, from
+  # dotfiles-private with the rest of the waypipe pair. Land in the same
+  # ~/.local/share as Zoom.desktop above, so elephant/walker see them.
   xdg.dataFile."applications/work-slack.desktop" = private.waypipe.workSlackDesktop;
+  xdg.dataFile."applications/work-browser.desktop" = private.waypipe.workBrowserDesktop;
 
   # ── Herdr ───────────────────────────────────────────────────────────────────
   xdg.configFile."herdr/config.toml".source = ./home/herdr/config.toml;

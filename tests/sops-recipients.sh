@@ -34,11 +34,35 @@ ok()   { n=$((n+1)); printf 'ok %d - %s\n' "$n" "$1"; }
 bad()  { n=$((n+1)); fails=$((fails+1)); printf 'FAIL %d - %s\n' "$n" "$1"; }
 skip() { n=$((n+1)); printf 'skip %d - %s\n' "$n" "$1"; }
 is()   { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1"$'\n'"      want: $3"$'\n'"      got:  $2"; fi; }
+# Equality in which empty is never a match. Both sides of the cases below come
+# out of yq, and a yq that cannot run answers every query with the empty string
+# -- so `is` saw "" = "" and reported the recipient-set agreement GREEN for a
+# file it had not read. That happened for real on fujiwara, where `yq` resolves
+# to a mise shim with no version configured. Same failure class as the
+# ${KO_WIF_AUDIENCE:?} abort that dead-skipped all of tests/wif-tpm.sh: an
+# unread check that reports as a passed one. An empty read is "unknown", and
+# unknown is a failure here, not an agreement.
+same() { # same <label> <got> <want>
+  if [ -z "$2" ] || [ -z "$3" ]; then
+    bad "$1"$'\n'"      read nothing: one side came back empty, so nothing was compared."$'\n'"      want: ${3:-<empty>}"$'\n'"      got:  ${2:-<empty>}"
+  else
+    is "$1" "$2" "$3"
+  fi
+}
 
 # yq/age/sops may be on PATH (mise, a profile) or only in nixpkgs. Resolve each
 # once: `nix shell` per invocation would dominate the runtime of the whole file.
 resolve() { # resolve <binary> <flake attr>
-  if command -v "$1" >/dev/null 2>&1; then command -v "$1"; return; fi
+  # Being ON PATH is not the same as being runnable: on fujiwara `yq` is a mise
+  # shim for a tool no version is configured for, so it exists, is executable,
+  # exits 1 and writes nothing. Taking it on `command -v` alone handed every
+  # case below a broken binary. So probe it, and fall through to nixpkgs when
+  # the probe fails -- which is also what makes this file work on a host that
+  # has the shim but not the tool.
+  local c
+  if c=$(command -v "$1" 2>/dev/null) && "$c" --version >/dev/null 2>&1; then
+    printf '%s\n' "$c"; return
+  fi
   local d
   d=$(nix build --no-link --print-out-paths "nixpkgs#$2" 2>/dev/null) || return 1
   [ -x "$d/bin/$1" ] && printf '%s\n' "$d/bin/$1"
@@ -86,8 +110,8 @@ fi
 # ── 2. secrets.yaml agrees ──────────────────────────────────────────────────
 file_kms=$("$YQ" -r '[.sops.gcp_kms[]?.resource_id] | .[]' "$secrets" | sort -u)
 file_age=$("$YQ" -r '[.sops.age[]?.recipient] | .[]' "$secrets" | sort -u)
-is "secrets.yaml's KMS keys match the creation rule" "$file_kms" "$rule_kms"
-is "secrets.yaml's age recipients match the creation rule (updatekeys was run)" "$file_age" "$rule_age"
+same "secrets.yaml's KMS keys match the creation rule" "$file_kms" "$rule_kms"
+same "secrets.yaml's age recipients match the creation rule (updatekeys was run)" "$file_age" "$rule_age"
 
 # ── 3. the recovery path ────────────────────────────────────────────────────
 # Strip every way a Google credential can reach sops, including gcloud's ADC

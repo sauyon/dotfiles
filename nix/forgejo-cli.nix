@@ -1,6 +1,6 @@
 # forgejo-cli (binary: `fj`), built from our fork instead of nixpkgs' v0.6.0.
 #
-# The fork (forge.ko.ag/sauyon/forgejo-cli, merged into its `main`) carries two
+# The fork (forge.ko.ag/sauyon/forgejo-cli, merged into its `main`) carries three
 # changes upstream does not have yet:
 #
 #   * `KeyInfo::get_api` takes an advisory lock around the whole
@@ -13,6 +13,15 @@
 #   * `fj git-credential <get|store|erase>`, a real git credential helper, which
 #     is what lets home.nix's shim be a one-line `exec` instead of 55 lines of
 #     jq-and-flock.  See the comment there for why that mattered.
+#   * `fj auth login` prints the authorize URL instead of only handing it to
+#     xdg-open, and a failed launch is a warning rather than a hard error.
+#     Upstream, the URL never reaches the terminal, so the login is unusable
+#     whenever the default browser profile is not signed in to the instance --
+#     and xdg-open exits 0 having opened the wrong profile, so fj cannot even
+#     detect that case.  The message carries the ssh -L line too, because over
+#     SSH the callback resolves 127.0.0.1 to the *client*.  Same commit hoists
+#     the callback bind out of the spawned task, where a port conflict surfaced
+#     as `Option::unwrap()` on `None` with nothing naming the port.
 #
 # Why a fork rather than a patch: the first attempt patched Cargo.toml to add
 # `fs2` for flock(2), which forced a hand-maintained Cargo.lock and a
@@ -39,7 +48,7 @@
 { pkgs, base ? pkgs.forgejo-cli }:
 
 let
-  rev = "b19e20882cb62af896be73f01e8267e29190705f";
+  rev = "23323337ad5936b0c39d3d3d0bad41240d108d68";
 in
 base.overrideAttrs (old: {
   src = pkgs.fetchFromGitea {
@@ -47,7 +56,7 @@ base.overrideAttrs (old: {
     owner = "sauyon";
     repo = "forgejo-cli";
     inherit rev;
-    hash = "sha256-7yxwxSFKG7jU4HXMDnHa7FvITFTZFxl4SmwPnn1rLh8=";
+    hash = "sha256-RbO6759Pr/sj1APXXsSQXOxmOrmfX6xvrCKwhMMBNjE=";
   };
 
   # nixpkgs derives cargoDeps from its own cargoHash against v0.6.0's lockfile.

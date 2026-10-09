@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bg8w59ar2</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/4290081d-5d0a-4df8-bf06-0a7ac129cbfc/tasks/bg8w59ar2.output</output-file>
+<status>completed</status>
+<summary>Background command "Deploy the mcode-free config" completed (exit code 0)</summary>
+</task-notification>

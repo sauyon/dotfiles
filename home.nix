@@ -1272,10 +1272,13 @@ let
         run=$(printf '%s' "$tasks" | $jq -r --arg s "$sha" 'first(.workflow_runs[]
             | select(.head_sha == $s and .workflow_id == "nix-home.yml")
             | .run_number) // empty' 2>/dev/null || true)
-        # Any *other* commit's nix-home run still going. nix-home.yml serialises
-        # on a concurrency group, so while one is in flight a run for this sha
-        # may not have been created yet — "not yet" and "never" look identical
-        # from the run list alone, and this is what tells them apart.
+        # Any *other* commit's nix-home run still going. This is a proxy for
+        # "the forge is mid-cycle, so a run for this sha may still be on its
+        # way", not a causal story: run 192 was created at 00:45:26 while run
+        # 191 was still building, so the concurrency group demonstrably does
+        # not hold up run *creation*. What it buys is that "not created yet"
+        # and "never going to exist" look identical in an empty list, and a
+        # forge with work in flight is the case where the first is likely.
         # Spelled as an or-chain rather than jq's IN(): the forge's jq is not
         # guaranteed new enough, and a filter that errors would read as "idle".
         busy=$(printf '%s' "$tasks" | $jq -r --arg s "$sha" 'first(.workflow_runs[]
@@ -1295,11 +1298,19 @@ let
       if [ "$SECONDS" -ge "$give_up" ]; then
         # The bug this guards: 9b6890a changed only
         # `.forgejo/workflows/nix-home.yml`, which this workflow's own `paths:`
-        # filter lists, so a run was due. None existed 90s later because run 191
-        # still held the concurrency group, and hms read that as "nothing
-        # CI-relevant changed" and built the closure on the laptop — the exact
-        # outcome it exists to prevent, announced with a reason it never
-        # checked. An occupied group means a run may still be coming, so wait.
+        # filter lists, so a run was due. hms polled for 90s, saw none, read
+        # that as "nothing CI-relevant changed" and built the closure on the
+        # laptop — the exact outcome it exists to prevent, announced with a
+        # reason it never checked. Run 192 was created ~96 seconds after the
+        # push: it lost by about six seconds.
+        #
+        # So the real fault is a deadline measured against forge latency that
+        # nothing bounds, and this check does not fix that — it only covers the
+        # case where the forge visibly has work in flight. A slow forge with an
+        # idle group still ends in a local build. Closing that properly means
+        # deciding from the `paths:` filter whether a run is owed at all, which
+        # would also let a docs-only commit switch immediately instead of
+        # waiting out the window.
         # Two ways to still be expecting a run: the forge just told us the
         # group is occupied, or it did so earlier and this one request blipped.
         # The second matters because the wait below can run for an hour, so a
@@ -1311,8 +1322,8 @@ let
            || { [ -z "$last_ok" ] && [ -n "$seen_busy" ]; }; then
           if [ -z "$said_busy" ]; then
             echo
-            echo "hms: no run for ''${sha:0:7} yet — run $seen_busy holds nix-home's" >&2
-            echo "hms: concurrency group. Waiting for it to free up." >&2
+            echo "hms: no run for ''${sha:0:7} yet — run $seen_busy is still going," >&2
+            echo "hms: so the forge may not have created ours. Waiting." >&2
             said_busy=1
             echo -n "hms: waiting"
           fi

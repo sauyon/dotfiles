@@ -321,11 +321,18 @@ in
         (exec "${mainMod} + E" "emacsclient -c")
 
         (exec "${mainMod} + O" "makoctl dismiss --all")
-        # Invoke the newest notification's default action. Raises the app too,
-        # via patches/mako-activation-token-for-dbus-invoke.patch -- without it
-        # the action fires and the window stays put. Everything here is plain
-        # makoctl, so bind as many variants as you want.
-        (exec "${mainMod} + SHIFT + O" "makoctl invoke")
+        # Invoke the newest notification's default action, and let the app
+        # raise itself: hyprctl mints an xdg-activation token, makoctl forwards
+        # it, the app spends it on whichever of its own surfaces the
+        # notification belongs to. See the two patches/ files for why the token
+        # beats focusing by pid or class from out here.
+        #
+        # The shape check is not paranoia: an hyprctl that predates
+        # patches/hyprland-activation-token-over-ipc.patch answers "unknown
+        # request" on *stdout* with exit 0, so an unguarded pipe would forward
+        # that as the token and suppress mako's own fallback mint. printf is a
+        # shell builtin, so the token never reaches any argv.
+        (exec "${mainMod} + SHIFT + O" ''t=$(hyprctl activationtoken 2>/dev/null); case $t in ????????-????-????-????-????????????) printf %s "$t" | makoctl invoke --token-stdin ;; *) makoctl invoke ;; esac'')
 
         # Force the physical outputs back on. After a VT switch away and back
         # (e.g. to a text console on tty1 and back via Ctrl+Alt+F3) panels can

@@ -1,0 +1,161 @@
+Add `hyprctl activationtoken`, so a keybind can hand an app permission to raise
+itself.
+
+Clicking a notification raises the app: the notification daemon mints an
+xdg-activation token, sends it over D-Bus, and the app calls
+xdg_activation_v1.activate(token, its_own_surface). The app picks the surface,
+which is why the right window comes forward. Invoking the same action from a
+keybind cannot do this -- the token must be requested by a Wayland client, and
+`makoctl` is a D-Bus caller with no client, no seat and no input serial.
+
+Hyprland 0.56.2 does not actually check the serial (CXDGActivationToken's
+setSetSerial stores it and the commit handler never reads it), so today a daemon
+can mint a token with any serial and this works by accident. 156276e51
+("protocols/activation: reject invalid serials", #16427, 2026-09-30) closes
+that, correctly -- it is a focus-stealing hole -- and ships with a hyprtester
+suite, so unlike the 2025 attempt that was reverted a day later (d9cf1cb78 ->
+0ed880f3f) it is likely to stick. When it releases, every keybind-driven
+activation stops working, with no config to turn it off.
+
+The usual fallback is to focus the window from outside with `dispatch
+focuswindow` on a pid or class match. That is worse, not equivalent: one process
+routinely owns several windows (a browser and its PWAs, an app with a main and a
+preferences window), and the notification daemon has strictly less information
+about which one is meant than the application does. Activation keeps the choice
+with the app.
+
+So let hyprctl mint one. The command exists on the IPC socket, which is already
+how the user drives the compositor.
+
+This grants no authority the caller did not have:
+
+  - Anything that can reach the socket can already run
+    `hyprctl dispatch focuswindow`, which focuses unconditionally.
+  - CWindow::activate() is strictly weaker than that dispatcher: it honours
+    misc:focus_on_activate, per-window suppressevent activate rules, and no-ops
+    on unmapped windows, none of which focuswindow respects.
+  - The token is single-use -- the activate request erases it from m_sentTokens
+    -- and expires in 10 seconds rather than the 12 months a client token gets,
+    since it is meant to be spent by the next command in a pipeline.
+  - Tokens minted here share a null client, so they are capped at 10 the same
+    way the commit handler caps a client's own.
+
+Callers should keep the token out of argv, where any same-uid process can read
+it from /proc/<pid>/cmdline, and pipe it instead.
+
+diff -urN hp-orig/src/debug/HyprCtl.cpp hp-new/src/debug/HyprCtl.cpp
+--- a/src/debug/HyprCtl.cpp
++++ b/src/debug/HyprCtl.cpp
+@@ -2,6 +2,7 @@
+ #include "output/Monitor.hpp"
+ 
+ #include <algorithm>
++#include <chrono>
+ #include <format>
+ #include <fstream>
+ #include <iterator>
+@@ -51,6 +52,7 @@
+ #include "../devices/ITouch.hpp"
+ #include "../devices/Tablet.hpp"
+ #include "../protocols/GlobalShortcuts.hpp"
++#include "../protocols/XDGActivation.hpp"
+ #include "../debug/log/RollingLogFollow.hpp"
+ #include "../config/ConfigManager.hpp"
+ #include "../helpers/MiscFunctions.hpp"
+@@ -1964,6 +1966,31 @@
+     return "ok";
+ }
+ 
++// Hand out an xdg-activation token over IPC, so a notification daemon or
++// launcher driven from a keybind can pass one to the app it is acting for and
++// have that app raise the window the action actually belongs to. The app picks
++// the surface, which is strictly more precise than the caller guessing at it by
++// pid or class -- one process routinely owns several windows.
++//
++// This grants no authority the caller did not already have: anything that can
++// reach this socket can already `hyprctl dispatch focuswindow`, which focuses
++// unconditionally, where CWindow::activate() still honours misc:focus_on_activate
++// and per-window suppressevent rules. The token is single-use, spent by the
++// activate request, and short-lived so it is not worth capturing in transit.
++static std::string activationTokenRequest(eHyprCtlOutputFormat format, std::string request) {
++    const auto TOKEN = PROTO::activation->mintTokenForIPC(std::chrono::seconds(10));
++
++    if (format == eHyprCtlOutputFormat::FORMAT_JSON)
++        return std::format(R"#(
++{{
++    "token": "{}"
++}}
++)#",
++                           TOKEN);
++
++    return TOKEN + "\n";
++}
++
+ static std::string getIsLocked(eHyprCtlOutputFormat format, std::string request) {
+     std::string lockedStr = g_pSessionLockManager->isSessionLocked() ? "true" : "false";
+     if (format == eHyprCtlOutputFormat::FORMAT_JSON)
+@@ -2019,6 +2046,7 @@
+     registerCommand(SHyprCtlCommand{"rollinglog", true, rollinglogRequest});
+     registerCommand(SHyprCtlCommand{"configerrors", true, configErrorsRequest});
+     registerCommand(SHyprCtlCommand{"locked", true, getIsLocked});
++    registerCommand(SHyprCtlCommand{"activationtoken", true, activationTokenRequest});
+     registerCommand(SHyprCtlCommand{"descriptions", true, getDescriptions});
+     registerCommand(SHyprCtlCommand{"submap", true, submapRequest});
+     registerCommand(SHyprCtlCommand{"status", true, statusRequest});
+diff -urN hp-orig/src/protocols/XDGActivation.cpp hp-new/src/protocols/XDGActivation.cpp
+--- a/src/protocols/XDGActivation.cpp
++++ b/src/protocols/XDGActivation.cpp
+@@ -89,6 +89,29 @@
+     });
+ }
+ 
++std::string CXDGActivationProtocol::mintTokenForIPC(std::chrono::steady_clock::duration expires) {
++    const auto TOKEN = g_pTokenManager->registerNewToken({}, expires);
++
++    m_sentTokens.push_back({TOKEN, nullptr});
++
++    // Client-minted tokens are capped at 10 per client in the commit handler
++    // above. Tokens minted here share a null client, so cap them the same way
++    // rather than letting a caller grow the vector without bound.
++    auto count = std::ranges::count_if(m_sentTokens, [](const auto& other) { return other.client == nullptr; });
++
++    while (count > 10) {
++        for (auto i = m_sentTokens.begin(); i != m_sentTokens.end(); ++i) {
++            if (i->client == nullptr) {
++                m_sentTokens.erase(i);
++                break;
++            }
++        }
++        --count;
++    }
++
++    return TOKEN;
++}
++
+ void CXDGActivationProtocol::onManagerResourceDestroy(wl_resource* res) {
+     std::erase_if(m_managers, [&](const auto& other) { return other->resource() == res; });
+ }
+diff -urN hp-orig/src/protocols/XDGActivation.hpp hp-new/src/protocols/XDGActivation.hpp
+--- a/src/protocols/XDGActivation.hpp
++++ b/src/protocols/XDGActivation.hpp
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include <vector>
++#include <chrono>
+ #include <cstdint>
+ #include "WaylandProtocol.hpp"
+ #include "xdg-activation-v1.hpp"
+@@ -30,6 +31,12 @@
+ 
+     virtual void bindManager(wl_client* client, void* data, uint32_t ver, uint32_t id);
+ 
++    // Mint a token on the compositor's own behalf, for hyprctl. There is no
++    // requesting client and therefore no input serial to validate against one.
++    // See activationTokenRequest() in debug/HyprCtl.cpp for why this is not a
++    // new capability.
++    std::string  mintTokenForIPC(std::chrono::steady_clock::duration expires);
++
+   private:
+     void onManagerResourceDestroy(wl_resource* res);
+     void destroyToken(CXDGActivationToken* pointer);

@@ -40,25 +40,40 @@ because create_xdg_activation_token() blocks in wl_display_dispatch(), which can
 run handlers that close notifications, handle_invoke_action resolves its target
 again after minting rather than holding a pointer across the call.
 
+Also adds `makoctl invoke --token-stdin`, which forwards a token minted
+elsewhere instead of requesting one -- for compositors that refuse mako's own
+request. It pairs with `hyprctl activationtoken` (see
+patches/hyprland-activation-token-over-ipc.patch). The token arrives on stdin
+rather than as an argument because it is a bearer credential and argv is
+readable by any same-uid process through /proc/<pid>/cmdline. The D-Bus side is
+a new InvokeActionWithToken method rather than a changed signature on
+InvokeAction, so existing callers are unaffected; an empty token falls back to
+minting.
+
 diff -urN '--exclude=build' pristine2/mako-1.11.0/dbus/mako.c pid/mako-1.11.0/dbus/mako.c
 --- mako-1.11.0/dbus/mako.c
 +++ mako-1.11.0/dbus/mako.c
-@@ -89,6 +89,11 @@
+@@ -89,24 +89,52 @@
  	return sd_bus_reply_method_return(msg, "");
  }
  
+-static int handle_invoke_action(sd_bus_message *msg, void *data,
+-		sd_bus_error *ret_error) {
+-	struct mako_state *state = data;
+-
+-	uint32_t id = 0;
+-	const char *action_key;
+-	int ret = sd_bus_message_read(msg, "us", &id, &action_key);
+-	if (ret < 0) {
+-		return ret;
 +// id 0 means "the first notification", matching the rest of the interface.
 +static bool notif_matches_id(struct mako_notification *notif, uint32_t id) {
 +	return notif->id == id || id == 0;
 +}
 +
- static int handle_invoke_action(sd_bus_message *msg, void *data,
- 		sd_bus_error *ret_error) {
- 	struct mako_state *state = data;
-@@ -100,13 +105,43 @@
- 		return ret;
- 	}
- 
++static void invoke_action(struct mako_state *state, uint32_t id,
++		const char *action_key, const char *supplied_token) {
++
 +	// Without a token the action fires but the client cannot raise itself, so
 +	// `makoctl invoke` leaves the window where it is while a mouse click on the
 +	// same action brings it forward. Mint one from the cached pointer-enter
@@ -66,12 +81,12 @@ diff -urN '--exclude=build' pristine2/mako-1.11.0/dbus/mako.c pid/mako-1.11.0/db
 +	// The token only grants permission -- the client picks which of its own
 +	// surfaces to activate, which is why this raises the right window where
 +	// guessing at it from the outside would not.
++	// A token handed to us (`makoctl invoke --token-stdin`, fed by
++	// `hyprctl activationtoken`) is already registered with the compositor, so
++	// forward it as-is. Minting our own is the fallback.
 +	char *activation_token = NULL;
-+	struct mako_seat *seat = state->last_enter.seat;
-+	if (seat == NULL && !wl_list_empty(&state->seats)) {
-+		// Any seat will do. Compositors that do not validate the serial mint a
-+		// token regardless; those that do will reject this one, which is the
-+		// same no-token outcome as not trying.
++	struct mako_seat *seat = supplied_token != NULL ? NULL : state->last_enter.seat;
++	if (supplied_token == NULL && seat == NULL && !wl_list_empty(&state->seats)) {
 +		seat = wl_container_of(state->seats.next, seat, link);
 +	}
 +	if (seat != NULL) {
@@ -84,8 +99,8 @@ diff -urN '--exclude=build' pristine2/mako-1.11.0/dbus/mako.c pid/mako-1.11.0/db
 +				break;
 +			}
 +		}
-+	}
-+
+ 	}
+ 
 +	// create_xdg_activation_token() blocks in wl_display_dispatch(), which can
 +	// run handlers that close notifications, so resolve the target again
 +	// instead of holding a pointer across it.
@@ -97,23 +112,68 @@ diff -urN '--exclude=build' pristine2/mako-1.11.0/dbus/mako.c pid/mako-1.11.0/db
  			wl_list_for_each(action, &notif->actions, link) {
  				if (strcmp(action->key, action_key) == 0) {
 -					notify_action_invoked(action, NULL);
-+					notify_action_invoked(action, activation_token);
++					notify_action_invoked(action, supplied_token != NULL ?
++						supplied_token : activation_token);
  					break;
  				}
  			}
-@@ -114,6 +149,8 @@
+@@ -114,6 +142,39 @@
  		}
  	}
  
 +	free(activation_token);
++}
++
++static int handle_invoke_action(sd_bus_message *msg, void *data,
++		sd_bus_error *ret_error) {
++	struct mako_state *state = data;
++
++	uint32_t id = 0;
++	const char *action_key;
++	int ret = sd_bus_message_read(msg, "us", &id, &action_key);
++	if (ret < 0) {
++		return ret;
++	}
++
++	invoke_action(state, id, action_key, NULL);
++
++	return sd_bus_reply_method_return(msg, "");
++}
++
++static int handle_invoke_action_with_token(sd_bus_message *msg, void *data,
++		sd_bus_error *ret_error) {
++	struct mako_state *state = data;
++
++	uint32_t id = 0;
++	const char *action_key, *token;
++	int ret = sd_bus_message_read(msg, "uss", &id, &action_key, &token);
++	if (ret < 0) {
++		return ret;
++	}
++
++	// An empty token means the caller had none to give; fall back to minting.
++	invoke_action(state, id, action_key, token[0] != '\0' ? token : NULL);
 +
  	return sd_bus_reply_method_return(msg, "");
  }
  
+@@ -498,6 +559,7 @@
+ 	SD_BUS_VTABLE_START(0),
+ 	SD_BUS_METHOD("DismissNotifications", "a{sv}", "", handle_dismiss, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("InvokeAction", "us", "", handle_invoke_action, SD_BUS_VTABLE_UNPRIVILEGED),
++	SD_BUS_METHOD("InvokeActionWithToken", "uss", "", handle_invoke_action_with_token, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("RestoreNotification", "", "", handle_restore_action, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("ListNotifications", "", "aa{sv}", handle_list_notifications, SD_BUS_VTABLE_UNPRIVILEGED),
+ 	SD_BUS_METHOD("ListHistory", "", "aa{sv}", handle_list_history, SD_BUS_VTABLE_UNPRIVILEGED),
 diff -urN '--exclude=build' pristine2/mako-1.11.0/doc/makoctl.1.scd pid/mako-1.11.0/doc/makoctl.1.scd
 --- mako-1.11.0/doc/makoctl.1.scd
 +++ mako-1.11.0/doc/makoctl.1.scd
-@@ -39,6 +39,17 @@
+@@ -35,16 +35,38 @@
+ *restore*
+ 	Restores the most recently expired notification from the history buffer.
+ 
+-*invoke* [-n <id>] [action]
++*invoke* [-n <id>] [--token-stdin] [action]
  	Invokes an action on a notification. If _action_ is not specified, invokes
  	the default action. Action names can be discovered using `makoctl list`.
  
@@ -131,6 +191,23 @@ diff -urN '--exclude=build' pristine2/mako-1.11.0/doc/makoctl.1.scd pid/mako-1.1
  	Options:
  
  	*-n* <id>
+ 		Invoke the action on the notification with the given id. Defaults to
+ 		the first notification.
+ 
++	*--token-stdin*
++		Read an already-minted xdg-activation token from standard input and
++		forward that instead of requesting one. Use this on a compositor that
++		refuses mako's own request. With Hyprland:
++
++			hyprctl activationtoken | makoctl invoke --token-stdin
++
++		The token is read from stdin rather than taken as an argument because
++		it is a bearer credential, and any process running as the same user can
++		read an argument out of /proc/<pid>/cmdline.
++
+ *menu* [-n <id>] <program> [argument...]
+ 	Use a program to select an action on a notification. The list of
+ 	actions are joined on newlines and passed to _program_. The program should
 diff -urN '--exclude=build' pristine2/mako-1.11.0/include/mako.h pid/mako-1.11.0/include/mako.h
 --- mako-1.11.0/include/mako.h
 +++ mako-1.11.0/include/mako.h
@@ -162,6 +239,98 @@ diff -urN '--exclude=build' pristine2/mako-1.11.0/include/mako.h pid/mako-1.11.0
  	uint32_t last_id;
  	struct wl_list notifications; // mako_notification::link
  	struct wl_list history; // mako_notification::link
+diff -urN '--exclude=build' pristine2/mako-1.11.0/makoctl.c pid/mako-1.11.0/makoctl.c
+--- mako-1.11.0/makoctl.c
++++ mako-1.11.0/makoctl.c
+@@ -173,10 +173,43 @@
+ 	return call_method(bus, "DismissNotifications", NULL, types, &msg);
+ }
+ 
++// Read an activation token from stdin. Taken on stdin rather than as an
++// argument because argv is readable by any same-uid process through
++// /proc/<pid>/cmdline, and the token is a bearer credential.
++static int read_token(char *buf, size_t size) {
++	size_t len = 0;
++	while (len + 1 < size) {
++		ssize_t n = read(STDIN_FILENO, buf + len, size - len - 1);
++		if (n < 0) {
++			if (errno == EINTR) {
++				continue;
++			}
++			return -errno;
++		}
++		if (n == 0) {
++			break;
++		}
++		len += n;
++	}
++	buf[len] = '\0';
++
++	// Trim the trailing newline hyprctl and friends append.
++	while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r')) {
++		buf[--len] = '\0';
++	}
++
++	return 0;
++}
++
+ static int run_invoke(sd_bus *bus, int argc, char *argv[]) {
+ 	uint32_t id = 0;
++	bool token_stdin = false;
++	static const struct option invoke_options[] = {
++		{"token-stdin", no_argument, NULL, 't'},
++		{0},
++	};
+ 	while (true) {
+-		int opt = getopt(argc, argv, "n:");
++		int opt = getopt_long(argc, argv, "n:", invoke_options, NULL);
+ 		if (opt == -1) {
+ 			break;
+ 		}
+@@ -189,6 +222,9 @@
+ 				return 1;
+ 			}
+ 			break;
++		case 't':
++			token_stdin = true;
++			break;
+ 		default:
+ 			return -EINVAL;
+ 		}
+@@ -199,6 +235,17 @@
+ 		action = argv[optind];
+ 	}
+ 
++	if (token_stdin) {
++		char token[512];
++		int ret = read_token(token, sizeof(token));
++		if (ret < 0) {
++			log_neg_errno(ret, "failed to read activation token from stdin");
++			return 1;
++		}
++		return call_method(bus, "InvokeActionWithToken", NULL, "uss",
++			id, action, token);
++	}
++
+ 	return call_method(bus, "InvokeAction", NULL, "us", id, action);
+ }
+ 
+@@ -923,9 +970,12 @@
+ 	"          [-h|--no-history]      Dismiss w/o adding to history\n"
+ 	"  restore                        Restore the most recently expired\n"
+ 	"                                 notification from the history buffer\n"
+-	"  invoke [-n id] [action]        Invoke an action on the notification\n"
+-	"                                 with the given id, or the last\n"
+-	"                                 notification if none is given\n"
++	"  invoke [-n id] [--token-stdin] Invoke an action on the notification\n"
++	"         [action]                with the given id, or the last\n"
++	"                                 notification if none is given.\n"
++	"                                 --token-stdin reads an xdg-activation\n"
++	"                                 token from stdin and forwards it, so the\n"
++	"                                 application can raise itself\n"
+ 	"  menu [-n id] <prog> [arg ...]  Use <prog> [args ...] to select one\n"
+ 	"                                 action to be invoked on the notification\n"
+ 	"                                 with the given id, or the last\n"
 diff -urN '--exclude=build' pristine2/mako-1.11.0/wayland.c pid/mako-1.11.0/wayland.c
 --- mako-1.11.0/wayland.c
 +++ mako-1.11.0/wayland.c

@@ -3417,6 +3417,27 @@ in
       });
     })
     (final: prev: {
+      # `hyprctl activationtoken`. Hyprland 0.56.2 happens not to check the
+      # serial on an xdg-activation token request, so mako's own mint succeeds
+      # and `makoctl invoke` already raises the app. 156276e51 (#16427,
+      # 2026-09-30) closes that -- correctly, it is a focus-stealing hole -- and
+      # ships with a hyprtester suite, so unlike the 2025 attempt that was
+      # reverted a day later it should stick. When it releases, mako's request
+      # starts getting refused and keybind-driven activation silently stops
+      # raising anything, with no config to turn it off.
+      #
+      # So mint the token on the IPC socket instead, where there is no
+      # untrusted client to gate. It grants nothing new: anything that can
+      # reach that socket can already `hyprctl dispatch focuswindow`, which
+      # focuses unconditionally, whereas CWindow::activate() still honours
+      # misc:focus_on_activate and per-window suppressevent rules.
+      hyprland = prev.hyprland.overrideAttrs (old: {
+        patches = (old.patches or []) ++ [
+          ./patches/hyprland-activation-token-over-ipc.patch
+        ];
+      });
+    })
+    (final: prev: {
       mosh = prev.mosh.overrideAttrs (old: {
         version = "1.4.0-blink-master";
         src = prev.fetchFromGitHub {

@@ -2002,7 +2002,7 @@ attr=$attr
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ./even-terminal.nix ./mcode.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ./even-terminal.nix ];
 
   home.stateVersion = "26.05";
 
@@ -2220,69 +2220,6 @@ in
   # integration status` reports it outdated.
   home.file.".pi/agent/extensions/herdr-agent-state.ts".source =
     ./home/.pi/agent/extensions/herdr-agent-state.ts;
-
-  # ── herdr integration (mcode) ─────────────────────────────────────────────
-  # Hand-rolled — herdr 0.9.1 has no built-in mcode integration, and `mcode`
-  # (MiniMax Code, npm `@minimax-ai/code`) is the only MiniMax-shaped TUI in
-  # this repo that ships an extension surface herdr does not already cover.
-  #
-  # Layout: mcode's `local` marketplace is `~/.minimax/plugins/`. Dropping a
-  # directory with `.claude-plugin/plugin.json` plus a matching
-  # `hooks/hooks.json` there auto-installs and enables it on the next
-  # `mcode plugin list` — no `mcode plugin add` step. mcode reads the
-  # generated plugin via its `CLAUDE_CODE` loader path (the `defaultPath`
-  # for that source format) and emits the hook wanting Claude-Code-shaped
-  # JSON on stdin, with `$CLAUDE_PLUGIN_ROOT` substituted into the
-  # `command` field. Verified by running `mcode exec` against this exact
-  # payload — SessionStart / UserPromptSubmit / PreToolUse / PostToolUse /
-  # Stop / Notification all fire as expected. SessionEnd is registered as
-  # a hook in `hooks.json` so when mcode grows one (today it does not),
-  # `pane.release_agent` fires immediately and the agent slot in the
-  # sidebar disappears without waiting for herdr's prompt-return safety
-  # net. Until then, that safety net ("clear the agent once the pane is
-  # back at its shell prompt") is what cleans the pane up — and it only
-  # fires when herdr recognises the source, which is why the script uses
-  # `source = "herdr:mcode"` rather than the bare name herdr's published
-  # docs recommend. Same probe that proved the source requirement also
-  # showed the bare name's reports were ACK'd with `{"type":"ok"}` but
-  # never reached the panel state.
-  #
-  # The script is the herdr-protocol-emitting half (mirrors cursor's pattern,
-  # which is shorter than claude's and the closest non-claude analog here);
-  # like all four other vendored integrations, it no-ops unless HERDR_ENV=1.
-  #
-  # Why this is an activation step and not three `home.file` entries:
-  # `home.file` produces symlinks under $HOME that point into /nix/store,
-  # and mcode 0.6.2's local-marketplace scanner enumerates entries with
-  # lstat semantics — readdir() of `~/.minimax/plugins/`, then a check
-  # that rejects anything not seen as a regular file. The symlink target
-  # is a real file in the store, but the entry at the marketplace root
-  # is LNK, not REG, so the plugin is invisible: `mcode plugin list`
-  # shows zero local plugins and `mcode exec` fires no hooks. Verified
-  # empirically by mirroring this layout into a fresh $MINIMAX_DATA_DIR
-  # where the symlinked entry does not appear and the real-file entry
-  # does (`herdr-agent-state@local enabled`).
-  #
-  # Materialising each file via `install(1)` at activation time gives
-  # mcode the file types its scanner asks for, and is idempotent: a
-  # subsequent `hms` re-installs the same content. Three files only,
-  # sized 494B / 1530B / 3749B — cheap in time and disk, no use in
-  # extending `home.file` because Nix offers no "link-as-regular"
-  # option for it.
-  home.activation.herdrAgentStateMcode = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-    $DRY_RUN_CMD ${pkgs.coreutils}/bin/mkdir -p \
-      "$HOME/.minimax/plugins/herdr-agent-state/.claude-plugin" \
-      "$HOME/.minimax/plugins/herdr-agent-state/hooks"
-    $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -m 0644 \
-      ${./home/.minimax/plugins/herdr-agent-state/.claude-plugin/plugin.json} \
-      "$HOME/.minimax/plugins/herdr-agent-state/.claude-plugin/plugin.json"
-    $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -m 0644 \
-      ${./home/.minimax/plugins/herdr-agent-state/hooks/hooks.json} \
-      "$HOME/.minimax/plugins/herdr-agent-state/hooks/hooks.json"
-    $DRY_RUN_CMD ${pkgs.coreutils}/bin/install -m 0755 \
-      ${./home/.minimax/plugins/herdr-agent-state/hooks/herdr-agent-state.sh} \
-      "$HOME/.minimax/plugins/herdr-agent-state/hooks/herdr-agent-state.sh"
-  '';
 
   # ── Claude plugins ─────────────────────────────────────────────────────────
   home.file.".claude/plugins/local-auto-mode/hooks.json".source =
@@ -3134,7 +3071,6 @@ in
     jujutsu
     kimi-code  # Moonshot's Kimi Code CLI (binary: kimi); see kimi-code.nix
     lnav
-    mcode  # MiniMax Code CLI (binary: mcode); see mcode.nix
     mise
     mosh
     opencode

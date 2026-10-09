@@ -1,0 +1,33 @@
+<task-notification>
+<task-id>bq7ixjmby</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/e61db54f-8dd9-4708-b86b-46415a88afc3/tasks/bq7ixjmby.output</output-file>
+<status>completed</status>
+<summary>Background command "Push and switch so the local key is materialised" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+it's fine it should be gone
+
+---
+
+<task-notification>
+<task-id>bcj2pjh6g</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/e61db54f-8dd9-4708-b86b-46415a88afc3/tasks/bcj2pjh6g.output</output-file>
+<status>completed</status>
+<summary>Background command "Switch shiori to materialise the local key" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+can we actually route 10.0.0.1 without breaking utusho
+
+---
+
+how about now :)
+
+---
+
+do it

@@ -3284,6 +3284,29 @@ in
       });
     })
     (final: prev: {
+      # mako raises the app when you *click* a notification: it mints an
+      # xdg-activation token from the wl_pointer.button serial. It cannot do
+      # that from a keybind, and no config can make it. Hyprland rejects a
+      # token whose serial is not valid for the requesting client's own seat
+      # (src/protocols/XDGActivation.cpp), and makoctl is a D-Bus caller with
+      # no Wayland client, no seat and no serial -- so `makoctl invoke` fires
+      # the action but the window never comes forward. Routing around it with
+      # `hyprctl dispatch focuswindow` only replaces that with a guess at the
+      # window class.
+      #
+      # The patch adds `makoctl grab`: mako takes exclusive keyboard focus on
+      # its layer surfaces, so wl_keyboard.key events arrive with a serial
+      # valid for mako's own seat and the existing token path works unchanged.
+      # libxkbcommon is new to buildInputs because upstream mako never bound
+      # wl_keyboard and so never needed xkb.
+      mako = prev.mako.overrideAttrs (old: {
+        buildInputs = (old.buildInputs or []) ++ [ final.libxkbcommon ];
+        patches = (old.patches or []) ++ [
+          ./patches/mako-keyboard-grab-mode.patch
+        ];
+      });
+    })
+    (final: prev: {
       mosh = prev.mosh.overrideAttrs (old: {
         version = "1.4.0-blink-master";
         src = prev.fetchFromGitHub {
@@ -3646,6 +3669,13 @@ in
         "urgency=high" = {
           border-color = "#f7768e";
           default-timeout = 0;
+        };
+        # Which notification SUPER+SHIFT+O's keyboard grab is pointed at. The
+        # `selected` criteria field comes from the grab patch; without a style
+        # for it the mode gives no feedback about what Enter would act on.
+        selected = {
+          border-color = "#bb9af7";
+          border-size = 3;
         };
         "urgency=low" = {
           border-color = "#565f89";

@@ -3,7 +3,7 @@
   "checkpoint_id": "694ae9546ad2",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     ".forgejo/workflows/nix-home.yml"
   ],
@@ -14,13 +14,20 @@
       "compact_transcript": "/69/4ae9546ad2/0/transcript.jsonl",
       "content_hash": "/69/4ae9546ad2/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/69/4ae9546ad2/1/metadata.json",
+      "transcript": "/69/4ae9546ad2/1/full.jsonl",
+      "compact_transcript": "/69/4ae9546ad2/1/transcript.jsonl",
+      "content_hash": "/69/4ae9546ad2/1/content_hash.txt",
+      "prompt": "/69/4ae9546ad2/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 50,
-    "cache_creation_tokens": 38295,
-    "cache_read_tokens": 4542206,
-    "output_tokens": 24742,
-    "api_call_count": 25
+    "input_tokens": 94,
+    "cache_creation_tokens": 64677,
+    "cache_read_tokens": 9248198,
+    "output_tokens": 37448,
+    "api_call_count": 47
   }
 }

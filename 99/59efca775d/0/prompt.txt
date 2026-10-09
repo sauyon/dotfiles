@@ -1,0 +1,9 @@
+why does interacting with notifications not work properly
+
+---
+
+it dismissed and did nothing. I want it to go to the app and do the action
+
+---
+
+oh. it worked. what's the keybind for dismiss and what's the keybind for the action

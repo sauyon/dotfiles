@@ -1990,7 +1990,7 @@ attr=$attr
         };
       };
     };
-    model = "claude-opus-5";
+    model = "claude-opus-5-5";
     theme = "dark";
     editorMode = "normal";
     # Ghost-text next-prompt suggestions render in the composer's input line, so

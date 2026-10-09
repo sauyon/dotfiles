@@ -174,6 +174,41 @@ STUB
   chmod +x "$D/curl"
 }
 
+# A stub forge that reports the group busy on its first task listing and then
+# goes unreachable. Real shape: a 5xx or a dropped connection somewhere inside
+# the hour-long busy wait.
+mkcurl_other_then_down() { # mkcurl_other_then_down <good-token>
+  : > "$D/task-calls"
+  cat > "$D/curl" <<STUB
+#!/usr/bin/env bash
+url=""; cfg=""
+while [ \$# -gt 0 ]; do
+  case "\$1" in
+    -K) cfg="\$2"; shift 2 ;;
+    https://*) url="\$1"; shift ;;
+    *) shift ;;
+  esac
+done
+tok=\$(sed -n 's/.*Authorization: token \([^"]*\)".*/\1/p' "\$cfg")
+if [ "\$tok" != '$1' ]; then
+  printf 'unauthorized\n401\n'
+  exit 0
+fi
+case "\$url" in
+  *actions/tasks*)
+    echo call >> "$D/task-calls"
+    if [ "\$(wc -l < "$D/task-calls")" -le 1 ]; then
+      printf '{"workflow_runs":[{"head_sha":"%s","workflow_id":"nix-home.yml","run_number":191,"status":"running"}]}\n200\n' \\
+        00000000000000000000000000000000000000ff
+    else
+      printf 'bad gateway\n502\n'
+    fi ;;
+  *) printf '{}\n200\n' ;;
+esac
+STUB
+  chmod +x "$D/curl"
+}
+
 # A "switch" is a marker file: the cases care that hms decided to switch, not
 # that a home-manager activation ran.
 mkswitch() {
@@ -340,6 +375,21 @@ if [ -f "$D/switched" ] \
   report "no run and an idle group still switches locally" ok
 else
   report "no run and an idle group still switches locally" no \
+    "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+fi
+
+# --- a blip during the busy wait does not become a local build --------------
+# The busy wait runs for up to wait_seconds, so a single unreachable poll
+# inside it is likely. Before the guard, that dropped straight through to
+# "request failed — switching locally", which is the laptop build the whole
+# branch exists to avoid. A failed request is not evidence the group freed up.
+setup_repo; mktoken good; mkcurl_other_then_down good; mkswitch
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] \
+   && ! printf '%s' "$out" | grep -q 'switching locally'; then
+  report "a forge blip during the busy wait keeps waiting, not switches" ok
+else
+  report "a forge blip during the busy wait keeps waiting, not switches" no \
     "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
 fi
 

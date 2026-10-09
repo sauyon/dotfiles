@@ -1263,7 +1263,7 @@ let
     # worked — the question at the deadline is "did the forge just tell us there
     # is no run", and a success ten tries ago does not answer it.
     echo -n "hms: waiting for a run on ''${sha:0:7}"
-    run=""; last_ok=""; why=""; busy=""; said_busy=""
+    run=""; last_ok=""; why=""; busy=""; seen_busy=""; said_busy=""
     give_up=$((SECONDS + first_run_seconds))
     hard_stop=$((give_up + wait_seconds))
     while [ -z "$run" ]; do
@@ -1283,6 +1283,11 @@ let
                      and (.status == "running" or .status == "waiting"
                           or .status == "blocked" or .status == "queued"))
             | .run_number) // empty' 2>/dev/null || true)
+        # Sticky, and recorded the moment it is seen rather than when it is
+        # first reported: the group can be observed busy well before the
+        # give-up deadline, and the blip guard below is worthless if the only
+        # record of that lives in a branch the loop has not reached yet.
+        [ -z "$busy" ] || seen_busy="$busy"
       else
         last_ok=""; why=$(api_why); busy=""
       fi
@@ -1295,10 +1300,18 @@ let
         # CI-relevant changed" and built the closure on the laptop — the exact
         # outcome it exists to prevent, announced with a reason it never
         # checked. An occupied group means a run may still be coming, so wait.
-        if [ -n "$last_ok" ] && [ -n "$busy" ]; then
+        # Two ways to still be expecting a run: the forge just told us the
+        # group is occupied, or it did so earlier and this one request blipped.
+        # The second matters because the wait below can run for an hour, so a
+        # single 5xx in that window would otherwise land in the "unreachable —
+        # switching locally" branch and build the closure here after all. A
+        # *successful* poll showing an idle group is different, and still falls
+        # through: the group freed up and no run appeared, so none is coming.
+        if { [ -n "$last_ok" ] && [ -n "$busy" ]; } \
+           || { [ -z "$last_ok" ] && [ -n "$seen_busy" ]; }; then
           if [ -z "$said_busy" ]; then
             echo
-            echo "hms: no run for ''${sha:0:7} yet — run $busy holds nix-home's" >&2
+            echo "hms: no run for ''${sha:0:7} yet — run $seen_busy holds nix-home's" >&2
             echo "hms: concurrency group. Waiting for it to free up." >&2
             said_busy=1
             echo -n "hms: waiting"

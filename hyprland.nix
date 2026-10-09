@@ -321,13 +321,11 @@ in
         (exec "${mainMod} + E" "emacsclient -c")
 
         (exec "${mainMod} + O" "makoctl dismiss --all")
-        # Keyboard notification mode, sibling to the dismiss bind above. Enter
-        # invokes the default action and the app actually raises -- which
-        # `makoctl invoke` from a keybind cannot do, because an xdg-activation
-        # token needs an input serial on the caller's own seat and a D-Bus
-        # caller has none. See patches/mako-keyboard-grab-mode.patch. Escape
-        # releases, as does the last notification closing.
-        (exec "${mainMod} + SHIFT + O" "makoctl grab")
+        # Invoke the newest notification's default action. Raises the app too,
+        # via patches/mako-activation-token-for-dbus-invoke.patch -- without it
+        # the action fires and the window stays put. Everything here is plain
+        # makoctl, so bind as many variants as you want.
+        (exec "${mainMod} + SHIFT + O" "makoctl invoke")
 
         # Force the physical outputs back on. After a VT switch away and back
         # (e.g. to a text console on tty1 and back via Ctrl+Alt+F3) panels can

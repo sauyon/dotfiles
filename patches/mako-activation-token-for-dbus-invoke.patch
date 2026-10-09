@@ -1,0 +1,183 @@
+Mint an activation token for actions invoked over D-Bus, so `makoctl invoke`
+can raise the client the way a mouse click already does.
+
+Clicking a notification raises the application. Invoking the same action with
+`makoctl invoke` does not: handle_invoke_action passes NULL where the pointer
+path passes a token, so the client is told its action fired but is never given
+permission to take focus.
+
+The usual conclusion is that this is unfixable -- an xdg-activation token needs
+the serial of an input event on the requesting client's own seat, and a D-Bus
+caller has no Wayland client, no seat and no serial. That is true, and it is
+also beside the point: the serial does not have to come from the interaction
+being acted on. It only has to be a serial the compositor issued to mako.
+
+Compositors keep the *enter* serial in a persistent slot, separate from the
+bounded ring they use for ordinary events. In Hyprland, CSeatManager::nextSerial
+stores it as `container->enterSerial` when called with enter=true -- which
+wl_pointer.enter does and wl_keyboard.enter does not -- and serialValid() checks
+that slot first and never erases it. wlroots behaves the same way. So the serial
+from the last time the pointer crossed one of mako's surfaces is still accepted
+long after the pointer has gone.
+
+mako is already handed that serial: pointer_handle_enter takes it as an
+argument and uses it only for wl_pointer_set_cursor, then drops it. This patch
+caches it, and spends it in handle_invoke_action.
+
+Worth being clear about why the token matters rather than focusing the window
+from outside: the token only grants permission. The client chooses which of its
+own surfaces to activate, so it raises the window that notification actually
+belongs to. A compositor-side `focus by pid` or `focus by class` cannot -- one
+process routinely owns several windows, and the notification daemon has strictly
+less information about which one is meant than the application does.
+
+Degradation is graceful. If the pointer has not entered a notification since
+mako started there is no cached serial, and the action is invoked with no token,
+exactly as before this patch.
+
+Two smaller things the change depends on. destroy_seat() clears the cache when
+it refers to the seat going away, so the stored pointer cannot dangle. And
+because create_xdg_activation_token() blocks in wl_display_dispatch(), which can
+run handlers that close notifications, handle_invoke_action resolves its target
+again after minting rather than holding a pointer across the call.
+
+diff -urN '--exclude=build' pristine2/mako-1.11.0/dbus/mako.c pid/mako-1.11.0/dbus/mako.c
+--- mako-1.11.0/dbus/mako.c
++++ mako-1.11.0/dbus/mako.c
+@@ -89,6 +89,11 @@
+ 	return sd_bus_reply_method_return(msg, "");
+ }
+ 
++// id 0 means "the first notification", matching the rest of the interface.
++static bool notif_matches_id(struct mako_notification *notif, uint32_t id) {
++	return notif->id == id || id == 0;
++}
++
+ static int handle_invoke_action(sd_bus_message *msg, void *data,
+ 		sd_bus_error *ret_error) {
+ 	struct mako_state *state = data;
+@@ -100,13 +105,36 @@
+ 		return ret;
+ 	}
+ 
++	// Without a token the action fires but the client cannot raise itself, so
++	// `makoctl invoke` leaves the window where it is while a mouse click on the
++	// same action brings it forward. Mint one from the cached pointer-enter
++	// serial; see mako_state::last_enter for why that serial is still good.
++	// The token only grants permission -- the client picks which of its own
++	// surfaces to activate, which is why this raises the right window where
++	// guessing at it from the outside would not.
++	char *activation_token = NULL;
++	if (state->last_enter.seat != NULL) {
++		struct mako_notification *target;
++		wl_list_for_each(target, &state->notifications, link) {
++			if (notif_matches_id(target, id) && target->surface != NULL &&
++					target->surface->surface != NULL) {
++				activation_token = create_xdg_activation_token(target->surface,
++					state->last_enter.seat, state->last_enter.serial);
++				break;
++			}
++		}
++	}
++
++	// create_xdg_activation_token() blocks in wl_display_dispatch(), which can
++	// run handlers that close notifications, so resolve the target again
++	// instead of holding a pointer across it.
+ 	struct mako_notification *notif;
+ 	wl_list_for_each(notif, &state->notifications, link) {
+-		if (notif->id == id || id == 0) {
++		if (notif_matches_id(notif, id)) {
+ 			struct mako_action *action;
+ 			wl_list_for_each(action, &notif->actions, link) {
+ 				if (strcmp(action->key, action_key) == 0) {
+-					notify_action_invoked(action, NULL);
++					notify_action_invoked(action, activation_token);
+ 					break;
+ 				}
+ 			}
+@@ -114,6 +142,8 @@
+ 		}
+ 	}
+ 
++	free(activation_token);
++
+ 	return sd_bus_reply_method_return(msg, "");
+ }
+ 
+diff -urN '--exclude=build' pristine2/mako-1.11.0/doc/makoctl.1.scd pid/mako-1.11.0/doc/makoctl.1.scd
+--- mako-1.11.0/doc/makoctl.1.scd
++++ mako-1.11.0/doc/makoctl.1.scd
+@@ -39,6 +39,15 @@
+ 	Invokes an action on a notification. If _action_ is not specified, invokes
+ 	the default action. Action names can be discovered using `makoctl list`.
+ 
++	The application is also sent an xdg-activation token, so it can raise
++	itself the same way it does when the notification is clicked. mako has no
++	input serial of its own at this point -- a D-Bus caller never does -- so it
++	reuses the serial from the last time the pointer entered one of its
++	surfaces, which compositors keep valid for exactly this sort of deferred
++	activation. If the pointer has not touched a notification since mako
++	started there is no such serial, and the action is invoked without a token:
++	it still fires, the window just stays where it is.
++
+ 	Options:
+ 
+ 	*-n* <id>
+diff -urN '--exclude=build' pristine2/mako-1.11.0/include/mako.h pid/mako-1.11.0/include/mako.h
+--- mako-1.11.0/include/mako.h
++++ mako-1.11.0/include/mako.h
+@@ -20,6 +20,7 @@
+ #include "xdg-activation-v1-client-protocol.h"
+ 
+ struct mako_state;
++struct mako_seat;
+ 
+ struct mako_surface {
+ 	struct wl_list link;
+@@ -71,6 +72,19 @@
+ 
+ 	struct wl_list surfaces; // mako_surface::link
+ 
++	// The most recent wl_pointer.enter serial mako was sent, and the seat it
++	// came from. An xdg-activation token needs the serial of an input event on
++	// the requesting client's own seat, and a D-Bus caller such as makoctl has
++	// none -- but the serial does not have to come from the interaction being
++	// acted on. Compositors keep the enter serial in a persistent slot rather
++	// than the bounded ring they use for other events, so the serial cached
++	// here stays valid long after the pointer has moved away, and is enough to
++	// let an action invoked over D-Bus actually raise the client.
++	struct {
++		struct mako_seat *seat;
++		uint32_t serial;
++	} last_enter;
++
+ 	uint32_t last_id;
+ 	struct wl_list notifications; // mako_notification::link
+ 	struct wl_list history; // mako_notification::link
+diff -urN '--exclude=build' pristine2/mako-1.11.0/wayland.c pid/mako-1.11.0/wayland.c
+--- mako-1.11.0/wayland.c
++++ mako-1.11.0/wayland.c
+@@ -202,6 +202,12 @@
+ 	seat->pointer.y = wl_fixed_to_int(surface_y);
+ 	seat->pointer.surface = get_surface(state, wl_surface);
+ 
++	// Keep this serial: it is the only one mako is ever handed that stays
++	// valid once the pointer has gone, and so the only one a later D-Bus
++	// invoke can mint an activation token from. See mako_state::last_enter.
++	state->last_enter.seat = seat;
++	state->last_enter.serial = serial;
++
+ 	int scale = 1;
+ 
+ 	struct mako_surface *surface;
+@@ -327,6 +333,10 @@
+ }
+ 
+ static void destroy_seat(struct mako_seat *seat) {
++	if (seat->state->last_enter.seat == seat) {
++		seat->state->last_enter.seat = NULL;
++		seat->state->last_enter.serial = 0;
++	}
+ 	wl_list_remove(&seat->link);
+ 	wl_seat_release(seat->wl_seat);
+ 	if (seat->pointer.wl_pointer) {

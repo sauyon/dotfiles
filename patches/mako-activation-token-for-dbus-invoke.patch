@@ -6,34 +6,33 @@ Clicking a notification raises the application. Invoking the same action with
 path passes a token, so the client is told its action fired but is never given
 permission to take focus.
 
-The usual conclusion is that this is unfixable -- an xdg-activation token needs
-the serial of an input event on the requesting client's own seat, and a D-Bus
-caller has no Wayland client, no seat and no serial. That is true, and it is
-also beside the point: the serial does not have to come from the interaction
-being acted on. It only has to be a serial the compositor issued to mako.
+The token only grants permission. The client picks which of its own surfaces to
+activate, so it raises the window that notification actually belongs to -- which
+is why this is worth doing rather than focusing something from the outside by
+pid or class. One process routinely owns several windows, and the notification
+daemon has strictly less information about which one is meant than the
+application does.
 
-Compositors keep the *enter* serial in a persistent slot, separate from the
-bounded ring they use for ordinary events. In Hyprland, CSeatManager::nextSerial
-stores it as `container->enterSerial` when called with enter=true -- which
-wl_pointer.enter does and wl_keyboard.enter does not -- and serialValid() checks
-that slot first and never erases it. wlroots behaves the same way. So the serial
-from the last time the pointer crossed one of mako's surfaces is still accepted
-long after the pointer has gone.
+mako has no input serial of its own here, and a D-Bus caller never will. That
+turns out not to matter as much as it looks:
 
-mako is already handed that serial: pointer_handle_enter takes it as an
-argument and uses it only for wl_pointer_set_cursor, then drops it. This patch
-caches it, and spends it in handle_invoke_action.
+  - Compositors that do not check the serial (Hyprland through 0.56.2:
+    setSetSerial stores it and the commit handler never reads it) mint a token
+    regardless, so this works unconditionally.
+  - Compositors that do check it (Hyprland main, since the serialValid() gate in
+    XDGActivation.cpp) accept any serial they previously issued to mako, and keep
+    the *enter* serial in a slot of its own that outlives the pointer leaving --
+    CSeatManager::nextSerial(.., enter=true) writes container->enterSerial, whose
+    own comment reads "remember this forever", and serialValid() checks it first.
+    pointer_handle_enter is already handed that serial and currently drops it
+    after wl_pointer_set_cursor; this patch caches it instead. One hover per mako
+    lifetime is then enough.
+  - Where neither holds, the request is refused and the action is invoked with no
+    token, exactly as before this patch. Nothing regresses.
 
-Worth being clear about why the token matters rather than focusing the window
-from outside: the token only grants permission. The client chooses which of its
-own surfaces to activate, so it raises the window that notification actually
-belongs to. A compositor-side `focus by pid` or `focus by class` cannot -- one
-process routinely owns several windows, and the notification daemon has strictly
-less information about which one is meant than the application does.
-
-Degradation is graceful. If the pointer has not entered a notification since
-mako started there is no cached serial, and the action is invoked with no token,
-exactly as before this patch.
+So the mint is always attempted -- on any seat, with the cached serial if there
+is one and zero otherwise -- rather than gated on having a serial, because
+gating would give up the first case for nothing.
 
 Two smaller things the change depends on. destroy_seat() clears the cache when
 it refers to the seat going away, so the stored pointer cannot dangle. And
@@ -56,7 +55,7 @@ diff -urN '--exclude=build' pristine2/mako-1.11.0/dbus/mako.c pid/mako-1.11.0/db
  static int handle_invoke_action(sd_bus_message *msg, void *data,
  		sd_bus_error *ret_error) {
  	struct mako_state *state = data;
-@@ -100,13 +105,36 @@
+@@ -100,13 +105,43 @@
  		return ret;
  	}
  
@@ -68,13 +67,20 @@ diff -urN '--exclude=build' pristine2/mako-1.11.0/dbus/mako.c pid/mako-1.11.0/db
 +	// surfaces to activate, which is why this raises the right window where
 +	// guessing at it from the outside would not.
 +	char *activation_token = NULL;
-+	if (state->last_enter.seat != NULL) {
++	struct mako_seat *seat = state->last_enter.seat;
++	if (seat == NULL && !wl_list_empty(&state->seats)) {
++		// Any seat will do. Compositors that do not validate the serial mint a
++		// token regardless; those that do will reject this one, which is the
++		// same no-token outcome as not trying.
++		seat = wl_container_of(state->seats.next, seat, link);
++	}
++	if (seat != NULL) {
 +		struct mako_notification *target;
 +		wl_list_for_each(target, &state->notifications, link) {
 +			if (notif_matches_id(target, id) && target->surface != NULL &&
 +					target->surface->surface != NULL) {
 +				activation_token = create_xdg_activation_token(target->surface,
-+					state->last_enter.seat, state->last_enter.serial);
++					seat, state->last_enter.serial);
 +				break;
 +			}
 +		}
@@ -95,7 +101,7 @@ diff -urN '--exclude=build' pristine2/mako-1.11.0/dbus/mako.c pid/mako-1.11.0/db
  					break;
  				}
  			}
-@@ -114,6 +142,8 @@
+@@ -114,6 +149,8 @@
  		}
  	}
  
@@ -107,18 +113,20 @@ diff -urN '--exclude=build' pristine2/mako-1.11.0/dbus/mako.c pid/mako-1.11.0/db
 diff -urN '--exclude=build' pristine2/mako-1.11.0/doc/makoctl.1.scd pid/mako-1.11.0/doc/makoctl.1.scd
 --- mako-1.11.0/doc/makoctl.1.scd
 +++ mako-1.11.0/doc/makoctl.1.scd
-@@ -39,6 +39,15 @@
+@@ -39,6 +39,17 @@
  	Invokes an action on a notification. If _action_ is not specified, invokes
  	the default action. Action names can be discovered using `makoctl list`.
  
 +	The application is also sent an xdg-activation token, so it can raise
-+	itself the same way it does when the notification is clicked. mako has no
-+	input serial of its own at this point -- a D-Bus caller never does -- so it
-+	reuses the serial from the last time the pointer entered one of its
-+	surfaces, which compositors keep valid for exactly this sort of deferred
-+	activation. If the pointer has not touched a notification since mako
-+	started there is no such serial, and the action is invoked without a token:
-+	it still fires, the window just stays where it is.
++	itself the same way it does when the notification is clicked.
++
++	mako has no input serial of its own at this point -- a D-Bus caller never
++	does. Compositors that ignore the serial mint a token regardless. Those
++	that check it accept the serial from the last time the pointer entered one
++	of mako's surfaces, which is kept valid for exactly this sort of deferred
++	activation, so hovering a notification once per session is enough. Where
++	neither holds, the token request is refused and the action is invoked
++	without one: it still fires, the window just stays where it is.
 +
  	Options:
  

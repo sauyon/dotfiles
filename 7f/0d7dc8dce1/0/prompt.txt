@@ -1,0 +1,19 @@
+why is my default claude model opus
+
+---
+
+update it
+
+---
+
+don't worry about it. just commit stuff
+
+---
+
+<task-notification>
+<task-id>bfzova4hm</task-id>
+<tool-use-id>toolu_01MX1mTLF61wEqG1XbsTxzSc</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/02759f89-69b4-4f27-8edd-e7869ca102eb/tasks/bfzova4hm.output</output-file>
+<status>completed</status>
+<summary>Background command "Deploy via CI-backed home-manager switch" completed (exit code 0)</summary>
+</task-notification>

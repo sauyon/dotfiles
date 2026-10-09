@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "7f0d7dc8dce1",
+  "session_id": "02759f89-69b4-4f27-8edd-e7869ca102eb",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-09T17:54:03.539649489Z",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    "hyprland.nix"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5",
+  "turn_id": "3415f28380ac",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 88075,
+    "cache_read_tokens": 844229,
+    "output_tokens": 4582,
+    "api_call_count": 14
+  },
+  "session_metrics": {
+    "turn_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-09T17:54:03.524978918Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 376,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 376,
+    "total_lines_changed": 399,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}

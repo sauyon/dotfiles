@@ -1074,6 +1074,10 @@ let
     jq=${lib.getExe pkgs.jq}
     token_cmd="''${HMS_TOKEN_CMD:-${git-credential-fj}/bin/git-credential-fj}"
     wait_seconds="''${HMS_WAIT_SECONDS:-3600}"
+    # Bounds the *other* poll: how long to wait for a run to be created at all,
+    # before concluding none is coming. Separate from wait_seconds, which bounds
+    # a run that exists and is still going.
+    first_run_seconds="''${HMS_FIRST_RUN_SECONDS:-90}"
 
     local_only=0
     hm_args=()
@@ -1259,25 +1263,62 @@ let
     # worked — the question at the deadline is "did the forge just tell us there
     # is no run", and a success ten tries ago does not answer it.
     echo -n "hms: waiting for a run on ''${sha:0:7}"
-    run=""; last_ok=""; why=""; give_up=$((SECONDS + 90))
+    run=""; last_ok=""; why=""; busy=""; said_busy=""
+    give_up=$((SECONDS + first_run_seconds))
+    hard_stop=$((give_up + wait_seconds))
     while [ -z "$run" ]; do
       if tasks=$(api "/api/v1/repos/$slug/actions/tasks?limit=20"); then
         last_ok=1
         run=$(printf '%s' "$tasks" | $jq -r --arg s "$sha" 'first(.workflow_runs[]
             | select(.head_sha == $s and .workflow_id == "nix-home.yml")
             | .run_number) // empty' 2>/dev/null || true)
+        # Any *other* commit's nix-home run still going. nix-home.yml serialises
+        # on a concurrency group, so while one is in flight a run for this sha
+        # may not have been created yet — "not yet" and "never" look identical
+        # from the run list alone, and this is what tells them apart.
+        # Spelled as an or-chain rather than jq's IN(): the forge's jq is not
+        # guaranteed new enough, and a filter that errors would read as "idle".
+        busy=$(printf '%s' "$tasks" | $jq -r --arg s "$sha" 'first(.workflow_runs[]
+            | select(.workflow_id == "nix-home.yml" and .head_sha != $s
+                     and (.status == "running" or .status == "waiting"
+                          or .status == "blocked" or .status == "queued"))
+            | .run_number) // empty' 2>/dev/null || true)
       else
-        last_ok=""; why=$(api_why)
+        last_ok=""; why=$(api_why); busy=""
       fi
       [ -z "$run" ] || break
       if [ "$SECONDS" -ge "$give_up" ]; then
-        echo
-        if [ -n "$last_ok" ]; then
+        # The bug this guards: 9b6890a changed only
+        # `.forgejo/workflows/nix-home.yml`, which this workflow's own `paths:`
+        # filter lists, so a run was due. None existed 90s later because run 191
+        # still held the concurrency group, and hms read that as "nothing
+        # CI-relevant changed" and built the closure on the laptop — the exact
+        # outcome it exists to prevent, announced with a reason it never
+        # checked. An occupied group means a run may still be coming, so wait.
+        if [ -n "$last_ok" ] && [ -n "$busy" ]; then
+          if [ -z "$said_busy" ]; then
+            echo
+            echo "hms: no run for ''${sha:0:7} yet — run $busy holds nix-home's" >&2
+            echo "hms: concurrency group. Waiting for it to free up." >&2
+            said_busy=1
+            echo -n "hms: waiting"
+          fi
+          if [ "$SECONDS" -ge "$hard_stop" ]; then
+            echo
+            echo "hms: still no run for ''${sha:0:7} after ''${wait_seconds}s of a busy group." >&2
+            echo "hms: check $forge/$slug/actions, or 'hms --local' to build here." >&2
+            exit 1
+          fi
+        elif [ -n "$last_ok" ]; then
+          echo
+          # Nothing queued and nothing running: no run is coming for this sha.
           echo "hms: no run for ''${sha:0:7} (nothing CI-relevant changed) — switching locally" >&2
+          switch_now
         else
+          echo
           echo "hms: ''${why:-request failed} — switching locally" >&2
+          switch_now
         fi
-        switch_now
       fi
       echo -n "."; sleep 10
     done

@@ -143,6 +143,37 @@ STUB
   chmod +x "$D/curl"
 }
 
+# A stub forge that has NO run for our sha, but does have one for some other
+# commit, in a status the case picks. This is the shape Forgejo presents while
+# nix-home.yml's concurrency group is occupied: the run holding the group is
+# listed, and the one queued behind it does not exist yet.
+mkcurl_other() { # mkcurl_other <good-token> <other-run-status>
+  cat > "$D/curl" <<STUB
+#!/usr/bin/env bash
+url=""; cfg=""
+while [ \$# -gt 0 ]; do
+  case "\$1" in
+    -K) cfg="\$2"; shift 2 ;;
+    https://*) url="\$1"; shift ;;
+    *) shift ;;
+  esac
+done
+tok=\$(sed -n 's/.*Authorization: token \([^"]*\)".*/\1/p' "\$cfg")
+echo "\$url \$tok" >> "$D/requests"
+if [ "\$tok" != '$1' ]; then
+  printf 'unauthorized\n401\n'
+  exit 0
+fi
+case "\$url" in
+  *actions/tasks*)
+    printf '{"workflow_runs":[{"head_sha":"%s","workflow_id":"nix-home.yml","run_number":191,"status":"%s"}]}\n200\n' \\
+      00000000000000000000000000000000000000ff '$2' ;;
+  *) printf '{}\n200\n' ;;
+esac
+STUB
+  chmod +x "$D/curl"
+}
+
 # A "switch" is a marker file: the cases care that hms decided to switch, not
 # that a home-manager activation ran.
 mkswitch() {
@@ -159,9 +190,13 @@ run() {
   # HMS_WAIT_SECONDS bounds the status poll, which ships at an hour. Without it
   # a case that never reaches a terminal status -- which is exactly what the
   # unfixed script does with a stale token -- would hang the suite for that hour.
+  # HMS_FIRST_RUN_SECONDS bounds the *other* poll -- the one waiting for a run
+  # to be created at all, which ships at 90s. The cases below that exercise it
+  # would otherwise sit through that window twice.
   env -i PATH="$PATH" HOME="$HOME" \
     HMS_REPO="$D/repo" HMS_CURL="$D/curl" HMS_TOKEN_CMD="$D/token-cmd" \
-    HMS_SWITCH_CMD="$D/switch" HMS_WAIT_SECONDS=20 "$SCRIPT" 2>&1
+    HMS_SWITCH_CMD="$D/switch" HMS_WAIT_SECONDS=20 HMS_FIRST_RUN_SECONDS=1 \
+    "$SCRIPT" 2>&1
 }
 
 report() { # report <name> <ok?> <detail>
@@ -240,7 +275,8 @@ else
     "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
 fi
 
-# `--fallback` is hard-coded into `switch_now` (home.nix) so a NAR the in-cluster
+# `--option fallback true` is hard-coded into `switch_now` (home.nix) so a NAR
+# the in-cluster
 # attic Service can't deliver — Service reload, an attestation blip, anything
 # short of the cluster actually being unreachable — degrades to a local build for
 # that one path, rather than aborting the whole switch after ten minutes of
@@ -249,10 +285,14 @@ fi
 # reviving the 10-minute-stall class on box-side switches.
 setup_repo; mktoken good; mkcurl good success; mkswitch
 run >/dev/null
-if [ -f "$D/switched" ] && grep -q -F -- '--fallback' "$D/switched"; then
-  report "switch_now passes --fallback to home-manager switch" ok
+# Spelled as home-manager takes it, not as nix-build does: the CLI has no `--`
+# passthrough and drops bare nix flags, so a test that greps for `--fallback`
+# passes only against a switch that silently lost the flag. This assertion was
+# the old spelling and had gone red against the shipped script.
+if [ -f "$D/switched" ] && grep -q -F -- '--option fallback true' "$D/switched"; then
+  report "switch_now passes 'fallback' to home-manager switch" ok
 else
-  report "switch_now passes --fallback to home-manager switch" no \
+  report "switch_now passes 'fallback' to home-manager switch" no \
     "switch argv=[$(cat "$D/switched" 2>/dev/null)]"
 fi
 
@@ -267,6 +307,40 @@ if [ -f "$D/switched" ] && printf '%s' "$out" | grep -q 'run 42 green'; then
 else
   report "a multi-line credential answer yields the first token, not a broken config" no \
     "switched=$([ -f "$D/switched" ] && echo y || echo n), never saw the run go green. rc=$rc out=[$out]"
+fi
+
+# --- a run that does not exist YET is not a run that will never exist --------
+# The incident: 9b6890a changed only .forgejo/workflows/nix-home.yml, which the
+# workflow's own `paths:` filter lists, so a run was due. None had been created
+# 90s later, because run 191 still held the concurrency group and Forgejo does
+# not create the queued run until the holder finishes. hms read "no run" as
+# "nothing CI-relevant changed" and built the closure on the laptop -- the one
+# outcome it exists to prevent, announced with a reason it had not checked.
+#
+# An occupied group is visible in the very list hms already fetches, so it must
+# keep waiting rather than assert a cause and fall back.
+setup_repo; mktoken good; mkcurl_other good running; mkswitch
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] \
+   && ! printf '%s' "$out" | grep -q 'nothing CI-relevant changed'; then
+  report "a busy concurrency group extends the wait instead of switching locally" ok
+else
+  report "a busy concurrency group extends the wait instead of switching locally" no \
+    "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+fi
+
+# --- but with nothing in flight, the old conclusion still holds --------------
+# No run for our sha and no run occupying the group means no run is coming:
+# a docs-only commit, which should switch locally rather than stall for an hour.
+# This is the case the fix above must not break.
+setup_repo; mktoken good; mkcurl_other good success; mkswitch
+out=$(run); rc=$?
+if [ -f "$D/switched" ] \
+   && printf '%s' "$out" | grep -q 'nothing CI-relevant changed'; then
+  report "no run and an idle group still switches locally" ok
+else
+  report "no run and an idle group still switches locally" no \
+    "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
 fi
 
 printf '\n%d/%d passed\n' "$((n - fails))" "$n"

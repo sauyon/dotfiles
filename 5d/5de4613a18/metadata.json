@@ -3,7 +3,7 @@
   "checkpoint_id": "5d5de4613a18",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     ".forgejo/workflows/nix-home.yml",
     "flake.nix",
@@ -17,13 +17,20 @@
       "compact_transcript": "/5d/5de4613a18/0/transcript.jsonl",
       "content_hash": "/5d/5de4613a18/0/content_hash.txt",
       "prompt": "/5d/5de4613a18/0/prompt.txt"
+    },
+    {
+      "metadata": "/5d/5de4613a18/1/metadata.json",
+      "transcript": "/5d/5de4613a18/1/full.jsonl",
+      "compact_transcript": "/5d/5de4613a18/1/transcript.jsonl",
+      "content_hash": "/5d/5de4613a18/1/content_hash.txt",
+      "prompt": "/5d/5de4613a18/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 128,
-    "cache_creation_tokens": 181169,
-    "cache_read_tokens": 9650925,
-    "output_tokens": 65795,
-    "api_call_count": 64
+    "input_tokens": 146,
+    "cache_creation_tokens": 215871,
+    "cache_read_tokens": 10111271,
+    "output_tokens": 70494,
+    "api_call_count": 73
   }
 }

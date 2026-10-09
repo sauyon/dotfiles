@@ -125,16 +125,57 @@ jobs:
           FORGE_TOKEN: ${{ secrets.FORGE_TOKEN }}
         run: |
           set -eu
+          # pipefail explicitly, because the retry below tests a pipeline whose
+          # last command is `tee` — which succeeds even when `nix build` does
+          # not. The runner's default shell (`bash -e -o pipefail`) already sets
+          # it, which is why the un-retried version propagated failures at all;
+          # stating it here is what makes the `if` correct rather than
+          # incidentally correct, and survives a shell default changing.
+          set -o pipefail
           # --fallback: a substituter that dies mid-NAR otherwise aborts the whole
           # job ("no substituter that can build it") after ten minutes of transfer.
           # With it, an unfetchable path is built locally instead — slower, but the
           # run still ends with a closure to push.
-          nix build --fallback --no-link --print-out-paths \
-            .#homeConfigurations.utsuho.activationPackage \
-            .#homeConfigurations.setsuna.activationPackage \
-            .#homeConfigurations.fujiwara.activationPackage \
-            .#homeConfigurations.shiori.activationPackage \
-            | tee /tmp/out-paths
+          #
+          # Retried for the same reason the push step below is: a build is
+          # expensive and re-running one is nearly free, since every path already
+          # realised stays in the store.
+          #
+          # The failure this guards: run 188 died because one fixed-output fetch
+          # of bun-linux-x64-1.4.2.tgz (a hunkdiff dependency, via bun2nix) got
+          # four straight connect failures to registry.npmjs.org — the first after
+          # 4035ms, the rest instantly — while 31 sibling .tgz fetches in the same
+          # 13-second window succeeded and cache.nixos.org kept streaming. So the
+          # pod's egress was healthy and the fault was one address: npmjs is
+          # Cloudflare anycast behind dozens of A records, and a builder that
+          # draws a briefly-unroutable one reuses it across every retry curl makes
+          # on its own. nixpkgs' fetchurl gives up after `curl --retry 3`, and
+          # --fallback cannot rescue it because nothing can build a tarball
+          # locally, so that single fetch took hunkdiff and the whole closure with
+          # it. A fresh `nix build` resolves DNS again and draws a different
+          # address: the dispatched retry (run 189) pulled 245 tarballs from the
+          # same host without one failure.
+          #
+          # The cost is that a *deterministic* failure now pays for three
+          # attempts. Cheap for an eval error, which fails in seconds (runs 182
+          # and 183, `qt6gtk2 has been removed`); expensive for a compile that
+          # dies late. Accepted on the same terms as the push loop.
+          ok=
+          for attempt in 1 2 3; do
+            if nix build --fallback --no-link --print-out-paths \
+                 .#homeConfigurations.utsuho.activationPackage \
+                 .#homeConfigurations.setsuna.activationPackage \
+                 .#homeConfigurations.fujiwara.activationPackage \
+                 .#homeConfigurations.shiori.activationPackage \
+                 | tee /tmp/out-paths; then
+              echo "build succeeded on attempt $attempt"
+              ok=1
+              break
+            fi
+            echo "build attempt $attempt failed; retrying (realised paths are kept)"
+            sleep 20
+          done
+          [ -n "$ok" ] || { echo "build failed after 3 attempts"; exit 1; }
 
       # The image has no attic-client; run it from a pinned nixpkgs rev.
       # Do NOT echo $ATTIC_TOKEN or enable `set -x` here.

@@ -1,0 +1,25 @@
+why does the svalboard wheel not scroll horizontally
+
+---
+
+<task-notification>
+<task-id>b2602rr4c</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/5147cccc-cca8-4aec-b80c-f4d1168a5ce6/tasks/b2602rr4c.output</output-file>
+<status>completed</status>
+<summary>Background command "Capture svalboard mouse relative events for 90s" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>b31re857w</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/5147cccc-cca8-4aec-b80c-f4d1168a5ce6/tasks/b31re857w.output</output-file>
+<status>completed</status>
+<summary>Background command "Re-capture svalboard relative events for 120s" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+research what people do

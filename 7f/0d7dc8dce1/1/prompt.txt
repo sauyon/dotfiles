@@ -1,0 +1,51 @@
+<task-notification>
+<task-id>b2ym9waxl</task-id>
+<tool-use-id>toolu_01P1xegHzYpwpeHCDexupxHm</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/6d6a948e-97c9-4a53-b4ff-0cda49bb50f7/tasks/b2ym9waxl.output</output-file>
+<status>completed</status>
+<summary>Background command "Deploy via hms (waits for CI build)" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+wait. no. mako should handle the focus...
+
+---
+
+wait. no. mako should handle the focus...?
+
+---
+
+why doesn't the app have more info? how does click do it
+
+---
+
+why couldn't the cli eg signal the mako process...?
+
+---
+
+yes
+
+---
+
+hang on. can we actually restructure so this always works? can you explain to me why it would degrade today
+
+---
+
+can we make the compositor send a synthetic event instead, bound to a compositor hotkey...?
+
+---
+
+how does that work? I don't want notifications to swallow my keypresses that's stupid
+
+---
+
+this is all really stupid no... does it really have to use a real input? why can't I use a hyprctl command to do this...
+
+---
+
+does it open up any security boundaries not already exposed by hyprctl
+
+---
+
+yeah let's do it

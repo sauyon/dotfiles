@@ -3241,6 +3241,7 @@ in
     # tests/insecure-packages.sh is what keeps that true across a lock bump.
     pkgs.vesktop
     pkgs.signal-desktop
+    pkgs.beeper
     # Keymap editor for the Svalboard (keyboards/svalboard/). Needs the hidraw
     # udev rule in system/etc/udev/rules.d/92-vial.rules to see the keyboard at
     # all -- deployed separately, this package alone is not enough.

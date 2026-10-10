@@ -3959,6 +3959,7 @@ in
           format-connected = " {device_alias}";
           format-connected-battery = " {device_alias} {device_battery_percentage}%";
           tooltip-format = "{controller_alias}\n{num_connections} connected";
+          on-click = "ghostty -e bluetui";
         };
         tray = {
           spacing = 8;

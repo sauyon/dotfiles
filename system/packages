@@ -64,6 +64,7 @@ tpm2-tss
 tpm2-tools
 bluez
 bluez-utils
+bluetui
 fwupd
 power-profiles-daemon
 

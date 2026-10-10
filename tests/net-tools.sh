@@ -33,6 +33,12 @@ FLAKE="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 [ -f "$FLAKE/flake.nix" ] || { echo "no flake.nix in: $FLAKE" >&2; exit 1; }
 echo "testing $FLAKE"
 
+# nix's stderr from the last eval, kept so a host that fails to evaluate says
+# why -- an unsupported package on one platform reads the same as a typo
+# otherwise.
+ERR=$(mktemp) || { echo "mktemp failed" >&2; exit 1; }
+trap 'rm -f "$ERR"' EXIT
+
 fails=0; n=0
 pass() { n=$((n+1)); echo "ok   $1"; }
 fail() { n=$((n+1)); echo "FAIL $1: $2"; fails=$((fails+1)); }
@@ -84,7 +90,7 @@ for h in $hosts; do
         key = p: (p.pname or \"\") + (if (p.outputName or \"out\") == \"out\" then \"\" else \".\" + p.outputName);
       in builtins.listToAttrs (map (p: { name = key p; value = p.outPath; })
         (builtins.filter (p: builtins.elem (key p) (builtins.fromJSON ''$wanted'')) ps))" \
-    2>/dev/null) || { fail "$h" "home.packages did not evaluate"; continue; }
+    2>"$ERR") || { fail "$h" "home.packages did not evaluate: $(grep -m1 'error:' "$ERR")"; continue; }
 
   while read -r where pkg cmd; do
     [ -n "$where" ] || continue

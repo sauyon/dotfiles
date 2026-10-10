@@ -101,6 +101,12 @@ check "host name is used literally, not as a pattern" \
   "btrfs-progs zsh" \
   "$(pacman_wants "$D/pkgs" '*' | tr '\n' ' ' | sed 's/ $//')"
 
+# The real list, not a fixture: pkgfile backs zsh's command-not-found handler
+# (zsh.nix), which is gated on `exists pkgfile` and so says nothing at all on a
+# host where the package was never installed.
+check "the real shared list wants pkgfile" 1 \
+  "$(pacman_wants "$(dirname "$LIB")" nosuchhost | grep -cx pkgfile)"
+
 # ── pacman_ensure_include ────────────────────────────────────────────────────
 
 INC='Include = /etc/pacman.d/conf.d/*.conf'
@@ -198,6 +204,20 @@ check "a different repo is still unsynced" \
   1 "$(pacman_repo_synced "$D/sync" extra; echo $?)"
 check "a missing sync dir is not fatal" \
   1 "$(pacman_repo_synced "$D/nosuchdir" multilib; echo $?)"
+
+# ── pkgfile_has_db ───────────────────────────────────────────────────────────
+# Installing pkgfile fetches nothing, and its timer does not fire on first
+# enable, so a fresh host has a handler that finds no package for any command
+# until the next daily run. deploy does the first update itself; this is how it
+# knows not to do it again.
+
+mkdir -p "$D/pkgfile"
+check "empty cache dir -> no db" 1 "$(pkgfile_has_db "$D/pkgfile"; echo $?)"
+: > "$D/pkgfile/.db_version"
+check "the version stamp alone is not a db" 1 "$(pkgfile_has_db "$D/pkgfile"; echo $?)"
+: > "$D/pkgfile/core.files"
+check "a .files db -> present" 0 "$(pkgfile_has_db "$D/pkgfile"; echo $?)"
+check "a missing cache dir is not fatal" 1 "$(pkgfile_has_db "$D/nosuchdir"; echo $?)"
 
 printf '\n%d/%d passed\n' "$((n-fails))" "$n"
 [ "$fails" -eq 0 ]

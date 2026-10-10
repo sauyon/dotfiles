@@ -76,3 +76,10 @@ power-profiles-daemon
 # so it silently no-ops when the package is absent.
 # Enrolling stays manual and per-host: `fprintd-enroll`, then `fprintd-list`.
 fprintd
+
+# Backs zsh's command-not-found handler (zsh.nix), which is gated on `exists
+# pkgfile` and so is simply absent on a host without it. Host-side because it is
+# a view onto this host's pacman repos: the db lives in /var/cache/pkgfile and
+# is refreshed by a system timer, which deploy enables right after this list is
+# converged. There is no nixpkgs build of it to reach for either.
+pkgfile

@@ -60,3 +60,22 @@ pacman_ensure_include() { # pacman_ensure_include <conf> <line>
 pacman_repo_synced() { # pacman_repo_synced <dbdir> <repo>
   [ -e "$1/$2.db" ]
 }
+
+# Does <cachedir> hold a pkgfile db? Installing pkgfile fetches nothing, and
+# enabling its timer does not either: Persistent= only replays a run that was
+# missed, and a timer that has never run has missed none. So on a fresh host
+# the command-not-found handler would name no package for anything until the
+# next daily tick. deploy runs the first update itself, and asks this first so
+# that a converged host is not made to re-download a quarter gigabyte of file
+# lists on every deploy.
+#
+# The glob is the test, not the directory: pkgfile writes a .db_version stamp
+# next to the dbs, so "the directory is non-empty" is true with nothing usable
+# in it.
+pkgfile_has_db() { # pkgfile_has_db <cachedir>
+  local f
+  for f in "$1"/*.files; do
+    [ -e "$f" ] && return 0
+  done
+  return 1
+}

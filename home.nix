@@ -3142,6 +3142,23 @@ in
     lnav
     mise
     mosh
+
+    # Network tools, so the usual questions have an answer on a fresh box. Only
+    # what macOS does not already ship or ships in a form worth replacing; the
+    # Linux-only half (route, traceroute, ethtool) is further down.
+    #
+    # Deliberately no inetutils, the obvious way to get telnet: it carries its
+    # own ifconfig and hostname, net-tools carries the same names, and
+    # home.packages is a buildEnv -- two packages with one bin/ name is a build
+    # failure, not a shadowing. tests/net-tools.sh holds both halves: each
+    # command against the package expected to ship it, and no overlap in the set.
+    dig  # bind's dnsutils output: dig and nslookup, but not host
+    host  # bind's host output, a separate attribute for the one binary
+    iperf3
+    mtr
+    nmap  # and ncat
+    tcpdump
+    whois
     opencode
     pi-coding-agent  # earendil-works/pi terminal coding agent (binary: pi)
     forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg and forge.ko.ag
@@ -3163,6 +3180,15 @@ in
     explore-mcp-pkg
     drovr-pkg
   ]) ++ lib.optionals (!isDarwin) [
+    # The rest of the network tools (see the list above). macOS answers route,
+    # ifconfig, netstat, arp, traceroute and nc natively, and none of these four
+    # evaluates for it -- netcat-openbsd included, whose meta.platforms says
+    # unix and whose dependencies say otherwise.
+    pkgs.ethtool
+    pkgs.netcat-openbsd  # nc
+    pkgs.nettools  # net-tools: route, ifconfig, netstat, arp
+    pkgs.traceroute
+
     # What grip-mode shells out to; top-level `grip` is an unrelated CD ripper.
     pkgs.python3Packages.grip
     pkgs.cursor-agent-cli

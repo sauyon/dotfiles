@@ -183,6 +183,22 @@ utsuho | setsuna | shiori | fujiwara)
   # nothing below this point wants thermald, and the attic netrc further down is
   # what spares the switch an hour of compiling.
   ./thermald-setup || echo "system/deploy: thermald-setup failed; continuing." >&2
+
+  # pkgfile, the other listed package that is inert as installed: its db is
+  # empty until something runs `pkgfile -u`, and zsh's command-not-found
+  # handler (zsh.nix) answers from that db. Enable the packaged daily timer, and
+  # do the first fetch here when there is no db at all -- see pkgfile_has_db in
+  # ./pacman.sh for why the timer alone leaves a fresh host empty for a day.
+  #
+  # Gated on the binary rather than on the list, so a pacman step that failed
+  # above (and only warned) does not turn into a second, more confusing failure
+  # here. Warn-and-continue like everything else in this block.
+  if command -v pkgfile >/dev/null; then
+    sudo systemctl enable --now pkgfile-update.timer \
+      || echo "system/deploy: could not enable pkgfile-update.timer; continuing." >&2
+    pkgfile_has_db /var/cache/pkgfile || sudo pkgfile --update \
+      || echo "system/deploy: pkgfile --update failed; continuing." >&2
+  fi
   ;;
 *)
   echo "system/deploy: ${host} is not one of our Arch hosts -- skipping host packages."

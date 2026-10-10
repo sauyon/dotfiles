@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>bel3kj8i1</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/2b9ee4a2-00ce-443b-8765-7fd05c57642a/tasks/bel3kj8i1.output</output-file>
+<status>completed</status>
+<summary>Background command "Push item 4 to master and switch via hms" completed (exit code 0)</summary>
+</task-notification>

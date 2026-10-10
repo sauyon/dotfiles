@@ -64,6 +64,37 @@ let
   workHosts = [ "utsuho" "kyuusaku" ];
   isWorkHost = builtins.elem hostname workHosts;
 
+  # The body of every programs.zen-browser.profiles entry (see the profiles
+  # attrset merge down in the zen block for why there is more than one).
+  zenSharedProfile = {
+    # rycee's firefox-addons install as-is — same extension IDs, same
+    # gecko. Still skipped on macOS, as under firefox; that path has never
+    # been exercised and mari keeps darwin.packageMode = "signed" (the
+    # module default: upstream .app untouched, so its Team ID integrations
+    # — 1Password, Touch ID — keep working).
+    extensions.packages = lib.optionals (!isDarwin) (with pkgs.nur.repos.rycee.firefox-addons; [
+      bitwarden
+      tridactyl
+    ]);
+    settings = {
+      # sidebar.verticalTabs is gone from this list on purpose: it toggles
+      # Firefox's own vertical tab strip, which Zen replaces outright with
+      # its sidebar. Zen's knobs are the zen.* prefs.
+      "ui.key.accelKey" = 91;
+      "ui.key.textcontrol.prefer_native_key_bindings_over_builtin_shortcut_key_definitions" = true;
+      "signon.rememberSignons" = false;
+      "browser.newtab.extensionControlled" = false;
+      "browser.ml.chat.enabled" = false;
+      # WebTransport workaround: this profile reports hasThirdPartyRoots=1
+      # for every QUIC connection (even public sites chaining to built-in
+      # roots), so gecko's third-party-roots policy kills H3. HTTPS falls
+      # back to H2; WebTransport has no fallback and fails with "WebTransport
+      # connection rejected". See netwerk/protocol/http/Http3Session.cpp
+      # Authenticated() and bugzilla 1929093.
+      "network.http.http3.disable_when_third_party_roots_found" = false;
+    };
+  };
+
   # ── sops trust root (dotfiles domain) ───────────────────────────────────────
   # Design: ~/devel/reports/Homelab secrets bootstrap trust root.md, Part A.
   #
@@ -4346,33 +4377,25 @@ in
       # anywhere, so the first non-empty set makes `switch -n` rewrite the live
       # profile for real. mods/sine go further and curl unpinned `main`-branch
       # code from GitHub at activation, to be run with chrome privileges.
-      profiles.default = {
-        # rycee's firefox-addons install as-is — same extension IDs, same
-        # gecko. Still skipped on macOS, as under firefox; that path has never
-        # been exercised and mari keeps darwin.packageMode = "signed" (the
-        # module default: upstream .app untouched, so its Team ID integrations
-        # — 1Password, Touch ID — keep working).
-        extensions.packages = lib.optionals (!isDarwin) (with pkgs.nur.repos.rycee.firefox-addons; [
-          bitwarden
-          tridactyl
-        ]);
-        settings = {
-          # sidebar.verticalTabs is gone from this list on purpose: it toggles
-          # Firefox's own vertical tab strip, which Zen replaces outright with
-          # its sidebar. Zen's knobs are the zen.* prefs.
-          "ui.key.accelKey" = 91;
-          "ui.key.textcontrol.prefer_native_key_bindings_over_builtin_shortcut_key_definitions" = true;
-          "signon.rememberSignons" = false;
-          "browser.newtab.extensionControlled" = false;
-          "browser.ml.chat.enabled" = false;
-          # WebTransport workaround: this profile reports hasThirdPartyRoots=1
-          # for every QUIC connection (even public sites chaining to built-in
-          # roots), so gecko's third-party-roots policy kills H3. HTTPS falls
-          # back to H2; WebTransport has no fallback and fails with "WebTransport
-          # connection rejected". See netwerk/protocol/http/Http3Session.cpp
-          # Authenticated() and bugzilla 1929093.
-          "network.http.http3.disable_when_third_party_roots_found" = false;
-        };
+      #
+      # profiles is an attrset merge rather than two profile blocks because
+      # both profiles carry the identical body below: the work profile exists
+      # so a second zen-beta process can run alongside the desktop one --
+      # gecko is single-instance *per profile* (profile lock + per-profile
+      # D-Bus remoting name), so any second launch on one profile remotes
+      # into the running instance instead of starting a new process. The
+      # consumer is workHosts running a second, separately-launched browser
+      # next to the desktop session's own. id = 1 because mkFirefoxModule
+      # defaults every profile's id to 0 and asserts exactly one isDefault
+      # (isDefault defaults to id == 0); without it eval fails on "Must have
+      # exactly one default zen profile". Verified live on the pair
+      # 2026-10-09: distinct-profile instances coexist, and a desktop launch
+      # remotes into the default-profile instance's own display rather than
+      # the other instance's.
+      profiles = {
+        default = zenSharedProfile;
+      } // lib.optionalAttrs isWorkHost {
+        work = zenSharedProfile // { id = 1; };
       };
     };
     ghostty = lib.mkIf (!isDarwin) {

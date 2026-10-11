@@ -162,8 +162,8 @@ echo "== local mode, every host by default"
 setup_repo; setup_nix; setup_forge
 rc=$(run_hmeval)
 check "local: exits 0" "$rc" 0
-check "local: bare hmeval covers all six hosts" \
-  "$(grep -c 'homeConfigurations' "$D/nix.argv")" 6
+check "local: bare hmeval covers all seven hosts" \
+  "$(grep -c 'homeConfigurations' "$D/nix.argv")" 7
 
 echo "== --ci leaves your working tree alone"
 setup_repo; setup_nix

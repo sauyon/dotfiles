@@ -109,6 +109,16 @@
       gui = false;
       gpu = "amd";
     };
+    homeConfigurations.chiyari = linuxHome {
+      hostname = "chiyari";
+      # Headless: no graphical session is planned, so isDesktop stays false and
+      # home.nix hands chiyari the headless stack (emacs-nox, no hyprland/waybar,
+      # pass-secret-service instead of gnome-keyring).
+      gui = false;
+      # Carried from the runbook's recommended profile; only matters for the btop
+      # build choice. Drop if chiyari has no AMD graphics hardware at all.
+      gpu = "amd";
+    };
     homeConfigurations.mari = mkHome "aarch64-darwin" {
       hostname = "mari";
       gui = true;

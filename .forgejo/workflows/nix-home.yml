@@ -167,6 +167,7 @@ jobs:
                  .#homeConfigurations.setsuna.activationPackage \
                  .#homeConfigurations.fujiwara.activationPackage \
                  .#homeConfigurations.shiori.activationPackage \
+                 .#homeConfigurations.chiyari.activationPackage \
                  | tee /tmp/out-paths; then
               echo "build succeeded on attempt $attempt"
               ok=1

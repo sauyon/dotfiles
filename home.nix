@@ -53,7 +53,7 @@ let
   # because each means a different thing: wifHosts is "enrolled in the WIF trust
   # root", home.nix's `hms` case is "has a Linux CI job", and kyuusaku is absent
   # from all three for three unrelated reasons.
-  archHosts = [ "utsuho" "setsuna" "shiori" "fujiwara" ];
+  archHosts = [ "utsuho" "setsuna" "shiori" "fujiwara" "chiyari" ];
   isArchHost = !isDarwin && builtins.elem hostname archHosts;
 
   # The employer-owned boxes. Anything that exists only to reach the work
@@ -105,7 +105,7 @@ let
   # switches sops-nix's module (unit, activation, sops-install-secrets) off for
   # them. An allowlist, not `!= "kyuusaku"`, so a new host starts out of the
   # fleet: it cannot decrypt anything until enrolled anyway.
-  secretsHosts = [ "utsuho" "shiori" "fujiwara" "mari" ];
+  secretsHosts = [ "utsuho" "shiori" "fujiwara" "chiyari" "mari" ];
   isSecretsHost = builtins.elem hostname secretsHosts;
 
   # Hosts listed here decrypt secrets.yaml through a device identity: a local
@@ -113,7 +113,7 @@ let
   # it against the JWKS in the ko-keys-sauyon bucket, and the federated token
   # decrypts with KMS host-key. No decryption key on the host. Hosts NOT listed
   # keep the cluster-domain path (gcp-key.json -> nix-key) until enrolled.
-  wifHosts = [ "shiori" "fujiwara" "utsuho" "mari" ];
+  wifHosts = [ "shiori" "fujiwara" "utsuho" "chiyari" "mari" ];
   useWif = builtins.elem hostname wifHosts;
   # Hosts whose device key lives in the TPM (install/wif/tpm-keygen.sh) instead
   # of in a file. A separate list from wifHosts because it is a separate fact:
@@ -121,7 +121,7 @@ let
   # published) before and independently of where it keeps the private half.
   # Listing a host here before its TPM key's JWK is in the bucket JWKS gives it
   # an STS 401 at the next activation — publish first, switch second.
-  wifTpmHosts = [ "shiori" "fujiwara" "utsuho" ];
+  wifTpmHosts = [ "shiori" "fujiwara" "utsuho" "chiyari" ];
   useWifTpm = useWif && !isDarwin && builtins.elem hostname wifTpmHosts;
   wifKeyFile = "${config.home.homeDirectory}/.config/ko/"
     + (if useWifTpm then "wif-tpm.pem" else "wif.pem");
@@ -1116,7 +1116,7 @@ let
 
     # mari (darwin) has no Linux CI job; nix-home.yml builds only these.
     case "$host" in
-      utsuho|setsuna|fujiwara|shiori) ;;
+      utsuho|setsuna|fujiwara|shiori|chiyari) ;;
       *) echo "hms: $host has no CI job — switching locally" >&2; switch_now ;;
     esac
 
@@ -1456,7 +1456,7 @@ let
     # flake which configurations exist costs a full evaluation, which is the
     # thing this script exists to avoid paying for. Out of step with
     # flake.nix => a host silently never gets checked, so keep them together.
-    all_hosts="utsuho setsuna fujiwara shiori kyuusaku mari"
+    all_hosts="utsuho setsuna fujiwara shiori chiyari kyuusaku mari"
 
     mode=eval
     ci=0

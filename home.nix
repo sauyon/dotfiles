@@ -3152,7 +3152,10 @@ in
     # home.packages is a buildEnv -- two packages with one bin/ name is a build
     # failure, not a shadowing. tests/net-tools.sh holds both halves: each
     # command against the package expected to ship it, and no overlap in the set.
-    dig  # bind's dnsutils output: dig and nslookup, but not host
+    # dnsutils, not `dig`: both are bind's dnsutils output, but nixpkgs' `dig`
+    # passes it through addMetaAttrs, which makes it a second build of bind --
+    # and its man output then collides with the one `host` below brings.
+    dnsutils  # dig and nslookup, but not host
     host  # bind's host output, a separate attribute for the one binary
     iperf3
     mtr

@@ -51,8 +51,8 @@ fail() { n=$((n+1)); echo "FAIL $1: $2"; fails=$((fails+1)); }
 # natively (route, ifconfig, netstat, traceroute, nc) or has no use for.
 #
 # <package> is the pname, plus `.<output>` when the entry is one named output of
-# a split package -- which is how bind appears twice: nixpkgs' `dig` and `host`
-# are two outputs of it, and dig's does not carry bin/host.
+# a split package -- which is how bind appears twice: nixpkgs' `dnsutils` and
+# `host` are two outputs of it, and dnsutils does not carry bin/host.
 ROWS='
 all   nmap            nmap
 all   nmap            ncat
@@ -92,14 +92,29 @@ for h in $hosts; do
   have=$(nix eval --max-jobs 0 --json "$FLAKE#homeConfigurations.$h.config.home.packages" \
     --apply "ps: let
         key = p: (p.pname or \"\") + (if (p.outputName or \"out\") == \"out\" then \"\" else \".\" + p.outputName);
-      in builtins.listToAttrs (map (p: { name = key p; value = p.outPath; })
+      in builtins.listToAttrs (map (p: { name = key p; value = { out = p.outPath; drv = p.drvPath; pname = p.pname or \"\"; }; })
         (builtins.filter (p: builtins.elem (key p) (builtins.fromJSON ''$wanted'')) ps))" \
     2>"$ERR") || { fail "$h" "home.packages did not evaluate: $(why)"; continue; }
+
+  # One package, one build. Two outputs of a split package only share a profile
+  # if they are outputs of the SAME derivation: home.extraOutputsToInstall adds
+  # `man` for every entry, so two builds of bind each bring their own
+  # share/man/man1/named-checkconf.1.gz and buildEnv refuses the pair. That is
+  # what nixpkgs' `dig` does next to `host` -- it is bind.dnsutils run through
+  # addMetaAttrs, which is an overrideAttrs and so a second derivation. The
+  # bin/ check at the bottom cannot see it: the two never share a bin/ name.
+  twice=$(jq -r '[.[] | {pname, drv}] | group_by(.pname)
+      | map(select((map(.drv) | unique | length) > 1) | .[0].pname) | join(" ")' <<<"$have")
+  if [ -z "$twice" ]; then
+    pass "$h: each of these packages is one build"
+  else
+    fail "$h: one build per package" "built twice, so their shared outputs (man) collide: $twice"
+  fi
 
   while read -r where pkg cmd; do
     [ -n "$where" ] || continue
     case "$where:$sys" in linux:*-darwin) continue ;; esac
-    out=$(jq -r --arg p "$pkg" '.[$p] // empty' <<<"$have")
+    out=$(jq -r --arg p "$pkg" '.[$p].out // empty' <<<"$have")
     if [ -z "$out" ]; then
       fail "$h: $cmd" "$pkg is not in home.packages"
       continue

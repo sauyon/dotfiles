@@ -52,11 +52,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1791015459,
-        "narHash": "sha256-AmLdXjcNtvcujMV84Um4ujAtKn301yKbtqGHHOmudn4=",
+        "lastModified": 1791742266,
+        "narHash": "sha256-gLxrBkrhsWvaeaZ4sRTv3XZS0ppV3tFpLkWGD7a113g=",
         "ref": "refs/heads/main",
-        "rev": "e6780368435c3528bedb57ebadb8876945d5d209",
-        "revCount": 1213,
+        "rev": "ebe58d961640e61ccda84769c6ffd306976c15ae",
+        "revCount": 1227,
         "type": "git",
         "url": "https://forge.ko.ag/drovr/drovr.git"
       },

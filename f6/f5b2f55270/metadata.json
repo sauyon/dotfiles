@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "f6f5b2f55270",
+  "strategy": "manual-commit",
+  "branch": "setsuna-decomm",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".forgejo/workflows/nix-home.yml",
+    "flake.nix",
+    "system/deploy"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f6/f5b2f55270/0/metadata.json",
+      "transcript": "/f6/f5b2f55270/0/full.jsonl",
+      "compact_transcript": "/f6/f5b2f55270/0/transcript.jsonl",
+      "content_hash": "/f6/f5b2f55270/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 328,
+    "cache_creation_tokens": 831034,
+    "cache_read_tokens": 23733371,
+    "output_tokens": 161844,
+    "api_call_count": 165
+  }
+}

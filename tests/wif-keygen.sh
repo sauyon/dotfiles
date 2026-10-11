@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Cases for install/wif/device-keygen.sh — the device-side half of enrolling a
-# host that has no TPM (report Part A item 3: utsuho, setsuna, kyuusaku,
-# fujiwara's user, mari).
+# host that has no TPM (report Part A item 3: utsuho, kyuusaku, fujiwara's
+# user, mari).
 #
 # The whole point of this script is to produce a keypair whose PUBLIC half goes
 # into the JWKS and whose PRIVATE half is at the path the running system will

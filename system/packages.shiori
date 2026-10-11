@@ -47,8 +47,8 @@ lib32-vulkan-icd-loader
 # Installing it does not start it, and nothing in a package list can: ./deploy
 # runs ./thermald-setup right after this step for that half.
 #
-# setsuna is the other Intel box. It has no ./packages.setsuna yet, and giving
-# it one is the whole edit if it ever wants this.
+# Any other Intel box would want this too. Giving it a ./packages.<host> of its
+# own is the whole edit.
 thermald
 
 # WireGuard tooling for the UCG's "Kon WireGuard" overlay: this host reaches

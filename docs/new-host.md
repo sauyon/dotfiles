@@ -13,7 +13,7 @@ Pick a hostname, then in this repo:
 
 - `flake.nix`: add `homeConfigurations.<host> = linuxHome { hostname = "<host>"; gui = true; };`
   (`gpu = "amd"`/`"nvidia"` only if it has one; anything else can be left out).
-- `home.nix`: add `<host>` to the `hms` CI case (`utsuho|setsuna|...`) if it
+- `home.nix`: add `<host>` to the `hms` CI case (`utsuho|fujiwara|...`) if it
   gets a CI job, and to whichever scale knob its panel wants: `hidpi` for 1.25
   app-level scaling, or `laptopScale` for a 2x compositor scale on `eDP-1`.
   Pick one — they multiply.

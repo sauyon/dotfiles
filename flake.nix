@@ -92,10 +92,6 @@
       gui = false;
       homeDir = "/local/mnt/workspace/kyuusaku";
     };
-    homeConfigurations.setsuna = linuxHome {
-      hostname = "setsuna";
-      gui = true;
-    };
     homeConfigurations.shiori = linuxHome {
       hostname = "shiori";
       gui = true;

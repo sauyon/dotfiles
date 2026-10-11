@@ -27,7 +27,7 @@ cache, not a particular hostname. Build/server side lives in the `kube` repo
   buys is a one-off `--option substituters …` from a shell being honoured rather
   than dropped with a warning.
 
-## How it is wired (Linux: utsuho, setsuna, fujiwara, shiori)
+## How it is wired (Linux: utsuho, fujiwara, shiori, chiyari)
 
 Three pieces, all applied by `./system/deploy` (sudo).
 

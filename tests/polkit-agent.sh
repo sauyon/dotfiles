@@ -233,17 +233,19 @@ want "shiori's unit widens the start-limit window so repeated crashes stick" \
 want "shiori's unit pins the start-limit burst the window is sized against" \
   Unit StartLimitBurst "5"
 
-# The unit is generated identically for every desktop host, so checking only
-# shiori leaves the other gui hosts unmeasured. This catches a gui host that
-# silently loses the unit; the vendor mapping is covered by the utsuho block below.
-echo "evaluating setsuna (gui = true)"
-present=$(has_unit setsuna) ||
-  die "could not evaluate systemd.user.services for setsuna (see the nix error above)"
-if [ "$present" = true ]; then
-  ok "setsuna, the other gui host, defines the unit too"
-else
-  no "setsuna, the other gui host, defines the unit too" "no unit on a gui = true host"
-fi
+# A third case stood here, evaluating setsuna as "the other gui host", on the
+# reasoning that the unit is generated identically for every desktop host and so
+# checking only shiori leaves the rest unmeasured. setsuna became a cluster node
+# and left this repo, and the desktop hosts are now exactly shiori (above) and
+# utsuho (below) -- the utsuho block already asserts the unit is present, so a
+# third case here could only name one of those two twice.
+#
+# Deliberately keeping the reasoning without the case: a future fourth desktop
+# host is unmeasured here until someone adds it back, and nothing will say so.
+# tests/host-inventory.sh does not cover it -- that file checks that host lists
+# name real configurations, not that every gui host is exercised by this one.
+# fujiwara and chiyari are not candidates: both are headless (gui = false), so
+# they never define the unit at all.
 
 # utsuho is the only gui host that declares a gpu (amd), and glWrapper refuses any
 # gpu it has no mapping for. Note what `has_unit` can and cannot tell us here: it

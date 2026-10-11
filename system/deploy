@@ -82,7 +82,7 @@ if [ -n "${SKIP_HOST_PACKAGES:-}" ]; then
   echo "system/deploy: SKIP_HOST_PACKAGES set -- not touching pacman."
 else
 case "$host" in
-utsuho | setsuna | shiori | fujiwara | chiyari)
+utsuho | shiori | fujiwara | chiyari)
   # ── multilib: Arch's 32-bit repo, off by default ──────────────────────────
   # Needed by anything with a lib32- dependency; today that is steam, in
   # ./packages.shiori. Enabling a repo installs nothing on its own, so this

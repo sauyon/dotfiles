@@ -1,7 +1,7 @@
 # CI: build home closures in-cluster (`.forgejo/workflows/nix-home.yml`)
 
 Push to `master` (touching any nix/home source) builds the **Linux**
-home-manager closures — `homeConfigurations.{utsuho,setsuna,fujiwara}.activationPackage`
+home-manager closures — `homeConfigurations.{utsuho,fujiwara,shiori,chiyari}.activationPackage`
 — on the in-cluster `forgejo-runner` at `forge.ko.ag`, and pushes them to the
 in-cluster attic Service (`http://attic.attic.svc.cluster.local/kube`, cache
 name `kube`). Box-side pulls use that same URL — see `docs/nix-binary-cache.md`.

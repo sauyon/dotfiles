@@ -162,8 +162,20 @@ echo "== local mode, every host by default"
 setup_repo; setup_nix; setup_forge
 rc=$(run_hmeval)
 check "local: exits 0" "$rc" 0
-check "local: bare hmeval covers all seven hosts" \
-  "$(grep -c 'homeConfigurations' "$D/nix.argv")" 7
+# Counted out of the script under test rather than written here as a literal.
+# The property worth pinning is that bare hmeval passes its WHOLE list to nix --
+# dropping one host is the silent failure this file exists for -- and a literal
+# turns a host joining or leaving the fleet into an unrelated red case. That the
+# list itself is right is a different claim, pinned in tests/host-inventory.sh.
+want_hosts=$(grep -m1 '^ *all_hosts="' "$SCRIPT" | sed 's/.*="//;s/".*//' | wc -w | tr -d ' ')
+if [ -z "$want_hosts" ] || [ "$want_hosts" = 0 ]; then
+  # An unreadable list would otherwise compare 0 against 0 and pass, which is how
+  # tests/sops-recipients.sh once reported green off a yq that read nothing.
+  check "local: could read all_hosts out of the script under test" "read nothing" "a host list"
+else
+  check "local: bare hmeval covers every host in its own list ($want_hosts)" \
+    "$(grep -c 'homeConfigurations' "$D/nix.argv")" "$want_hosts"
+fi
 
 echo "== --ci leaves your working tree alone"
 setup_repo; setup_nix

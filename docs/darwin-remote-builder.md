@@ -1,6 +1,6 @@
 # Remote darwin builder (mari)
 
-The Linux boxes (utsuho, setsuna, fujiwara) delegate **aarch64-darwin** builds to
+The Linux boxes (utsuho, fujiwara, shiori, chiyari) delegate **aarch64-darwin** builds to
 **mari-1** over the **LAN** — never over Tailscale, never over Kon WireGuard,
 never over the public internet. CI is x86_64-linux only, and you can't
 cross-build darwin from Linux, so this is the *only* path; but it requires

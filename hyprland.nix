@@ -108,7 +108,7 @@ in
       #   1. Xft.dpi is one value for the whole X server (see ~/.Xresources,
       #      xftDpi in home.nix): a shiori window on the laptop panel and the
       #      same window dragged to the 4K 32" external both read 192 dpi. On the
-      #      multi-monitor hosts (setsuna, fujiwara) this is the chosen DPI
+      #      multi-monitor host (fujiwara) this is the chosen DPI
       #      everywhere, which sits ~30-40 % high against the externals' actual
       #      ~140 dpi -- text scales larger than the panel's natural size, but
       #      not harshly so. Better than either dropping Xft.dpi (which puts

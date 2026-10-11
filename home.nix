@@ -53,7 +53,7 @@ let
   # because each means a different thing: wifHosts is "enrolled in the WIF trust
   # root", home.nix's `hms` case is "has a Linux CI job", and kyuusaku is absent
   # from all three for three unrelated reasons.
-  archHosts = [ "utsuho" "setsuna" "shiori" "fujiwara" "chiyari" ];
+  archHosts = [ "utsuho" "shiori" "fujiwara" "chiyari" ];
   isArchHost = !isDarwin && builtins.elem hostname archHosts;
 
   # The employer-owned boxes. Anything that exists only to reach the work
@@ -99,12 +99,11 @@ let
   # Design: ~/devel/reports/Homelab secrets bootstrap trust root.md, Part A.
   #
   # The secrets fleet: hosts that decrypt secrets.yaml at all. kyuusaku is a work
-  # box that will never get a device identity and needs none of these secrets,
-  # and setsuna is being decommissioned, so enrolling it would only mint a key to
-  # revoke later. Both are out entirely -- no sops.secrets, which is what
-  # switches sops-nix's module (unit, activation, sops-install-secrets) off for
-  # them. An allowlist, not `!= "kyuusaku"`, so a new host starts out of the
-  # fleet: it cannot decrypt anything until enrolled anyway.
+  # box that will never get a device identity and needs none of these secrets, so
+  # it is out entirely -- no sops.secrets, which is what switches sops-nix's
+  # module (unit, activation, sops-install-secrets) off for it. An allowlist, not
+  # `!= "kyuusaku"`, so a new host starts out of the fleet: it cannot decrypt
+  # anything until enrolled anyway.
   secretsHosts = [ "utsuho" "shiori" "fujiwara" "chiyari" "mari" ];
   isSecretsHost = builtins.elem hostname secretsHosts;
 
@@ -154,24 +153,10 @@ let
   # App-level scaling. Multiplies with laptopScale below, which is the
   # compositor's; a host wanting both would get the product.
   hidpi = let
-    scale = if hostname == "setsuna" || hostname == "fujiwara" then 1.25 else 1.0;
+    scale = if hostname == "fujiwara" then 1.25 else 1.0;
     enabled = scale != 1.0;
-    # Which of the two mechanisms carries `scale` to GTK. text-scaling-factor
-    # goes through dconf and is read at runtime via a live dconf D-Bus service,
-    # so it only works on a host that has one; GDK_DPI_SCALE is read straight
-    # out of the environment and works anywhere. Exactly one per host — setting
-    # both multiplies them, which is the double-scaling the laptopScale comment
-    # below also guards against.
-    #
-    # A flag, not a `hostname ==` at each use site: the hosts this picks out are
-    # not "setsuna" in any meaningful sense, they are the hosts with a dconf
-    # service, and the two use sites (GDK_DPI_SCALE, dconf.settings) have to
-    # stay each other's exact complement. Deriving it once here is what makes
-    # that checkable. It is emphatically NOT the gate on dconf.enable — see the
-    # dconf block for what keying those together cost.
-    viaDconf = hostname == "setsuna";
   in {
-    inherit scale enabled viaDconf;
+    inherit scale enabled;
     qtFontDpi = builtins.floor (96.0 * scale);
     cursorSize = if enabled then 48 else 24;
     waybarFontSize = if enabled then 20 else 17;
@@ -182,11 +167,11 @@ let
   edgeGap = if hostname == "fujiwara" then 20 else 0;
   # Compositor scale for the internal panel, consumed by hyprland.nix's eDP-1
   # rule. Per-host because the panels differ: shiori's is 2880x1920 in 280x190mm
-  # (~260dpi), which wants 2x; utsuho's and setsuna's are the ones described in
-  # the kanshi output blocks below. 1 means "no eDP-1 rule at all" — the panel
+  # (~260dpi), which wants 2x; utsuho's is the one described in the kanshi
+  # output blocks below. 1 means "no eDP-1 rule at all" — the panel
   # falls through to Hyprland's catch-all monitor rule, as it always has.
   # This multiplies with hidpi.scale, so keep at most one of the two off 1 per
-  # host: setsuna/fujiwara scale apps, shiori scales the compositor.
+  # host: fujiwara scales apps, shiori scales the compositor.
   laptopScale = if hostname == "shiori" then 2 else 1;
   # Xft.dpi for ~/.Xresources, derived from whichever axis is active on the
   # host. Same product property as the laptopScale coordinate above: hidpi and
@@ -222,7 +207,7 @@ let
   # mesa covers Intel *and* AMD: nixgl's mesa wrapper is named nixGLIntel, but it
   # is "nixGL + mesa" and radeonsi ships in mesa's own lib/dri, so utsuho
   # (gpu = "amd") is correctly served by it. `null` is the unstated case -- shiori
-  # and setsuna declare no gpu and are Intel.
+  # declares no gpu and is Intel.
   #
   # Anything needing a proprietary driver is a different wrapper, and handing it
   # mesa reproduces hyprpolkitagent's EGL abort: GL initialises against the wrong
@@ -1116,7 +1101,7 @@ let
 
     # mari (darwin) has no Linux CI job; nix-home.yml builds only these.
     case "$host" in
-      utsuho|setsuna|fujiwara|shiori|chiyari) ;;
+      utsuho|fujiwara|shiori|chiyari) ;;
       *) echo "hms: $host has no CI job — switching locally" >&2; switch_now ;;
     esac
 
@@ -1456,7 +1441,7 @@ let
     # flake which configurations exist costs a full evaluation, which is the
     # thing this script exists to avoid paying for. Out of step with
     # flake.nix => a host silently never gets checked, so keep them together.
-    all_hosts="utsuho setsuna fujiwara shiori chiyari kyuusaku mari"
+    all_hosts="utsuho fujiwara shiori chiyari kyuusaku mari"
 
     mode=eval
     ci=0
@@ -1700,7 +1685,7 @@ attr=$attr
   # Entries must be single-line plain text with no double quotes; Claude Code
   # validates the block and rejects the whole of autoMode if one is malformed.
   claudeAutoModeEnvShared = [
-    "This user environment is managed declaratively by Nix home-manager from the dotfiles repo at ${config.home.homeDirectory}/devel/dotfiles, which builds six hosts: utsuho, kyuusaku, setsuna, shiori, fujiwara and mari. Everything under /nix/store is read-only on purpose."
+    "This user environment is managed declaratively by Nix home-manager from the dotfiles repo at ${config.home.homeDirectory}/devel/dotfiles, which builds six hosts: utsuho, kyuusaku, shiori, fujiwara, chiyari and mari. Everything under /nix/store is read-only on purpose."
     "A tool that cannot write ~/.claude/settings.json is hitting that read-only store symlink, not a permissions or disk fault. The fix is an edit to home.nix in the dotfiles repo followed by hms, never a chmod."
     "Config is applied with the hms wrapper, which pushes, waits for the commit to build in CI on forge.ko.ag, then switches. Its refusals on a dirty tree or on a checkout behind origin/master are intended; a bare home-manager switch is the wrong way around them."
     "The dotfiles repo is public and single-maintainer, worked directly on master. Committing and pushing there is routine and needs no PR or review gate."
@@ -2344,9 +2329,15 @@ in
     // (lib.optionalAttrs hidpi.enabled {
       QT_FONT_DPI = toString hidpi.qtFontDpi;
     })
-    # The non-dconf half of hidpi.viaDconf: a scaled host without a dconf D-Bus
-    # service cannot use text-scaling-factor, so it gets GDK_DPI_SCALE instead.
-    // (lib.optionalAttrs (hidpi.enabled && !hidpi.viaDconf) {
+    # How a scaled host carries `scale` to GTK, and since setsuna became a
+    # cluster node the only way any host does. The alternative was dconf's
+    # org/gnome/desktop/interface text-scaling-factor: that one is read at
+    # runtime from a live dconf D-Bus service, so it works only on a host that
+    # has one, while GDK_DPI_SCALE is read straight out of the environment and
+    # works anywhere. Should a host ever want the dconf route back, set exactly
+    # one of the two -- they multiply, which is the same double-scaling the
+    # laptopScale comment above guards against.
+    // (lib.optionalAttrs hidpi.enabled {
       GDK_DPI_SCALE = toString hidpi.scale;
     })
     # Steam's desktop UI is CEF, and X11. force_zero_scaling hands it the panel's
@@ -3640,24 +3631,6 @@ in
           };
         }
         {
-          output = {
-            criteria = "BOE 0x095F Unknown";
-            mode = "2256x1504";
-            position = "0,0";
-            scale = 1.0;
-            transform = "normal";
-            alias = "SETSUNA";
-          };
-        }
-        {
-          profile = {
-            name = "setsuna";
-            outputs = [
-              { criteria = "$SETSUNA"; status = "enable"; scale = 1.0; }
-            ];
-          };
-        }
-        {
           profile = {
             name = "utsuho";
             outputs = [
@@ -3813,16 +3786,19 @@ in
   };
 
   dconf = {
-    # NOT gated on the scaling decision below, which is what 3d6d403 (2026-05-26,
+    # NOT gated on whether this host scales, which is what 3d6d403 (2026-05-26,
     # "gate dconf.enable on the setsuna hostname") made it and what left every
-    # GTK app rendering light on a config that asks for dark. dconf.settings is
-    # not only the text-scaling-factor this file declares: home-manager's own
-    # gtk3 module writes color-scheme, gtk-theme, icon-theme, cursor-theme,
+    # GTK app rendering light on a config that asks for dark. Nothing in this
+    # file writes dconf.settings any more -- the text-scaling-factor that used
+    # to was setsuna's, and setsuna is a cluster node -- but home-manager's own
+    # gtk3 module still writes color-scheme, gtk-theme, icon-theme, cursor-theme,
     # cursor-size and font-name into the same attrset, computed from the gtk.*
     # options set above, on every desktop host.
     # This option gates whether any of it is applied (hm's modules/misc/dconf.nix
     # `config = mkIf (cfg.enable && databases != [])`), so keying it to the one
-    # host that scales via dconf discarded six keys to protect one.
+    # host that scaled via dconf discarded six keys to protect one. That host is
+    # gone and the gate would now be false everywhere, which is a worse version
+    # of the same bug, not a reason to relax about it.
     #
     # The symptom was invisible from the usual place to look: gtk-3.0/settings.ini
     # is written by a different code path and stayed correct, reading
@@ -3834,13 +3810,6 @@ in
     # falls back to `dbus-run-session` when DBUS_SESSION_BUS_ADDRESS is unset, and
     # on a host that never reads the database the keys are inert, not harmful.
     enable = !isDarwin && isDesktop;
-    # The scaling half, and the exact complement of the GDK_DPI_SCALE block
-    # above — a host must carry `scale` by one mechanism or the other, never both.
-    settings = lib.optionalAttrs (hidpi.enabled && hidpi.viaDconf) {
-      "org/gnome/desktop/interface" = {
-        text-scaling-factor = hidpi.scale;
-      };
-    };
   };
 
   fonts.fontconfig.enable = true;

@@ -1,6 +1,6 @@
 # Host (pacman) packages that must be PRESENT for this config to work.
 # system/deploy converges pacman onto this file on every run, on the hosts its
-# own allow-list names, so a line added here reaches setsuna/utsuho/shiori on
+# own allow-list names, so a line added here reaches utsuho/shiori/fujiwara on
 # their next `mise run system:deploy` -- which is the point. pacstrap's list only
 # ever reached the *next* new box, which is how fprintd stayed uninstalled for
 # months after being wired up in hyprlock and pam.d.

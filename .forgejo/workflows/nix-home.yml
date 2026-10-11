@@ -164,7 +164,6 @@ jobs:
           for attempt in 1 2 3; do
             if nix build --fallback --no-link --print-out-paths \
                  .#homeConfigurations.utsuho.activationPackage \
-                 .#homeConfigurations.setsuna.activationPackage \
                  .#homeConfigurations.fujiwara.activationPackage \
                  .#homeConfigurations.shiori.activationPackage \
                  .#homeConfigurations.chiyari.activationPackage \

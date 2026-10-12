@@ -3190,15 +3190,20 @@ in
     cryptomator-cli
     # The vault holding the dotfiles paper recovery identity lives in the
     # personal Drive, and cryptomator-cli's `unlock` mounts a LOCAL directory
-    # only, so the vault has to be reachable as a filesystem before it can be
-    # unlocked. Nothing installed here does that: rclone did, and was removed
-    # along with the Drive refresh token it kept in ~/.config/rclone/rclone.conf
-    # (the credential class report A6.3 warns about).
+    # only. gdrive does not mount anything, so the vault is worked on as a copy:
+    # `gdrive files download --recursive` the vault folder, unlock the copy,
+    # write through the mount, lock, then `gdrive files upload` only the new
+    # encrypted files into the Drive folder they belong to.
+    #
+    # `gdrive account add` leaves a Drive refresh token under ~/.config/gdrive3.
+    # That is the credential class report A6.3 warns about, and the reason
+    # rclone was removed. `gdrive account remove` when the vault work is done.
     #
     # NEVER write the paper key into the vault's Drive folder directly: the vault
     # is a tree of encrypted blobs, and a file dropped in unencrypted is an
-    # unrevocable master backdoor sitting in cleartext in cloud storage. Unlock,
-    # then write through the mount.
+    # unrevocable master backdoor sitting in cleartext in cloud storage. Only
+    # files cryptomator wrote go back up.
+    pkgs.gdrive3
   ] ++ lib.optionals (!isDesktop) [
     pkgs.ghostty.terminfo
   ] ++ lib.optionals (!isDarwin) [

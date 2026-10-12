@@ -2574,23 +2574,23 @@ in
   # ── drovr ───────────────────────────────────────────────────────────────────
   # Review panel runs on opencode, at the model pinned in opencode.nix.
   # serve_host: the review server has NO auth, so whatever can reach it reads
-  # every run and can answer its asks. Bind it where something else already does
-  # the authentication -- the tailnet -- so nothing here has to.
+  # every run and can answer its asks. Network location is the only thing
+  # standing in for authentication, which is why the bind address is a decision
+  # and not a detail.
   #
-  # A LAN bind was tried and reverted, and the reason is worth keeping.
-  # `serve_host` is a single string, so "tailnet and LAN at once" means 0.0.0.0,
-  # and on a Kubernetes node that also publishes the server to every pod on the
-  # box. The nftables allowlist written to hold that back did work -- and was
-  # still the wrong answer, because it made network location stand in for
-  # authentication. It also had to enumerate the OTHER cluster nodes by IP:
-  # cilium masquerades pod traffic to the node address, so a pod on meiko arrived
-  # as that node's own address, inside any sane "my LAN" range. That list would have had to
-  # stay complete forever, and adding a node would have reopened the hole in
-  # silence. Deleted, along with the reason to need it.
+  # fujiwara is on the LAN address as of 2026-10-12, by explicit instruction, to
+  # keep the tailnet IP out of the URL. What that accepts, stated once so it is
+  # not rediscovered: the panel answers unauthenticated to all of 10.0.7.0/16,
+  # and to every pod in the cluster, which routes to the node address. A
+  # source-IP allowlist cannot narrow that -- cilium masquerades pod traffic to
+  # the node address, so a pod on meiko arrives as that node's own address,
+  # inside any sane "my LAN" range. An earlier nftables allowlist did work and
+  # was still deleted (`0cce01d`) for exactly this reason.
   #
-  # If a device that cannot run Tailscale ever needs this, the answer is drovr's
-  # `serve_public_host` behind a proxy that actually authenticates -- not a wider
-  # bind and another allowlist.
+  # The bind that needs no trust in the network is `serve_host = "127.0.0.1"`
+  # reached over `ssh -L 8791:localhost:8791`. For a device that can run neither
+  # that nor Tailscale, the answer is drovr's `serve_public_host` behind a proxy
+  # that authenticates -- never a wider bind and another allowlist.
   # worktree: every run gets .drovr/wt/<run> on its own branch, so a run in
   # flight leaves the invoking checkout free. The default was off, and the cost
   # showed up as an agent editing main while the tree moved under it: reads went
@@ -2616,11 +2616,11 @@ in
       review_agent = "pi"
       worktree = true
     '' + lib.optionalString (hostname == "fujiwara") ''
-      # The TAILNET address, not 0.0.0.0. `0cce01d` deleted the nftables allowlist
-      # that made an all-interfaces bind survivable, so the two changes have to
-      # move together: binding every interface with the allowlist gone would put
-      # an unauthenticated server on the LAN.
-      serve_host = "100.94.172.21"
+      # The LAN address, not the tailnet one and not 0.0.0.0. This server has no
+      # auth, so it is reachable unauthenticated from the whole LAN and from
+      # every pod on this node's address; see the block above home.nix emits
+      # this from. `serve_host = "100.94.172.21"` restores the tailnet-only bind.
+      serve_host = "10.0.7.100"
     '' + lib.optionalString (hostname == "utsuho") ''
       serve_host = "100.71.58.39"
     '' + ''

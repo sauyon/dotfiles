@@ -3188,25 +3188,17 @@ in
     pkgs.cursor-agent-cli
     pkgs.cloudflare-warp
     cryptomator-cli
-    # Beside cryptomator-cli because the two are only useful together here: the
-    # vault holding the dotfiles paper recovery identity lives in the personal
-    # Drive, and cryptomator-cli's `unlock` mounts a LOCAL directory only. So the
-    # vault has to be reachable as a filesystem before it can be unlocked, which
-    # is what rclone provides.
-    #
-    # Deliberate and on record: `rclone config` leaves a Drive refresh token in
-    # ~/.config/rclone/rclone.conf. That is the credential class report A6.3 warns
-    # about -- the same kind Shai-Hulud wave 1 harvested from ~/.config/gcloud --
-    # and shiori is otherwise deliberately bare. Accepted by the human after the
-    # trade was stated. Revoke the token at
-    # https://myaccount.google.com/permissions when the vault work is done, or
-    # keep it scoped to the one Drive path it needs.
+    # The vault holding the dotfiles paper recovery identity lives in the
+    # personal Drive, and cryptomator-cli's `unlock` mounts a LOCAL directory
+    # only, so the vault has to be reachable as a filesystem before it can be
+    # unlocked. Nothing installed here does that: rclone did, and was removed
+    # along with the Drive refresh token it kept in ~/.config/rclone/rclone.conf
+    # (the credential class report A6.3 warns about).
     #
     # NEVER write the paper key into the vault's Drive folder directly: the vault
     # is a tree of encrypted blobs, and a file dropped in unencrypted is an
-    # unrevocable master backdoor sitting in cleartext in cloud storage. Mount,
-    # unlock, then write through the mount.
-    pkgs.rclone
+    # unrevocable master backdoor sitting in cleartext in cloud storage. Unlock,
+    # then write through the mount.
   ] ++ lib.optionals (!isDesktop) [
     pkgs.ghostty.terminfo
   ] ++ lib.optionals (!isDarwin) [

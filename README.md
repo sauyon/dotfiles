@@ -311,6 +311,21 @@ with no agent at all, and `RestartSec` brings the unit back looking healthy. A
 green eval says the unit is shaped right, not that a prompt can be drawn; the
 check that answers that is `coredumpctl list hyprpolkitagent` after trying one.
 
+## Phone debugging: `nix develop .#phone`
+
+A dev shell with `adb`, `fastboot`, `scrcpy`, `tshark` and `jq`, for debugging an
+Android phone over USB. Not in `home.packages`: `adb` leaves a server running
+behind it. Turn on USB debugging on the phone first.
+
+```bash
+nix develop .#phone
+adb devices -l                    # is the phone seen, and authorised
+adb logcat -b all -v threadtime   # live log, every buffer
+adb bugreport ./bugreport         # full state, incl. the Bluetooth HCI snoop log
+```
+
+What each tool is there for: `nix/phone-shell.nix`.
+
 ## System config
 
 Files under `system/` mirror `/` and require root to deploy:

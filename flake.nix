@@ -303,5 +303,12 @@
     packages.aarch64-darwin.fj = import ./nix/forgejo-cli.nix {
       pkgs = nixpkgs.legacyPackages.aarch64-darwin;
     };
+    # `nix develop .#phone`: adb and friends for debugging an Android phone
+    # over USB (see ./nix/phone-shell.nix for what is in it and why it is a
+    # shell and not part of home.packages). Linux only: the phone gets plugged
+    # into the Linux boxes, not mari.
+    devShells.x86_64-linux.phone = import ./nix/phone-shell.nix {
+      pkgs = nixpkgs.legacyPackages.x86_64-linux;
+    };
   };
 }

@@ -2642,7 +2642,8 @@ in
       # this from. `serve_host = "100.94.172.21"` restores the tailnet-only bind.
       serve_host = "10.0.7.100"
     '' + lib.optionalString (hostname == "utsuho") ''
-      serve_host = "100.71.58.39"
+      # wg0, not the tailnet: still one interface whose peers authenticate by key.
+      serve_host = "10.9.0.6"
     '' + ''
       # Reviews run on gemma, pinned explicitly rather than left to pi's own
       # default so this file says which model reviewed. LAST in the file because

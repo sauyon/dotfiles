@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "1dee91d234a0",
+  "strategy": "manual-commit",
+  "branch": "phone-shell",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "flake.nix"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1d/ee91d234a0/0/metadata.json",
+      "transcript": "/1d/ee91d234a0/0/full.jsonl",
+      "compact_transcript": "/1d/ee91d234a0/0/transcript.jsonl",
+      "content_hash": "/1d/ee91d234a0/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 62,
+    "cache_creation_tokens": 80355,
+    "cache_read_tokens": 4420561,
+    "output_tokens": 24582,
+    "api_call_count": 31
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "3fe68741877b",
+  "strategy": "manual-commit",
+  "branch": "zsh-compinit",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md",
+    "tests/zsh-compinit-once.sh",
+    "zsh.nix"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3f/e68741877b/0/metadata.json",
+      "transcript": "/3f/e68741877b/0/full.jsonl",
+      "compact_transcript": "/3f/e68741877b/0/transcript.jsonl",
+      "content_hash": "/3f/e68741877b/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 31,
+    "cache_creation_tokens": 59175,
+    "cache_read_tokens": 1047842,
+    "output_tokens": 16304,
+    "api_call_count": 16
+  }
+}

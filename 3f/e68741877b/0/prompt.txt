@@ -1,0 +1,1 @@
+debug zsh being reeeally slow

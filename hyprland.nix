@@ -153,7 +153,8 @@ in
         # Pinned, not "preferred": the EDID preferred mode is 60Hz.
         mode = "3840x2160@120";
         position = "auto-left";
-        scale = 1;
+        # ~140dpi at 32": 2x gives a 1920x1080 logical desktop.
+        scale = 2;
       }
     ]
     # The internal panel, only on hosts whose own panel wants scaling. This file

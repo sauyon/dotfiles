@@ -1725,6 +1725,13 @@ attr=$attr
             #
             # `.claude/allow-main-edit` at a repo root opts that repo out
             # permanently. Only for trees small enough to read in one pass.
+            #
+            # A merge in progress passes too. "Work in a worktree, then merge"
+            # lands the merge here, and a conflict can only be resolved by
+            # editing the files where they are; refusing that made the
+            # override the only way to finish the workflow this hook
+            # prescribes. MERGE_HEAD is git's own record of the state, and it
+            # is gone the moment the merge is committed or aborted.
             command = ''
               [ -n "$CLAUDE_ALLOW_MAIN_EDIT" ] && exit 0
               f=$(${pkgs.jq}/bin/jq -r '.tool_input.file_path // empty')
@@ -1735,6 +1742,7 @@ attr=$attr
               root=$(${pkgs.git}/bin/git -C "$d" rev-parse --show-toplevel 2>/dev/null) || exit 0
               [ -d "$root/.git" ] || exit 0
               [ -e "$root/.claude/allow-main-edit" ] && exit 0
+              [ -e "$root/.git/MERGE_HEAD" ] && exit 0
               br=$(${pkgs.git}/bin/git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)
               case "$br" in main|master) ;; *) exit 0 ;; esac
               printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"This is the primary checkout on its default branch. Work in a worktree instead: `drovr new <run> --worktree` then EnterWorktree, or EnterWorktree on an existing one. For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set."}}'

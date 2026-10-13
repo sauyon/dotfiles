@@ -108,6 +108,7 @@ where it gates the build instead of being checked after the fact.
 ./tests/system-secrets.sh        # sources system/secrets.sh, drives 20 cases
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live zsh config
+./tests/zsh-compinit-once.sh     # drives 4 cases against the live zsh config
 ./tests/hms-ci-poll.sh           # drives 7 cases against the built hms
 ./tests/hmeval.sh                # drives 27 cases against the built hmeval
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua

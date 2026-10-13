@@ -41,6 +41,21 @@
     fi
 
     if command -v mise >/dev/null 2>&1; then
+      # mise's hook-env registers per-tool completions, and runs a full
+      # `compinit -i` first whenever compdef is missing -- which here, before
+      # .zshrc, is always. That is a compinit in every zsh, scripts included,
+      # and it shares the default dump with the `compinit -u` in initContent
+      # while seeing a smaller fpath, so each rewrote the dump the other had
+      # just written and neither was ever served from cache. Give mise a
+      # compdef to find instead: a queue, replayed after the real compinit, in
+      # an interactive shell, and nothing at all in one that cannot complete.
+      # tests/zsh-compinit-once.sh pins both halves.
+      if [[ -o interactive ]]; then
+        typeset -ga __deferred_compdefs
+        compdef() { __deferred_compdefs+=("''${(j: :)''${(q)@}}") }
+      else
+        compdef() { : }
+      fi
       eval "$(mise activate zsh)"
     fi
 
@@ -128,6 +143,10 @@
     fpath=("$HOME/.local/share/zsh/site-functions" $fpath)
     fpath+="$HOME/.config/zsh/.zfunc"
     compinit -u
+    # The compdef calls mise made from .zshenv, queued there by the stub; a
+    # compinit resets the table, so they go in after the last one.
+    for __compdef in $__deferred_compdefs; do eval "compdef $__compdef"; done
+    unset __deferred_compdefs __compdef
 
     # Enable Powerlevel10k instant prompt.
     if [[ -r "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh" ]]; then

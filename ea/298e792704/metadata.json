@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "ea298e792704",
+  "strategy": "manual-commit",
+  "branch": "main-edit-merge",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/ea/298e792704/0/metadata.json",
+      "transcript": "/ea/298e792704/0/full.jsonl",
+      "compact_transcript": "/ea/298e792704/0/transcript.jsonl",
+      "content_hash": "/ea/298e792704/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 19,
+    "cache_creation_tokens": 49752,
+    "cache_read_tokens": 444278,
+    "output_tokens": 7999,
+    "api_call_count": 8
+  }
+}

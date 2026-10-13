@@ -69,14 +69,27 @@ check() { # check <what> <expected> <actual>
   fi
 }
 
-# A primary checkout on master, with a branch that conflicts with it.
-R="$T/repo"
-git init -q -b master "$R"
-echo base > "$R/f"; git -C "$R" add f; git -C "$R" commit -q -m base
-git -C "$R" checkout -q -b topic
-echo topic > "$R/f"; git -C "$R" commit -q -am topic
-git -C "$R" checkout -q master
-echo master > "$R/f"; git -C "$R" commit -q -am master
+# A primary checkout on master, with `topic` conflicting with it on f and
+# `clean` adding a file of its own. Each scenario below gets a fresh one, so
+# none inherits the state the last one left -- a second merge of an
+# already-merged branch is "Already up to date" and sets nothing up at all.
+mkrepo() { # mkrepo <name>; sets R
+  R="$T/$1"
+  git init -q -b master "$R"
+  echo base > "$R/f"; git -C "$R" add f; git -C "$R" commit -q -m base
+  git -C "$R" checkout -q -b topic
+  echo topic > "$R/f"; git -C "$R" commit -q -am topic
+  git -C "$R" checkout -q -b clean master
+  echo clean > "$R/k"; git -C "$R" add k; git -C "$R" commit -q -m clean
+  git -C "$R" checkout -q master
+  echo master > "$R/f"; git -C "$R" commit -q -am master
+}
+
+conflicted() { # conflicted <what>: the fixture must really have left a conflict
+  [ -n "$(git -C "$R" ls-files -u)" ] || { echo "fixture: $1 did not conflict" >&2; exit 1; }
+}
+
+mkrepo guard
 
 # --- the guard itself --------------------------------------------------------
 check "primary checkout on master: edit refused" deny "$(verdict "$R/f")"
@@ -88,17 +101,66 @@ git -C "$R" worktree add -q "$T/wt" topic
 check "linked worktree: edit allowed" allow "$(verdict "$T/wt/f")"
 
 # --- merges ------------------------------------------------------------------
-git -C "$R" merge -q topic >/dev/null 2>&1
-[ -n "$(git -C "$R" ls-files -u)" ] || { echo "fixture: the merge did not conflict" >&2; exit 1; }
+mkrepo merge
+git -C "$R" merge -q topic >/dev/null 2>&1; conflicted "the merge"
 check "merge in progress: the conflicted file can be edited" allow "$(verdict "$R/f")"
 check "merge in progress: so can a file the merge did not touch" allow "$(verdict "$R/other")"
 
 echo resolved > "$R/f"; git -C "$R" commit -q -am merged
 check "merge concluded: edit refused again" deny "$(verdict "$R/f")"
 
-git -C "$R" merge -q --no-commit --no-ff topic >/dev/null 2>&1 || true
-git -C "$R" merge --abort 2>/dev/null
+mkrepo merge-abort
+git -C "$R" merge -q topic >/dev/null 2>&1; conflicted "the merge"
+git -C "$R" merge --abort
 check "merge aborted: edit refused again" deny "$(verdict "$R/f")"
+
+# --- squash merges -----------------------------------------------------------
+# `git merge --squash` writes no MERGE_HEAD -- which is also why `merge --abort`
+# refuses one. Its marker is SQUASH_MSG, there from the squash until its commit
+# whether or not anything conflicted.
+mkrepo squash
+git -C "$R" merge -q --squash topic >/dev/null 2>&1; conflicted "the squash"
+check "squash with conflicts: the conflicted file can be edited" allow "$(verdict "$R/f")"
+
+echo resolved > "$R/f"; git -C "$R" add f
+check "squash resolved and staged, not committed: still editable" allow "$(verdict "$R/f")"
+
+git -C "$R" commit -q -m squashed
+check "squash committed: edit refused again" deny "$(verdict "$R/f")"
+
+mkrepo squash-clean
+git -C "$R" merge -q --squash clean >/dev/null 2>&1
+check "clean squash, not committed: editable for a touch-up" allow "$(verdict "$R/k")"
+
+mkrepo squash-reset
+git -C "$R" merge -q --squash topic >/dev/null 2>&1; conflicted "the squash"
+git -C "$R" reset -q --merge
+check "squash abandoned with reset --merge: edit refused again" deny "$(verdict "$R/f")"
+
+# The one way to leave the marker behind: `git restore` puts the tree back but
+# is not a reset, so SQUASH_MSG survives on a clean checkout and the guard stays
+# open until the next commit clears it. Pinned here so that it is a known edge
+# and not a surprise; abandon a squash with `git reset --merge`.
+mkrepo squash-restore
+git -C "$R" merge -q --squash clean >/dev/null 2>&1
+git -C "$R" restore --staged --worktree .
+check "squash abandoned with restore: guard stays open (known edge)" allow "$(verdict "$R/f")"
+echo more >> "$R/f"; git -C "$R" commit -q -am next
+check "...until the next commit" deny "$(verdict "$R/f")"
+
+# --- cherry-pick and revert --------------------------------------------------
+mkrepo cherry-pick
+git -C "$R" cherry-pick topic >/dev/null 2>&1; conflicted "the cherry-pick"
+check "cherry-pick in progress: the conflicted file can be edited" allow "$(verdict "$R/f")"
+git -C "$R" cherry-pick --abort
+check "cherry-pick aborted: edit refused again" deny "$(verdict "$R/f")"
+
+mkrepo revert
+echo again > "$R/f"; git -C "$R" commit -q -am again
+git -C "$R" revert --no-edit HEAD~1 >/dev/null 2>&1; conflicted "the revert"
+check "revert in progress: the conflicted file can be edited" allow "$(verdict "$R/f")"
+git -C "$R" revert --abort
+check "revert aborted: edit refused again" deny "$(verdict "$R/f")"
 
 echo
 echo "$n cases, $fails failed"

@@ -1732,6 +1732,16 @@ attr=$attr
             # override the only way to finish the workflow this hook
             # prescribes. MERGE_HEAD is git's own record of the state, and it
             # is gone the moment the merge is committed or aborted.
+            #
+            # The same goes for the other ways a branch lands here. A squash
+            # writes no MERGE_HEAD; its marker is SQUASH_MSG, present from the
+            # squash to its commit whether or not anything conflicted, and
+            # cleared by any reset. `git restore` is not a reset, so abandoning
+            # a squash that way leaves the marker -- and this guard open --
+            # until the next commit; use `git reset --merge`. A cherry-pick and
+            # a revert leave CHERRY_PICK_HEAD and REVERT_HEAD. A rebase needs
+            # nothing: HEAD is detached for its duration, so the branch test
+            # below already passes it.
             command = ''
               [ -n "$CLAUDE_ALLOW_MAIN_EDIT" ] && exit 0
               f=$(${pkgs.jq}/bin/jq -r '.tool_input.file_path // empty')
@@ -1742,7 +1752,9 @@ attr=$attr
               root=$(${pkgs.git}/bin/git -C "$d" rev-parse --show-toplevel 2>/dev/null) || exit 0
               [ -d "$root/.git" ] || exit 0
               [ -e "$root/.claude/allow-main-edit" ] && exit 0
-              [ -e "$root/.git/MERGE_HEAD" ] && exit 0
+              for m in MERGE_HEAD SQUASH_MSG CHERRY_PICK_HEAD REVERT_HEAD; do
+                [ -e "$root/.git/$m" ] && exit 0
+              done
               br=$(${pkgs.git}/bin/git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)
               case "$br" in main|master) ;; *) exit 0 ;; esac
               printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"This is the primary checkout on its default branch. Work in a worktree instead: `drovr new <run> --worktree` then EnterWorktree, or EnterWorktree on an existing one. For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set."}}'

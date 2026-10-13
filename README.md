@@ -118,7 +118,7 @@ where it gates the build instead of being checked after the fact.
 ./tests/hyprlock-pending-race.sh # reads the pinned hyprlock source, 5 cases
 ./tests/hyprland-graceful-exit.sh # drives the built script under a stub hyprctl
 ./tests/bootstrap-ssh-finalize.sh # drives install/finalize-ssh.sh, stubbed systemctl
-./tests/claude-main-edit-guard.sh # drives the evaluated PreToolUse hook, 8 cases on throwaway repos
+./tests/claude-main-edit-guard.sh # drives the evaluated PreToolUse hook, 19 cases on throwaway repos
 
 # The WIF kit. These guard the trust root, so most are offline and static on
 # purpose: `wif-tpm.sh` is the only one that talks to Google, and it does a real

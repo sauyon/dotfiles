@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "6577030cb181",
+  "strategy": "manual-commit",
+  "branch": "kon-dns",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "system/kon-wireguard/Kon-shiori.nmconnection",
+    "tests/kon-wireguard-profile.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/65/77030cb181/0/metadata.json",
+      "transcript": "/65/77030cb181/0/full.jsonl",
+      "compact_transcript": "/65/77030cb181/0/transcript.jsonl",
+      "content_hash": "/65/77030cb181/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 97,
+    "cache_creation_tokens": 214344,
+    "cache_read_tokens": 6467088,
+    "output_tokens": 47273,
+    "api_call_count": 48
+  }
+}

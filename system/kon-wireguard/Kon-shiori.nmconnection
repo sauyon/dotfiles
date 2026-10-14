@@ -44,10 +44,13 @@ persistent-keepalive=25
 [ipv4]
 method=manual
 address1=10.9.0.2/32
-# The overlay's resolver stays, even with the search domain set: fujiwara.ko.ag
-# and friends have no public A record (measured -- the public ko.ag zone carries
-# kanon and forge, not the fleet), so the suffix needs an authority that does.
-dns=10.9.0.1;
+# No dns= here, on either family. NetworkManager writes a profile's resolvers
+# into /etc/resolv.conf ahead of the wifi's, and glibc tries them in order, so
+# whenever the tunnel is not carrying traffic every uncached lookup on the host
+# waits 6s per tunnel resolver before falling through -- 8-17s measured, enough
+# to stall every new shell behind gcloud's metadata probe. It was kept for the
+# fleet names, but those resolve publicly now (fujiwara.ko.ag and kanon.ko.ag
+# from 1.1.1.1, measured 2026-10-13), so the search domain alone is enough.
 dns-search=ko.ag;
 never-default=true
 route1=10.9.0.0/24
@@ -57,7 +60,6 @@ route3=10.0.10.0/24
 [ipv6]
 method=manual
 address1=fd38:b020:137a:f48f::4/128
-dns=fd38:b020:137a:f48f::1;
 dns-search=ko.ag;
 never-default=true
 route1=fd38:b020:137a:f48f::/64

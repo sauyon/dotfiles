@@ -119,6 +119,18 @@ else
   report "template sets persistent-keepalive" no "no persistent-keepalive=25; NAT mapping will age out"
 fi
 
+# No resolver over the tunnel. NetworkManager writes a profile's dns= into
+# /etc/resolv.conf ahead of the wifi's, and glibc tries them in order, so while
+# the tunnel carries nothing every uncached lookup on the host waits out a 6s
+# timeout per tunnel server before reaching one that answers -- measured at
+# 8-17s for gcloud's metadata.google.internal probe, which stalled every new
+# shell's first prompt. The fleet names it was kept for resolve publicly.
+if [ -f "$TEMPLATE" ] && grep -qE '^dns=' "$TEMPLATE"; then
+  report "template puts no tunnel resolver in resolv.conf" no "$(grep -E '^dns=' "$TEMPLATE" | tr '\n' ' ')"
+else
+  report "template puts no tunnel resolver in resolv.conf" ok
+fi
+
 if [ -f "$TEMPLATE" ] && grep -q '^dns-search=ko.ag' "$TEMPLATE"; then
   report "template sets the ko.ag search domain" ok
 else

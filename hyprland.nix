@@ -153,8 +153,10 @@ in
         # Pinned, not "preferred": the EDID preferred mode is 60Hz.
         mode = "3840x2160@120";
         position = "auto-left";
-        # ~140dpi at 32": 2x gives a 1920x1080 logical desktop.
-        scale = 2;
+        # ~140dpi at 32": 1.5x gives a 2560x1440 logical desktop. Not 2x,
+        # which is too big, and which makes the pointer ~2.7x faster here than
+        # on utsuho's panel -- Hyprland moves the cursor in logical pixels.
+        scale = 1.5;
       }
     ]
     # The internal panel, only on hosts whose own panel wants scaling. This file

@@ -167,12 +167,13 @@ let
   edgeGap = if hostname == "fujiwara" then 20 else 0;
   # Compositor scale for the internal panel, consumed by hyprland.nix's eDP-1
   # rule. Per-host because the panels differ: shiori's is 2880x1920 in 280x190mm
-  # (~260dpi), which wants 2x; utsuho's is the one described in the kanshi
-  # output blocks below. 1 means "no eDP-1 rule at all" — the panel
-  # falls through to Hyprland's catch-all monitor rule, as it always has.
+  # (~260dpi), which wants 2x; utsuho's is the 2560x1600 16" in the kanshi
+  # output blocks below (~190dpi), at 1.6 -- not 1.5, which Hyprland rejects
+  # because 2560/1.5 isn't a whole number of pixels. 1 means "no eDP-1 rule at
+  # all" — the panel falls through to Hyprland's catch-all monitor rule.
   # This multiplies with hidpi.scale, so keep at most one of the two off 1 per
-  # host: fujiwara scales apps, shiori scales the compositor.
-  laptopScale = if hostname == "shiori" then 2 else 1;
+  # host: fujiwara scales apps, shiori and utsuho scale the compositor.
+  laptopScale = if hostname == "shiori" then 2 else if hostname == "utsuho" then 1.6 else 1;
   # Xft.dpi for ~/.Xresources, derived from whichever axis is active on the
   # host. Same product property as the laptopScale coordinate above: hidpi and
   # laptopScale never both move off 1 on the same host, so the active scale is
@@ -3673,7 +3674,7 @@ in
           profile = {
             name = "utsuho";
             outputs = [
-              { criteria = "$UTSUHO"; status = "enable"; scale = 1.0; }
+              { criteria = "$UTSUHO"; status = "enable"; scale = 1.6; }
             ];
           };
         }
@@ -3690,8 +3691,8 @@ in
           profile = {
             name = "Modular";
             outputs = [
-              { criteria = "Dell Inc. DELL P3424WEB F2VTM04"; mode = "3440x1440"; position = "-528,-1440"; transform = "normal"; scale = 1.0; }
-              { criteria = "$UTSUHO"; status = "enable"; scale = 1.0; }
+              { criteria = "Dell Inc. DELL P3424WEB F2VTM04"; mode = "3440x1440"; position = "-1008,-1440"; transform = "normal"; scale = 1.0; }
+              { criteria = "$UTSUHO"; status = "enable"; scale = 1.6; }
             ];
           };
         }

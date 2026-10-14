@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "052f0e14813c",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "home.nix",
+    "hyprland.nix"
+  ],
+  "sessions": [
+    {
+      "metadata": "/05/2f0e14813c/0/metadata.json",
+      "transcript": "/05/2f0e14813c/0/full.jsonl",
+      "compact_transcript": "/05/2f0e14813c/0/transcript.jsonl",
+      "content_hash": "/05/2f0e14813c/0/content_hash.txt",
+      "prompt": "/05/2f0e14813c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 58,
+    "cache_creation_tokens": 90300,
+    "cache_read_tokens": 2486306,
+    "output_tokens": 17238,
+    "api_call_count": 29
+  }
+}

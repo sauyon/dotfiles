@@ -1,0 +1,39 @@
+<task-notification>
+<task-id>bldc2of10</task-id>
+<tool-use-id>toolu_01VSxsGTdVEUDk3jHssiKjfx</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/f284c828-c0d1-4267-aa0d-ae300b4ba399/tasks/bldc2of10.output</output-file>
+<status>completed</status>
+<summary>Background command "Deploy via hms (waits for CI)" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+hm. this makes my mouse feel significantly faster on my monitor than laptop
+
+---
+
+shouldn't we just also scale the lapot
+
+---
+
+shouldn't we just also scale the laptop
+
+---
+
+ugh. honestly 2x feels a bit big. how is hidpi not a solved problem yet
+
+---
+
+doesn't everybody say not to use fractional scale? is everybody just wrong or what? how does windows handle this shit
+
+---
+
+oh. nice. let's do it
+
+---
+
+it looks good enough. can I replace it
+
+---
+
+just set 1.5 each

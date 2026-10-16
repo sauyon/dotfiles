@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "ee0f5dd85417",
+  "strategy": "manual-commit",
+  "branch": "claude-voice-alsa",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/ee/0f5dd85417/0/metadata.json",
+      "transcript": "/ee/0f5dd85417/0/full.jsonl",
+      "compact_transcript": "/ee/0f5dd85417/0/transcript.jsonl",
+      "content_hash": "/ee/0f5dd85417/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 66,
+    "cache_creation_tokens": 58790,
+    "cache_read_tokens": 2099518,
+    "output_tokens": 13021,
+    "api_call_count": 33
+  }
+}

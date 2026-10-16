@@ -4222,10 +4222,30 @@ in
       # ~/.claude/settings.json is the only Claude config there is: the
       # ~/.config/claude-<name>/ profile dirs and the claude-prof wrapper that
       # drove them are gone, so every invocation reads these settings.
-      settings = claudeBaseSettings;
+      # `voice` is set here rather than left to `/voice`: that command writes
+      # it into settings.json, which is a read-only store symlink, so it fails
+      # with "Failed to update settings" and voice never turns on.
+      settings = claudeBaseSettings // {
+        voice = { enabled = true; mode = "hold"; };
+      };
       # No version/src override: nixpkgs now leads upstream's native-binary
       # releases, and its installPhase unzstds a `claude.zst` src that the old
       # uncompressed-binary pin could not satisfy.
+      #
+      # Voice capture on Linux goes through nixpkgs' alsa-lib, which reads the
+      # host's /etc/alsa/conf.d (Arch's pipewire-alsa: default pcm/ctl ->
+      # pipewire) but resolves plugins against its own store dir, where
+      # libasound_module_pcm_pipewire.so does not exist. Native capture then
+      # fails and claude falls back to `arecord`/SoX `rec`, neither installed.
+      # Point the plugin dir at nixpkgs' pipewire (same libc as alsa-lib, unlike
+      # the host's /usr/lib/alsa-lib). --set-default leaves an explicit value be.
+      package = if isDarwin then pkgs.claude-code else
+        pkgs.claude-code.overrideAttrs (old: {
+          postFixup = (old.postFixup or "") + ''
+            wrapProgram $out/bin/claude \
+              --set-default ALSA_PLUGIN_DIR ${pkgs.pipewire}/lib/alsa-lib
+          '';
+        });
     };
 
     home-manager.enable = true;

@@ -3284,6 +3284,9 @@ in
     # tests/insecure-packages.sh is what keeps that true across a lock bump.
     pkgs.vesktop
     pkgs.signal-desktop
+    # Parsec remote-desktop client. nixGL-wrapped like cumora: a nixpkgs GL app
+    # on Arch cannot find the host's mesa drivers on its own.
+    (config.lib.nixGL.wrap pkgs.parsec-bin)
     pkgs.beeper
     # Keymap editor for the Svalboard (keyboards/svalboard/). Needs the hidraw
     # udev rule in system/etc/udev/rules.d/92-vial.rules to see the keyboard at

@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "0e3e6de53eae",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".drovr/review/phone-shell-review-1/001-README.md.diff",
+    ".drovr/review/phone-shell-review-1/002-flake.nix.diff",
+    ".drovr/review/phone-shell-review-1/003-nix_phone-shell.nix.diff",
+    ".drovr/review/phone-shell-review-1/index.md",
+    ".drovr/review/phone-shell-review-2/001-README.md.diff",
+    ".drovr/review/phone-shell-review-2/002-flake.nix.diff",
+    ".drovr/review/phone-shell-review-2/003-nix_phone-shell.nix.diff",
+    ".drovr/review/phone-shell-review-2/index.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0e/3e6de53eae/0/metadata.json",
+      "transcript": "/0e/3e6de53eae/0/full.jsonl",
+      "compact_transcript": "/0e/3e6de53eae/0/transcript.jsonl",
+      "content_hash": "/0e/3e6de53eae/0/content_hash.txt",
+      "prompt": "/0e/3e6de53eae/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 58,
+    "cache_creation_tokens": 35452,
+    "cache_read_tokens": 2552873,
+    "output_tokens": 15706,
+    "api_call_count": 26
+  }
+}

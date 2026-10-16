@@ -4226,7 +4226,7 @@ in
       # it into settings.json, which is a read-only store symlink, so it fails
       # with "Failed to update settings" and voice never turns on.
       settings = claudeBaseSettings // {
-        voice = { enabled = true; mode = "hold"; };
+        voice = { enabled = true; mode = "tap"; };
       };
       # No version/src override: nixpkgs now leads upstream's native-binary
       # releases, and its installPhase unzstds a `claude.zst` src that the old

@@ -1,0 +1,5 @@
+why doesn't my ff support webgpu
+
+---
+
+do it

@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "7924bdf79124",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "kimi-code.nix"
+  ],
+  "sessions": [
+    {
+      "metadata": "/79/24bdf79124/0/metadata.json",
+      "transcript": "/79/24bdf79124/0/full.jsonl",
+      "compact_transcript": "/79/24bdf79124/0/transcript.jsonl",
+      "content_hash": "/79/24bdf79124/0/content_hash.txt",
+      "prompt": "/79/24bdf79124/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 42,
+    "cache_creation_tokens": 55532,
+    "cache_read_tokens": 1337711,
+    "output_tokens": 9649,
+    "api_call_count": 21
+  }
+}

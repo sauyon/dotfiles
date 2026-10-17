@@ -1,0 +1,1 @@
+install zed, and configure it to use my mcloud glm 5.3

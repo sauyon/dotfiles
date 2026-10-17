@@ -3,7 +3,7 @@
   "checkpoint_id": "7924bdf79124",
   "strategy": "manual-commit",
   "branch": "master",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "kimi-code.nix"
   ],
@@ -14,6 +14,13 @@
       "compact_transcript": "/79/24bdf79124/0/transcript.jsonl",
       "content_hash": "/79/24bdf79124/0/content_hash.txt",
       "prompt": "/79/24bdf79124/0/prompt.txt"
+    },
+    {
+      "metadata": "/79/24bdf79124/1/metadata.json",
+      "transcript": "/79/24bdf79124/1/full.jsonl",
+      "compact_transcript": "/79/24bdf79124/1/transcript.jsonl",
+      "content_hash": "/79/24bdf79124/1/content_hash.txt",
+      "prompt": "/79/24bdf79124/1/prompt.txt"
     }
   ],
   "token_usage": {

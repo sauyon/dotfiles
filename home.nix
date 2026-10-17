@@ -2077,7 +2077,7 @@ attr=$attr
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ./even-terminal.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./even-terminal.nix ];
 
   home.stateVersion = "26.05";
 
@@ -3287,6 +3287,10 @@ in
     # Parsec remote-desktop client. nixGL-wrapped like cumora: a nixpkgs GL app
     # on Arch cannot find the host's mesa drivers on its own.
     (config.lib.nixGL.wrap pkgs.parsec-bin)
+    # Zed's Delta agent workspace; packaged from the upstream tarball in
+    # delta.nix. nixGL-wrapped for the same reason as parsec/cumora: GPUI
+    # dlopens Vulkan/EGL, and on Arch those resolve nowhere without it.
+    (config.lib.nixGL.wrap pkgs.zed-delta)
     pkgs.beeper
     # Keymap editor for the Svalboard (keyboards/svalboard/). Needs the hidraw
     # udev rule in system/etc/udev/rules.d/92-vial.rules to see the keyboard at

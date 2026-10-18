@@ -1,0 +1,64 @@
+debug zsh being reeeally slow
+
+---
+
+merge
+
+---
+
+I'm seeing ~3s before I get a prompt though.
+
+---
+
+<task-notification>
+<task-id>bh0obel4f</task-id>
+<tool-use-id>toolu_01XTsuj1LsiTrEYSArNukM2X</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/de55e01c-05ae-4f3d-8a6c-27b4d9e37f0a/tasks/bh0obel4f.output</output-file>
+<status>completed</status>
+<summary>Background command "Push the fix, wait for its CI build, and switch to it" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+done
+
+---
+
+it just took nearly 10s though
+
+---
+
+can you try yourself in tmux or herdr or somethign
+
+---
+
+<pasted_content id="ccd9">
+Hello, shiori!
+zsh -i -c exit  0.87s user 0.36s system 111% cpu 1.106 total
+Hello, shiori!
+zsh -i -c exit  0.18s user 0.13s system 148% cpu 0.211 total
+Hello, shiori!
+zsh -i -c exit  0.17s user 0.11s system 151% cpu 0.183 total
+Hello, shiori!
+zsh -i -c exit  0.17s user 0.12s system 158% cpu 0.179 total
+Hello, shiori!
+zsh -i -c exit  0.16s user 0.12s system 154% cpu 0.183 total
+</pasted_content id="ccd9">
+
+---
+
+hello, shiori! is always fast. the prompt is what's slow, maybe?
+
+---
+
+<task-notification>
+<task-id>bqedw94o1</task-id>
+<tool-use-id>toolu_01FZg6E8FLwWBXFFiBxGuXTw</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/de55e01c-05ae-4f3d-8a6c-27b4d9e37f0a/tasks/bqedw94o1.output</output-file>
+<status>completed</status>
+<summary>Background command "Run the 40-spawn soak, one unfocused herdr pane every 15 seconds" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+set it off. B. it shouldn't be in resolv.conf.

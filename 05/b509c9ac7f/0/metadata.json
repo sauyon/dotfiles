@@ -1,0 +1,212 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "05b509c9ac7f",
+  "session_id": "de55e01c-05ae-4f3d-8a6c-27b4d9e37f0a",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-18T12:55:00.098062428Z",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    ".drovr/review/kon-dns-review-1/001-system_kon-wireguard_Kon-shiori.nmconnection.diff",
+    ".drovr/review/kon-dns-review-1/002-tests_kon-wireguard-profile.sh.diff",
+    ".drovr/review/kon-dns-review-1/index.md",
+    ".drovr/review/kon-dns-review-2/001-system_kon-wireguard_Kon-shiori.nmconnection.diff",
+    ".drovr/review/kon-dns-review-2/002-tests_kon-wireguard-profile.sh.diff",
+    ".drovr/review/kon-dns-review-2/index.md"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "8c8206c4cf49",
+  "checkpoint_transcript_start": 472,
+  "transcript_lines_at_start": 472,
+  "compact_transcript_start": 81,
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 5570,
+    "cache_read_tokens": 909998,
+    "output_tokens": 3962,
+    "api_call_count": 5
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01PbQLXzkkndU7MaU9esbRcm",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:systematic-debugging"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "68201177ef24",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 27,
+        "end": 28,
+        "entry_ids": [
+          "52ef0dec-29c5-4333-9d59-aff7af7409f8"
+        ],
+        "tool_use_id": "toolu_01PbQLXzkkndU7MaU9esbRcm"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01PbQLXzkkndU7MaU9esbRcm"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:systematic-debugging",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01Ckcs5FCbHYiZczLaXbiziB",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "68201177ef24",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 130,
+        "end": 131,
+        "entry_ids": [
+          "744f849b-de8d-43b4-a864-7b7dfaa73768"
+        ],
+        "tool_use_id": "toolu_01Ckcs5FCbHYiZczLaXbiziB"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01Ckcs5FCbHYiZczLaXbiziB"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01WD8AZ2aRMYEoAPMJrBCvsq",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "8c8206c4cf49",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 475,
+        "end": 476,
+        "entry_ids": [
+          "0eebb8c3-d8ff-45f3-95d4-3b6ea270ebdf"
+        ],
+        "tool_use_id": "toolu_01WD8AZ2aRMYEoAPMJrBCvsq"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01WD8AZ2aRMYEoAPMJrBCvsq"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-18T12:55:00.024554597Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 326,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 326,
+    "total_lines_changed": 374,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 6008,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".drovr/review/chiyari-host-review-1/001-.forgejo_workflows_nix-home.yml.diff": 12,
+        ".drovr/review/chiyari-host-review-1/002-flake.nix.diff": 21,
+        ".drovr/review/chiyari-host-review-1/003-home.nix.diff": 58,
+        ".drovr/review/chiyari-host-review-1/004-system_deploy.diff": 13,
+        ".drovr/review/chiyari-host-review-1/005-tests_hmeval.sh.diff": 15,
+        ".drovr/review/chiyari-host-review-1/index.md": 35,
+        ".drovr/review/chiyari-host-review-2/001-.forgejo_workflows_nix-home.yml.diff": 12,
+        ".drovr/review/chiyari-host-review-2/002-flake.nix.diff": 21,
+        ".drovr/review/chiyari-host-review-2/003-home.nix.diff": 58,
+        ".drovr/review/chiyari-host-review-2/004-system_deploy.diff": 13,
+        ".drovr/review/chiyari-host-review-2/005-tests_hmeval.sh.diff": 15,
+        ".drovr/review/chiyari-host-review-2/index.md": 35,
+        ".drovr/review/deploy-wif-final-review-1/001-README.md.diff": 37,
+        ".drovr/review/deploy-wif-final-review-1/002-docs_nix-binary-cache.md.diff": 42,
+        ".drovr/review/deploy-wif-final-review-1/003-system_deploy.diff": 119,
+        ".drovr/review/deploy-wif-final-review-1/004-system_secrets.sh.diff": 133,
+        ".drovr/review/deploy-wif-final-review-1/005-tests_system-secrets.sh.diff": 364,
+        ".drovr/review/deploy-wif-final-review-1/index.md": 35,
+        ".drovr/review/edp1-scale-2x-review-1/001-hyprland.nix.diff": 21,
+        ".drovr/review/edp1-scale-2x-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-1/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-1/index.md": 27,
+        ".drovr/review/ghostty-async-backend-review-2/001-home.nix.diff": 69,
+        ".drovr/review/ghostty-async-backend-review-2/index.md": 27,
+        ".drovr/review/ghostty-p10k-osc133-review-1/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-1/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-1/index.md": 29,
+        ".drovr/review/ghostty-p10k-osc133-review-2/001-home.nix.diff": 23,
+        ".drovr/review/ghostty-p10k-osc133-review-2/002-home_p10k.zsh.diff": 16,
+        ".drovr/review/ghostty-p10k-osc133-review-2/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-1/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-1/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-1/index.md": 29,
+        ".drovr/review/hyprlock-faillock-review-2/001-env.nix.diff": 41,
+        ".drovr/review/hyprlock-faillock-review-2/002-home.nix.diff": 240,
+        ".drovr/review/hyprlock-faillock-review-2/index.md": 29,
+        ".drovr/review/kanon-wg-route-review-1/001-home.nix.diff": 21,
+        ".drovr/review/kanon-wg-route-review-1/index.md": 27,
+        ".drovr/review/kanon-wg-route-review-2/001-home.nix.diff": 21,
+        ".drovr/review/kanon-wg-route-review-2/index.md": 27,
+        ".drovr/review/ssh-oidc-escalation-pin-review-1/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-escalation-pin-review-1/index.md": 27,
+        ".drovr/review/ssh-oidc-escalation-pin-review-2/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-escalation-pin-review-2/index.md": 27,
+        ".drovr/review/ssh-oidc-pin-review-1/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-pin-review-1/index.md": 27,
+        ".drovr/review/ssh-oidc-pin-review-2/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-pin-review-2/index.md": 27,
+        ".drovr/review/ssh-oidc-pin-review-3/001-flake.lock.diff": 20,
+        ".drovr/review/ssh-oidc-pin-review-3/002-flake.nix.diff": 36,
+        ".drovr/review/ssh-oidc-pin-review-3/003-forgejo-cli-Cargo.lock.diff": 3120,
+        ".drovr/review/ssh-oidc-pin-review-3/004-nix_forgejo-cli.nix.diff": 72,
+        ".drovr/review/ssh-oidc-pin-review-3/005-patches_forgejo-cli-keys-flock.patch.diff": 121,
+        ".drovr/review/ssh-oidc-pin-review-3/index.md": 35,
+        ".drovr/review/zen-instead-of-firefox-review-1/001-env.nix.diff": 45,
+        ".drovr/review/zen-instead-of-firefox-review-1/002-flake.lock.diff": 44,
+        ".drovr/review/zen-instead-of-firefox-review-1/003-flake.nix.diff": 30,
+        ".drovr/review/zen-instead-of-firefox-review-1/004-home.nix.diff": 134,
+        ".drovr/review/zen-instead-of-firefox-review-1/index.md": 33
+      }
+    }
+  ]
+}

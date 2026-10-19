@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "b33128e3a31b",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".drovr/review/voice-tap-review-1/001-home.nix.diff",
+    ".drovr/review/voice-tap-review-1/index.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b3/3128e3a31b/0/metadata.json",
+      "transcript": "/b3/3128e3a31b/0/full.jsonl",
+      "compact_transcript": "/b3/3128e3a31b/0/transcript.jsonl",
+      "content_hash": "/b3/3128e3a31b/0/content_hash.txt",
+      "prompt": "/b3/3128e3a31b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 36,
+    "cache_creation_tokens": 38740,
+    "cache_read_tokens": 1022819,
+    "output_tokens": 4530,
+    "api_call_count": 18
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "da76310fb493",
+  "strategy": "manual-commit",
+  "branch": "emacs-treesit-early",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "README.md",
+    "home/emacs/init.el",
+    "home/emacs/lisp/mode-init.el",
+    "tests/emacs-treesit-init.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/da/76310fb493/0/metadata.json",
+      "transcript": "/da/76310fb493/0/full.jsonl",
+      "compact_transcript": "/da/76310fb493/0/transcript.jsonl",
+      "content_hash": "/da/76310fb493/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 72,
+    "cache_creation_tokens": 173350,
+    "cache_read_tokens": 2834374,
+    "output_tokens": 17800,
+    "api_call_count": 36
+  }
+}

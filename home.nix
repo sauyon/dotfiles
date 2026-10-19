@@ -3996,10 +3996,11 @@ in
           scroll-step = 5;
         };
         network = {
-          format-wifi = "  {essid}";
+          format-wifi = "{icon} {essid}";
+          format-icons = [ "󰤯" "󰤟" "󰤢" "󰤥" "󰤨" ];
           format-ethernet = " {ifname}";
           format-disconnected = "󰖪 offline";
-          tooltip-format = "{ifname}: {ipaddr}";
+          tooltip-format = "{ifname}: {ipaddr}\n󰤨 {signalStrength}%";
           max-length = 30;
           on-click = "ghostty -e nmtui";
         };
@@ -4019,6 +4020,10 @@ in
           format = "󰍛 {percentage}%";
           interval = 2;
         };
+        cpu = {
+          format = "󰻠 {usage}%";
+          interval = 2;
+        };
         battery = {
           states = { warning = 30; critical = 15; };
           format = "{icon} {capacity}%";
@@ -4027,7 +4032,7 @@ in
           format-plugged = "󰚥 {capacity}%";
           format-full = "󰁹 {capacity}%";
           format-time = "{H}:{M:02}";
-          format-icons = [ "" "" "" "" "" ];
+          format-icons = [ "󰁺" "󰁻" "󰁼" "󰁽" "󰁾" "󰁿" "󰂀" "󰂁" "󰂂" "󰁹" ];
         };
         clock = {
           format = "{:%a %m-%d %H:%M:%S}";
@@ -4077,7 +4082,7 @@ in
           output = [ "eDP-1" ];
           modules-left = [ "hyprland/workspaces" "hyprland/window" ];
           modules-center = [ "mpris" ];
-          modules-right = [ "wireplumber" "network" "battery" "tray" "memory" "custom/caffeine" "clock" "custom/notifications" ];
+          modules-right = [ "wireplumber" "network" "battery" "tray" "memory" "cpu" "custom/caffeine" "clock" "custom/notifications" ];
         })
         (shared // {
           output = [ "!eDP-1" "*" ];
@@ -4086,7 +4091,7 @@ in
           margin-right = edgeGap;
           modules-left = [ "hyprland/workspaces" "hyprland/window" ];
           modules-center = [ "mpris" ];
-          modules-right = [ "wireplumber" "network" "bluetooth" "tray" "memory" "custom/caffeine" "clock" "custom/notifications" ];
+          modules-right = [ "wireplumber" "network" "bluetooth" "tray" "memory" "cpu" "custom/caffeine" "clock" "custom/notifications" ];
         })
       ];
       style = ''
@@ -4151,6 +4156,7 @@ in
         #bluetooth,
         #tray,
         #memory,
+        #cpu,
         #battery,
         #clock,
         #custom-caffeine,
@@ -4166,6 +4172,7 @@ in
         #bluetooth { color: @blue; }
         #bluetooth.disabled, #bluetooth.off { color: @comment; }
         #memory { color: @orange; }
+        #cpu { color: @purple; }
         #battery { color: @green; }
         #battery.warning:not(.charging) { color: @yellow; }
         #battery.critical:not(.charging) { color: @red; }

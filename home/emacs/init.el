@@ -114,7 +114,7 @@
 										 dired-icon dired-preview dired-ranger dirvish dockerfile-mode doom-themes
 										 dumb-jump editorconfig elvish-mode embark-consult f fill-column-indicator
 										 flycheck-haskell flycheck-rust go-dlv go-errcheck go-guru golden-ratio
-										 google-c-style graphviz-dot-mode grip-mode groovy-mode haskell-mode hcl-mode
+										 google-c-style graphviz-dot-mode grip-mode groovy-mode haskell-mode hcl-mode hydra
 										 json-mode json-par jsonian latex-math-preview
 										 latex-pretty-symbols latex-unicode-math-mode lsp-pyright lsp-treemacs lsp-ui
 										 lua-mode magit magit-find-file magit-gh-pulls marginalia mmm-mode mo-git-blame
@@ -159,6 +159,15 @@
  ;; If there is more than one, they won't work right.
  '(default ((t (:inherit nil :extend nil :stipple nil :background "#25202a" :foreground "#cfccd2" :inverse-video nil :box nil :strike-through nil :overline nil :underline nil :slant normal :weight regular :height 121 :width normal :foundry "GOOG" :family "NotoSansM Nerd Font"))))
  '(variable-pitch ((t (:inherit default :foundry "GOOG" :family "NotoSans Nerd Font")))))
+
+;; Tree-sitter grammars (installed via home-manager). Kept ahead of the loads
+;; below so a package missing from elpa (pref-init's top-level `defhydra')
+;; can't abort init before .ts files learn their grammar path; see
+;; tests/emacs-treesit-init.sh.
+(add-to-list 'treesit-extra-load-path
+             (expand-file-name "~/.local/state/home-manager/gcroots/current-home/home-path/lib/"))
+(add-to-list 'auto-mode-alist '("\\.tsx\\'" . tsx-ts-mode))
+(add-to-list 'auto-mode-alist '("\\.ts\\'" . typescript-ts-mode))
 
 (load "root-find")
 (load "pref-init")

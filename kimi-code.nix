@@ -95,6 +95,26 @@ in
       let
         inherit (prev.stdenvNoCC.hostPlatform) system;
         spec = platformSpec system;
+
+        # patchelf >= 0.18 cannot grow this binary's headers without breaking
+        # it. The SEA keeps its program headers at the far end of the file
+        # (PHDR at 0x2baed64), so fitting a /nix/store interpreter means
+        # inserting a new segment ahead of the first LOAD. 0.15 adds a
+        # separate page for it; 0.18 and 0.19 instead stretch it across the
+        # original read-only LOAD at 0x400000 and shift that segment, and the
+        # result SIGSEGVs on any invocation (exit 139 from installCheckPhase
+        # once nixpkgs moved stdenv to patchelf 0.19.2). `--no-clobber-old-sections`
+        # does not help. nixpkgs pins this same version for its own bootstrap
+        # tools for the same class of bug (pkgs/stdenv/linux/make-bootstrap-tools.nix,
+        # NixOS/patchelf#672); drop the pin once a released patchelf patches
+        # this binary into something `kimi --version` survives.
+        patchelf_0_15 = prev.patchelf.overrideAttrs (finalAttrs: _: {
+          version = "0.15.2";
+          src = prev.fetchurl {
+            url = "https://github.com/NixOS/patchelf/releases/download/${finalAttrs.version}/patchelf-${finalAttrs.version}.tar.bz2";
+            hash = "sha256-F3RfVkFZyOIo/EEtplogSLhGxLa0Igt3y/IkFuAvLXw=";
+          };
+        });
       in
       {
         kimi-code = prev.stdenv.mkDerivation {
@@ -113,23 +133,26 @@ in
           # A single file, not an archive.
           dontUnpack = true;
 
+          # No autoPatchelfHook: it runs whichever `patchelf` is first on PATH,
+          # which is stdenv's, and that is the version that breaks this binary
+          # (see patchelf_0_15 above). The two edits it made are done by hand
+          # in installPhase instead.
           nativeBuildInputs = [
             prev.makeWrapper
-          ] ++ lib.optionals prev.stdenv.hostPlatform.isLinux [
-            prev.autoPatchelfHook
           ];
 
           # The SEA statically links most of Node, but still wants libstdc++
-          # (V8) and libz from the dynamic loader.
-          buildInputs = lib.optionals prev.stdenv.hostPlatform.isLinux [
-            prev.stdenv.cc.cc.lib
-            prev.zlib
-          ];
-
+          # (V8) and libz from the dynamic loader — hence the RPATH below.
           installPhase = ''
             runHook preInstall
 
             install -Dm755 $src $out/libexec/kimi-code/kimi
+          '' + lib.optionalString prev.stdenv.hostPlatform.isLinux ''
+            ${patchelf_0_15}/bin/patchelf \
+              --set-interpreter "$(cat $NIX_CC/nix-support/dynamic-linker)" \
+              --set-rpath ${lib.makeLibraryPath [ prev.stdenv.cc.cc.lib prev.zlib ]} \
+              $out/libexec/kimi-code/kimi
+          '' + ''
 
             # `fd` is a runtime dependency, so it belongs in this closure rather
             # than in anyone's profile: CI then builds it, and a rollback takes
@@ -148,8 +171,8 @@ in
           # headers do not cover, so `strip` cannot map it back into a segment
           # and silently rewrites a corpse. It says so — "section `.text' can't
           # be allocated in segment 3", then a run of "allocated section `' not
-          # in segment" — and the result SIGSEGVs on any invocation. autopatchelf
-          # is fine; it only rewrites the interpreter and RPATH in place.
+          # in segment" — and the result SIGSEGVs on any invocation. Patchelf
+          # 0.15 is fine; newer ones are not (see patchelf_0_15 above).
           dontStrip = true;
 
           # Guards the above: the failure mode is a binary that builds clean and

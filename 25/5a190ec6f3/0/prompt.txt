@@ -1,0 +1,15 @@
+can you debug what takes so damn long
+
+---
+
+<task-notification>
+<task-id>bbrno4hlc</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-60006/-home-sauyon-devel-dotfiles/27dc8e82-c946-4a2f-bc48-f33be7a6fa09/tasks/bbrno4hlc.output</output-file>
+<status>completed</status>
+<summary>Background command "Deploy via hms (waits on CI, then switches)" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+repro and fix

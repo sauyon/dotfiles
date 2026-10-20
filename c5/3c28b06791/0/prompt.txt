@@ -1,0 +1,1 @@
+disable local auto mode for codex and update it (and any other things that need updating. make sure to check all flakes.

@@ -38,6 +38,15 @@ Two constraints that are not obvious from the file:
   `http://attic.attic.svc.cluster.local`. `nix build` also passes `--fallback`,
   so a substituter that dies mid-NAR degrades to a local build instead of
   killing the run.
+- **A failed build still pushes what it realised.** `nix build` runs with
+  `--keep-going`, and once all three attempts fail the build step lists every
+  valid output in the four closures' derivation graphs
+  (`.forgejo/scripts/realised-outputs.sh`) before exiting 1. The push step runs
+  on `success() || steps.build.conclusion == 'failure'` and pushes that list. The
+  job stays red, because the build step failed, so `hms` still refuses to
+  switch. Run 231 had realised ~756 derivations before failing on kimi-code and
+  pushed none of them, so run 232 rebuilt 1,236. `tests/ci-partial-push.sh`
+  covers this.
 
 There is also a **nix version floor**: `home.nix` merges `programs.gpg.package`
 with a later `programs = { gpg = { … } }` block, which nix 2.24 rejects as a

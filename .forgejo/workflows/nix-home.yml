@@ -16,6 +16,7 @@ on:
       - "home/**"
       - "patches/**"
       - ".forgejo/workflows/nix-home.yml"
+      - ".forgejo/scripts/realised-outputs.sh"
   # Forgejo has no re-run API; dispatch is the only way to retry.
   workflow_dispatch:
 
@@ -121,6 +122,7 @@ jobs:
             '!f() { test "$1" = get && printf "password=%s\n" "$FORGE_TOKEN"; }; f'
 
       - name: build home closures
+        id: build
         env:
           FORGE_TOKEN: ${{ secrets.FORGE_TOKEN }}
         run: |
@@ -160,9 +162,23 @@ jobs:
           # attempts. Cheap for an eval error, which fails in seconds (runs 182
           # and 183, `qt6gtk2 has been removed`); expensive for a compile that
           # dies late. Accepted on the same terms as the push loop.
+          #
+          # --keep-going, and the partial push below, because a run that fails
+          # used to throw away everything it had built. Run 231 (a057c270) failed
+          # all three attempts on kimi-code-2.2.0.drv after realising ~756
+          # derivations; none were pushed, since the push step only ran on green
+          # and only pushed the four top-level out-paths, which did not exist.
+          # Run 232 (5dadfd3a, the one-line fix) then rebuilt 1,236 derivations
+          # in over ten minutes -- forgejo-cli crate by crate, hunkdiff's bun
+          # packages one by one -- all of them sitting valid in 231's store.
+          # Without --keep-going nix stops scheduling at the first failure, so
+          # whatever had not started yet never would; with it, every derivation
+          # that does not depend on the broken one still finishes, and the run
+          # ends red with as much as possible realised. It changes nothing on a
+          # green run.
           ok=
           for attempt in 1 2 3; do
-            if nix build --fallback --no-link --print-out-paths \
+            if nix build --fallback --keep-going --no-link --print-out-paths \
                  .#homeConfigurations.utsuho.activationPackage \
                  .#homeConfigurations.fujiwara.activationPackage \
                  .#homeConfigurations.shiori.activationPackage \
@@ -175,24 +191,58 @@ jobs:
             echo "build attempt $attempt failed; retrying (realised paths are kept)"
             sleep 20
           done
-          [ -n "$ok" ] || { echo "build failed after 3 attempts"; exit 1; }
+          if [ -z "$ok" ]; then
+            # Hand the push step every output the closures' derivations did
+            # realise, then fail anyway: this step's failure is what keeps the
+            # job red, and `hms` reads the run's status. A listing that itself
+            # fails leaves /tmp/out-paths empty, and the push step then skips.
+            echo "build failed after 3 attempts; listing what was realised"
+            : > /tmp/out-paths
+            if .forgejo/scripts/realised-outputs.sh \
+                 .#homeConfigurations.utsuho.activationPackage \
+                 .#homeConfigurations.fujiwara.activationPackage \
+                 .#homeConfigurations.shiori.activationPackage \
+                 .#homeConfigurations.chiyari.activationPackage \
+                 > /tmp/realised; then
+              mv /tmp/realised /tmp/out-paths
+            fi
+            n=0
+            while IFS= read -r _; do n=$((n + 1)); done < /tmp/out-paths
+            echo "$n realised outputs queued for a partial push"
+            exit 1
+          fi
 
       # The image has no attic-client; run it from a pinned nixpkgs rev.
       # Do NOT echo $ATTIC_TOKEN or enable `set -x` here.
+      #
+      # Also runs when the build step failed, to push the partial list it left
+      # (see --keep-going above). Not `always()`: a run whose clone or auth
+      # failed has nothing to push, and the build step is then `skipped`, not
+      # `failure`. The job stays red regardless -- a failed step fails the job
+      # whatever later steps do; this one only decides what reaches attic.
       - name: push closures to attic
+        if: ${{ success() || steps.build.conclusion == 'failure' }}
         env:
           ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
         run: |
           set -eu
+          if [ ! -s /tmp/out-paths ]; then
+            # Only reachable after a failed build: a green one always lists
+            # its four out-paths.
+            echo "nothing realised to push"
+            exit 0
+          fi
           ATTIC=github:NixOS/nixpkgs/29916453413845e54a65b8a1cf996842300cd299#attic-client
           nix run "$ATTIC" -- login ko \
             http://attic.attic.svc.cluster.local "$ATTIC_TOKEN"
           # --jobs 2: the default concurrency OOMKills the server.
-          # Unquoted $(cat …) is intended — one argument per out-path.
+          # --stdin, not one argv per path: a partial list from a failed build
+          # runs to thousands of paths. attic computes each one's closure either
+          # way, and skips what cache.nixos.org already serves.
           # Retried because push is idempotent and a build is expensive.
           ok=
           for attempt in 1 2 3; do
-            if nix run "$ATTIC" -- push --jobs 2 ko:kube $(cat /tmp/out-paths); then
+            if nix run "$ATTIC" -- push --jobs 2 --stdin ko:kube < /tmp/out-paths; then
               echo "push succeeded on attempt $attempt"
               ok=1
               break

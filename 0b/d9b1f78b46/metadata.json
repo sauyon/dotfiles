@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "0bd9b1f78b46",
+  "strategy": "manual-commit",
+  "branch": "gastown-fujiwara",
+  "checkpoints_count": 5,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0b/d9b1f78b46/0/metadata.json",
+      "transcript": "/0b/d9b1f78b46/0/full.jsonl",
+      "compact_transcript": "/0b/d9b1f78b46/0/transcript.jsonl",
+      "content_hash": "/0b/d9b1f78b46/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 60,
+    "cache_creation_tokens": 142477,
+    "cache_read_tokens": 2294060,
+    "output_tokens": 21775,
+    "api_call_count": 30,
+    "subagent_tokens": {
+      "input_tokens": 328,
+      "cache_creation_tokens": 384728,
+      "cache_read_tokens": 15185649,
+      "output_tokens": 9403,
+      "api_call_count": 164
+    }
+  }
+}

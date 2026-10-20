@@ -1,5 +1,26 @@
 {
   "nodes": {
+    "beads": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790801272,
+        "narHash": "sha256-k3WUy0FWPoO7Ymu+FFgS2yYZ4u10Fb7mPBYqs17IP2U=",
+        "owner": "gastownhall",
+        "repo": "beads",
+        "rev": "c1c4b642ac1c08d8c828007a1c2f96e47e43ef7c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "gastownhall",
+        "ref": "v1.3.1",
+        "repo": "beads",
+        "type": "github"
+      }
+    },
     "bun2nix": {
       "inputs": {
         "flake-parts": "flake-parts",
@@ -338,6 +359,7 @@
     },
     "root": {
       "inputs": {
+        "beads": "beads",
         "dotfiles-private": "dotfiles-private",
         "drovr": "drovr",
         "home-manager": "home-manager",

@@ -25,6 +25,10 @@
     # Terminal diff viewer for agent changesets; ships a `hunk-review` Claude
     # skill under `${hunk}/skills/`.
     hunk.url = "github:modem-dev/hunk";
+    # beads (`bd`), the issue tracker Gas City (nix/gascity.nix) drives. Pinned
+    # to the bd that gc v1.5.0 deps.env pins; nixpkgs' beads lags (1.0.3).
+    beads.url = "github:gastownhall/beads/v1.3.1";
+    beads.inputs.nixpkgs.follows = "nixpkgs";
     # Matt Pocock's agent skills. Not a flake — a plain tree of SKILL.md
     # bundles under skills/<category>/<name>/, consumed by path below.
     mattpocock-skills.url = "github:mattpocock/skills";
@@ -54,7 +58,7 @@
     zen-browser.inputs.home-manager.follows = "home-manager";
   };
 
-  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, drovr, hunk, mattpocock-skills, zen-browser, ssh-oidc, dotfiles-private, ... }:
+  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, drovr, hunk, beads, mattpocock-skills, zen-browser, ssh-oidc, dotfiles-private, ... }:
   let
     # Single overlay applied to every host's `pkgs`: `fj` (forgejo-cli) gets the
     # cross-process flock patch so a bare `fj whoami` can never race the
@@ -72,7 +76,7 @@
     mkHome = system: machine: home-manager.lib.homeManagerConfiguration {
       pkgs = (nixpkgs.legacyPackages.${system}.appendOverlays [ fjOverlay ]);
       extraSpecialArgs = {
-        inherit sops-nix walker nixgl drovr hunk mattpocock-skills zen-browser machine;
+        inherit sops-nix walker nixgl drovr hunk beads mattpocock-skills zen-browser machine;
         inherit dotfiles-private;
         inherit system;
       };

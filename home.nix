@@ -7,6 +7,7 @@
   nixgl,
   drovr,
   hunk,
+  beads,
   mattpocock-skills,
   zen-browser,
   dotfiles-private,
@@ -242,6 +243,10 @@ let
       '';
   # hunk builds on all four systems, so no darwin guard needed.
   hunk-pkg = hunk.packages.${system}.default;
+  # Gas City: gc + the bd it drives + the dolt it manages as the city's data
+  # plane. fujiwara-only (see the gate below); tests/gascity-packages.sh.
+  gascity-pkg = import ./nix/gascity.nix { inherit pkgs; };
+  beads-pkg = beads.packages.${system}.default;
   # drovr — Rust CLI, buildRustPackage on all unix systems; pairs with herdr.
   # These two RunIdentity tests collide on ext4: same-path recreate reuses the
   # inode, and btime is tick-granular, so (dev, ino, born) repeats. Real drovr
@@ -3304,6 +3309,11 @@ in
   ++ private.waypipe.packages
   ++ lib.optionals (hostname == "fujiwara") [
     clawpatrol
+    # Gas City runs a tmux fleet of Claude sessions that bills while up, so it
+    # lives on the headless box, not the laptops.
+    gascity-pkg
+    beads-pkg
+    pkgs.dolt
   ] ++ lib.optionals (hostname == "shiori") [
     # `framework_tool`, Framework's own utility for talking to the embedded
     # controller. It is the only way to read EC state (fan duty, per-cell battery

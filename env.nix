@@ -16,6 +16,10 @@ rec {
   RUSTUP_HOME = "${xdg.dataHome}/rustup";
   ASPELL_CONF = "per-conf ${xdg.configHome}/aspell/aspell.conf; personal ${xdg.configHome}/aspell/en.personal; repl ${xdg.configHome}/aspell/en.prepl";
   ZSH_CACHE_DIR = "${xdg.cacheHome}/zsh";
+  # Gas City (nix/gascity.nix, fujiwara): registry, supervisor config and logs,
+  # ~/.gc by default. Any GC_HOME off that default also moves gc's socket/lock
+  # under it (not $XDG_RUNTIME_DIR/gc) and suffixes the supervisor unit name.
+  GC_HOME = "${xdg.stateHome}/gc";
 
   GOPATH = "${home}/devel/go";
 

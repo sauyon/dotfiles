@@ -43,4 +43,14 @@ done
 if [ -z "$leaked" ] && [ -n "$other" ]; then ok "shiori carries none of them"
 else bad "shiori carries:${leaked:- <nothing evaluated>}"; fi
 
+# Case 3: gc's state (city registry, supervisor config, logs) defaults to ~/.gc;
+# GC_HOME moves it under XDG state. It has to be a session variable, not just a
+# shell one: `gc start` bakes GC_HOME into the supervisor's systemd unit, so a
+# shell that lacks it registers the city under ~/.gc instead.
+state=$(nix eval --max-jobs 0 --raw "$repo#homeConfigurations.fujiwara.config.xdg.stateHome") \
+  || { echo "could not evaluate fujiwara xdg.stateHome" >&2; exit 1; }
+gchome=$(nix eval --max-jobs 0 --raw "$repo#homeConfigurations.fujiwara.config.home.sessionVariables.GC_HOME" 2>/dev/null)
+if [ -n "$gchome" ] && [ "$gchome" = "$state/gc" ]; then ok "fujiwara GC_HOME is \$XDG_STATE_HOME/gc"
+else bad "fujiwara GC_HOME: want $state/gc, got ${gchome:-<unset>}"; fi
+
 [ "$fails" -eq 0 ]

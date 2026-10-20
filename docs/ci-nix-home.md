@@ -47,6 +47,18 @@ Two constraints that are not obvious from the file:
   switch. Run 231 had realised ~756 derivations before failing on kimi-code and
   pushed none of them, so run 232 rebuilt 1,236. `tests/ci-partial-push.sh`
   covers this.
+- **The job reads a node-local signed cache first.** The privileged runner
+  mounts `/nix-cache` (kube repo, `charts/forgejo-runner` `nixCache`), a
+  `file://` binary cache listed first with `priority=10` — without it a
+  `file://` cache sits at 50, behind cache.nixos.org's 40, and is never asked.
+  A green run copies its *signed* closure paths into it, so the next run
+  substitutes the ~1,800 unchanged paths from local disk instead of pulling
+  them: that pull was ~3.5 of a typical run's ~5 minutes (job 826). It is a
+  cache rather than a persistent `/nix` because nix re-verifies a cache's
+  signatures and NAR hashes on every read, and never re-checks its own store;
+  the trust argument is in the kube repo's `docs/forgejo-runner-trust-boundary.md`.
+  The kube side must be live first, or the mount preflight fails the run.
+  `tests/ci-nix-cache.sh` covers this.
 
 There is also a **nix version floor**: `home.nix` merges `programs.gpg.package`
 with a later `programs = { gpg = { … } }` block, which nix 2.24 rejects as a

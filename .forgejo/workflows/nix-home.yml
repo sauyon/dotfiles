@@ -38,6 +38,16 @@ jobs:
     # `uses:` step can run here, and no awk/sed/grep either.
     container:
       image: nixos/nix@sha256:1a711b619c8a713eff32c3f8d8781b3b4d0130cb91c0a57f67e87abfeeb90b01
+      # A signed binary cache on the runner node's disk, so a run substitutes the
+      # unchanged ~1,800 closure paths locally instead of pulling them over the
+      # network: ~3.5 of the ~5 minutes of a typical run (job 826) were that pull.
+      # It is a file:// cache, not a persistent /nix, because nix re-checks a
+      # cache's signatures and NAR hashes on every read and never re-checks its
+      # own store. Runner side: charts/forgejo-runner `nixCache` in the kube repo,
+      # whose valid_volumes allows exactly this path. Read-write because nix
+      # creates subdirectories to open a file:// store.
+      volumes:
+        - /nix-cache:/nix-cache
     env:
       # The `kube` cache public key is public (also in flake.nix); only the
       # token is secret. Pin bounds: >=2.26 parses home.nix, <2.35.1 does not
@@ -51,7 +61,12 @@ jobs:
         # the 2.44 GiB google-fonts NAR died at 601.0s with "HTTP error 200
         # (curl error: Stream error in the HTTP/2 framing layer)", which nix does
         # not retry. Same Service the push step below already uses.
-        extra-substituters = http://attic.attic.svc.cluster.local/kube
+        #
+        # The node-local cache goes first. priority=10 is load-bearing: a file://
+        # cache defaults to 50, behind cache.nixos.org's 40, and would never be
+        # asked for anything cache.nixos.org has. No `trusted=1` -- require-sigs
+        # stays on, which is the whole trust argument for sharing it.
+        extra-substituters = file:///nix-cache?priority=10 http://attic.attic.svc.cluster.local/kube
         extra-trusted-public-keys = kube:YLRejBKnIVKqvZRXBvFR4KmosPZPg9phiM+pRlhbQ+c=
         # 32 cores would otherwise start 32 builds inside a 16Gi cgroup.
         max-jobs = 6
@@ -76,6 +91,18 @@ jobs:
             exit 1
           fi
           echo "privileged OK; sandbox=$(nix config show sandbox 2>/dev/null || echo '?')"
+
+      # Without the mount, /nix-cache is just an empty directory in the
+      # container: every run goes cold and the save step below writes into a
+      # layer that is thrown away -- slow, with nothing to say why. Fail instead.
+      - name: preflight — local nix cache must be mounted
+        run: |
+          set -eu
+          mounted=
+          while read -r _ _ _ _ mp _; do
+            if [ "$mp" = /nix-cache ]; then mounted=1; fi
+          done < /proc/self/mountinfo
+          [ -n "$mounted" ] || { echo "/nix-cache not mounted: runner lacks nixCache, or valid_volumes dropped it"; exit 1; }
 
       # attic is not anonymously readable, and nix silently ignores a substituter
       # it cannot authenticate to — so this must precede any nix command or the
@@ -251,3 +278,33 @@ jobs:
             sleep 20
           done
           [ -n "$ok" ] || { echo "push failed after 3 attempts"; exit 1; }
+
+      # Feed the node-local cache for the next run. Only *signed* paths go in --
+      # ones cache.nixos.org or attic `kube` already vouch for -- so the cache
+      # never holds anything a reader would not accept from those two anyway, and
+      # paths built here, which is where the private input ends up, never land on
+      # node disk. Best-effort: a failure here costs the next run its warm start,
+      # not this run its green. Wiped wholesale past the cap (one cold run after),
+      # because nix has no GC for a file:// cache.
+      - name: save closure to the local nix cache
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          cap_mib=102400
+          used_mib=$(du -sm /nix-cache)
+          used_mib=${used_mib%%[[:space:]]*}
+          if [ "$used_mib" -gt "$cap_mib" ]; then
+            echo "cache ${used_mib} MiB > ${cap_mib}; wiping"
+            rm -rf /nix-cache/*
+          fi
+          # `path-info --sigs` prints the path, then its signatures; a token with
+          # a colon (`kube:…`, `cache.nixos.org-1:…`) is a signature.
+          signed=()
+          while IFS= read -r line; do
+            path=${line%%[[:space:]]*}
+            for tok in ${line#"$path"}; do
+              case $tok in *:*) signed+=("$path"); break ;; esac
+            done
+          done < <(nix path-info --recursive --sigs $(cat /tmp/out-paths))
+          echo "caching ${#signed[@]} signed paths"
+          nix copy --to 'file:///nix-cache?compression=zstd' "${signed[@]}"

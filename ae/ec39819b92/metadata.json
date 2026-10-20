@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "aeec39819b92",
+  "strategy": "manual-commit",
+  "branch": "gascity-utsuho",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "env.nix",
+    "home.nix",
+    "tests/gascity-packages.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ae/ec39819b92/0/metadata.json",
+      "transcript": "/ae/ec39819b92/0/full.jsonl",
+      "compact_transcript": "/ae/ec39819b92/0/transcript.jsonl",
+      "content_hash": "/ae/ec39819b92/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 38,
+    "cache_creation_tokens": 54073,
+    "cache_read_tokens": 1221525,
+    "output_tokens": 10639,
+    "api_call_count": 19
+  }
+}

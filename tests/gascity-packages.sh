@@ -53,4 +53,12 @@ gchome=$(nix eval --max-jobs 0 --raw "$repo#homeConfigurations.fujiwara.config.h
 if [ -n "$gchome" ] && [ "$gchome" = "$state/gc" ]; then ok "fujiwara GC_HOME is \$XDG_STATE_HOME/gc"
 else bad "fujiwara GC_HOME: want $state/gc, got ${gchome:-<unset>}"; fi
 
+# Case 4: upstream treats any GC_HOME off ~/.gc as an isolated home and moves
+# the supervisor socket and lock under it. patches/gascity-runtime-dir.patch
+# adds GC_RUNTIME_DIR to keep them in $XDG_RUNTIME_DIR; without the variable
+# set, case 3 alone puts sockets in ~/.local/state.
+rt=$(nix eval --max-jobs 0 --raw "$repo#homeConfigurations.fujiwara.config.home.sessionVariables.GC_RUNTIME_DIR" 2>/dev/null)
+if [ "$rt" = '$XDG_RUNTIME_DIR/gc' ]; then ok "fujiwara GC_RUNTIME_DIR is \$XDG_RUNTIME_DIR/gc"
+else bad "fujiwara GC_RUNTIME_DIR: want \$XDG_RUNTIME_DIR/gc, got ${rt:-<unset>}"; fi
+
 [ "$fails" -eq 0 ]

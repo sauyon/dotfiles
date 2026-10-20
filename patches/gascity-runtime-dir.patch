@@ -1,0 +1,104 @@
+diff --git a/cmd/gc/cmd_supervisor_lifecycle.go b/cmd/gc/cmd_supervisor_lifecycle.go
+index 3164a47..d3ba8b2 100644
+--- a/cmd/gc/cmd_supervisor_lifecycle.go
++++ b/cmd/gc/cmd_supervisor_lifecycle.go
+@@ -1352,6 +1352,7 @@ var supervisorServiceEnvKeys = map[string]bool{
+ 	"GC_DOLT_LOGLEVEL":                         true,
+ 	"GC_DOLT_PASSWORD":                         true,
+ 	"GC_DOLT_USER":                             true,
++	"GC_RUNTIME_DIR":                           true,
+ 	"T3_HOME":                                  true,
+ 	"T3_WS_URL":                                true,
+ 	"T3CODE_HOME":                              true,
+diff --git a/cmd/gc/cmd_supervisor_test.go b/cmd/gc/cmd_supervisor_test.go
+index 973ebce..fe8c885 100644
+--- a/cmd/gc/cmd_supervisor_test.go
++++ b/cmd/gc/cmd_supervisor_test.go
+@@ -629,6 +629,24 @@ func TestBuildSupervisorServiceDataIncludesProviderEnv(t *testing.T) {
+ 	}
+ }
+ 
++func TestBuildSupervisorServiceDataPersistsGCRuntimeDir(t *testing.T) {
++	homeDir := t.TempDir()
++	runtimeDir := filepath.Join(t.TempDir(), "gc-run")
++	t.Setenv("HOME", homeDir)
++	t.Setenv("GC_HOME", filepath.Join(homeDir, ".gc"))
++	t.Setenv("PATH", "/usr/local/bin:/usr/bin:/bin")
++	t.Setenv("XDG_RUNTIME_DIR", "/tmp/gc-run")
++	t.Setenv("GC_RUNTIME_DIR", runtimeDir)
++
++	data, err := buildSupervisorServiceData()
++	if err != nil {
++		t.Fatalf("buildSupervisorServiceData: %v", err)
++	}
++	if got := supervisorServiceEnvMap(data.ExtraEnv)["GC_RUNTIME_DIR"]; got != runtimeDir {
++		t.Fatalf("ExtraEnv[GC_RUNTIME_DIR] = %q, want %q", got, runtimeDir)
++	}
++}
++
+ func TestBuildSupervisorServiceDataOmitsProviderEnvWhenOptedOut(t *testing.T) {
+ 	homeDir := t.TempDir()
+ 	t.Setenv("HOME", homeDir)
+diff --git a/internal/supervisor/config.go b/internal/supervisor/config.go
+index c4d7b65..5cabff2 100644
+--- a/internal/supervisor/config.go
++++ b/internal/supervisor/config.go
+@@ -263,13 +263,21 @@ func UsesIsolatedGCHomeOverride() bool {
+ }
+ 
+ // RuntimeDir returns the directory for ephemeral runtime files (lock,
+-// socket). Uses $XDG_RUNTIME_DIR/gc for the default machine-wide home, but
+-// keeps isolated GC_HOME overrides self-contained under their own home so
+-// they do not collide with the host supervisor socket.
++// socket). GC_RUNTIME_DIR, when set, wins outright. Otherwise it uses
++// $XDG_RUNTIME_DIR/gc for the default machine-wide home, but keeps isolated
++// GC_HOME overrides self-contained under their own home so they do not
++// collide with the host supervisor socket.
++//
++// GC_RUNTIME_DIR exists for a GC_HOME that relocates the machine-wide home
++// (e.g. to $XDG_STATE_HOME/gc) rather than isolating it: without it, moving
++// state off ~/.gc also drags the socket and lock out of $XDG_RUNTIME_DIR.
+ //
+ // Guard: in test binaries, XDG_RUNTIME_DIR or GC_HOME must be set to
+ // prevent connecting to the host supervisor socket.
+ func RuntimeDir() string {
++	if v := strings.TrimSpace(os.Getenv("GC_RUNTIME_DIR")); v != "" {
++		return pathutil.NormalizePathForCompare(v)
++	}
+ 	if UsesIsolatedGCHomeOverride() {
+ 		return DefaultHome()
+ 	}
+diff --git a/internal/supervisor/config_test.go b/internal/supervisor/config_test.go
+index 03af36e..0d1f3cc 100644
+--- a/internal/supervisor/config_test.go
++++ b/internal/supervisor/config_test.go
+@@ -295,6 +295,29 @@ func TestRuntimeDirUsesXDGWhenGCHomeMatchesDefaultHome(t *testing.T) {
+ 	}
+ }
+ 
++func TestRuntimeDirPrefersGCRuntimeDirOverIsolatedGCHome(t *testing.T) {
++	homeDir := t.TempDir()
++	runtimeDir := filepath.Join(t.TempDir(), "gc-run")
++	t.Setenv("HOME", homeDir)
++	t.Setenv("GC_HOME", filepath.Join(t.TempDir(), "state", "gc"))
++	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
++	t.Setenv("GC_RUNTIME_DIR", runtimeDir)
++	if got := RuntimeDir(); got != runtimeDir {
++		t.Fatalf("RuntimeDir() = %q, want GC_RUNTIME_DIR %q", got, runtimeDir)
++	}
++}
++
++func TestRuntimeDirIgnoresBlankGCRuntimeDir(t *testing.T) {
++	homeDir := t.TempDir()
++	t.Setenv("HOME", homeDir)
++	t.Setenv("GC_HOME", filepath.Join(homeDir, ".gc"))
++	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
++	t.Setenv("GC_RUNTIME_DIR", "  ")
++	if got := RuntimeDir(); got != "/run/user/1000/gc" {
++		t.Fatalf("RuntimeDir() = %q, want /run/user/1000/gc", got)
++	}
++}
++
+ func TestUsesIsolatedGCHomeOverride(t *testing.T) {
+ 	homeDir := t.TempDir()
+ 	t.Setenv("HOME", homeDir)

@@ -5,9 +5,11 @@
 # (gastownhall/beads#6089). Gas City is where the work moved: its v1.5.0
 # deps.env pins bd v1.3.1 and wants dolt >= 2.1.0.
 #
-# The release binary, not a source build: go.mod at v1.5.0 asks for go 1.26.6
-# and our nixpkgs has 1.26.2. It is statically linked, so no patchelf. The
-# hash is GitHub's published digest for the asset.
+# Built from source to carry ../patches/gascity-runtime-dir.patch, which adds
+# GC_RUNTIME_DIR. Upstream couples the runtime dir to GC_HOME: any GC_HOME off
+# ~/.gc counts as an "isolated" home and moves the supervisor socket and lock
+# under it instead of $XDG_RUNTIME_DIR/gc. env.nix relocates GC_HOME to XDG
+# state, so without the patch sockets would live in ~/.local/state.
 #
 # The name: oh-my-zsh's git plugin aliases `gc` to `git commit -v`, so in
 # interactive zsh `gc` stays git commit and Gas City is typed as `gascity`.
@@ -17,22 +19,43 @@
 # the alias does not apply, so they reach the real binary.
 { pkgs }:
 
-pkgs.stdenv.mkDerivation rec {
+pkgs.buildGoModule rec {
   pname = "gascity";
   version = "1.5.0";
+  commit = "f66474617d2bb7fbe51a3d746da5f3ceab2b8517";
 
-  src = pkgs.fetchurl {
-    url = "https://github.com/gastownhall/gascity/releases/download/v${version}/gascity_${version}_linux_amd64.tar.gz";
-    sha256 = "0ff5cfc3f1cb2e4260d3d93fcce7a4e40bb5675b74eb9de185156757d4f7fa9c";
+  src = pkgs.fetchFromGitHub {
+    owner = "gastownhall";
+    repo = "gascity";
+    rev = "v${version}";
+    hash = "sha256-le/Cit409xz8VaNwB+MlloxTv7slHGXKEhP3cXbeExw=";
   };
 
-  sourceRoot = ".";
+  patches = [ ../patches/gascity-runtime-dir.patch ];
 
-  installPhase = ''
-    runHook preInstall
-    install -Dm755 gc $out/bin/gc
+  vendorHash = "sha256-+9G0t52oA+nj8uDCoryUwWQioFgx/m2QvJcwYzmNFUs=";
+
+  subPackages = [ "cmd/gc" ];
+
+  env.CGO_ENABLED = "0";
+  env.GOTOOLCHAIN = "local";
+
+  # Mirrors .goreleaser.yml. compiledReleaseTag classifies telemetry as a
+  # release (vs canary) build; left empty it would report as a dev build.
+  ldflags = [
+    "-s" "-w"
+    "-X main.version=v${version}"
+    "-X main.commit=${commit}"
+    "-X main.date=1970-01-01T00:00:00Z"
+    "-X github.com/gastownhall/gascity/internal/productmetrics.compiledReleaseTag=${version}"
+  ];
+
+  # Upstream's cmd/gc suite drives tmux, dolt and a live supervisor; it does not
+  # run in the sandbox. The patch's own tests were run against the source tree.
+  doCheck = false;
+
+  postInstall = ''
     ln -s gc $out/bin/gascity
-    runHook postInstall
   '';
 
   meta = {
@@ -40,6 +63,5 @@ pkgs.stdenv.mkDerivation rec {
     homepage = "https://github.com/gastownhall/gascity";
     license = pkgs.lib.licenses.mit;
     mainProgram = "gc";
-    platforms = [ "x86_64-linux" ];
   };
 }

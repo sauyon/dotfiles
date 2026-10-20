@@ -61,4 +61,11 @@ rt=$(nix eval --max-jobs 0 --raw "$repo#homeConfigurations.fujiwara.config.home.
 if [ "$rt" = '$XDG_RUNTIME_DIR/gc' ]; then ok "fujiwara GC_RUNTIME_DIR is \$XDG_RUNTIME_DIR/gc"
 else bad "fujiwara GC_RUNTIME_DIR: want \$XDG_RUNTIME_DIR/gc, got ${rt:-<unset>}"; fi
 
+# Case 5: gc phones home usage metrics by default, and this box does work.
+# patches/gascity-no-usage-metrics.patch compiles collection off; the env opt-out
+# is the second layer, for the day the patch stops applying and someone drops it.
+nm=$(nix eval --max-jobs 0 --raw "$repo#homeConfigurations.fujiwara.config.home.sessionVariables.GC_DISABLE_USAGE_METRICS" 2>/dev/null)
+if [ "$nm" = "1" ]; then ok "fujiwara GC_DISABLE_USAGE_METRICS=1"
+else bad "fujiwara GC_DISABLE_USAGE_METRICS: want 1, got ${nm:-<unset>}"; fi
+
 [ "$fails" -eq 0 ]

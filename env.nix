@@ -22,6 +22,9 @@ rec {
   # in the runtime dir. The supervisor unit name still gets a hashed suffix.
   GC_HOME = "${xdg.stateHome}/gc";
   GC_RUNTIME_DIR = "$XDG_RUNTIME_DIR/gc";
+  # gc sends usage metrics by default; fujiwara does work. Compiled off by
+  # patches/gascity-no-usage-metrics.patch; this is the second layer.
+  GC_DISABLE_USAGE_METRICS = "1";
 
   GOPATH = "${home}/devel/go";
 

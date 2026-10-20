@@ -31,7 +31,15 @@ pkgs.buildGoModule rec {
     hash = "sha256-le/Cit409xz8VaNwB+MlloxTv7slHGXKEhP3cXbeExw=";
   };
 
-  patches = [ ../patches/gascity-runtime-dir.patch ];
+  patches = [
+    ../patches/gascity-runtime-dir.patch
+    # Usage metrics compiled off (RolloutDefaultOff: collection fails closed
+    # whatever the env or `gc metrics on` say). Local policy, not for upstream;
+    # it flips upstream's TestOpenProductionAndPreparationAreLazyAndNonCreating,
+    # which expects the default-on first-run notice. env.nix's
+    # GC_DISABLE_USAGE_METRICS=1 is the second layer.
+    ../patches/gascity-no-usage-metrics.patch
+  ];
 
   vendorHash = "sha256-+9G0t52oA+nj8uDCoryUwWQioFgx/m2QvJcwYzmNFUs=";
 

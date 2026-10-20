@@ -1,0 +1,13 @@
+diff --git a/internal/productmetrics/release.go b/internal/productmetrics/release.go
+index 81aefeb..b82ebe5 100644
+--- a/internal/productmetrics/release.go
++++ b/internal/productmetrics/release.go
+@@ -83,7 +83,7 @@ const (
+ 	compiledEndpoint     = "https://gastownhall-eventsapi.com/v1/gascity/command-events"
+ 	compiledPrivacyURL   = ""
+ 	compiledMetricsEpoch = uint64(1)
+-	compiledRollout      = RolloutDefaultOn
++	compiledRollout      = RolloutDefaultOff
+ )
+ 
+ // compiledReleaseTag is the ONLY linker-injectable identity input, set solely

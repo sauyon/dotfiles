@@ -18,8 +18,6 @@
     # Follow our nixpkgs: nixGL pins its own, whose mesa (25.0) predates
     # Panther Lake / Xe3 and deadlocked Hyprland on shiori at startup.
     nixgl.inputs.nixpkgs.follows = "nixpkgs";
-    explore-mcp.url = "github:sauyon/explore-mcp";
-    explore-mcp.inputs.nixpkgs.follows = "nixpkgs";
     # drovr — CLI for single-writer/compressed-handoff agent phases; ships the
     # `drovr` binary plus drovr:* Claude skills under share/drovr/.
     drovr.url = "git+https://forge.ko.ag/drovr/drovr.git";
@@ -56,7 +54,7 @@
     zen-browser.inputs.home-manager.follows = "home-manager";
   };
 
-  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, explore-mcp, drovr, hunk, mattpocock-skills, zen-browser, ssh-oidc, dotfiles-private, ... }:
+  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, drovr, hunk, mattpocock-skills, zen-browser, ssh-oidc, dotfiles-private, ... }:
   let
     # Single overlay applied to every host's `pkgs`: `fj` (forgejo-cli) gets the
     # cross-process flock patch so a bare `fj whoami` can never race the
@@ -74,7 +72,7 @@
     mkHome = system: machine: home-manager.lib.homeManagerConfiguration {
       pkgs = (nixpkgs.legacyPackages.${system}.appendOverlays [ fjOverlay ]);
       extraSpecialArgs = {
-        inherit sops-nix walker nixgl explore-mcp drovr hunk mattpocock-skills zen-browser machine;
+        inherit sops-nix walker nixgl drovr hunk mattpocock-skills zen-browser machine;
         inherit dotfiles-private;
         inherit system;
       };

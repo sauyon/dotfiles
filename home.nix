@@ -5,7 +5,6 @@
   sops-nix,
   walker,
   nixgl,
-  explore-mcp,
   drovr,
   hunk,
   mattpocock-skills,
@@ -243,8 +242,6 @@ let
       '';
   # hunk builds on all four systems, so no darwin guard needed.
   hunk-pkg = hunk.packages.${system}.default;
-  # explore-mcp builds on all four systems (pure JS), so no darwin guard.
-  explore-mcp-pkg = explore-mcp.packages.${system}.default;
   # drovr — Rust CLI, buildRustPackage on all unix systems; pairs with herdr.
   # These two RunIdentity tests collide on ext4: same-path recreate reuses the
   # inode, and btime is tick-granular, so (dev, ino, born) repeats. Real drovr
@@ -1991,14 +1988,6 @@ attr=$attr
           UNIFI_LOCAL_VERIFY_SSL = "false";
         };
       };
-    } // {
-      explore-mcp = {
-        type = "stdio";
-        command = "${explore-mcp-pkg}/bin/explore-mcp";
-        env = {
-          EXPLORE_MCP_CONFIG = "${config.home.homeDirectory}/.config/explore-mcp/config.json";
-        };
-      };
     };
     model = "claude-opus-5-5";
     theme = "dark";
@@ -3193,7 +3182,6 @@ in
       tree-sitter-typescript
     ]))
     hunk-pkg
-    explore-mcp-pkg
     drovr-pkg
   ]) ++ lib.optionals (!isDarwin) [
     # The rest of the network tools (see the list above). macOS answers route,
@@ -4939,11 +4927,6 @@ in
     };
     configFile."systemd/user/gvfs-afc-volume-monitor.service" = lib.mkIf (!isDarwin && isDesktop) {
       source = "${withHostNss pkgs.gvfs}/share/systemd/user/gvfs-afc-volume-monitor.service";
-    };
-
-    configFile."explore-mcp/config.json".text = builtins.toJSON {
-      explorers = { cursor = { }; codex = { }; gemini = { }; opencode = { }; };
-      summarizer = { backend = "claude"; maxChars = 4000; };
     };
 
 

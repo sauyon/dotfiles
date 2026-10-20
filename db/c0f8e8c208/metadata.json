@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "dbc0f8e8c208",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".drovr/review/utsuho-scale-15-review-1/001-home.nix.diff",
+    ".drovr/review/utsuho-scale-15-review-1/002-hyprland.nix.diff",
+    ".drovr/review/utsuho-scale-15-review-1/index.md",
+    ".drovr/review/utsuho-scale-15-review-2/001-home.nix.diff",
+    ".drovr/review/utsuho-scale-15-review-2/002-hyprland.nix.diff",
+    ".drovr/review/utsuho-scale-15-review-2/index.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/db/c0f8e8c208/0/metadata.json",
+      "transcript": "/db/c0f8e8c208/0/full.jsonl",
+      "compact_transcript": "/db/c0f8e8c208/0/transcript.jsonl",
+      "content_hash": "/db/c0f8e8c208/0/content_hash.txt",
+      "prompt": "/db/c0f8e8c208/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 30,
+    "cache_creation_tokens": 14116,
+    "cache_read_tokens": 1648166,
+    "output_tokens": 7262,
+    "api_call_count": 15
+  }
+}

@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# Cases for the Gas City toolchain (gc + bd + dolt) landing on fujiwara only.
+# Cases for the Gas City toolchain (gc + bd + dolt) landing on the Gas City
+# hosts (fujiwara, utsuho) and nowhere else.
 #
 # Gas City is a tmux fleet of Claude sessions that bills while it runs, so it
-# lives on the one headless box meant to host it. Two ways this breaks quietly:
+# lives only on the boxes meant to host it. Two ways this breaks quietly:
 #
-#   * fujiwara loses a piece. gc shells out to `bd` for every bead and runs a
+#   * a Gas City host loses a piece. gc shells out to `bd` for every bead and runs a
 #     managed `dolt` for the city, so gc without either evaluates fine and then
-#     dies at `gc init`. Case 1 checks all three are in the closure.
+#     dies at `gc init`. Cases 1-2 check all three are in each closure.
 #
 #   * the gate widens. Dropping the hostname guard puts gc on every host, and
-#     nothing errors. Case 2 checks a non-fujiwara host carries none of them.
+#     nothing errors. Case 3 checks a laptop (shiori) carries none of them.
 #
 # Evaluation only (--max-jobs 0): this never builds a derivation.
 #
@@ -27,13 +28,15 @@ names() { # names <host> -- space-separated pnames of home.packages
     --apply 'ps: builtins.concatStringsSep " " (map (p: p.pname or p.name or "") ps)'
 }
 
-fuji=$(names fujiwara) || { echo "could not evaluate fujiwara" >&2; exit 1; }
-missing=""
-for p in gascity beads dolt; do
-  case " $fuji " in *" $p "*) ;; *) missing="$missing $p" ;; esac
+for host in fujiwara utsuho; do
+  have=$(names "$host") || { echo "could not evaluate $host" >&2; exit 1; }
+  missing=""
+  for p in gascity beads dolt; do
+    case " $have " in *" $p "*) ;; *) missing="$missing $p" ;; esac
+  done
+  if [ -z "$missing" ]; then ok "$host has gascity, beads, dolt"
+  else bad "$host is missing:$missing"; fi
 done
-if [ -z "$missing" ]; then ok "fujiwara has gascity, beads, dolt"
-else bad "fujiwara is missing:$missing"; fi
 
 other=$(names shiori) || { echo "could not evaluate shiori" >&2; exit 1; }
 leaked=""

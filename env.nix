@@ -16,13 +16,13 @@ rec {
   RUSTUP_HOME = "${xdg.dataHome}/rustup";
   ASPELL_CONF = "per-conf ${xdg.configHome}/aspell/aspell.conf; personal ${xdg.configHome}/aspell/en.personal; repl ${xdg.configHome}/aspell/en.prepl";
   ZSH_CACHE_DIR = "${xdg.cacheHome}/zsh";
-  # Gas City (nix/gascity.nix, fujiwara): registry, supervisor config and logs,
+  # Gas City (nix/gascity.nix, gascityHosts): registry, supervisor config and logs,
   # ~/.gc by default. Upstream also moves the socket/lock under any GC_HOME off
   # that default; GC_RUNTIME_DIR (patches/gascity-runtime-dir.patch) keeps them
   # in the runtime dir. The supervisor unit name still gets a hashed suffix.
   GC_HOME = "${xdg.stateHome}/gc";
   GC_RUNTIME_DIR = "$XDG_RUNTIME_DIR/gc";
-  # gc sends usage metrics by default; fujiwara does work. Compiled off by
+  # gc sends usage metrics by default; these hosts do work. Compiled off by
   # patches/gascity-no-usage-metrics.patch; this is the second layer.
   GC_DISABLE_USAGE_METRICS = "1";
 

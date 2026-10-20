@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "31d0f414e961",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".drovr/wt/kon-dns/tests/kon-wireguard-profile.sh",
+    ".drovr/wt/zsh-compinit/tests/zsh-compinit-once.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/31/d0f414e961/0/metadata.json",
+      "transcript": "/31/d0f414e961/0/full.jsonl",
+      "compact_transcript": "/31/d0f414e961/0/transcript.jsonl",
+      "content_hash": "/31/d0f414e961/0/content_hash.txt",
+      "prompt": "/31/d0f414e961/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 174,
+    "cache_creation_tokens": 442897,
+    "cache_read_tokens": 10584159,
+    "output_tokens": 74274,
+    "api_call_count": 85
+  }
+}

@@ -1,0 +1,7 @@
+<task-notification>
+<task-id>be859jpew</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/bf988658-2c8b-4e03-b3e1-c126778544ea/tasks/be859jpew.output</output-file>
+<status>completed</status>
+<summary>Background command "Push master, wait for its CI build, and switch to it" completed (exit code -1)</summary>
+</task-notification>

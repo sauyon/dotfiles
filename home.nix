@@ -2077,7 +2077,7 @@ attr=$attr
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./even-terminal.nix ./zed.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./omp.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./even-terminal.nix ./zed.nix ];
 
   home.stateVersion = "26.05";
 
@@ -2663,8 +2663,8 @@ in
       # minutes, then exited without ever calling `submit_findings`. 0 of 4
       # angles, four times running.
       #
-      # Only the REVIEWER is pinned here; interactive pi takes the same gemma
-      # from pi.nix as its default.
+      # Only the REVIEWER is pinned here. pi is reviewer-only now; interactive
+      # use is omp (omp.nix).
       [agents.pi]
       command = "pi"
       review_model = "google/gemma-4-31b-it"

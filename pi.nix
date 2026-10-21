@@ -1,6 +1,11 @@
 { config, lib, pkgs, ... }:
 
 let
+  # pi is kept ONLY as drovr's review agent (home.nix `review_agent = "pi"`):
+  # drovr ships no omp agent, and omp lacks the `--no-approve` project-trust
+  # guard drovr's read-only reviewer stance depends on. Interactive use is omp
+  # (omp.nix).
+  #
   # Providers and models for pi (`~/.pi/agent/models.json`). Same endpoint and
   # same key as opencode's `modular` provider — api.modular.com is public, so
   # only the key is a secret and it is injected at activation below.
@@ -28,8 +33,10 @@ let
           # maximum context length of N tokens". Re-probe rather than assume if
           # Modular changes a deployment.
           {
-            # No `reasoning`: this model has no thinking support, unlike the two
-            # below. Omitted rather than set false so the difference is visible.
+            # No `reasoning`, though gemma DOES think when asked (measured
+            # 2026-10-21; see omp.nix). This is drovr's reviewer, tuned and
+            # measured with thinking off — turning it on is a review-panel
+            # change, so re-measure delivery before flipping it.
             id = "google/gemma-4-31b-it";
             name = "Gemma 4 31B (Modular)";
             contextWindow = 262144;

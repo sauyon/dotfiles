@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "d7c6e2669c38",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".beads/config.yaml",
+    ".gitignore"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d7/c6e2669c38/0/metadata.json",
+      "transcript": "/d7/c6e2669c38/0/full.jsonl",
+      "compact_transcript": "/d7/c6e2669c38/0/transcript.jsonl",
+      "content_hash": "/d7/c6e2669c38/0/content_hash.txt",
+      "prompt": "/d7/c6e2669c38/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 32,
+    "cache_creation_tokens": 39130,
+    "cache_read_tokens": 910985,
+    "output_tokens": 6910,
+    "api_call_count": 16
+  }
+}

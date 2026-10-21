@@ -1,0 +1,64 @@
+does my pi not have a web search tool
+
+---
+
+I added setup-mcloud.py to ~. can you read and use it to configure my pi? and tell me what it does
+
+---
+
+probe all of these again
+
+---
+
+run it
+
+---
+
+no I want to use omp. pi not having web is pretty painful
+
+---
+
+launch an agent to work out why gemma reasoning is off. reconfigure everything to use omp and uninstall pi.
+
+---
+
+<task-notification>
+<task-id>a7055acccc6d0edbc</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/d7f0d0db-68db-46b5-8aeb-86f114033dde/tasks/a7055acccc6d0edbc.output</output-file>
+<status>completed</status>
+<summary>Agent "Investigate gemma reasoning flag" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>Gemma should be configured with reasoning on. The pi.nix comment is wrong: today, Gemma 4 31B on Modular Cloud reasons when asked to and answers wrong when it doesn't. The `openrouter` thinkingFormat turns that on and off correctly.
+
+**(a) History in the dotfiles**
+- The comment first appears in `8e88cf4b` (2026-09-01, "pi: declare the provider, models and default"). At that point it said "unlike the four below".
+- `91ac52eb` (2026-10-21) only reworded it to "the two below" after the retired models were dropped.
+- It was assumed, not measured. That commit says it measured the context windows (from 400 errors). For thinking it only checked that `pi --list-models` showed the flags as configured, and nothing in it tests Gemma's thinking.
+- opencode.nix has no reasoning settings for any of its models, so it says nothing either way.
+
+**(b) What I observed**
+I ran `omp -p --no-tools --model mcloud/&lt;m&gt; --thinking=&lt;t&gt; --print-thoughts "&lt;bat-and-ball + count r's in 'strawberry raspberry'&gt;"`, then read the session JSONL files under `~/.omp/agent/sessions/`.
+
+| model | thinking | answer | session content |
+|---|---|---|---|
+| gemma | off | `0.05 4` (wrong) | `text` block only, no reasoningTokens |
+| gemma | low | `0.05, 6` | `thinking` block of 6844 chars, reasoningTokens 2375 |
+| gemma | high | `0.05, 6` | `thinking` block of 2771 chars, signature `reasoning_content` |
+| glm-5.3 | off | `5, 6` | `thinking` block of 247 chars, still reasons |
+| glm-5.3 | high | `0.05, 6` | `thinking` block of 412 chars, signature `reasoning` |
+
+- Gemma returns its reasoning in the `reasoning_content` field and GLM uses `reasoning`. omp parses both.
+- `off` cleanly disables Gemma's reasoning.
+- Gemma doesn't follow effort levels: `low` produced more thinking than `high`. Treat it as on/off only.
+
+**(c) Recommendation**
+1. Set `reasoning: true` for Gemma. `setup-mcloud.py` is right on this point.
+2. Keep `thinkingFormat: "openrouter"`. Sending `reasoning: {effort}` does switch it on and off.
+3. In pi.nix, add `reasoning = true;` to the Gemma entry and delete the comment. This also affects drovr's review panel, because pi's default model is Gemma.
+
+Scratch session runs are under `/tmp/claude-1000/-home-sauyon-devel-dotfiles/d7f0d0db-68db-46b5-8aeb-86f114033dde/scratchpad/gemma/`. Nothing was edited.
+
+Next step (~2 min): make the pi.nix change, then check that `pi --list-models` shows Gemma with thinking enabled.</result>
+<usage><subagent_tokens>46284</subagent_tokens><tool_uses>6</tool_uses><duration_ms>66769</duration_ms></usage>
+</task-notification>

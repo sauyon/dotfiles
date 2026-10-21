@@ -28,34 +28,17 @@ let
           # maximum context length of N tokens". Re-probe rather than assume if
           # Modular changes a deployment.
           {
-            # No `reasoning`: this model has no thinking support, unlike the four
+            # No `reasoning`: this model has no thinking support, unlike the two
             # below. Omitted rather than set false so the difference is visible.
             id = "google/gemma-4-31b-it";
             name = "Gemma 4 31B (Modular)";
             contextWindow = 262144;
           }
           {
-            # 192000, NOT the 1M the model is documented with elsewhere: this
-            # deployment is configured lower, and pi packing to the published
-            # figure would take 400s mid-review.
             id = "zai-org/glm-5.3";
             reasoning = true;
             name = "GLM 5.3 (Modular)";
-            contextWindow = 192000;
-            maxTokens = 65536;
-          }
-          {
-            id = "z-ai/glm-5.2";
-            reasoning = true;
-            name = "GLM 5.2 (Modular)";
             contextWindow = 1048576;
-            maxTokens = 65536;
-          }
-          {
-            id = "moonshotai/kimi-k2.7-code";
-            reasoning = true;
-            name = "Kimi K2.7 Code (Modular)";
-            contextWindow = 262144;
             maxTokens = 65536;
           }
           {

@@ -47,8 +47,6 @@ let
         };
         models = {
           "zai-org/glm-5.3" = { name = "GLM 5.3"; };
-          "z-ai/glm-5.2" = { name = "GLM 5.2"; };
-          "moonshotai/kimi-k2.7-code" = { name = "Kimi K2.7 Code"; };
           "google/gemma-4-31b-it" = { name = "Gemma 4 31B"; };
           "minimax/minimax-m3" = { name = "MiniMax M3"; };
         };

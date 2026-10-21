@@ -3317,6 +3317,9 @@ in
     gascity-pkg
     beads-pkg
     pkgs.dolt
+    # gc's dolt-orphan sweep and `gc doctor` exec lsof, and the sweep fails
+    # closed without it; upstream lists it as always-required.
+    pkgs.lsof
   ]
   ++ lib.optionals (hostname == "fujiwara") [
     clawpatrol

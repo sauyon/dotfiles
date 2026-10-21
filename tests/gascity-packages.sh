@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cases for the Gas City toolchain (gc + bd + dolt) landing on the Gas City
+# Cases for the Gas City toolchain (gc + bd + dolt + lsof) landing on the Gas City
 # hosts (fujiwara, utsuho) and nowhere else.
 #
 # Gas City is a tmux fleet of Claude sessions that bills while it runs, so it
@@ -31,16 +31,16 @@ names() { # names <host> -- space-separated pnames of home.packages
 for host in fujiwara utsuho; do
   have=$(names "$host") || { echo "could not evaluate $host" >&2; exit 1; }
   missing=""
-  for p in gascity beads dolt; do
+  for p in gascity beads dolt lsof; do
     case " $have " in *" $p "*) ;; *) missing="$missing $p" ;; esac
   done
-  if [ -z "$missing" ]; then ok "$host has gascity, beads, dolt"
+  if [ -z "$missing" ]; then ok "$host has gascity, beads, dolt, lsof"
   else bad "$host is missing:$missing"; fi
 done
 
 other=$(names shiori) || { echo "could not evaluate shiori" >&2; exit 1; }
 leaked=""
-for p in gascity beads dolt; do
+for p in gascity beads dolt lsof; do
   case " $other " in *" $p "*) leaked="$leaked $p" ;; esac
 done
 if [ -z "$leaked" ] && [ -n "$other" ]; then ok "shiori carries none of them"

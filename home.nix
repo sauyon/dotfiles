@@ -3139,6 +3139,15 @@ in
     # so installing it is the whole fix.
     noto-fonts-color-emoji
 
+    # Japanese, Chinese and Korean. Nothing above covers CJK: the google-fonts
+    # list is Latin-only, and its NotoSans is not NotoSansJP. Missing, it fails
+    # the same silent way emoji does -- fontconfig falls back to Noto Sans,
+    # which has no kana or kanji, and the text is tofu. It went missing twice
+    # (the google-fonts trim dropped NotoSansJP; dropping bootstrap.sh dropped
+    # the Arch hosts' `pacman -S noto-fonts-cjk`), so tests/cjk-fonts.sh
+    # checks every host has it.
+    noto-fonts-cjk-sans
+
     claude-agent-acp
     coder
     comma

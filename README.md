@@ -105,6 +105,7 @@ where it gates the build instead of being checked after the fact.
 ./tests/hyprlock-faillock.sh     # builds the script, then drives 33 cases
 ./tests/system-packages.sh       # sources system/pacman.sh, drives 26 cases
 ./tests/net-tools.sh             # each net command against the package shipping it, per host
+./tests/cjk-fonts.sh             # CJK font in every host, and fontconfig sees ja/ko/zh
 ./tests/system-secrets.sh        # sources system/secrets.sh, drives 20 cases
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live zsh config

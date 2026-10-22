@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "e80e05e800e3",
+  "strategy": "manual-commit",
+  "branch": "cjk-fonts",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md",
+    "home.nix",
+    "tests/cjk-fonts.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e8/0e05e800e3/0/metadata.json",
+      "transcript": "/e8/0e05e800e3/0/full.jsonl",
+      "compact_transcript": "/e8/0e05e800e3/0/transcript.jsonl",
+      "content_hash": "/e8/0e05e800e3/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 74877,
+    "cache_read_tokens": 647882,
+    "output_tokens": 6356,
+    "api_call_count": 12
+  }
+}

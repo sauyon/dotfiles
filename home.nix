@@ -3156,7 +3156,7 @@ in
     # checks every host has it.
     noto-fonts-cjk-sans
 
-    claude-agent-acp
+    (graftNode claude-agent-acp)  # graftNode: CVE-2026-111497, see overlay
     coder
     comma
     cosign
@@ -3165,7 +3165,7 @@ in
     # even-terminal.nix. Listed for every host rather than gated on isDesktop:
     # it is a headless HTTP server that the phone connects to, and the glasses
     # are the display -- a host with no graphical session can still serve it.
-    even-terminal
+    (graftNode even-terminal)
     jq
     jujutsu
     kimi-code  # Moonshot's Kimi Code CLI (binary: kimi); see kimi-code.nix
@@ -3193,7 +3193,7 @@ in
     tcpdump
     whois
     opencode
-    pi-coding-agent  # earendil-works/pi terminal coding agent (binary: pi)
+    (graftNode pi-coding-agent)  # earendil-works/pi terminal coding agent (binary: pi)
     forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg and forge.ko.ag
     bat
     rustup
@@ -3267,7 +3267,7 @@ in
     hyprlock-faillock
     nixGL
 
-    pkgs.bitwarden-cli
+    (pkgs.graftNode pkgs.bitwarden-cli)
     # Desktop app is the biometric backend the browser extension talks to over
     # native messaging (the extension can't unlock with biometrics on its own).
     # Unaffected by the move off firefox: gecko asks for native manifests under
@@ -3299,7 +3299,7 @@ in
     # not flag, so it needs no permittedInsecurePackages entry --
     # tests/insecure-packages.sh is what keeps that true across a lock bump.
     pkgs.vesktop
-    pkgs.signal-desktop
+    (pkgs.graftNode pkgs.signal-desktop)
     # Parsec remote-desktop client. nixGL-wrapped like cumora: a nixpkgs GL app
     # on Arch cannot find the host's mesa drivers on its own.
     (config.lib.nixGL.wrap pkgs.parsec-bin)
@@ -3535,6 +3535,61 @@ in
         dontNpmPrune = true;
       };
     })
+    # CVE-2026-111497 (Node.js brotli decoder OOB write, RCE), fixed in Node's
+    # 2026-10-21 security release. nixpkgs-unstable at 5adc508 still ships
+    # 24.21.0 / 22.23.3.
+    #
+    # Grafted, not overridden. Overriding nodejs-slim_2x in the fixpoint
+    # rebuilds everything that merely *builds* with node -- electron (which
+    # embeds its own node, so gains nothing), webkitgtk, thunderbird -- from
+    # source: ~126 extra derivations, hours on the runner. `graftNode pkg`
+    # instead copies pkg's closure with the node store paths rewritten to the
+    # patched build (replaceDependencies; same-length names, so a byte swap),
+    # leaving only node itself to compile. It is applied at the use sites of
+    # the packages that reference node at *runtime* (found with
+    # `nix-store -q --referrers` on the old node paths, intersected with the
+    # profile closure); a new runtime node consumer needs wrapping too.
+    #
+    # It returns a bare store path, not a derivation: read `.version` and
+    # friends from the unwrapped package. Each bump is gated on versionOlder,
+    # so graftNode becomes the identity once nixpkgs catches up -- delete the
+    # block and the call sites then.
+    (final: prev:
+      let
+        bumpNode = base: version: sha256:
+          base.overrideAttrs (old: {
+            inherit version;
+            src = prev.fetchurl {
+              url = "https://nodejs.org/dist/v${version}/node-v${version}.tar.xz";
+              inherit sha256;
+            };
+          });
+        bumps = lib.filter (b: lib.versionOlder b.old.version b.version) [
+          { old = prev.nodejs-slim_24; version = "24.22.1";
+            sha256 = "4f5379796280cdaeb0c2f358fd04b6a16cc4fb7dfa83b5a8c91a9d963b435231"; }
+          { old = prev.nodejs-slim_22; version = "22.23.4";
+            sha256 = "7b9adc82d612d0a2a863d96c46de2292552e250cee51956ebbe0146c42aacae9"; }
+        ];
+        replacements = lib.concatMap (b:
+          let new = bumpNode b.old b.version b.sha256; in
+          map (o: { oldDependency = b.old.${o}; newDependency = new.${o}; }) b.old.outputs
+        ) bumps;
+      in {
+        graftNode = drv:
+          if replacements == [ ] then drv
+          else final.replaceDependencies { inherit drv replacements; };
+      })
+    # Newer claude-code than nixpkgs carries (2.1.303 at 5adc508), pulled in
+    # with the node bump above. The manifest is upstream's
+    # claude-code-releases/<ver>/manifest.zst.json, the same file nixpkgs'
+    # update.sh vendors. Inert once nixpkgs reaches it.
+    (final: prev:
+      let manifest = lib.importJSON ./nix/claude-code-manifest.zst.json; in {
+        claude-code =
+          if lib.versionOlder prev.claude-code.version manifest.version
+          then prev.claude-code.override { inherit manifest; }
+          else prev.claude-code;
+      })
   ];
 
   home.pointerCursor = lib.mkIf (!isDarwin && isDesktop) {

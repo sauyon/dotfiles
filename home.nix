@@ -9,6 +9,7 @@
   hunk,
   beads,
   mattpocock-skills,
+  cloudflare-security-audit-skill,
   zen-browser,
   dotfiles-private,
   machine,
@@ -2207,6 +2208,13 @@ in
   # flake.lock; `nix flake update mattpocock-skills` to bump.
   home.file.".claude/skills/teach".source =
     "${mattpocock-skills}/skills/productivity/teach";
+  # security-audit — Cloudflare's source-first audit workflow (guidance by
+  # default; full six-phase audit only on explicit request). Whole-directory
+  # symlink: SKILL.md reads its *.md phase files and runs the two *.cjs
+  # validators from its own directory. Pinned via flake.lock;
+  # `nix flake update cloudflare-security-audit-skill` to bump.
+  home.file.".claude/skills/security-audit".source =
+    "${cloudflare-security-audit-skill}/skills/security-audit";
 
   # Cursor discovers SKILL.md files recursively and follows directory symlinks.
   # Expose the same pinned drovr skills that Claude loads through its plugin.

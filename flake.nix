@@ -33,6 +33,8 @@
     # bundles under skills/<category>/<name>/, consumed by path below.
     mattpocock-skills.url = "github:mattpocock/skills";
     mattpocock-skills.flake = false;
+    cloudflare-security-audit-skill.url = "github:cloudflare/security-audit-skill";
+    cloudflare-security-audit-skill.flake = false;
     # Seamless OIDC SSH gate (gate binary + nixos/darwin modules).
     # forge.ko.ag is the canonical remote (anon-readable over the CF tunnel);
     # codeberg is a stale mirror. Pin here so the lock tracks forge, not codeberg.
@@ -58,7 +60,7 @@
     zen-browser.inputs.home-manager.follows = "home-manager";
   };
 
-  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, drovr, hunk, beads, mattpocock-skills, zen-browser, ssh-oidc, dotfiles-private, ... }:
+  outputs = { nixpkgs, home-manager, nix-darwin, sops-nix, walker, nixgl, drovr, hunk, beads, mattpocock-skills, cloudflare-security-audit-skill, zen-browser, ssh-oidc, dotfiles-private, ... }:
   let
     # Single overlay applied to every host's `pkgs`: `fj` (forgejo-cli) gets the
     # cross-process flock patch so a bare `fj whoami` can never race the
@@ -76,7 +78,7 @@
     mkHome = system: machine: home-manager.lib.homeManagerConfiguration {
       pkgs = (nixpkgs.legacyPackages.${system}.appendOverlays [ fjOverlay ]);
       extraSpecialArgs = {
-        inherit sops-nix walker nixgl drovr hunk beads mattpocock-skills zen-browser machine;
+        inherit sops-nix walker nixgl drovr hunk beads mattpocock-skills cloudflare-security-audit-skill zen-browser machine;
         inherit dotfiles-private;
         inherit system;
       };

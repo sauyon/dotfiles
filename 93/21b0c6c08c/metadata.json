@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "9321b0c6c08c",
+  "strategy": "manual-commit",
+  "branch": "flake-update-brotli",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "flake.lock",
+    "home.nix",
+    "nix/claude-code-manifest.zst.json",
+    "zed.nix"
+  ],
+  "sessions": [
+    {
+      "metadata": "/93/21b0c6c08c/0/metadata.json",
+      "transcript": "/93/21b0c6c08c/0/full.jsonl",
+      "compact_transcript": "/93/21b0c6c08c/0/transcript.jsonl",
+      "content_hash": "/93/21b0c6c08c/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 78,
+    "cache_creation_tokens": 88087,
+    "cache_read_tokens": 3098926,
+    "output_tokens": 26734,
+    "api_call_count": 39
+  }
+}

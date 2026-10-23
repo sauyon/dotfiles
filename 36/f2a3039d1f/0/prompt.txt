@@ -1,0 +1,17 @@
+research and tell me more about allium. does weed actually fuzz test?
+
+---
+
+what do you mean fuzzing the cli?
+
+---
+
+is it fit for purpose for checking code fits an actual spec
+
+---
+
+specifically json schema
+
+---
+
+surely there are extant tools that do this

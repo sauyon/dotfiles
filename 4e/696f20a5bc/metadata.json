@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "4e696f20a5bc",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".drovr/review/omp-switch-r2-review-1/001-home.nix.diff",
+    ".drovr/review/omp-switch-r2-review-1/002-home_.omp_agent_extensions_herdr-omp-agent-state.ts.diff",
+    ".drovr/review/omp-switch-r2-review-1/003-omp.nix.diff",
+    ".drovr/review/omp-switch-r2-review-1/004-pi.nix.diff",
+    ".drovr/review/omp-switch-r2-review-1/index.md",
+    ".drovr/review/omp-switch-review-1/001-home.nix.diff",
+    ".drovr/review/omp-switch-review-1/002-home_.omp_agent_extensions_herdr-omp-agent-state.ts.diff",
+    ".drovr/review/omp-switch-review-1/003-omp.nix.diff",
+    ".drovr/review/omp-switch-review-1/004-pi.nix.diff",
+    ".drovr/review/omp-switch-review-1/index.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4e/696f20a5bc/0/metadata.json",
+      "transcript": "/4e/696f20a5bc/0/full.jsonl",
+      "compact_transcript": "/4e/696f20a5bc/0/transcript.jsonl",
+      "content_hash": "/4e/696f20a5bc/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 6274,
+    "cache_read_tokens": 991334,
+    "output_tokens": 3775,
+    "api_call_count": 9,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
+  }
+}

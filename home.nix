@@ -4263,8 +4263,12 @@ in
       # `voice` is set here rather than left to `/voice`: that command writes
       # it into settings.json, which is a read-only store symlink, so it fails
       # with "Failed to update settings" and voice never turns on.
+      #
+      # Off on fujiwara: it has no mic and is driven over SSH (no seat, so no
+      # /dev/snd access), and every push-to-talk tap made alsa-lib spray
+      # "cannot find card '0'" errors across the TUI.
       settings = claudeBaseSettings // {
-        voice = { enabled = true; mode = "tap"; };
+        voice = { enabled = hostname != "fujiwara"; mode = "tap"; };
       };
       # No version/src override: nixpkgs now leads upstream's native-binary
       # releases, and its installPhase unzstds a `claude.zst` src that the old

@@ -1,0 +1,5 @@
+I get horrible alsa errors when running claude on this machine
+
+---
+
+no? it should be installed with nix, surely. besides, fujiwara has no mic so how would it work anywa

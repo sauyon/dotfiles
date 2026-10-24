@@ -1,0 +1,21 @@
+install orca cli + skills
+
+---
+
+continue
+
+---
+
+why is the exe orca-ide and not orca anyway
+
+---
+
+why does the gui need the sandbox
+
+---
+
+do it all
+
+---
+
+well, if it's separate start a new orca session for it

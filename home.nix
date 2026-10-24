@@ -3550,10 +3550,20 @@ in
     # `nix-store -q --referrers` on the old node paths, intersected with the
     # profile closure); a new runtime node consumer needs wrapping too.
     #
+    # The node bump alone does not fix the CVE. The fix is a brotli cherry-pick
+    # (google/brotli 0ed4268a) into node's vendored deps/brotli, and nixpkgs
+    # builds node with --shared-brotli, so node loads nixpkgs' libbrotlidec and
+    # the vendored copy is never compiled. graftNode therefore also swaps in a
+    # patched brotli; the bump stays for the release's other CVEs.
+    # tests/brotli-cve-2026-111497.sh checks the library each node actually
+    # loads, which is what a version check got wrong here.
+    #
     # It returns a bare store path, not a derivation: read `.version` and
-    # friends from the unwrapped package. Each bump is gated on versionOlder,
-    # so graftNode becomes the identity once nixpkgs catches up -- delete the
-    # block and the call sites then.
+    # friends from the unwrapped package. Each node bump is gated on
+    # versionOlder, and the brotli patch on brotli still being 1.2.0 (the fix
+    # postdates it, so any later release carries it), so graftNode becomes the
+    # identity once nixpkgs catches up -- delete the block and the call sites
+    # then.
     (final: prev:
       let
         bumpNode = base: version: sha256:
@@ -3570,10 +3580,22 @@ in
           { old = prev.nodejs-slim_22; version = "22.23.4";
             sha256 = "7b9adc82d612d0a2a863d96c46de2292552e250cee51956ebbe0146c42aacae9"; }
         ];
-        replacements = lib.concatMap (b:
-          let new = bumpNode b.old b.version b.sha256; in
-          map (o: { oldDependency = b.old.${o}; newDependency = new.${o}; }) b.old.outputs
-        ) bumps;
+        brotli = lib.optional (prev.brotli.version == "1.2.0") {
+          old = prev.brotli;
+          new = prev.brotli.overrideAttrs (old: {
+            patches = (old.patches or [ ]) ++ [
+              (prev.fetchurl {
+                url = "https://github.com/google/brotli/commit/0ed4268a4401abcb4472096340477cf4af7d1a2b.patch";
+                hash = "sha256-gzyh1x7thb3jwhxjpu4xATh3Qbiqi5qCJRNAlKZ3thk=";
+              })
+            ];
+          });
+        };
+        swaps = map (b: { inherit (b) old; new = bumpNode b.old b.version b.sha256; }) bumps
+          ++ brotli;
+        replacements = lib.concatMap (s:
+          map (o: { oldDependency = s.old.${o}; newDependency = s.new.${o}; }) s.old.outputs
+        ) swaps;
       in {
         graftNode = drv:
           if replacements == [ ] then drv

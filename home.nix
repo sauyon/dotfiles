@@ -3121,6 +3121,10 @@ in
         "FiraCode"
       ];
     })
+    # A Nerd Font that keeps its ligatures: "JetBrainsMono Nerd Font", not the
+    # "JetBrainsMonoNL" (no-ligature) faces the same package also ships.
+    # tests/ligature-nerd-font.sh checks the face and that GSUB still has calt.
+    nerd-fonts.jetbrains-mono
 
     # The emoji font, and it has to be its own package. Everything Noto above is
     # text -- NotoSans Nerd Font for the UI, NotoSans/NotoSerif/NotoSansMono in

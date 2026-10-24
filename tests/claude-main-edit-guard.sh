@@ -98,37 +98,67 @@ check "primary checkout on master: edit refused" deny "$(verdict "$R/f")"
 check "a file that does not exist yet is refused too" deny "$(verdict "$R/new/dir/g")"
 check "CLAUDE_ALLOW_MAIN_EDIT=1 lets it through" allow \
   "$(verdict "$R/f" CLAUDE_ALLOW_MAIN_EDIT=1)"
-# Worktrees are Orca's now, not drovr's .drovr/wt: the refusal names the way
-# out, for this repo, and where Orca is not installed one that leaves no
-# untracked worktree in the primary checkout for hms to refuse on.
-reason=$(printf '{"tool_input":{"file_path":"%s"}}' "$R/f" \
-  | env -u CLAUDE_ALLOW_MAIN_EDIT bash "$T/hook.sh" \
-  | jq -r '.hookSpecificOutput.permissionDecisionReason')
+# The refusal names the way out. Where Orca is installed (orca.nix: GUI Linux)
+# that is an Orca worktree of this repo; elsewhere drovr keeps its own
+# .drovr/wt worktrees, so it is EnterWorktree, and `drovr path` for a run.
+# Neither suggests a bare in-repo `git worktree add`: its untracked dir makes
+# hms refuse the primary checkout.
+orca_on() { # orca_on <host> -> true | false; any eval failure fails the suite
+  local v
+  v=$(nix eval --raw "$REPO#homeConfigurations.$1.config.home.packages" \
+    --apply 'ps: if builtins.any (p: (p.pname or "") == "orca") ps then "true" else "false"') \
+    || { echo "could not evaluate $1's packages" >&2; exit 1; }
+  case "$v" in true|false) echo "$v" ;; *) echo "orca_on $1: got '$v'" >&2; exit 1 ;; esac
+}
+refusal() { # refusal <file path> -> the hook's deny reason
+  printf '{"tool_input":{"file_path":"%s"}}' "$1" \
+    | env -u CLAUDE_ALLOW_MAIN_EDIT bash "$T/hook.sh" \
+    | jq -r '.hookSpecificOutput.permissionDecisionReason'
+}
 says() { case "$reason" in *"$1"*) echo yes ;; *) echo no ;; esac; }
-check "refusal names an Orca worktree of this repo" yes "$(says "orca worktree create --repo path:$R ")"
-# The repo root, not the directory the hook walked up to from a new file.
-reason=$(printf '{"tool_input":{"file_path":"%s"}}' "$R/new/dir/g" \
-  | env -u CLAUDE_ALLOW_MAIN_EDIT bash "$T/hook.sh" \
-  | jq -r '.hookSpecificOutput.permissionDecisionReason')
-check "refusal for a new nested file still names the repo root" yes "$(says "--repo path:$R ")"
+here=$(orca_on "$host")
+reason=$(refusal "$R/f")
+if [ "$here" = true ]; then
+  check "refusal names an Orca worktree of this repo" yes "$(says "orca worktree create --repo path:$R ")"
+  # The repo root, not the directory the hook walked up to from a new file.
+  reason=$(refusal "$R/new/dir/g")
+  check "refusal for a new nested file still names the repo root" yes "$(says "--repo path:$R ")"
+else
+  check "refusal names no orca command on a host without it" no "$(says 'orca worktree create')"
+  check "refusal points a drovr run at its own worktree" yes "$(says 'drovr path <run>')"
+fi
 check "refusal falls back to EnterWorktree's own worktree" yes "$(says 'EnterWorktree with a name')"
 check "refusal suggests no in-repo git worktree" no "$(says 'git worktree add')"
-check "refusal no longer names drovr new" no "$(says 'drovr new')"
-check "refusal no longer names .drovr/wt" no "$(says '.drovr/wt')"
+check "refusal never says to relaunch with drovr new" no "$(says 'drovr new')"
 
-# drovr's own worktrees stay on wherever Orca is not installed to replace them
-# (orca.nix: GUI Linux only). Every host in the flake, not just this one.
-for h in $(nix eval --json "$REPO#homeConfigurations" --apply builtins.attrNames | jq -r '.[]'); do
-  want=$(nix eval --raw "$REPO#homeConfigurations.$h.config.home.packages" \
-    --apply 'ps: if builtins.any (p: builtins.match "orca-[0-9.]+" (p.name or "") != null) ps then "false" else "true"')
-  got=$(nix eval --raw "$REPO#homeConfigurations.$h.config.xdg.configFile.\"drovr/config.toml\".text" \
-    | sed -n 's/^worktree = //p')
-  check "$h: drovr worktree = $want (Orca installed: $([ "$want" = false ] && echo yes || echo no))" "$want" "$got"
-  # ...and auto mode lets an agent cd into the .drovr/wt it makes exactly there.
-  cdrule=$(nix eval --json "$REPO#homeConfigurations.$h.config.programs.claude-code.settings.autoMode.allow" \
-    | jq -r 'any(.[]; test("into a drovr worktree"))')
-  check "$h: auto mode allows cd into .drovr/wt iff drovr makes them" "$want" "$cdrule"
+# Every host in the flake, not just this one: the hook text, drovr's own
+# worktrees and the auto-mode cd rules all follow whether Orca is installed.
+hosts=$(nix eval --json "$REPO#homeConfigurations" --apply builtins.attrNames) \
+  || { echo "could not list homeConfigurations" >&2; exit 1; }
+hosts=$(jq -r '.[]' <<<"$hosts")
+with=0; without=0
+for h in $hosts; do
+  orca=$(orca_on "$h")
+  if [ "$orca" = true ]; then with=$((with+1)); wt=false; else without=$((without+1)); wt=true; fi
+  toml=$(nix eval --raw "$REPO#homeConfigurations.$h.config.xdg.configFile.\"drovr/config.toml\".text") \
+    || { echo "could not evaluate $h's drovr config" >&2; exit 1; }
+  got=$(sed -n 's/^worktree = //p' <<<"$toml")
+  check "$h: drovr worktree = $wt (Orca: $orca)" "$wt" "$got"
+  hook=$(nix eval --json "$REPO#homeConfigurations.$h.config.programs.claude-code.settings.hooks.PreToolUse") \
+    || { echo "could not evaluate $h's hooks" >&2; exit 1; }
+  hook=$(jq -r '[.[] | select(.matcher | test("Edit")) | .hooks[0].command] | first // ""' <<<"$hook")
+  check "$h: refusal names orca iff Orca is installed" "$orca" \
+    "$(case "$hook" in *'orca worktree create'*) echo true ;; *) echo false ;; esac)"
+  allow=$(nix eval --json "$REPO#homeConfigurations.$h.config.programs.claude-code.settings.autoMode.allow") \
+    || { echo "could not evaluate $h's auto-mode rules" >&2; exit 1; }
+  check "$h: auto mode allows cd into .drovr/wt iff drovr makes them" "$wt" \
+    "$(jq -r 'any(.[]; test("into a drovr worktree"))' <<<"$allow")"
+  check "$h: auto mode allows cd into an Orca worktree" true \
+    "$(jq -r 'any(.[]; test("into an Orca worktree"))' <<<"$allow")"
 done
+# A loop that saw only one kind of host tested only half the gate.
+check "hosts with Orca and without both exist" "yes yes" \
+  "$([ "$with" -gt 0 ] && echo yes || echo no) $([ "$without" -gt 0 ] && echo yes || echo no)"
 
 git -C "$R" worktree add -q "$T/wt" topic
 check "linked worktree: edit allowed" allow "$(verdict "$T/wt/f")"

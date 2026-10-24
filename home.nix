@@ -22,6 +22,9 @@ let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
+  # Orca (orca.nix) is GUI-Linux only. Where it is, it owns agent worktrees;
+  # elsewhere drovr keeps its own .drovr/wt/<run> ones.
+  hasOrca = !isDarwin && isDesktop;
   gpu = machine.gpu or null;
 
   # Values the public repo deliberately does not carry: see the
@@ -1943,13 +1946,16 @@ attr=$attr
               done
               br=$(${pkgs.git}/bin/git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)
               case "$br" in main|master) ;; *) exit 0 ;; esac
-              # The repo is named explicitly: outside an Orca terminal there is
-              # no current Orca worktree to infer it from. `orca` itself is only
-              # on PATH inside Orca, and Orca only on GUI Linux hosts. The fallback is
-              # EnterWorktree's own .claude/worktrees (globally gitignored), not
-              # a bare `git worktree add`, which an agent puts inside the repo,
-              # leaving an untracked dir that makes hms refuse the tree.
-              ${pkgs.jq}/bin/jq -nc --arg r "$root" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout on its default branch. Work in a worktree instead: run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the path it prints. Where `orca` is not on PATH or does not know this repo, EnterWorktree with a name creates one under .claude/worktrees. EnterWorktree on an existing worktree works too. A drovr run refused here is relaunched from that worktree, not continued by moving its agent. For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set.")}}'
+              # The way out depends on the host. With Orca it is an Orca
+              # worktree, the repo named explicitly: outside an Orca terminal
+              # there is no current one to infer it from, and outside one `orca`
+              # may not be on PATH at all. Without Orca, drovr makes its own
+              # worktrees, so a run refused here was launched --no-worktree or
+              # its driver never entered the worktree. Either way the fallback
+              # is EnterWorktree's own .claude/worktrees (globally gitignored),
+              # never a bare `git worktree add`, which an agent puts inside the
+              # repo, leaving an untracked dir that makes hms refuse the tree.
+              ${pkgs.jq}/bin/jq -nc --arg r "$root" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout on its default branch. Work in a worktree instead: " + ${if hasOrca then ''"run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the path it prints. Where `orca` is not on PATH or does not know this repo, EnterWorktree with a name creates one under .claude/worktrees. EnterWorktree on an existing worktree works too. A drovr run refused here is relaunched from that worktree, not continued by moving its agent."'' else ''"EnterWorktree with a name creates one under .claude/worktrees, or EnterWorktree on an existing one. A drovr run refused here enters its own worktree, at `drovr path <run>`; one launched --no-worktree is relaunched without it."''} + " For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set.")}}'
             '';
           } ];
         }
@@ -2126,13 +2132,13 @@ attr=$attr
         "Creating a pull request (`gh pr create`, a `gh api` POST to a repo's pulls endpoint, or mcp__github__create_pull_request) is ALLOWED when the working directory is under ${config.home.homeDirectory}/devel/quite-app."
         "Git Push to Default Branch is allowed when the current working directory is under ${config.home.homeDirectory}/devel/kube. That repo is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow; no PR review applies."
         # Orca worktrees live at ~/orca/workspaces/<repo>/<task>, for every repo
-        # Orca manages, not only the session's own -- still narrower than the
-        # `/.drovr/wt/` substring this replaced, which matched under any root.
+        # Orca manages, not only the session's own. Harmless on a host without
+        # Orca, where nothing is there to enter.
         # Expressing this as a permissions .allow rule isn't possible: Bash rules
         # are exact-or-`:*`-prefix, so the only rule that would match is
         # `Bash(cd:*)`, which allows every cd anywhere.
         "Changing directory into an Orca worktree is ALLOWED: a `cd` whose target path is under `${config.home.homeDirectory}/orca/workspaces/`, with no `..` segment (for example `cd ${config.home.homeDirectory}/orca/workspaces/dotfiles/some-task`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only."
-      ] ++ lib.optional (isDarwin || !isDesktop)
+      ] ++ lib.optional (!hasOrca)
         # No Orca here, so drovr still isolates runs in <repo>/.drovr/wt/<run>
         # (see the drovr config below); same reasoning, inside the repo itself.
         "Changing directory into a drovr worktree is ALLOWED: a `cd` whose target path contains `/.drovr/wt/`, with no `..` segment (for example `cd ${config.home.homeDirectory}/devel/dotfiles/.drovr/wt/some-run`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only.";
@@ -2835,7 +2841,7 @@ in
       # writes it per review pass — see cli/src/pi_extension.rs upstream.
       #
       review_agent = "pi"
-      worktree = ${lib.boolToString (isDarwin || !isDesktop)}
+      worktree = ${lib.boolToString (!hasOrca)}
     '' + lib.optionalString (hostname == "fujiwara") ''
       # The LAN address, not the tailnet one and not 0.0.0.0. This server has no
       # auth, so it is reachable unauthenticated from the whole LAN and from

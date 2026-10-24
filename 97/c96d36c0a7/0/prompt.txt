@@ -1,0 +1,63 @@
+<task-notification>
+<task-id>ac7899df87538969d</task-id>
+<tool-use-id>toolu_01AMiLJD13b3NbqFUXxgH2UG</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/tasks/ac7899df87538969d.output</output-file>
+<status>completed</status>
+<summary>Agent "Review r1: correctness+errors" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical issues, five Important ones and twelve nits. The two worst: the build no longer gives Orca's Wayland clipboard helper the Wayland library it needs, and Chromium's audio libraries (PulseAudio, PipeWire) are gone, which affects dictation.
+
+I reviewed commit f888db7d (`39c256fd..HEAD`). `git status` was clean when I started. Partway through, `tests/orca-gui-unsandboxed.sh` was changed in the working tree (not committed): case 6 now runs in a headless sway. I reviewed the committed version and only mention the change where it matters.
+
+**What checks out:**
+- **Pinned trees:** `resources/node-runtime` and `resources/orcad-template` match the AppImage byte for byte (`diff -r --no-dereference`). File modes are kept (node is still 555) and node's sha256 matches `.runtime-node`.
+- **Wrapper:** every step from the home-manager wrapper through nixGL to makeWrapper uses `exec`, so the process you launch is Electron itself. `"$@"` comes through intact (tested with `'a b' '' '$x'`). In node mode `FONTCONFIG_FILE` is set and no ozone flag is added.
+- **Desktop file:** `Exec=orca-ide %U`, `x-scheme-handler/orca` is still there, and the icons are installed at 16 to 512.
+
+## Important
+
+1. **The Wayland clipboard helper can't find its library** (orca.nix:55-58). `resources/bin/orca-wayland-clipboard` loads `libwayland-client.so.0` at runtime. After patching, its search path covers only libglvnd, systemd, libsecret, libnotify and libappindicator, plus nix glibc's own directory.
+   - My shell turned out to be inside the old bwrap environment, where a fake `/etc/ld.so.cache` and `/lib` hid the failure. The real store path has no cache file, so on the Arch host this load should fail. The unpatched AppImage binary found the host's library. I could not run it on the host itself.
+   - Fix: add `pkgs.wayland` to `runtimeDependencies`.
+2. **Chromium's audio and video libraries are missing** (same lines). `orca-ide` loads `libpulse.so.0`, `libpipewire-0.3.so.0` and `libva` at runtime, and none of them is reachable now. The old bwrap environment supplied all three.
+   - Orca has dictation (`stt-worker`, the sherpa-onnx speech addons) and plays sounds. Without PulseAudio, Chromium falls back to nix's ALSA, which can't use the host's PipeWire/Pulse plugin, so mic and sound likely fail. Screen capture through the portal goes too.
+   - Fix: add `libpulseaudio pipewire libva` to `runtimeDependencies`.
+3. **nixGL's environment now leaks into host programs** (orca.nix:244). nixGL exports `LD_LIBRARY_PATH` (nix mesa and libglvnd) and several driver variables, and every process Orca spawns inherits them. Inside bwrap that did no harm; now the terminals run host binaries.
+   - A host GL program started from an Orca terminal (mpv, chromium, another Electron app) would load nix mesa next to its own libraries. Expect `GLIBCXX` version errors, crashes or the wrong driver. This is inferred; I didn't run it on the host.
+4. **Test case 4 (ldd) checks with the wrong loader** (test:126). `ldd` uses its own loader, not the one the binary names (confirmed in `/usr/bin/ldd` at lines 29 and 176). On Arch that loader searches `/etc/ld.so.cache` and `/usr/lib`, so a library dropped from the search path still reports as found if Arch has it installed. It also can't see runtime-loaded libraries, which is why items 1 and 2 pass.
+   - Fix: run each file's own interpreter (`LD_TRACE_LOADED_OBJECTS=1 "$interp" f`) and add explicit checks for the runtime-loaded libraries.
+5. **Losing `--ozone-platform=wayland` passes the default run** (test:156). Only case 6 starts the app in GUI mode, and it needs `ORCA_TEST_GUI=1`. Case 2 only checks that node mode doesn't get the flag. The uncommitted headless-sway version of case 6 would catch this once committed.
+
+## Nits
+
+- **N1** (orca.nix:60-63). The comment saying the fixup steps run "by hand, or not at all" around the pinned trees is wrong. Shebang patching and rpath shrinking still run over them. They change nothing today only because the two scripts with shebangs (`orcad-template/out/cli/index.js`, `runtime.py`) aren't executable. Test 5 would catch a change.
+- **N2** (orca.nix:40-43). AppRun added `--no-sandbox` when user namespaces were unavailable. That fallback is gone, so on such a host Chromium aborts on the non-setuid `chrome-sandbox`. Fine on this Arch host.
+- **N3.** There is no `wrapGAppsHook3`, so GSettings schemas and GIO modules come from the host's `/usr/share`. The GTK file chooser fallback works only if the host has gtk3's schemas. Desktop launches also get no `LOCALE_ARCHIVE` for nix glibc.
+- **N4** (test:71). `nix-store -qR | grep -q` under `pipefail` can report "no bubblewrap" when bubblewrap is present: `grep -q` exits early, nix-store gets SIGPIPE and the `else` branch passes. It doesn't happen today only because the 14 KB listing fits in the pipe buffer.
+- **N5** (test:84). Only `ELECTRON_RUN_AS_NODE=1` is tested, not empty or `0`.
+- **N6** (test:94). `date +%Z` passes on a UTC host whatever the build does. The `readlink /etc/localtime` check covers it.
+- **N7** (test:102-110). The font cases run the host's `fc-list`/`fc-match`, not Electron's own built-in fontconfig. They do still fail if `FONTCONFIG_FILE` is dropped.
+- **N8** (test:113-117). In the node-pty case, output can arrive after the exit event and print `" 0"`. That is a flaky false failure, not a false pass.
+- **N9** (test:120-125). If `file` isn't on the host, the message says "only 0 ELFs found", which is misleading. It still fails.
+- **N10** (test:140). `diff -r` ignores file modes, so a lost exec bit on node would pass case 5. The modes are correct today.
+- **N11** (test:68, 161-199). If `mktemp` fails, `"$T/home"` becomes `/home`. The exit trap doesn't stop the test's systemd unit, so an interrupted run leaves a second Orca running on a profile being deleted.
+- **N12** (test:78). Finding the app directory depends on `nix-store -qR` listing the inner package before the nixGL wrapper, which also contains `lib/orca`. It works today.
+
+## Do the tests catch regressions?
+
+- **Caught:**
+  - going back to bwrap
+  - the ozone flag leaking into node mode
+  - dropping `FONTCONFIG_FILE`
+  - patched or stripped pinned trees
+  - node-pty breakage
+- **Not caught by default:**
+  - losing the GUI ozone flag (item 5)
+  - missing libraries the host happens to have (item 4)
+  - any runtime-loaded library: wayland, pulse, pipewire, libsecret, libGL
+  - the desktop file's `Exec`/`MimeType` and the icons
+  - signal delivery: committed case 6 uses `systemctl stop`, which signals the whole group. The uncommitted `kill -TERM $pid` version tests it properly.
+
+The full report is in `/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/scratchpad/review-r1-correctness.md`.</result>
+<usage><subagent_tokens>112857</subagent_tokens><tool_uses>42</tool_uses><duration_ms>536434</duration_ms></usage>
+</task-notification>

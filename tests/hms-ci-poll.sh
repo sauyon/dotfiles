@@ -40,6 +40,9 @@ fi
 
 D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
 fails=0; n=0
+# A caller's own setting would leak into every case through run() and stand in
+# for the shipped default the two-retry case is there to pin.
+unset HMS_RETRIES
 
 # A throwaway repo whose origin is a bare repo next to it, so hms's fetch/push
 # half runs for real without touching anything that matters.
@@ -228,7 +231,9 @@ run() {
   # HMS_FIRST_RUN_SECONDS bounds the *other* poll -- the one waiting for a run
   # to be created at all, which ships at 90s. The cases below that exercise it
   # would otherwise sit through that window twice.
-  timeout 180 env -i PATH="$PATH" HOME="$HOME" HMS_RETRIES="${HMS_RETRIES:-2}" \
+  # HMS_RETRIES only when a case sets it: a defaulted value here would be what
+  # every case reads, and the script's own default would go untested.
+  timeout 180 env -i PATH="$PATH" HOME="$HOME" ${HMS_RETRIES+"HMS_RETRIES=$HMS_RETRIES"} \
     HMS_REPO="$D/repo" HMS_CURL="$D/curl" HMS_TOKEN_CMD="$D/token-cmd" \
     HMS_SWITCH_CMD="$D/switch" HMS_WAIT_SECONDS="${HMS_WAIT_SECONDS:-20}" HMS_FIRST_RUN_SECONDS=1 \
     "$SCRIPT" 2>&1

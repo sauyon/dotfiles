@@ -36,8 +36,8 @@ PKG="${1:-}"
 if [ -z "$PKG" ]; then
   # The activation entry's string context names the merge package's drv.
   drv=$(nix eval --raw "$HM.home.activation.orcaMacKeybindings.data" \
-    --apply 'd: builtins.head (builtins.attrNames (builtins.getContext d))' 2>/dev/null) \
-    || { echo "no home.activation.orcaMacKeybindings on this host" >&2; exit 1; }
+    --apply 'd: builtins.head (builtins.attrNames (builtins.getContext d))') \
+    || { echo "could not evaluate home.activation.orcaMacKeybindings on this host (above)" >&2; exit 1; }
   PKG=$(nix-store --realise "$drv" | tail -1) || { echo "could not build $drv" >&2; exit 1; }
 fi
 MERGE="$PKG/bin/orca-mac-keybindings"
@@ -61,7 +61,7 @@ got=$(jqo '[.[][] | select(test("(^|\\+)Mod\\+"))]')
 nix eval --json "$HM.wayland.windowManager.hyprland.settings" --apply \
   's: builtins.concatMap (k: map (b: if builtins.isAttrs b && b ? _args then builtins.head b._args else b) s.${k})
       (builtins.filter (k: builtins.substring 0 4 k == "bind" && builtins.isList s.${k}) (builtins.attrNames s))' \
-  2>/dev/null > "$T/hypr.json" || { echo "could not evaluate Hyprland binds" >&2; exit 1; }
+  > "$T/hypr.json" || { echo "could not evaluate Hyprland binds (above)" >&2; exit 1; }
 # Hyprland "SUPER + SHIFT + W" -> Orca "Cmd+Shift+W"; letters upper-cased, the
 # keys Orca spells differently renamed. Mouse and switch binds never match.
 jq -r '.[] | split(" + ") | map(
@@ -255,15 +255,30 @@ elif grep -q 'unknown modifier in Hyprland bind "HYPER + T"' "$T/gen.err"; then 
 else fail "unknown-bind" "failed for another reason: $(cat "$T/gen.err")"; fi
 
 # 12b. Binds that can never be an Orca chord do not fail the build -- a bare
-#      Print screenshot key, a key Orca has no name for, a bare F7 -- while
-#      Hyprland's aliases still count: MOD4 + T is Super+T, tab.newTerminal's.
-if out=$(gen '["Print", "SUPER + Scroll_Lock", "MOD4 + T", "SUPER + grave", "F7"]'); then
+#      Print screenshot key, Scroll_Lock, a bare F7 -- while Hyprland's
+#      aliases still count: MOD4 + T is Super+T, tab.newTerminal's.
+if out=$(gen '["Print", "SUPER + Scroll_Lock", "MOD4 + T", "F7"]'); then
   got=$(jq -c 'has("tab.newTerminal")' <<<"$out")
   [ "$got" = 'false' ] && pass "unmappable binds skipped, Hyprland aliases taken" \
     || fail "aliases" "tab.newTerminal still generated under MOD4 + T"
 else
   fail "aliases" "generator failed: $(cat "$T/gen.err")"
 fi
+
+# 12c. Keysyms Orca spells differently are still Hyprland's, in either case:
+#      KP_Add is NumpadAdd (zoom.in's), prior is PageUp.
+#      A bare Delete is fileExplorer.delete's bare chord.
+out=$(gen '["SUPER + KP_Add", "SUPER + prior", "Delete"]')
+got=$(jq -c '[.["zoom.in"], .["tab.previousTerminal"], .["fileExplorer.delete"]]' <<<"$out")
+[ "$got" = '[["Cmd+Equal","Cmd+Shift+Plus"],null,["Cmd+Backspace"]]' ] \
+  && pass "keysym aliases (KP_Add, lowercase prior) and a bare Delete taken" \
+  || fail "keysyms" "zoom.in/tab.previousTerminal/fileExplorer.delete got $got"
+
+# 12d. A key it does not know is not assumed harmless: it may be an Orca
+#      chord under a spelling not mapped yet, so the build fails.
+if gen '["SUPER + Frobnicate"]' >/dev/null; then fail "unknown-key" "SUPER + Frobnicate passed as harmless"
+elif grep -q 'Hyprland bind "SUPER + Frobnicate"' "$T/gen.err"; then pass "unknown Hyprland key fails the generator"
+else fail "unknown-key" "failed for another reason: $(cat "$T/gen.err")"; fi
 
 # 13. A generated chord may not land on an action left on its Linux default:
 #     Orca dispatches across scopes, so the conflict check never sees it.

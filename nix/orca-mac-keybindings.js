@@ -15,10 +15,11 @@ const [shared, chordsFile] = process.argv.slice(2);
 const kb = require(path.resolve(shared, 'keybindings.js'));
 
 // Chords Hyprland binds never reach the window. "SUPER + SHIFT + W" ->
-// "Cmd+Shift+W", Hyprland's modifier and keysym aliases included. An unknown
-// modifier fails the build: it may well be a chord Orca uses. A key Orca has
-// no name for (Print, Scroll_Lock), or a mouse/switch/media bind, cannot be
-// any Orca chord, so it is skipped -- noted in the log, not fatal.
+// "Cmd+Shift+W", Hyprland's modifier and keysym aliases included (keysyms
+// case-insensitively, as Hyprland reads them). Mouse, switch and media binds,
+// and the few keys Orca has no chord for (NO_CHORD), are skipped. Anything
+// else that does not translate fails the build: an unknown name may be an
+// Orca chord spelled another way, and guessing "harmless" ships a dead key.
 const MODS = {
   SUPER: 'Cmd', WIN: 'Cmd', LOGO: 'Cmd', MOD4: 'Cmd',
   CTRL: 'Ctrl', CONTROL: 'Ctrl',
@@ -27,8 +28,11 @@ const MODS = {
 };
 const KEYS = {
   return: 'Enter', left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown',
-  grave: 'Backquote', Prior: 'PageUp', Next: 'PageDown',
+  grave: 'Backquote', apostrophe: 'Quote',
+  prior: 'PageUp', next: 'PageDown', page_up: 'PageUp', page_down: 'PageDown',
+  kp_add: 'NumpadAdd', kp_subtract: 'NumpadSubtract',
 };
+const NO_CHORD = new Set(['print', 'scroll_lock', 'pause', 'sys_req', 'menu']);
 const taken = new Set();
 for (const chord of JSON.parse(fs.readFileSync(chordsFile, 'utf8'))) {
   const parts = chord.split('+').map((s) => s.trim());
@@ -37,12 +41,15 @@ for (const chord of JSON.parse(fs.readFileSync(chordsFile, 'utf8'))) {
   const mods = parts.map((p) => MODS[p.toUpperCase()]);
   if (!mods.every(Boolean)) throw new Error(`unknown modifier in Hyprland bind "${chord}"`);
   // Bare keys too: Orca's few bare chords (F7, Delete) can be Hyprland's.
-  const n = kb.normalizeKeybindingWithOptions([...mods, KEYS[key] ?? key].join('+'), {
+  if (NO_CHORD.has(key.toLowerCase())) continue;
+  const n = kb.normalizeKeybindingWithOptions([...mods, KEYS[key.toLowerCase()] ?? key].join('+'), {
     allowBareKeybindings: true,
     allowShiftOnlyKeybindings: true,
   });
-  if (n.ok) taken.add(n.value);
-  else console.error(`Hyprland bind "${chord}" is no Orca chord (${n.error}); skipped`);
+  if (!n.ok) {
+    throw new Error(`cannot translate Hyprland bind "${chord}" (${n.error}); map its key in KEYS, or NO_CHORD if Orca has none`);
+  }
+  taken.add(n.value);
 }
 // A digit-index action's one binding stands for its whole 1-9 family.
 const isTaken = (id, binding) =>

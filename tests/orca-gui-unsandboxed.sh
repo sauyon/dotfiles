@@ -14,14 +14,13 @@
 # The probes run on the host. When this script itself runs inside a sandbox
 # (an Orca terminal on the old build has no /etc/hostname), each probe goes
 # through `systemd-run --user`, whose units the user manager starts outside it.
+# Once no bwrap-era Orca is left running anywhere, that path can go.
 #
-# Two trees are deliberately left unpatched and must stay byte-identical:
-# resources/node-runtime, whose node is copied into orcad slots and checked
-# against a sha256 pin in app.asar (a patched node fails the check, and Orca
-# falls back to downloading stock node), and resources/orcad-template, whose
-# per-target builds (arm64, musl) are shipped to remote hosts.
+# That the two pinned trees (resources/node-runtime, resources/orcad-template)
+# stay the AppImage's byte for byte is the derivation's installCheckPhase, not
+# a case here: it gates the build.
 #
-# The GUI case (6) needs no desktop and never shows on one: it starts its own
+# The GUI case (5) needs no desktop and never shows on one: it starts its own
 # headless sway (wlroots' headless backend, a private XDG_RUNTIME_DIR) and
 # runs Orca in that, with its own --user-data-dir and a throwaway HOME, so it
 # never touches a running Orca's profile, ~/.orca/agent-hooks or
@@ -64,7 +63,11 @@ GUI="$ORCA/bin/$exe"
 [ -n "$exe" ] && [ -x "$GUI" ] || { echo "no GUI bin from $ORCA's desktop Exec ('$exe')" >&2; exit 1; }
 echo "testing $GUI"
 
-T=$(mktemp -d "$HOME/.cache/orca-gui-test.XXXXXX"); trap 'rm -rf "$T"' EXIT
+# Under ~/.cache, not /tmp: the bwrap-era sandbox has its own /tmp, which the
+# host-side probes would not see.
+unit="orca-gui-test-$$"
+T=$(mktemp -d "$HOME/.cache/orca-gui-test.XXXXXX") || { echo "mktemp failed" >&2; exit 1; }
+trap 'host systemctl --user stop "$unit" 2>/dev/null; rm -rf "$T"' EXIT
 
 # 1. No bwrap anywhere in the launch chain.
 if nix-store -qR "$ORCA" | grep -q -- '-bubblewrap-'; then
@@ -127,30 +130,7 @@ else
     || fail "ldd" "$(printf '\n%s' "$missing")"
 fi
 
-# 5. The pinned trees are the AppImage's, byte for byte -- not patched, not
-# stripped, no shebang rewritten. The derivation's src is the extracted
-# AppImage, so it is on this machine whenever the build is.
-src=$(nix derivation show "$(nix-store -qd "$APP/../..")" 2>/dev/null \
-  | grep -oE '"src": *"/nix/store/[^"]*-extracted"' | grep -oE '/nix/store/[^"]*')
-if [ -z "$src" ]; then
-  fail "pinned trees" "cannot find the derivation's src for $APP"
-else
-  for d in resources/node-runtime resources/orcad-template; do
-    if out=$(diff -r "$src/$d" "$APP/$d" 2>&1); then
-      pass "$d is the AppImage's, unchanged"
-    else
-      fail "$d" "differs from $src: $(echo "$out" | head -3)"
-    fi
-  done
-fi
-node="$APP/resources/node-runtime/bin/node"
-# The slot's runtime reference: what orcad checks the copied node against.
-pin=$(tr -d '[:space:]' < "$APP/resources/orcad-template/targets/linux-x64-glibc/.runtime-node" 2>/dev/null)
-got=$(sha256sum "$node" 2>/dev/null | cut -d' ' -f1)
-[ -n "$pin" ] && [ "$got" = "$pin" ] && pass "bundled node matches orcad's runtime pin" \
-  || fail "node pin" "sha256 '$got', pin '${pin:-missing}'"
-
-# 6. A real instance renders, sandboxes its renderers, and exits 0 on
+# 5. A real instance renders, sandboxes its renderers, and exits 0 on
 # SIGTERM -- in a headless sway of its own, so it needs no desktop and never
 # appears on one.
 tools=$(nix build --no-link --print-out-paths --inputs-from "$FLAKE" nixpkgs#sway nixpkgs#grim) \
@@ -162,7 +142,6 @@ output HEADLESS-1 resolution 1280x800
 exec /bin/sh -c '"$GUI" --user-data-dir="$T/profile"; echo \$? > "$T/orca.exit"'
 EOF
 in_session() { host env -u DISPLAY XDG_RUNTIME_DIR="$run" WAYLAND_DISPLAY=wayland-1 "$@"; }
-unit="orca-gui-test-$$"
 since=$(date +%s)
 "${sr:+$sr/bin/}systemd-run" --user --quiet --unit="$unit" --setenv=HOME="$T/home" \
   --setenv=XDG_RUNTIME_DIR="$run" --setenv=WLR_BACKENDS=headless --setenv=WLR_RENDERER=pixman \
@@ -198,15 +177,17 @@ else
   [ "${colours:-0}" -gt 100 ] 2>/dev/null && pass "it renders a UI ($colours colours on screen)" \
     || fail "render" "screen has '$colours' colours; blank or broken"
   if [ -n "${ORCA_TEST_SHOT:-}" ]; then in_session "$grim/bin/grim" "$ORCA_TEST_SHOT"; fi
-  # Renderers in their own user namespace = Chromium's namespace sandbox,
-  # with chrome-sandbox left unprivileged.
+  # Chromium's sandbox, with chrome-sandbox left unprivileged: renderers in
+  # their own user namespace (layer 1; --no-sandbox renderers share the
+  # browser's) and under a seccomp-bpf filter (layer 2, Seccomp: 2).
   ns=$(host /bin/sh -c '
     main=$(readlink /proc/'"$pid"'/ns/user)
     for p in $(cat /sys/fs/cgroup$(systemctl --user show -p ControlGroup --value '"$unit"')/cgroup.procs); do
       tr "\0" " " < /proc/$p/cmdline 2>/dev/null | grep -q -- "--type=renderer" || continue
-      [ "$(readlink /proc/$p/ns/user)" != "$main" ] && echo sandboxed || echo unsandboxed
+      [ "$(readlink /proc/$p/ns/user)" != "$main" ] && echo -n userns || echo -n shared-ns
+      grep -q "^Seccomp:[[:space:]]*2" /proc/$p/status && echo +seccomp || echo +no-seccomp
     done' | sort -u | tr '\n' ' ')
-  [ "$ns" = "sandboxed " ] && pass "renderers run in their own user namespace" \
+  [ "$ns" = "userns+seccomp " ] && pass "renderers are sandboxed (own user namespace, seccomp)" \
     || fail "chromium sandbox" "renderers: '${ns:-none}'"
   # SIGTERM to the window's own pid, which this case started: the wrappers
   # all exec, so it is Electron itself, with nothing in between.

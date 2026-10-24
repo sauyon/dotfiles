@@ -66,6 +66,9 @@ let
       mkdir -p $out/lib/orca $out/share/applications
       cp -r --no-preserve=ownership . $out/lib/orca
       chmod -R u+w $out/lib/orca
+      # AppRun must stay out: Orca's CLI adds --no-sandbox whenever it finds
+      # AppRun beside the executable and `unshare -Ur true` fails (or it runs
+      # as root) -- out/cli/runtime/electron-sandbox-switch.js.
       rm -r $out/lib/orca/{AppRun,.DirIcon,usr,orca-ide.desktop,orca-ide.png}
       install -Dm444 orca-ide.desktop $out/share/applications/orca-ide.desktop
       for size in 16 24 32 48 64 128 256 512; do
@@ -94,7 +97,8 @@ let
       # on a Hyprland-only session there is no X server -- a bare launch exits
       # 1 with "needs a usable display server". A flag, not an env var, so a
       # desktop-file launch gets it too. Not in node mode: node rejects it
-      # ("bad option", exit 9), and Orca's CLI runs this binary that way.
+      # ("bad option", exit 9), and Orca's CLI probes the app that way
+      # (ORCA_APP_EXECUTABLE, with a script as argv).
       #
       # FONTCONFIG_FILE: Orca's Linux terminalFontFamily default is exactly
       # "DejaVu Sans Mono", which the host's fontconfig lacks; see fontsConf.
@@ -103,6 +107,22 @@ let
       makeWrapper $out/lib/orca/orca-ide $out/bin/orca-ide \
         --set FONTCONFIG_FILE ${fontsConf} \
         --run '[ -n "''${ELECTRON_RUN_AS_NODE-}" ] || set -- --ozone-platform=wayland "$@"'
+    '';
+    # The pinned trees, checked where it gates the build: byte for byte the
+    # AppImage's (fixup's strip and patchShebangs run over them too; today
+    # patchShebangs finds no node or python on PATH, and leaves them alone),
+    # and the node still the one orcad's runtime pin names. No chrome-sandbox
+    # escape hatch either: AppRun gone, see installPhase.
+    doInstallCheck = true;
+    installCheckPhase = ''
+      runHook preInstallCheck
+      for d in node-runtime orcad-template; do
+        diff -r $src/resources/$d $out/lib/orca/resources/$d
+      done
+      pin=$(tr -d '[:space:]' < $out/lib/orca/resources/orcad-template/targets/linux-x64-glibc/.runtime-node)
+      echo "$pin  $out/lib/orca/resources/node-runtime/bin/node" | sha256sum -c
+      [ ! -e $out/lib/orca/AppRun ]
+      runHook postInstallCheck
     '';
     meta.mainProgram = "orca-ide";
   };

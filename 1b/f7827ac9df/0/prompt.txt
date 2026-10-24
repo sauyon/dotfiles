@@ -1,0 +1,82 @@
+<task-notification>
+<task-id>a95e141401186cf68</task-id>
+<tool-use-id>toolu_019k6qrXSBPNr6DYNUJzQJvm</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/a95e141401186cf68.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-21 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical or Important issues in this range. The test suite passed as shiori: 139 cases, 0 failed. HEAD is `bac8a9f3` and the tree is clean.
+
+Both rendered hooks (utsuho with Orca, fujiwara without) pass `dash -n` and run under dash against throwaway repos. They differ only in the jq program's "make a worktree" clause.
+
+**Important, but pre-existing (not introduced by this range):**
+- **NotebookEdit edits are never refused.** `home.nix:1877` reads only `.tool_input.file_path`, but NotebookEdit sends `notebook_path`. So `f` is empty and the hook exits 0. Under dash, a `notebook_path` edit on a master primary checkout produced no output and rc 0.
+- The new drovr comment at `home.nix:2791` says the guard "stops ... Edit/Write/NotebookEdit tools", which is the opposite of what happens.
+- Fix: `j '.tool_input.file_path // .tool_input.notebook_path // empty'`, plus one test case that sends `notebook_path`.
+
+**Nits:**
+1. **`home.nix:1898-1899`:** the comment says a path reaching the primary only through `..` "is not mapped". That holds only when the `..` comes before the `$r/` prefix. `$r/../r/f` maps to `$w/../r/f`, which is refused again, so it's harmless; the comment overstates.
+2. **`home.nix:1902-1904`:** the comment says the fallback applies when `orca` "is not on PATH". The refusal says "If that command fails", which is broader and better. The comment should match it.
+3. **`home.nix:1923`:** on hosts without Orca, `$r/.drovr/wt/&lt;run&gt;` matches both "inside a worktree of this repo other than $r" and "in $r itself". The worktree clause comes first and "itself" separates them, so an agent reading in order gets it right. Rewording would remove the double match.
+4. **`home.nix:1923`:** "EnterWorktree with a name" creates the worktree in the session's own repo, not in `$r`. A session in repo A refused on repo B gets a useless worktree of A, but the edit is still refused. This is the `name` version of the cross-repo case you already decided; skip it if that decision covers it.
+
+**Checked and clean:**
+- **POSIX:** no bashisms.
+- **Early exits:** the order is unchanged, and the new code runs after the branch test, so it cannot widen an allow.
+- **jq:** valid on both hosts, and `"\u0027"` renders as an apostrophe.
+- **Escaping:** `--arg` handles paths with quotes and spaces, and the nested `''` strings in the Nix interpolation render correctly.
+- **Worktree mapping:**
+  - Nested `.drovr/wt`, a subdirectory of a worktree, and a moved worktree all map correctly.
+  - Another repo's worktree and a repo nested inside a worktree get the generic message.
+- **Commands named in the refusal:** the `orca worktree create` flags match `orca worktree create --help`. drovr's `--worktree` overriding the config key matches `cli/src/main.rs:1442`. `drovr path` behaves as its README (line 420) says.
+- **Test strength:** I traced each likely regression to the check that would catch it, and found no gap:
+  - dropping the `.git`-is-a-file check, the same-repo check or `startswith`;
+  - using the live cwd instead of the worktree root;
+  - reversing the `CLAUDE_PROJECT_DIR` precedence;
+  - a bashism;
+  - broken jq on either kind of host;
+  - `hasOrca` drifting from `orca.nix`.
+
+Findings are in `/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees-r21.md`.</result>
+<usage><subagent_tokens>84752</subagent_tokens><tool_uses>17</tool_uses><duration_ms>184949</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a9add718b55515c34</task-id>
+<tool-use-id>toolu_01MpsnqM3pBXttnZNDXpMJE1</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/a9add718b55515c34.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-22 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>No Critical or Important findings. The tree is clean at `bac8a9f3`, and `bash tests/claude-main-edit-guard.sh` passes on shiori: 139 cases, 0 failed.
+
+**How I checked:** I extracted the hook as it ships for shiori (Orca) and fujiwara (no Orca) and ran it under dash against throwaway repos. The input JSON carried `session_id`, `cwd` and `tool_input.file_path`. Both hosts render the same refusal except for the `orca worktree create` sentence.
+
+**Role traces** (each one leads to the right action when followed literally, except where nit 1 applies):
+
+| Role | Sentence that applies | Result |
+|---|---|---|
+| Inline agent in the primary | "not in a drovr run": orca create (Orca host) or EnterWorktree with a name (other hosts) | Correct |
+| Inline agent in a same-repo worktree (also from a subdir cwd, also a `.drovr/wt`) editing the primary by absolute path | Mapped to the same file in its worktree; nothing else | Correct |
+| Agent in another repo's worktree or primary | Not mapped; generic text | Correct |
+| Driver who never entered `.drovr/wt` (non-Orca host) | `drovr path` gives `R/.drovr/wt/run`, which `worktree list` shows, so EnterWorktree | Correct |
+| Same driver on an Orca host, launched from the primary | Path is R, so stop and report | As designed |
+| Phase agent, run launched from the primary root (Orca host) | Stop and report | Correct |
+| Phase agent, run launched from a primary subdirectory (Orca host) | See nit 1 | Edit stopped either way |
+| Run launched from a primary subdirectory (non-Orca host) | drovr creates `R/sub/.drovr/wt/run`; phase cwd is there, so mapped | Correct |
+| Phase agent in an isolated run | Mapped | Correct |
+| `--dir W/sub` run | Phase agent mapped to W; driver in R gets EnterWorktree on W | Correct |
+| Run in another repo, or a failing `drovr path` | "leave it and say so" | Correct / safe |
+
+**Nits:**
+1. **`home.nix:1923`, "If it is in $r itself":** on an Orca host, a run launched from a primary subdirectory has `drovr path` = `R/sub`. A strict reader can decide that is neither a worktree other than R nor "R itself". They then fall through to "leave it and say so" instead of "stop and report relaunch". The edit is still stopped, but the report is wrong. Fix: say "in or under $r".
+2. **`home.nix:2791`:** the new comment says the guard stops NotebookEdit, but the hook only reads `.tool_input.file_path`. NotebookEdit sends `notebook_path`, so notebook edits in a primary on master get through. The gap predates this range, but the comment now states the opposite. Fix: `j '.tool_input.file_path // .tool_input.notebook_path // empty'`, plus a test case.
+3. **Relative `--dir`:** `drovr new --dir sub` stores the path verbatim (drovr `main.rs:1421`), so `drovr path` prints `sub`. The agent can't tell which of the three cases applies. This is mainly drovr's problem.
+4. **`DROVR_PHASE` is unused:** phase agents carry `DROVR_PHASE=&lt;run&gt;/&lt;phase&gt;` in their environment (drovr `phase.rs:328`), and the hook inherits it. The hook could name the run, or run `drovr path` itself, instead of relying on the agent knowing it is in a run. It works today because the phase brief already contains the run name.
+5. **`home.nix` ~1902–1906:** the comment "or as the fallback where `orca` is not on PATH outside an Orca terminal" reads as if it were a separate case. It should say the fallback applies where orca is installed but fails or isn't on PATH.
+
+Next action: the full write-up is at `/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees-r22.md`. Nit 2 is the one worth fixing, about 5 minutes including the test case.</result>
+<usage><subagent_tokens>92729</subagent_tokens><tool_uses>18</tool_uses><duration_ms>228996</duration_ms></usage>
+</task-notification>

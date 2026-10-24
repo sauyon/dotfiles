@@ -1,0 +1,106 @@
+<task-notification>
+<task-id>ac18f813c63521852</task-id>
+<tool-use-id>toolu_01XyWFkj7nqqbRXviHXQUWGg</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/ac18f813c63521852.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-19 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found one Important problem, which is in the tests and not the hook, plus five nits. Nothing is Critical. The suite passes as committed: 124 cases, 0 failed (run on shiori, where `/etc/hostname` is missing, so the `uname -n` fallback was used).
+
+**State:** HEAD is d58dbeed and the tree is clean. I rendered the hook for utsuho (Orca) and fujiwara (no Orca); they differ only in the Orca sentence. Both run clean under dash against throwaway repos:
+- Session in a sibling worktree or a nested `.claude/worktrees/n`: pointed at the same file there.
+- Session cwd at `&lt;root&gt;/.git`, a missing directory, or another repo's worktree: generic refusal.
+- Hook input that isn't JSON: no output, exit 0 (fails open, as before this change).
+- Both jq branches produce a valid deny, and the Nix escaping comes through intact.
+
+## Critical
+None.
+
+## Important
+**I1. Two "is not mapped" checks still pass if the hook stops refusing** (`tests/claude-main-edit-guard.sh:141`, `:144`).
+- When the hook allows an edit it prints nothing, so `reason` is empty and `says 'there instead'` returns `no`, which is what both checks expect.
+- Neither check also asserts that a deny happened.
+- **Shown:** I added `case "$f" in "$root"/*) ;; *) exit 0 ;; esac` to the rendered utsuho hook. With cwd `$T/sess` and file `$T/sess/../r/f`, it printed nothing and exited 0. That is an allowed edit to the primary checkout on master, and the `:144` check still passes. A hook that let through sessions in another repo's worktree would pass `:141` the same way.
+- **Fix:** in both cases, also check `says 'This is the primary checkout of'` = yes. Alternatively, have `refusal()` print an `ALLOWED` marker when the hook prints nothing.
+
+## Nits
+1. **`tests/...:107`:** the label "(and the hook parses under dash)" claims more than the check proves. Dash parses one command at a time: a file with `exit 0` followed by `x=$((` and `[[ a ]] &amp;&amp; { ;` exits 0. The deny cases are what actually exercise the whole script under dash.
+2. **`tests/...:206`:** the label "everyone else falls back to EnterWorktree's own worktree" doesn't match the check, which only matches the "If you are not in a drovr run" phrase. The fallback itself is asserted at `:200-201`.
+3. **`home.nix:1899-1900`:** "`orca` may not be on PATH" is given as a reason for naming the repo. It actually justifies the EnterWorktree fallback, so it belongs with that clause.
+4. **`home.nix:1847`, `:1897`:** leftover line-wrapping problems in the comments: one line breaks early, the other runs to about 95 columns.
+5. **`tests/...:1-19`:** the header's "Why this exists" still describes only the merge exception. It doesn't mention the refusal-routing checks or the per-host loop.
+
+Areas where I found nothing:
+- No bashisms.
+- The early exits are unchanged.
+- No case where the session is wrongly treated as being in a worktree of this repo. The misses (cwd in a nested repo or submodule) only fall back to the generic refusal.
+- The jq programs are valid on every host.
+- The other comments match the code, drovr's flags and the orca CLI.
+
+Full write-up: `/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees-r19.md`
+
+Next action (~2 min): add the deny assertion to the checks at `tests/claude-main-edit-guard.sh:141` and `:144`.</result>
+<usage><subagent_tokens>84654</subagent_tokens><tool_uses>16</tool_uses><duration_ms>197417</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aff0a3cdf06c001a9</task-id>
+<tool-use-id>toolu_01W331ppMduxj9MGAfR3BMsr</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/aff0a3cdf06c001a9.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-20 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>There is no Critical finding, one Important, and five nits. HEAD is d58dbeed, the tree is clean, and `bash tests/claude-main-edit-guard.sh` passes all 124 cases. I ran the shiori (Orca) and fujiwara (no Orca) hooks under dash against throwaway repos for every role you listed.
+
+**Critical:** none.
+
+**Important**
+
+- **I1 — home.nix:1921: a drovr agent whose run belongs to another repo is told its run is not isolated.**
+  - **Scenario:** a phase agent or driver of an isolated run in repo B (cwd `B/.drovr/wt/brun`, or B's Orca worktree) edits `R/f` by absolute path, where R is a primary checkout on master.
+  - **What happens:** the cwd check correctly gives no worktree, since the git common dirs differ. `drovr path brun` then prints B's worktree; `cmd_path` prints the run's project dir (`main.rs:1592-1605`). That path is in no worktree of R, so the refusal says "otherwise the run is not isolated: stop and report that it must be relaunched from a worktree".
+  - **Effect:** followed literally, the agent stops its phase and reports something false, so the user may relaunch a healthy run. I reproduced this on both hosts.
+  - **Comments:** the hook comment (home.nix:1895-1898) and the drovr-config comment (home.nix:2790-2793) both assume the run belongs to the repo being edited.
+  - **Fix:** split the "otherwise" clause:
+    - If the path is R or only inside R, the run is not isolated.
+    - If it is in another repo, this file is not the run's to edit: stop and say so.
+    - Add a test that a cwd in another repo's worktree doesn't get "not isolated" unconditionally. Today that test only checks for no "there instead".
+
+**Nits**
+
+1. **home.nix:1921:** if `drovr path` fails on an unknown or legacy run name, it prints nothing and exits 1. The refusal then sends the agent to the false "not isolated" diagnosis.
+2. **Sentences no test pins:** the lead "This is the primary checkout of R…", "that it must be relaunched from a worktree", and "which lifts this guard for that whole session." Any of them could regress and all 124 cases would still pass. Every other sentence is pinned on every host, and the mapping and drovr branches also run live under dash.
+3. **Test labels and comments have drifted:**
+   - The per-host check "everyone else falls back to EnterWorktree's own worktree" actually greps "If you are not in a drovr run…".
+   - The section comment says "enters it only if git lists it", but the code checks "inside" a listed worktree (the `--dir` subdirectory case).
+4. **Test header:** "Orca's sandbox has no /etc/hostname" is not universal. This Orca session's /etc/hostname reads `shiori`.
+5. **Comment wrapping:** home.nix:1846-1847 breaks a sentence onto a short line, and home.nix:1897 runs past the wrap width.
+
+**Role trace**
+
+| Role | Sentence that applies | Following it literally |
+|---|---|---|
+| Inline agent, cwd in the primary (root or subdirectory) | Not-in-drovr route: `orca worktree create` (shiori) or EnterWorktree with a name (fujiwara) | Correct |
+| Inline agent in an Orca, `.claude` or `.drovr` worktree of the same repo, including a subdirectory and nested `R/sub/.drovr/wt` | "Edit W/f there instead" | Correct |
+| Inline agent in another repo's worktree | Not-in-drovr route | Correct |
+| drovr driver that never entered its `.drovr/wt` | `drovr path` → listed worktree → EnterWorktree | Correct |
+| Phase agent, run launched from the primary root or a subdirectory, Orca host | Stop and report | Correct |
+| Same, non-Orca host | Same-file mapping; drovr creates the worktree under the launch directory, e.g. `R/sub/.drovr/wt/run` | Correct |
+| Phase agent in an isolated run | Same-file mapping | Correct |
+| `--dir` run in a subdirectory of worktree W | Phase agent: mapping to W. Driver in R: `drovr path` gives `W/sub`, which is inside W → EnterWorktree on W | Correct |
+| Session in repo B whose run belongs to B | "Not isolated: stop and report" | **Wrong (I1)** |
+
+The other comments across the range are accurate:
+- `--worktree` and `--no-worktree` override the config key for one run.
+- `drovr path` prints the run's project dir.
+- CI runs the tests as utsuho, an Orca host.
+- `**/.claude/worktrees` is in the global gitignore (home.nix:4767).
+- `hasOrca` matches the gate in orca.nix:181.
+
+Files are in /tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad:
+- review-orca-worktrees-r20.md
+- scen.sh</result>
+<usage><subagent_tokens>86973</subagent_tokens><tool_uses>16</tool_uses><duration_ms>238480</duration_ms></usage>
+</task-notification>

@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "e17a549c0574",
+  "strategy": "manual-commit",
+  "branch": "dejavu",
+  "checkpoints_count": 3,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/e1/7a549c0574/0/metadata.json",
+      "transcript": "/e1/7a549c0574/0/full.jsonl",
+      "compact_transcript": "/e1/7a549c0574/0/transcript.jsonl",
+      "content_hash": "/e1/7a549c0574/0/content_hash.txt",
+      "prompt": "/e1/7a549c0574/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 46,
+    "cache_creation_tokens": 25661,
+    "cache_read_tokens": 6279777,
+    "output_tokens": 14345,
+    "api_call_count": 23
+  }
+}

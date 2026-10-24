@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01H6x1Y3hXusg3w26xAH1zwF",
+  "agent_id": "a2520a44972818a06",
+  "subagent_type": "Explore",
+  "task_description": "Round 5 review: security+quality",
+  "token_usage": {
+    "input_tokens": 36,
+    "cache_creation_tokens": 65307,
+    "cache_read_tokens": 832380,
+    "output_tokens": 15821,
+    "api_call_count": 18
+  },
+  "started_at": "2026-10-24T11:07:35.253910573Z",
+  "completed_at": "2026-10-24T11:24:38.966030835Z"
+}

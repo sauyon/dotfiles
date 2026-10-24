@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_018VphAcBhj9jmhLGqvda7FX",
+  "agent_id": "a02d8255a3329791b",
+  "subagent_type": "Explore",
+  "task_description": "Review orca CLI/skills: security+quality",
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 45629,
+    "cache_read_tokens": 228482,
+    "output_tokens": 8256,
+    "api_call_count": 8
+  },
+  "started_at": "2026-10-24T08:20:17.881461594Z",
+  "completed_at": "2026-10-24T11:24:38.924258607Z"
+}

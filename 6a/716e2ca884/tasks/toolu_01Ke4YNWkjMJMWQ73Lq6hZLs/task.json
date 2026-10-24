@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_01Ke4YNWkjMJMWQ73Lq6hZLs",
+  "agent_id": "a7c700cd09f6529c6",
+  "subagent_type": "Explore",
+  "task_description": "Review orca CLI/skills: correctness",
+  "token_usage": {
+    "input_tokens": 44,
+    "cache_creation_tokens": 58184,
+    "cache_read_tokens": 904937,
+    "output_tokens": 15255,
+    "api_call_count": 22
+  },
+  "started_at": "2026-10-24T08:20:17.879583533Z",
+  "completed_at": "2026-10-24T11:24:38.921563214Z"
+}

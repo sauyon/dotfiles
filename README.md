@@ -106,6 +106,7 @@ where it gates the build instead of being checked after the fact.
 ./tests/system-packages.sh       # sources system/pacman.sh, drives 26 cases
 ./tests/net-tools.sh             # each net command against the package shipping it, per host
 ./tests/cjk-fonts.sh             # CJK font in every host, and fontconfig sees ja/ko/zh
+./tests/sandbox-fonts.sh         # orca's real bwrap launcher resolves sans/Arial/monospace like the host
 ./tests/brotli-cve-2026-111497.sh # every node in the profile loads a libbrotlidec with the fix
 ./tests/system-secrets.sh        # sources system/secrets.sh, drives 20 cases
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup

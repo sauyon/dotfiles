@@ -25,6 +25,13 @@ let
   orca = pkgs.appimageTools.wrapType2 {
     inherit pname version src;
     extraPkgs = pkgs: [ pkgs.libsecret ];
+    # buildFHSEnv binds the host's /etc/fonts in, assuming NixOS, where its
+    # conf.d links point into /nix/store. Arch's point into
+    # /usr/share/fontconfig, which the sandbox's /usr replaces, so every one
+    # dangled and the UI fell through to Montserrat Thin. Bind the host's copy
+    # over the rootfs's (which exists, so bwrap has a mount point). -try: a
+    # NixOS host has no such dir and needs none. tests/sandbox-fonts.sh.
+    extraBwrapArgs = [ "--ro-bind-try /usr/share/fontconfig /usr/share/fontconfig" ];
     # The AppImage ships bin/orca and an orca-ide.desktop; upstream's .deb
     # installs the CLI as `orca-ide`, and that is what the desktop Exec and
     # meta.mainProgram use below. appimageTools keeps the AppImage's own bin

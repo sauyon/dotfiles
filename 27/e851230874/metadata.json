@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "27e851230874",
+  "strategy": "manual-commit",
+  "branch": "orca-cli-node",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "orca.nix",
+    "tests/orca-cli-skills.sh",
+    "tests/sandbox-fonts.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/27/e851230874/0/metadata.json",
+      "transcript": "/27/e851230874/0/full.jsonl",
+      "compact_transcript": "/27/e851230874/0/transcript.jsonl",
+      "content_hash": "/27/e851230874/0/content_hash.txt",
+      "prompt": "/27/e851230874/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10,
+    "cache_creation_tokens": 13323,
+    "cache_read_tokens": 2293257,
+    "output_tokens": 4953,
+    "api_call_count": 5,
+    "subagent_tokens": {
+      "input_tokens": 136,
+      "cache_creation_tokens": 158995,
+      "cache_read_tokens": 3804954,
+      "output_tokens": 50823,
+      "api_call_count": 68
+    }
+  }
+}

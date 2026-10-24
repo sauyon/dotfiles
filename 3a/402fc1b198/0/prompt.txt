@@ -1,0 +1,17 @@
+replace drovr herdr worktree flow with orca
+
+---
+
+can you add drovr to orca and hand off the drovr work to an agent there
+
+---
+
+do it. why are you stopping
+
+---
+
+can you integrate grill me into the drovr spec flo
+
+---
+
+can you integrate grill me into the drovr spec flow

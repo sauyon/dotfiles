@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "3a402fc1b198",
+  "strategy": "manual-commit",
+  "branch": "goby",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/claude-main-edit-guard.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3a/402fc1b198/0/metadata.json",
+      "transcript": "/3a/402fc1b198/0/full.jsonl",
+      "compact_transcript": "/3a/402fc1b198/0/transcript.jsonl",
+      "content_hash": "/3a/402fc1b198/0/content_hash.txt",
+      "prompt": "/3a/402fc1b198/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 82,
+    "cache_creation_tokens": 108052,
+    "cache_read_tokens": 4081188,
+    "output_tokens": 21118,
+    "api_call_count": 41
+  }
+}

@@ -1,0 +1,114 @@
+<task-notification>
+<task-id>ada3daaa6da649494</task-id>
+<tool-use-id>toolu_01UMW89U5epeQhnYjzUAPKG7</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/ada3daaa6da649494.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-15 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>One Critical finding, which depends on each host's `/bin/sh`: on any host where it is dash, the main-edit hook blocks every edit, everywhere. The tree is clean at HEAD e1253a5c, and `bash tests/claude-main-edit-guard.sh` passes (122 cases, 0 failed, run as shiori), but the suite can't catch this bug.
+
+## Critical (conditional)
+
+**`&lt;&lt;&lt;"$input"` breaks the hook under dash** (home.nix:1872, 1898, 1899; added in 95c5a006).
+- Claude Code runs hook commands with `/bin/sh -c` (I checked the hook spawn code in claude-code 2.1.308).
+- I ran the rendered hook under dash 0.5.13: `Syntax error: redirection unexpected`, exit 2, for every input. That includes linked worktrees, files outside git, and runs with `CLAUDE_ALLOW_MAIN_EDIT` set.
+- For a PreToolUse hook, exit 2 means deny. So every Edit, Write and NotebookEdit is refused on any host whose `/bin/sh` is dash.
+- shiori and utsuho (Arch) are fine: `/bin/sh` is bash there. macOS `/bin/sh` is bash too, so mari is fine. It's Critical if fujiwara, chiyari or kyuusaku uses dash, and only latent otherwise. kyuusaku's `/local/mnt/workspace` home suggests a Debian/Ubuntu-style box.
+- **Fix:** `printf '%s' "$input" | jq ...` (POSIX).
+- **Test gap:** the suite runs the hook with `bash "$T/hook.sh"`, so it can't see this. It should also run the hook under `sh -c` and dash.
+
+## Important
+
+None.
+
+## Nits
+
+1. **Wrong root check (home.nix:1900, no-Orca text).** "unless that path is the checkout root itself" assumes drovr records the repo root. drovr actually records the directory it was launched from (`current_dir()`, or `--dir`). For a `--no-worktree` run launched from `/repo/cli`, a phase agent runs EnterWorktree on a plain subdirectory, which fails. Its next fallback is "EnterWorktree with a name", which takes it off its run. Suggested wording: "is this checkout (&lt;r&gt;) or a directory inside it".
+2. **Circular for the driver (home.nix:1900).** A `--no-worktree` run's driver reads "stop and report … which only its driver can do" and is effectively told to report to itself. Re-running `drovr new` with the same name is refused as a duplicate.
+3. **Wrong advice for `--worktree` runs on Orca hosts.** A phase agent of a run made with `drovr new --worktree` that strays into the primary checkout is told the run must be relaunched. The run is already isolated; the right move is EnterWorktree on `drovr path`. This is rare.
+4. **No `cd` rule for `.drovr/wt` on Orca hosts (home.nix:2087).** `--worktree` still creates `.drovr/wt` there, so a driver that `cd`s into one gets no rule. Low impact: drovr itself says to use EnterWorktree, not `cd`.
+5. **Test cleanups (tests/claude-main-edit-guard.sh):**
+   - Line 29: neither `/etc/hostname` nor `/proc` exists on darwin, so on mari the suite dies with an empty host name. `uname -n` works on both.
+   - Line 145: a dead `reason=` assignment.
+   - Line 137: a redundant `env` in `refusal "$R/f" env CLAUDE_PROJECT_DIR=/proj`.
+   - home.nix:2764: "the reason `worktree = true` existed" reads as if the key were gone, but it is still `true` on four hosts.
+
+## Each role's deny reason
+- **Inline agent:** correct on all six hosts. The four no-Orca hosts render the same text, as do shiori and utsuho.
+- **drovr driver:** correct, apart from nit 2.
+- **drovr phase agent:** correct, apart from nits 1 and 3.
+- **Against drovr's source and README:** the `worktree` key defaults to true, `--no-worktree` beats `--worktree` beats config, and `drovr path` prints the worktree or the launch dir. All match.
+- **orca:** the `orca worktree create` flags exist. `orca` itself is only on PATH inside Orca terminals (via a shim), so the hook's "may not be on PATH" comment and its "if that command fails" fallback are both right.
+
+Other checks passed:
+- **Nix escaping:** `''${…}` renders as `${…}`, and the nested `''` strings render cleanly with no `'` inside the jq program.
+- **Syntax and stdin:** `bash -n` passes on both variants, and stdin is read once.
+- **`hasOrca`:** it matches orca.nix's install gate.
+
+Next step (under 2 min): run `readlink -f /bin/sh` on fujiwara, chiyari and kyuusaku to settle whether the first finding is Critical.
+
+Findings are in `/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees-r15.md`.</result>
+<usage><subagent_tokens>98791</subagent_tokens><tool_uses>28</tool_uses><duration_ms>305871</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>abd5c9355076a46f8</task-id>
+<tool-use-id>toolu_01FBF5CGEV3VqFF6dkSqadu4</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/abd5c9355076a46f8.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-16 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical issues, one Important and six nits. HEAD is e1253a5c, the tree is clean, and `bash tests/claude-main-edit-guard.sh` passes all 122 cases.
+
+## Critical
+None.
+
+## Important
+**I1. On Orca hosts, a phase agent in a run that is already isolated is told to stop the run** (`home.nix:1900`, Orca text)
+- **Scenario:** the run was launched correctly from `~/orca/workspaces/dotfiles/&lt;task&gt;`, or with `drovr new --worktree`. A phase agent there edits the primary checkout by absolute path. That is plausible in this repo, because the auto-mode text names "the dotfiles repo at ~/devel/dotfiles".
+- **What it's told:** "drovr phase agent, do not move: stop and report that the run must be relaunched from an Orca worktree".
+- **What happens:** following that halts a healthy run. The driver then relaunches from an Orca worktree the run is already in. The right action is to edit the same file inside its own worktree.
+- **On hosts without Orca:** the same agent is told to EnterWorktree on `drovr path &lt;run&gt;`, which is the directory it is already in. The retry is refused again, so it loops instead of halting.
+- **Overlap:** this is close to the decided item "an agent already in a worktree told to make another", but the result here is a stopped run. Drop it if you count it as covered.
+- **Fix:** add one clause: "if your working directory is already a linked worktree, edit this file's counterpart there."
+
+## Nits
+1. **The `--no-worktree` test compares exact strings** (`home.nix:1900`, no-Orca text). `drovr path` prints the launch directory or `--dir` argument as typed, without canonicalizing it (drovr `main.rs:1420-1438`, `cmd_path` at `:1592`).
+   - A run launched from `repo/sub` or with `--dir .` doesn't match "the checkout root itself (/repo)".
+   - The agent then calls EnterWorktree on a path git doesn't list as a worktree, which is rejected. That branch has no "if that fails" step.
+   - Fix: say "inside this checkout" instead of "is the checkout root itself".
+2. **A `--worktree` run's driver on an Orca host is sent to Orca, not to its run** (`home.nix:2774-2776` vs `:1900`). The drovr comment says `--worktree` still works where the key is false. But the Orca refusal has no `drovr path` sentence, so a driver that never entered its `.drovr/wt` worktree makes an Orca worktree, and its edits land on a branch the run doesn't own.
+3. **The comment "Either way the fallback is EnterWorktree's own .claude/worktrees" is inaccurate** (`home.nix:1890`). In the no-Orca text, that step only covers agents that are not in a drovr run. The test's own comment at `:188-189` says so.
+4. **The `CLAUDE_PROJECT_DIR` comment's reasoning is wrong after EnterWorktree** (`home.nix:1894-1897`). I checked this in the claude-code 2.1.308 binary:
+   - The hook environment sets `CLAUDE_PROJECT_DIR` to the launch-time project root.
+   - EnterWorktree moves the transcript into the worktree's project folder but does not update that root.
+   - So after entering a worktree, `CLAUDE_PROJECT_DIR` is where the session was launched, not where it is stored.
+   - `--resume` has explicit handling for sessions recorded in a worktree, so the suggested command very likely still works. I didn't run it because it would start a session.
+   - The `.cwd` fallback is effectively never reached for local hooks.
+5. **"A run edits the checkout it was launched from" ignores `--dir`** (`home.nix:2759`).
+6. **Several sentences in the refusal are not pinned by the test** (`tests/claude-main-edit-guard.sh:175-196`). Each change below would still pass all 122 cases:
+   1. Swapping or ungating the Orca phase-agent clause: "do not move" and "Otherwise" are unchecked.
+   2. Changing what the agent does after each command: "EnterWorktree on the worktree path in its JSON output", "If that command fails", and "EnterWorktree on the path" (no-Orca) are unchecked.
+   3. Dropping "which only its driver can do".
+   4. Dropping "You cannot set it yourself" or "must not route around this guard through Bash".
+   5. Negating a clause, e.g. "do NOT run `drovr path &lt;run&gt;`", since every check is a substring match.
+
+## How each role is handled
+- **Orca hosts:**
+  - Inline and non-drovr agents: correct. The `orca worktree create` flags match its `--help`.
+  - A run launched from the primary checkout, or `--no-worktree`: the phase agent is told to stop and report, which is correct. Its driver is moved, not the run (decided item).
+  - A phase agent in a run that is already isolated: wrong (I1).
+- **Hosts without Orca:**
+  - Inline and non-drovr agents: correct.
+  - A driver that never entered its worktree: correct. EnterWorktree accepts `.drovr/wt/&lt;run&gt;`.
+  - A `--no-worktree` agent: correct only when the printed path is exactly the repo root (nit 1).
+  - A phase agent in a worktree run: loops (I1).
+- **The override sentence:** correct on every host.
+
+The full write-up with this trace is in `/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees-r16.md`.
+
+Your call: decide whether I1 is already covered by the decided "agent already in a worktree" item. If it isn't, the one-clause fix is about 10 minutes including a test case.</result>
+<usage><subagent_tokens>118588</subagent_tokens><tool_uses>31</tool_uses><duration_ms>442925</duration_ms></usage>
+</task-notification>

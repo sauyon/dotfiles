@@ -53,6 +53,37 @@
         "label": "Skill: drovr:tdd",
         "default_collapsed": true
       }
+    },
+    {
+      "id": "claude-skill-toolu_01TtD3Bm8KtpYuNMYLrqyvqc",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "06c6381ba102",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 436,
+        "end": 437,
+        "entry_ids": [
+          "6c14b420-e26f-4fb8-8952-5af18e73d9d9"
+        ],
+        "tool_use_id": "toolu_01TtD3Bm8KtpYuNMYLrqyvqc"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01TtD3Bm8KtpYuNMYLrqyvqc"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
     }
   ]
 }

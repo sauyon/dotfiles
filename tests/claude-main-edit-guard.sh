@@ -105,6 +105,12 @@ check "a file that does not exist yet is refused too" deny "$(verdict "$R/new/di
 check "CLAUDE_ALLOW_MAIN_EDIT=1 lets it through" allow \
   "$(verdict "$R/f" CLAUDE_ALLOW_MAIN_EDIT=1)"
 check "outside any repo: edit allowed" allow "$(verdict /nonexistent/x)"
+# NotebookEdit names its file notebook_path, not file_path; the hook matches
+# NotebookEdit, so it has to read that too, or notebooks bypass it entirely.
+nb=$(printf '{"tool_input":{"notebook_path":"%s"}}' "$R/n.ipynb" \
+  | env -u CLAUDE_ALLOW_MAIN_EDIT "$SH" "$T/hook.sh")
+check "a NotebookEdit in the primary checkout is refused too" deny \
+  "$(case "$nb" in *'"permissionDecision":"deny"'*) echo deny ;; *) echo allow ;; esac)"
 
 # The refusal names the way out, and checks facts rather than describing them:
 # a session already in a worktree of this repo is pointed at the same file

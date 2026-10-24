@@ -1943,7 +1943,8 @@ attr=$attr
               # error -- exit 2, a deny of every edit everywhere.
               input=$(cat)
               j() { printf '%s' "$input" | ${pkgs.jq}/bin/jq -r "$1"; }
-              f=$(j '.tool_input.file_path // empty')
+              # NotebookEdit names its file notebook_path.
+              f=$(j '.tool_input.file_path // .tool_input.notebook_path // empty')
               [ -n "$f" ] || exit 0
               # Walk up to the nearest EXISTING directory: a Write may create
               # both the file and the directories above it.

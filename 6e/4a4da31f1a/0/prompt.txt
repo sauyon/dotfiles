@@ -1,0 +1,113 @@
+<task-notification>
+<task-id>aef538f6f47578f47</task-id>
+<tool-use-id>toolu_01KMr5wcHjwffU1NHDT1Sno1</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/tasks/aef538f6f47578f47.output</output-file>
+<status>completed</status>
+<summary>Agent "Review r2: security+quality" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found one Important issue and no Critical ones. The Chromium sandbox is kept and the test does prove it; the problem is that the test's "private" headless Orca can still reach the live desktop session.
+
+The tree is clean and HEAD is 3b9add58. I ran `tests/orca-gui-unsandboxed.sh` against the nixGL build and it passed 17/17. I ran it from inside the old bwrap-era Orca, so it went through its `systemd-run` path.
+
+## Critical
+None.
+
+## What holds up on security
+- **The sandbox stays on and fails closed.** No AppRun ships, and the build's `installCheckPhase` fails if one appears. Without AppRun, Orca's CLI never adds `--no-sandbox` (`electron-sandbox-switch.js`). The app's own AppImage `--no-sandbox` path only triggers when `APPIMAGE`/`APPDIR` are set, and nothing here sets them. If user namespaces were unavailable, Chromium would abort with "No usable sandbox" rather than run unsandboxed.
+- **The test checks the right things.** Case 5 looks at every renderer in the unit's cgroup: it must be in a user namespace different from the main process, and under seccomp (`Seccomp: 2`). A `--no-sandbox` run fails that check, and so does a run with zero renderers.
+- **Regressions the tests would catch:**
+  - AppRun kept: the build fails.
+  - Pinned trees patched or stripped: the build fails (`diff -r` plus the sha256 pin).
+  - The `--ozone-platform=wayland` gating broken: case 2 fails, and so does case 5 (no `DISPLAY`).
+  - `FONTCONFIG_FILE` dropped: the DejaVu case fails.
+  - `--no-sandbox` added: the renderer case fails.
+- **Temp dirs and cleanup are safe.** `mktemp -d` can't come back empty, and the trap stops the unit before `rm -rf "$T"`. The GUI uses its own user-data-dir, HOME and runtime dir. If sway doesn't start, grim fails instead of capturing the live screen.
+
+## Important
+**I1. The headless GUI case reaches the live session's D-Bus, ssh-agent and Hyprland** (`tests/orca-gui-unsandboxed.sh:178-181`). A `systemd-run --user` unit inherits the user manager's environment. On shiori that includes:
+- `DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus`, a fixed path, so moving `XDG_RUNTIME_DIR` doesn't hide it
+- `SSH_AUTH_SOCK` (the TPM ssh-agent)
+- `HYPRLAND_INSTANCE_SIGNATURE`
+- `XDG_CURRENT_DESKTOP=Hyprland`
+
+The test only overrides HOME, XDG_RUNTIME_DIR, WAYLAND_DISPLAY and DISPLAY. So during a run, Orca's tray icon or a notification could appear on the real desktop. A portal request could also land there. A safeStorage call could reach the real login keyring, either reading or creating an entry, or showing an unlock prompt. Any shell Orca starts gets the real ssh-agent and can control the live Hyprland through `hyprctl`. I didn't see any of this happen; these are the paths that are open. This is separate from the deferred nixGL leak.
+
+Fix: add `--setenv=DBUS_SESSION_BUS_ADDRESS=disabled:` (or run sway under `dbus-run-session`), unset `SSH_AUTH_SOCK` and `HYPRLAND_INSTANCE_SIGNATURE`, and set `XDG_CURRENT_DESKTOP=sway`. No test would catch this today.
+
+## nits
+- **`orca.nix:117`:** the comment says "fixup's strip and patchShebangs run over them too", but `dontStrip = true` at :67 and :65-66 say strip never runs. Drop "strip" from :117.
+- **`orca.nix:92-97`:** everything except the two pinned trees gets autoPatchelf. If a future AppImage adds another tree that Orca ships to remote hosts, it would quietly get a /nix/store interpreter, and `installCheckPhase` wouldn't notice. Nothing breaks today: `relay/` is JS only and ripgrep is static. Not tested.
+- **`orca.nix:113`:** `FONTCONFIG_FILE` is exported into every Orca terminal and agent. It behaves as the old `--setenv` did and the impact is low, but a comment saying it's deliberate would help.
+- **Orca's own CLI skips both wrappers.** The CLI script Orca links into `~/.local/bin/orca-ide` runs the raw `lib/orca/orca-ide`. `orca-ide open` from there would start the GUI without nixGL, the font config or the Wayland flag. On shiori `~/.nix-profile/bin` comes first in PATH, and the bwrap build had the same gap. Untested; worth one line in the comment.
+- **`tests/orca-gui-unsandboxed.sh:237`:** the coredump check matches any `orca-ide` crash since the start time, so a crash of your live Orca during a run fails the test.
+- **`tests/orca-gui-unsandboxed.sh:70`:**
+  - The trap doesn't `reset-failed`, so an error exit leaves a failed unit behind; `--collect` on the `systemd-run` at :178 would fix that.
+  - A SIGKILLed run leaves the headless sway and Orca running.
+- **`tests/orca-gui-unsandboxed.sh:69`:** `mktemp` fails if `~/.cache` doesn't exist yet, e.g. on a fresh HOME.
+
+## Stale references
+Searching for bwrap, extraInstallCommands, sandbox-fonts, wrapType2 and FHS finds only intended history in `orca.nix:25-36` and the new test. The other hits are an unrelated steam comment and the gitignored `.drovr` review files. Nothing else points at the deleted `sandbox-fonts.sh`, and the README line matches its neighbours.
+
+The full write-up is at /tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/scratchpad/review-r2-security.md</result>
+<usage><subagent_tokens>80427</subagent_tokens><tool_uses>29</tool_uses><duration_ms>370469</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a02e70a452e58c61f</task-id>
+<tool-use-id>toolu_01QfsPxkCWMVHkLBcdX94kJs</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/tasks/a02e70a452e58c61f.output</output-file>
+<status>completed</status>
+<summary>Agent "Review r2: correctness+errors" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical issues, six Important ones and several nits. The two most serious: a third set of hash-pinned files that the build can change without failing, and the "headless" GUI test still talks to your real desktop session bus.
+
+The worktree is clean and HEAD is 3b9add58. The test against the wrapper passed 17/17. The build log confirms installCheckPhase runs after fixup and checks the final tree (it printed `node: OK` and `diff -r` was silent). It would fail the build on any diff, sha mismatch or an AppRun left in place.
+
+These already work as intended:
+- autoPatchelf skips the two pinned directories.
+- The extra runtime libraries do land on the executables' library path.
+- The wayland flag goes first, so Orca's own `serve --ozone-platform=x11` still wins.
+- An empty `ELECTRON_RUN_AS_NODE` is treated the same way Electron treats it.
+- The desktop file reads `Exec=orca-ide %U`, with no `--no-sandbox`, and keeps `x-scheme-handler/orca`.
+- All eight icon sizes are there, and every wrapper in the chain uses `exec`.
+
+## Critical
+None.
+
+## Important
+1. **A third pinned set, `resources/ripgrep`, is neither excluded nor checked** (orca.nix:92-98, 122-130). `orcad-template.json` pins `ripgrep/linux-x64/rg` and `linux-arm64/rg` by sha256 with `"packagedRipgrep": true`. Orca's own code says deployed slots take rg from `resources/` and verify it. Both files are static today, so autoPatchelf skipped them and their hashes match.
+   - Failure: a version bump ships a dynamically linked rg. autoPatchelf rewrites its loader to a /nix/store path and the build still passes, while orcad slot installs fail verification or remote hosts get a broken rg.
+   - Fix: exclude `*/resources/ripgrep`, and have installCheckPhase check every sha256 listed in `orcad-template.json`.
+2. **The headless GUI case shares your real session D-Bus** (test:178-181). The user manager exports `DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus`. That is an absolute path, so the private `XDG_RUNTIME_DIR` doesn't cut it off. It also passes on `HYPRLAND_INSTANCE_SIGNATURE`.
+   - Failure: the app uses libsecret (`org.freedesktop.secrets`), so each fresh-profile run can write a key into your real keyring. If the keyring is locked, an unlock prompt appears on your real desktop. Notifications or a tray icon would also reach your real desktop.
+   - Fix: run sway under `dbus-run-session` or a private bus, and clear `HYPRLAND_INSTANCE_SIGNATURE`.
+3. **GPU loading depends on nixGL's `LD_LIBRARY_PATH`, and the dlopen check looks at the wrong file** (orca.nix:58-61; test:157-163). The extra runtime libraries are added only to executables. `libGLESv2.so`, which loads the system GL libraries `libEGL.so.1` and `libGL.so.1`, can only find its own linked X11 libraries. When a library loads another, the search uses the calling library's path, not the executable's. The test checks `orca-ide`'s path, so it passes anyway.
+   - Failure: if `LD_LIBRARY_PATH` is ever scrubbed (the deferred leak fix), Chromium quietly falls back to software rendering. No case notices: the render check still sees over 100 colours, and the test's headless sway renders in software (pixman) anyway.
+   - Fix: add the runtime library dirs to `libEGL.so`, `libGLESv2.so` and `libvk_swiftshader.so` with `patchelf --add-rpath`, as nixpkgs' electron-bin does, and point the check at `libGLESv2.so`.
+4. **A desktop-file `--no-sandbox` would go unnoticed** (orca.nix:86-87; test:61). The `--replace-fail 'Exec=AppRun' 'Exec=orca-ide'` replacement keeps any arguments that follow. Many electron-builder AppImages ship `Exec=AppRun --no-sandbox %U`; this one happens not to. The test uses only the first word of Exec.
+   - Failure: after a bump, every desktop or `orca://` launch runs with renderers unsandboxed, while the sandbox case stays green.
+   - Fix: assert the exact line `Exec=orca-ide %U` in the build, and have the test launch with the Exec line's arguments.
+5. **The SIGTERM case doesn't prove the wrappers `exec`** (test:228-233). The pid it signals is Electron's own whatever wraps it, and a forking wrapper would pass the exit status 0 straight through.
+   - Fix: record the pid the sway `exec` starts and assert it equals the window's pid.
+6. **The old CLI symlink is about to break, and the CLI starts the unwrapped binary.** `~/.local/bin/orca-ide` points into the `…-extracted` store path, which is no longer in the runtime closure, so the next garbage collection leaves it dangling. Once Orca reinstalls it, `launchOrcaApp` starts `$out/lib/orca/orca-ide` directly: no wayland flag, no `FONTCONFIG_FILE`, no nixGL. Part of this predates the diff. A possible fix is `--set-default ORCA_APP_EXECUTABLE` to the nixGL-wrapped bin, or else adding it to the deferred list next to the bin rename.
+
+## Nits
+- orca.nix:115-118: the comment leaves out that stdenv's RPATH shrinking (patchELF) also runs over the pinned node and template `.node` files. It changes nothing today, and `dontPatchELF = true` would remove the risk. patchShebangs also rewrites bash shebangs (it changed `resources/bin/orca-ide`).
+- orca.nix:125: `diff -r` compares content only, so a lost exec bit or a symlink turned into a file passes.
+- test:75: if `nix-store -qR` fails, `grep -c` prints 0 and "no bubblewrap" passes anyway.
+- test:237: the coredump case passes when `coredumpctl` is missing or denied. Chromium's crash handler also catches crashes before systemd sees them, so this case almost never fails.
+- test:88, 94, 117: the node-mode calls have no timeout, so a hang stalls the script instead of failing it.
+- test:178: the unit has no `RuntimeMaxSec`, no `--collect`, and no `reset-failed` in the trap. If the script is SIGKILLed, the headless sway and Orca keep running.
+- test:209: a Chromium error page also clears the 100-colour bar.
+- test:172-175: a `'` in `$HOME` would break the generated sway config.
+- The desktop file still has a stale `X-AppImage-Version=` line.
+
+## Would the tests fail on regression?
+- **Yes:** bwrap coming back, the flag injected in node mode, the child not seeing the host's hostname, time zone or fonts, node-pty breaking, an unresolved linked library, a missing dlopen dir on `orca-ide`'s path, dropping the wayland flag (an XWayland window has no `app_id`, so no window is found), `--no-sandbox` passed to the binary directly, and a non-zero exit on SIGTERM. Drift in the pinned node or template fails the build itself.
+- **No:** pinned ripgrep drift (1), losing GPU loading (3), `--no-sandbox` in the desktop Exec (4), a forking wrapper (5), GUI launches from the CLI (6), and Chromium child crashes.
+
+The findings are written to /tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/scratchpad/review-r2-correctness.md</result>
+<usage><subagent_tokens>119761</subagent_tokens><tool_uses>28</tool_uses><duration_ms>469363</duration_ms></usage>
+</task-notification>

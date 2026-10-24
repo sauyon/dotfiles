@@ -83,7 +83,8 @@ let
         install -Dm444 usr/share/icons/hicolor/''${size}x''${size}/apps/orca-ide.png \
           $out/share/icons/hicolor/''${size}x''${size}/apps/orca-ide.png
       done
-      # The AppImage ships bin/orca and an orca-ide.desktop. Upstream's .deb
+      # The AppImage ships its binary as orca-ide, with an AppRun and an
+      # orca-ide.desktop that runs AppRun. Upstream's .deb
       # puts the CLI on PATH as `orca-ide` and leaves the GUI off it, and
       # Orca's skills tell agents to run `orca-ide` outside an Orca terminal
       # -- so `orca-ide` is orcaCli below, and the GUI is `orca-ide-app`,
@@ -126,8 +127,9 @@ let
       # "DejaVu Sans Mono", which the host's fontconfig lacks; see fontsConf.
       #
       # A plain exec: signals and exit codes reach Electron directly, so
-      # `orca-ide serve`'s Electron server is the CLI's own child and goes
-      # down with it (tests/orca-gui-unsandboxed.sh case 6), and `orca-ide
+      # `orca-ide serve`'s Electron server is the CLI's own child, which the
+      # CLI takes down on a signal it can catch (TERM, INT, HUP; a SIGKILLed
+      # CLI forwards nothing -- tests/orca-gui-unsandboxed.sh case 6), and `orca-ide
       # open`'s detached GUI outlives it, with no --die-with-parent to trade.
       makeWrapper $out/lib/orca/orca-ide $out/bin/orca-ide-app \
         --set FONTCONFIG_FILE ${fontsConf} \
@@ -138,12 +140,13 @@ let
       [ -n "$explicit" ] || [ -n "''${ELECTRON_RUN_AS_NODE:-}" ] || set -- --ozone-platform=wayland "$@"'
     '';
     # Checked where it gates the build. The pinned trees: byte for byte, and
-    # exec bit for exec bit, the AppImage's (fixup's patchShebangs and patchELF still
-    # walk them; today they change nothing), and every pin in orcad's
-    # manifest holding -- ripgrep/* there is resources/ripgrep
+    # exec bit for exec bit, the AppImage's (fixup's patchShebangs and
+    # patchELF still walk them; today they change nothing), and every pin in
+    # orcad's manifest holding -- ripgrep/* there is resources/ripgrep
     # (packagedRipgrep). And no way to an unsandboxed Chromium: AppRun gone
-    # (see installPhase), and the desktop Exec exactly the wrapper, no
-    # --no-sandbox carried over from upstream's line; orca:// still handled.
+    # (see installPhase), and the desktop Exec exactly the wrapper, guarding
+    # against a --no-sandbox in some future upstream line; orca:// still
+    # handled.
     doInstallCheck = true;
     nativeInstallCheckInputs = [ pkgs.jq ];
     installCheckPhase = ''
@@ -175,8 +178,8 @@ let
     '';
     meta.mainProgram = "orca-ide-app";
   };
-  # The app's fontconfig: the host's own, plus DejaVu. Orca's Linux
-  # terminalFontFamily default is exactly "DejaVu Sans Mono" with no
+  # The app's fontconfig: the host's own, plus DejaVu Sans Mono. Orca's
+  # Linux terminalFontFamily default is exactly "DejaVu Sans Mono" with no
   # fallback, and Chromium refuses fontconfig's alias to another mono font,
   # so without it the terminal lays a proportional fallback out on a mono
   # grid; the host does not have it. Scoped to orca rather than the profile
@@ -184,17 +187,27 @@ let
   #
   # The host's, not a hermetic nixpkgs conf.d: FONTCONFIG_FILE is inherited
   # by everything Orca spawns, which, unsandboxed, is the host's own programs,
-  # and they must keep seeing the host's fonts (pacman's included) -- this
-  # adds one family to what they see and takes nothing away. The host's
-  # conf.d links into /usr/share/fontconfig resolve now; under bwrap they
-  # dangled, which is why this used to be nixpkgs' conf.d. Its 50-user.conf
-  # still pulls in ~/.config/fontconfig, home-manager's font dirs.
+  # and they must keep seeing the host's fonts (pacman's included). The
+  # host's conf.d links into /usr/share/fontconfig resolve now; under bwrap
+  # they dangled, which is why this used to be nixpkgs' conf.d. Its
+  # 50-user.conf still pulls in ~/.config/fontconfig, home-manager's fonts.
+  #
+  # The mono faces only: all of DejaVu, which ranks early in conf.d's
+  # language and math lists, took Arabic, Hebrew, Persian, Armenian and math
+  # fallback from the host's fonts (Noto Nastaliq Urdu, Open Sans, Noto Sans
+  # Math...). Sans Mono alone leaves all of those to the host; measured, it
+  # still takes a bare :lang=ka (Georgian) request, and monospace Arabic,
+  # which the host's mono font has none of. tests/orca-gui-unsandboxed.sh.
+  dejavuSansMono = pkgs.runCommand "dejavu-sans-mono-${pkgs.dejavu_fonts.version}" { } ''
+    mkdir -p $out/share/fonts
+    cp ${pkgs.dejavu_fonts}/share/fonts/truetype/DejaVuSansMono*.ttf $out/share/fonts/
+  '';
   fontsConf = pkgs.writeText "orca-fonts.conf" ''
     <?xml version="1.0"?>
     <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
     <fontconfig>
       <include ignore_missing="no">/etc/fonts/fonts.conf</include>
-      <dir>${pkgs.dejavu_fonts}/share/fonts</dir>
+      <dir>${dejavuSansMono}/share/fonts</dir>
     </fontconfig>
   '';
   # Extracted once, shared by orca, orcaCli and macKeybindings; let bindings

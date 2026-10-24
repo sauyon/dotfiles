@@ -29,8 +29,9 @@
 # or agents. ORCA_TEST_SHOT=<file.png> keeps its screenshot.
 #
 #   tests/orca-gui-unsandboxed.sh               build this host's orca and test it
+#   ORCA_CLI=<path to orca-ide> ...             case 6 with that CLI, not the profile's
 #   tests/orca-gui-unsandboxed.sh <orca-path>   test a given build, e.g. the live one:
-#                                               $(dirname $(dirname $(readlink -f ~/.nix-profile/bin/orca-ide)))
+#                                               $(dirname $(dirname $(readlink -f ~/.nix-profile/bin/orca-ide-app)))
 set -u
 set -o pipefail
 
@@ -40,8 +41,12 @@ fail() { n=$((n+1)); echo "FAIL $1: $2"; fails=$((fails+1)); }
 
 FLAKE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
+# The host's own view, also when this runs in an unsandboxed Orca's terminal:
+# without what the app injects (its FONTCONFIG_FILE, nixGL's GL paths), or
+# every comparison with the host would be the app against itself.
 if [ -e /etc/hostname ]; then
-  host() { "$@"; }
+  host() { env -u FONTCONFIG_FILE -u LD_LIBRARY_PATH -u __EGL_VENDOR_LIBRARY_FILENAMES \
+    -u LIBGL_DRIVERS_PATH -u GBM_BACKENDS_PATH -u LIBVA_DRIVERS_PATH "$@"; }
 else
   sr=$(nix build --no-link --print-out-paths --inputs-from "$FLAKE" 'nixpkgs#systemd^out') \
     || { echo "inside a sandbox and could not build systemd-run" >&2; exit 1; }
@@ -79,9 +84,10 @@ trap 'host systemctl --user stop "$unit" "$unit-serve" 2>/dev/null; rm -rf "$T"'
 # ever lost, this would be a GUI launch, and it must fail rather than open a
 # window on the live desktop -- no WAYLAND_DISPLAY/DISPLAY, and a runtime dir
 # with no socket in it (unset, Wayland falls back to wayland-0 there).
+since=$(date +%s)  # for the coredump check at the end: every launch below
 mkdir -p -m700 "$T/nodisplay"
 appnode() { host timeout 120 env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u DISPLAY \
-  XDG_RUNTIME_DIR="$T/nodisplay" ELECTRON_RUN_AS_NODE=1 "$GUI" "$@"; }
+  -u DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR="$T/nodisplay" ELECTRON_RUN_AS_NODE=1 "$GUI" "$@"; }
 
 # 1. No bwrap anywhere in the launch chain.
 closure=$(nix-store -qR "$ORCA") || { echo "nix-store -qR $ORCA failed" >&2; exit 1; }
@@ -123,7 +129,11 @@ got=$(node_run "fc-list -f '%{family[0]}\n' 'DejaVu Sans Mono' | sort -u | head 
 [ "$got" = "DejaVu Sans Mono" ] && pass "'DejaVu Sans Mono' exists for the app (terminal default)" \
   || fail "DejaVu" "app's fontconfig has '${got:-nothing}'"
 # Patterns escaped: in fontconfig's syntax a bare hyphen starts a size.
-for pat in 'sans\-serif' 'sans' 'monospace' 'system\-ui' 'Arial'; do
+# Languages and math too: fontsConf adds only DejaVu's mono faces, because
+# all of DejaVu took Arabic, Hebrew, Persian, Armenian and math fallback away
+# from the host's fonts. (Georgian, :lang=ka, it does take; not checked.)
+for pat in 'sans\-serif' 'sans' 'serif' 'monospace' 'system\-ui' 'Arial' 'math' \
+           ':lang=ar' ':lang=he' ':lang=fa' ':lang=hy' ':lang=ru' ':lang=el' ':lang=th'; do
   want=$(host fc-match -f '%{family[0]}' "$pat"); got=$(node_run "fc-match -f '%{family[0]}' '$pat'")
   [ -n "$want" ] && [ "$got" = "$want" ] && pass "'${pat//\\/}' -> $want for children, as on the host" \
     || fail "${pat//\\/}" "children get '${got:-nothing}', the host '$want'"
@@ -136,7 +146,7 @@ hidden=$(comm -23 <(echo "$want") <(echo "$got") | wc -l)
 # home.nix's symbol gap font does not yield to DejaVu (that would cut glyphs
 # that are tofu outside Orca); it relies on fontconfig ranking DejaVu ahead
 # wherever both have a glyph, under the app's own fontconfig. Every such
-# glyph, for a mono and a sans request.
+# glyph, for a monospace request and for the terminal's own family.
 cat > "$T/gapcheck.sh" <<'EOF'
 # gapcheck.sh <scratch-prefix>: "<family>|<moved>|<shared>" per request, or "nogap"
 gap=$(fc-list -f '%{file}\n' 'Noto Sans Symbols 2' | grep -m1 Gaps) || { echo nogap; exit; }
@@ -144,14 +154,14 @@ cps() { fc-query -f '%{charset}\n' "$1" | tr ' ' '\n' \
   | awk -F- 'NF { a = strtonum("0x" $1); b = $2 == "" ? a : strtonum("0x" $2); for (i = a; i <= b; i++) printf "%x\n", i }' \
   | sort -u; }
 cps "$gap" > "$1.gap"
-for pair in 'monospace:DejaVu Sans Mono' 'sans\-serif:DejaVu Sans'; do
+for pair in 'monospace:DejaVu Sans Mono' 'DejaVu Sans Mono:DejaVu Sans Mono'; do
   req=${pair%%:*}; fam=${pair#*:}
   cps "$(fc-list -f '%{file}\n' "$fam:style=Book" | head -1)" | comm -12 - "$1.gap" > "$1.both"
   moved=0
   while read -r cp; do
     [ "$(fc-match -f '%{family[0]}' "$req:charset=$cp")" = 'Noto Sans Symbols 2' ] && moved=$((moved+1))
   done < "$1.both"
-  echo "$fam|$moved|$(wc -l < "$1.both")"
+  echo "$fam, for '$req',|$moved|$(wc -l < "$1.both")"
 done
 EOF
 got=$(node_run "/bin/sh $T/gapcheck.sh $T/gapcheck")
@@ -232,11 +242,13 @@ cat > "$T/sway.conf" <<EOF
 output HEADLESS-1 resolution 1280x800
 exec /bin/sh -c '"$GUI" ${exec_args[*]} --user-data-dir="$T/profile" & echo \$! > "$T/orca.pid"; wait \$!; echo \$? > "$T/orca.exit"'
 EOF
-in_session() { host env -u DISPLAY XDG_RUNTIME_DIR="$run" WAYLAND_DISPLAY=wayland-1 "$@"; }
-since=$(date +%s)
+in_session() { host env -u DISPLAY -u DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR="$run" WAYLAND_DISPLAY=wayland-1 "$@"; }
 # env -i, then an allowlist: the user manager's environment carries the live
 # session's sockets and real-home paths (GNUPGHOME, SSH_TPM_AUTH_SOCK, ...).
+# PrivateTmp: Orca's terminal daemon keeps a host-wide ledger under
+# /tmp/.orca-daemon-<uid>, which a live Orca shares.
 "${sr:+$sr/bin/}systemd-run" --user --quiet --collect --unit="$unit" --property=RuntimeMaxSec=600 \
+  --property=PrivateTmp=yes \
   --working-directory="$T/home" \
   /bin/sh -c 'exec env -i PATH="$PATH" LANG="${LANG:-C.UTF-8}" TZ="${TZ:-}" "$@"' sh \
     HOME="$T/home" XDG_RUNTIME_DIR="$run" XDG_CURRENT_DESKTOP=sway \
@@ -330,21 +342,27 @@ cat > "$T/serve.sh" <<EOF
 cd "$T/home"
 ORCA_SERVE_RUNTIME=electron ORCA_APP_EXECUTABLE="$GUI" $cli serve --no-pairing > "$T/serve.out" 2>&1 &
 cli=\$!
-for _ in \$(seq 90); do grep -q 'Terminal daemon' "$T/serve.out" && break; sleep 1; done
+for _ in \$(seq 90); do grep -q 'Orca server ready' "$T/serve.out" && break; sleep 1; done
+grep -q 'Orca server ready' "$T/serve.out" || { echo notready; kill -TERM \$cli; exit; }
 servers() { for p in \$(cat /sys/fs/cgroup\$(cut -d: -f3 /proc/self/cgroup)/cgroup.procs); do
   [ "\$(readlink /proc/\$p/exe 2>/dev/null)" = "$APP/orca-ide" ] && echo \$p; done; }
+# Ready is logged by the server; its processes are counted once they show.
+for _ in \$(seq 30); do [ -n "\$(servers)" ] && break; sleep 1; done
 before=\$(servers | wc -l)
+[ "\$before" -gt 0 ] || for p in \$(cat /sys/fs/cgroup\$(cut -d: -f3 /proc/self/cgroup)/cgroup.procs); do
+  echo "proc \$p \$(readlink /proc/\$p/exe)"; done
 kill -TERM \$cli
 for _ in \$(seq 15); do [ -z "\$(servers)" ] && break; sleep 1; done
 echo "before=\$before after=\$(servers | wc -l)"
 EOF
 res=$("${sr:+$sr/bin/}systemd-run" --user --quiet --collect --pipe --wait --unit="$unit-serve" \
-  --property=RuntimeMaxSec=300 --working-directory="$T/home" \
+  --property=RuntimeMaxSec=300 --property=PrivateTmp=yes --working-directory="$T/home" \
   /bin/sh -c 'x=$1; shift; exec env -i PATH="$x:$PATH" LANG="${LANG:-C.UTF-8}" "$@"' sh "$xvfb/bin" \
     HOME="$T/home" XDG_RUNTIME_DIR="$run" "$dbus/bin/dbus-run-session" -- /bin/sh "$T/serve.sh" 2>/dev/null \
-  | grep -o 'before=[0-9]* after=[0-9]*')
+  | tee "$T/serve.res" | grep -o 'notready\|before=[0-9]* after=[0-9]*')
 case $res in
-  before=0*|"") fail "serve" "no Electron server started ($res): $(tail -3 "$T/serve.out" 2>/dev/null)" ;;
+  notready|before=0*|"") fail "serve" "no Electron server ready (${res:-no result}): $(tail -3 "$T/serve.out" 2>/dev/null)
+$(grep '^proc ' "$T/serve.res" 2>/dev/null)" ;;
   *after=0) pass "SIGTERM to orca-ide serve takes its Electron server down (${res%% *} processes)" ;;
   *) fail "serve" "Electron server orphaned after the CLI was killed: $res" ;;
 esac

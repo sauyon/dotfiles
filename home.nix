@@ -172,10 +172,11 @@ let
   # needs to yield to is in yieldTo (by font files on hosts of the running
   # machine's system, by name on all), and everything in yieldTo is installed
   # -- plus the fallback for a mono and a sans request.
-  # It covers the profile only: orca's own DejaVu (orca.nix's fontsConf) stays
-  # out on purpose -- yielding to it would cut ~480 glyphs that are tofu
-  # outside orca, and under orca's fontconfig DejaVu already ranks ahead
-  # wherever both have a glyph (tests/orca-gui-unsandboxed.sh: nothing moves).
+  # It covers the profile only: orca's own DejaVu Sans Mono (orca.nix's
+  # fontsConf) stays out on purpose -- yielding to it would cut ~140 glyphs
+  # that are tofu outside orca, and under orca's fontconfig DejaVu already
+  # ranks ahead for a monospace request wherever both have a glyph
+  # (tests/orca-gui-unsandboxed.sh: nothing moves).
   #
   # The source face comes from the cached noto-fonts, not
   # `noto-fonts.override { variants = ...; }`, whose build needs the whole

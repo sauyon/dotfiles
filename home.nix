@@ -1911,8 +1911,9 @@ attr=$attr
             # CLAUDE_ALLOW_MAIN_EDIT (any non-empty value) is the way through for
             # the one-line fix not worth isolating. It is read from the hook's
             # environment -- the user's at launch, or a settings `env` block, so
-            # a repo committing one there switches the guard off for itself --
-            # and it lifts the guard for that whole session. The agent cannot
+            # a repo committing one there switches the guard off for any session
+            # started in it, in every repo -- and it lifts the guard for that
+            # whole session. The agent cannot
             # set it in its own running session; the refusal tells it to ask,
             # and that request is the only trace in the transcript.
             #
@@ -1959,8 +1960,10 @@ attr=$attr
               # for the agent to work out. A session whose cwd is already in a
               # linked worktree of this repo is pointed at the same file there.
               # Anyone else in a drovr run asks drovr where the run's worktree is
-              # and enters it only if git lists it -- which covers .drovr/wt,
-              # Orca worktrees, --dir and --no-worktree alike. Everyone else
+              # and enters the worktree of this repo, other than the primary,
+              # that the path is inside -- which covers .drovr/wt, Orca
+              # worktrees, a --dir subdirectory and --no-worktree alike. A file
+              # path that reaches the primary only through `..` is not mapped. Everyone else
               # makes one: an Orca worktree where Orca is installed (the repo
               # named, since outside an Orca terminal there is nothing to infer
               # it from and `orca` may not be on PATH), EnterWorktree's own
@@ -1984,7 +1987,7 @@ attr=$attr
               cwd=$here
               [ -n "$cwd" ] || cwd="<this directory>"
               [ -n "$CLAUDE_PROJECT_DIR" ] && cwd=$CLAUDE_PROJECT_DIR
-              ${pkgs.jq}/bin/jq -nc --arg r "$root" --arg f "$f" --arg s "$sid" --arg c "$cwd" --arg w "$wt" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout of " + $r + " on its default branch. " + (if $w != "" then "Your session is already in a worktree of this repo, " + $w + ": edit " + $w + "/" + ($f | ltrimstr($r + "/")) + " there instead." else "If you are in a drovr run, as its driver or a phase agent: run `drovr path <run>`. If git lists that path as a worktree other than " + $r + " (see `git worktree list`), EnterWorktree on it; otherwise the run is not isolated: stop and report that it must be relaunched from a worktree. If you are not in a drovr run, work in a worktree: " + ${if hasOrca then ''"run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the worktree path in its JSON output. If that command fails, EnterWorktree with a name creates one under .claude/worktrees."'' else ''"EnterWorktree with a name creates one under .claude/worktrees."''} + " EnterWorktree on an existing worktree works too. For a genuine one-line fix you will finish and commit yourself, outside a drovr run, ask the user to relaunch this session with `cd " + $c + " && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume " + $s + "`, which lifts this guard for that whole session." end) + " You cannot set CLAUDE_ALLOW_MAIN_EDIT yourself, and must not route around this guard through Bash.")}}'
+              ${pkgs.jq}/bin/jq -nc --arg r "$root" --arg f "$f" --arg s "$sid" --arg c "$cwd" --arg w "$wt" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout of " + $r + " on its default branch. " + (if $w != "" and ($f | startswith($r + "/")) then "Your session is already in a worktree of this repo, " + $w + ": edit " + $w + "/" + ($f | ltrimstr($r + "/")) + " there instead." else "If you are in a drovr run, as its driver or a phase agent: run `drovr path <run>`. If that path is inside a worktree of this repo other than " + $r + " (see `git -C " + $r + " worktree list`), EnterWorktree on that worktree; otherwise the run is not isolated: stop and report that it must be relaunched from a worktree. If you are not in a drovr run, work in a worktree: " + ${if hasOrca then ''"run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the worktree path in its JSON output. If that command fails, EnterWorktree with a name creates one under .claude/worktrees."'' else ''"EnterWorktree with a name creates one under .claude/worktrees."''} + " EnterWorktree on an existing worktree works too. For a genuine one-line fix you will finish and commit yourself, outside a drovr run, ask the user to relaunch this session with `cd " + $c + " && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume " + $s + "`, which lifts this guard for that whole session." end) + " You cannot set CLAUDE_ALLOW_MAIN_EDIT yourself, and must not route around this guard through Bash.")}}'
             '';
           } ];
         }
@@ -2849,15 +2852,14 @@ in
   # leaves the primary checkout free. That is what drovr's own worktrees are
   # for: an agent editing main while the tree moved under it read stale files
   # and reported a test count from a tree that no longer existed. A nested
-  # .drovr/wt/<run> inside an Orca
-  # worktree is one Orca cannot see. One run per Orca worktree: two runs
-  # launched from the same one share its tree.
+  # .drovr/wt/<run> inside an Orca worktree is one Orca cannot see. One run per
+  # Orca worktree: two runs launched from the same one share its tree.
   # Launched from the primary checkout instead, nothing isolates a run there:
   # the main-edit guard above stops only Claude's Edit/Write/NotebookEdit tools
   # -- not Bash writes, not other agents -- and an agent of such a run that it
-  # refuses finds that `drovr path` is no worktree git lists, so it is told to
-  # stop and report that the run needs relaunching from one: moving the agent
-  # would leave the run's recorded project dir behind on the primary checkout.
+  # refuses finds `drovr path` inside no worktree but the primary, so it is
+  # told to stop and report that the run needs relaunching from one: moving the
+  # agent would leave the run's recorded project dir on the primary checkout.
   # On darwin and headless hosts there is no Orca, so drovr keeps its own
   # .drovr/wt/<run> worktrees, `--no-worktree` per run. Either way the flag
   # overrides the key for one run: `drovr new --worktree` still isolates one

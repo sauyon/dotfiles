@@ -133,11 +133,23 @@ reason=$(refusal "$R/new/dir/g" "$T/sess/sub")
 check "a session in a worktree of this repo is pointed at the same file there" yes \
   "$(says "edit $T/sess/new/dir/g there instead")"
 check "...and is not sent off to make another" no "$(says 'EnterWorktree with a name')"
+# Another repo's worktree is not this one's: pointing there would have a Write
+# create a stray file in an unrelated repo.
+git init -q -b master "$T/other"; git -C "$T/other" commit -q --allow-empty -m o
+git -C "$T/other" worktree add -q -b ow "$T/ow" master
+reason=$(refusal "$R/f" "$T/ow")
+check "a session in another repo's worktree is not pointed there" no "$(says 'there instead')"
+# A path that only reaches the file through `..` does not map: the generic way out.
+reason=$(refusal "$T/sess/../$(basename "$R")/f" "$T/sess")
+check "a ..-path is not mapped into the session's worktree" no "$(says 'there instead')"
 reason=$(refusal "$R/f" "$R")
 check "a session in the primary checkout is not told it is in a worktree" no "$(says 'there instead')"
 check "a drovr run asks drovr where its worktree is" yes "$(says 'run `drovr path <run>`')"
-check "...and enters it only if git lists it as another worktree" yes \
-  "$(says "If git lists that path as a worktree other than $R (see \`git worktree list\`), EnterWorktree on it")"
+# Named by repo: from a session in another repo, a bare `git worktree list`
+# lists that repo's worktrees. Inside one, not equal to one: a --dir run's
+# path can be a subdirectory, and git lists only worktree roots.
+check "...and enters the worktree of this repo it is inside, if any" yes \
+  "$(says "If that path is inside a worktree of this repo other than $R (see \`git -C $R worktree list\`), EnterWorktree on that worktree")"
 check "...or stops and reports" yes "$(says 'otherwise the run is not isolated: stop and report')"
 if [ "$here" = true ]; then
   check "refusal names an Orca worktree of this repo" yes "$(says "orca worktree create --repo path:$R ")"
@@ -184,10 +196,12 @@ for h in $hosts; do
     | jq -r 'select(.hookSpecificOutput.permissionDecision == "deny") | .hookSpecificOutput.permissionDecisionReason'; }
   reason=$(run "")
   check "$h: refusal program emits a deny" yes "$([ -n "$reason" ] && echo yes || echo no)"
-  check "$h: refusal names orca iff Orca is installed" "$orca" \
-    "$([ "$(says 'orca worktree create --repo path:/x ')" = yes ] && echo true || echo false)"
-  check "$h: a drovr run enters only a worktree git lists" yes \
-    "$(says 'If git lists that path as a worktree other than /x (see `git worktree list`), EnterWorktree on it')"
+  check "$h: refusal names the whole orca command iff Orca is installed" "$orca" \
+    "$([ "$(says 'run `orca worktree create --repo path:/x --name <task> --no-parent --json` and EnterWorktree on the worktree path in its JSON output. If that command fails, ')" = yes ] && echo true || echo false)"
+  check "$h: a drovr run enters only a worktree of this repo it is inside" yes \
+    "$(says 'If that path is inside a worktree of this repo other than /x (see `git -C /x worktree list`), EnterWorktree on that worktree')"
+  check "$h: everyone can make EnterWorktree's own worktree" yes \
+    "$(says 'EnterWorktree with a name creates one under .claude/worktrees. EnterWorktree on an existing worktree works too.')"
   check "$h: ...or stops and reports" yes "$(says 'otherwise the run is not isolated: stop and report')"
   check "$h: everyone else falls back to EnterWorktree's own worktree" yes \
     "$(says 'If you are not in a drovr run, work in a worktree:')"

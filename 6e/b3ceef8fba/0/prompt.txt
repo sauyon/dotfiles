@@ -1,0 +1,33 @@
+orca font rendering is still very confusing
+
+---
+
+do it
+
+---
+
+<task-notification>
+<task-id>bua10izcx</task-id>
+<tool-use-id>toolu_01UebgNz6HZf8wpTnCrP1NmC</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/dbc4d359-f6be-4e57-a448-9a6ea8269c55/tasks/bua10izcx.output</output-file>
+<status>failed</status>
+<summary>Background command "Push, wait for CI, and switch home-manager" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+hms should be resilient to this.hms should be
+
+---
+
+<task-notification>
+<task-id>bgiixyxh6</task-id>
+<tool-use-id>toolu_01Bmq9LT7LZKGwh8qMpB6ztq</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/dbc4d359-f6be-4e57-a448-9a6ea8269c55/tasks/bgiixyxh6.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for the dispatched CI run and switch" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+just run it with orca instaedwhat the fuck do you mean blocked

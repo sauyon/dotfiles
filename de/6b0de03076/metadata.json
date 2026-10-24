@@ -3,7 +3,7 @@
   "checkpoint_id": "de6b0de03076",
   "strategy": "manual-commit",
   "branch": "orca-cli-skills",
-  "checkpoints_count": 2,
+  "checkpoints_count": 4,
   "files_touched": [
     "orca.nix",
     "tests/orca-cli-skills.sh"
@@ -22,13 +22,27 @@
       "compact_transcript": "/de/6b0de03076/1/transcript.jsonl",
       "content_hash": "/de/6b0de03076/1/content_hash.txt",
       "prompt": "/de/6b0de03076/1/prompt.txt"
+    },
+    {
+      "metadata": "/de/6b0de03076/2/metadata.json",
+      "transcript": "/de/6b0de03076/2/full.jsonl",
+      "compact_transcript": "/de/6b0de03076/2/transcript.jsonl",
+      "content_hash": "/de/6b0de03076/2/content_hash.txt",
+      "prompt": "/de/6b0de03076/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 34,
-    "cache_creation_tokens": 43551,
-    "cache_read_tokens": 3399436,
-    "output_tokens": 5517,
-    "api_call_count": 17
+    "input_tokens": 60,
+    "cache_creation_tokens": 245187,
+    "cache_read_tokens": 5857559,
+    "output_tokens": 24871,
+    "api_call_count": 30,
+    "subagent_tokens": {
+      "input_tokens": 116,
+      "cache_creation_tokens": 163676,
+      "cache_read_tokens": 3229137,
+      "output_tokens": 49786,
+      "api_call_count": 58
+    }
   }
 }

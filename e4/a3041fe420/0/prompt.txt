@@ -1,0 +1,100 @@
+<task-notification>
+<task-id>ab5818588d7ac0ac7</task-id>
+<tool-use-id>toolu_01XS9c9okZ1uQLLKutfWm7TR</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/ab5818588d7ac0ac7.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-17 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>No Critical findings: the hook renders and runs correctly under dash on both kinds of host. There is one Important test gap and five nits. The tree is clean at HEAD 89087081, and `bash tests/claude-main-edit-guard.sh` passed on shiori: 116 cases, 0 failed.
+
+**How I checked it:**
+- **Rendering:** I rendered the Edit hook for shiori (Orca) and fujiwara (no Orca). The only difference between them is the orca sentence. Both pass `dash -n` and `shellcheck -s sh` with nothing reported.
+- **Running it under dash against throwaway repos,** every case exits 0 and does the right thing:
+  - **Correctly pointed:** a session cwd in a worktree of the same repo is sent to the same file there.
+  - **Correctly not pointed:** a cwd in another repo's worktree, in a submodule inside a worktree, in the primary itself, a missing cwd, and `/`.
+  - **Allowed:** a file outside git, a file in a linked worktree, and `CLAUDE_ALLOW_MAIN_EDIT=1`.
+- **Early exits and escaping:** every earlier `exit 0` is still reached. The only thing added in front of them is `input=$(cat)`. Nix escaping is fine: no stray `'` in either jq program.
+
+**Important**
+1. **`tests/claude-main-edit-guard.sh:131-137`: nothing tests the common-dir comparison.**
+   - The only session-cwd cases are a worktree of the same repo and the primary checkout. The primary case is already caught by the `.git`-is-a-file check.
+   - So deleting `!= "$root/.git"` at `home.nix:1907` would keep the suite green.
+   - If that regressed, a session in another repo's Orca worktree would be told to "edit &lt;that worktree&gt;/&lt;path&gt; there instead", and a Write would create a stray file in an unrelated repo.
+   - Fix: add one case with the cwd in a second repo's linked worktree, expecting no "there instead". The hook already handles this correctly; I checked it by hand.
+
+**nit**
+1. **`home.nix:1918`, `ltrimstr($r + "/")`:** a file path that doesn't literally start with git's toplevel is left whole.
+   - I reproduced it: `$R/../repo/f` led to "edit $T/wt/../repo/f there instead". That is the primary file again, so the guard refuses again in a loop.
+   - This overlaps the symlink class you already decided; only the `..` form is new.
+   - Cheap fix: use the generic refusal when `$f` doesn't start with `$r/`.
+2. **`home.nix:1901-1909`:** the "already in a worktree" check uses the live cwd, which a `cd` moves.
+   - The auto-mode rule lets a session `cd` into any sibling Orca worktree.
+   - A session launched in worktree A that has cd'd into B and then edits a primary-checkout path gets pointed into B. B is another task's in-flight tree, which is the collision the guard exists to prevent.
+   - Preferring `$CLAUDE_PROJECT_DIR` when it is a worktree of the repo would fix it. It's a nit because it takes both a `cd` and a primary-path edit.
+3. **`home.nix:1845`:** "a repo committing one there switches the guard off for itself" is inaccurate. A settings `env` value lifts the guard for the whole session, including edits to other repos.
+4. **`home.nix:2789`:** "`drovr path` is no worktree git lists" is wrong. For a run launched from the primary, `git worktree list` does list it as the main worktree. What the hook actually tests is "a worktree other than &lt;root&gt;", and the comment should say that.
+5. **`home.nix:2782-2784`:** the comment reflow is broken ("A nested / .drovr/wt/&lt;run&gt; inside an Orca / worktree…"). Cosmetic only.
+
+Next action: add the other-repo-worktree case to the test (about 5 minutes).
+
+Findings are written to /tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees-r17.md</result>
+<usage><subagent_tokens>89050</subagent_tokens><tool_uses>12</tool_uses><duration_ms>161490</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac20406c80d647f33</task-id>
+<tool-use-id>toolu_01CvXnM63M3Kfw76PUuJiopH</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/ac20406c80d647f33.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-18 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical issues, 4 Important ones (2 wrong instructions in the refusal, 2 test gaps) and 4 nits. The tree is clean at 89087081, and `bash tests/claude-main-edit-guard.sh` passes all 116 cases. I rendered the hook for shiori (Orca) and fujiwara (no Orca) and ran both under dash against throwaway repos.
+
+**Important**
+
+1. **The drovr sentence doesn't say which repo's worktree list to check** (`home.nix:1918`).
+   - Scenario: a phase agent of an isolated run in repo B, with its cwd in B's worktree, edits repo A's primary checkout by absolute path.
+   - It gets the drovr sentence. `drovr path` prints B's worktree, which a bare `git worktree list` from its cwd lists as "other than A".
+   - So it is told to EnterWorktree on the worktree it is already in, and it gets refused again in a loop. I reproduced this with cwd in another repo's worktree, on both hosts.
+   - Fix: say `git -C &lt;$R&gt; worktree list`.
+
+2. **A run whose directory is a subdirectory gets a false "stop and report"** (`home.nix:1918`; comment at `home.nix:1892-1894`).
+   - `drovr path` prints the run's directory verbatim (drovr `cli/src/main.rs:1604`). For a `--dir` or in-place run that can be a subdirectory, and `git worktree list` lists only top-level paths.
+   - Scenario: a driver sitting in the primary runs `drovr new x --dir ~/orca/workspaces/repo/task/sub`. When refused, it is told the run is not isolated and must be relaunched, which is false.
+   - The safe direction still holds: a subdirectory of the primary also correctly stops.
+   - The comment's claim that this covers "--dir and --no-worktree alike" is wrong for subdirectories.
+
+3. **The no-Orca "make a worktree" instruction is untested** (`tests/claude-main-edit-guard.sh:192-193`).
+   - The per-host check is labelled "falls back to EnterWorktree's own worktree" but only asserts "If you are not in a drovr run, work in a worktree:".
+   - The live check at line 147 runs only as the CI host, utsuho, which has Orca, so the phrase it finds comes from the Orca branch.
+   - I deleted "EnterWorktree with a name…" from fujiwara's refusal and every per-host check still passed. Darwin and headless hosts would then have no way to create a worktree.
+
+4. **The "same file there" branch is never tested against another repo's worktree** (tests:132-138; hook at `home.nix:1907-1913`).
+   - Dropping the check that the cwd's worktree belongs to this repo fails nothing.
+   - If that regressed, an agent in an unrelated repo's worktree would be told to edit `&lt;other-wt&gt;/&lt;path relative to this repo&gt;`.
+
+**Role traces**
+
+All other roles lead to the right action on both hosts:
+- **Inline agent in the primary, or a subdirectory of it:** told to create an Orca worktree, falling back to `.claude/worktrees`. The `orca worktree create` flags match `orca worktree create --help`.
+- **Inline agent already in an Orca, `.claude` or `.drovr` worktree, editing the primary by absolute path:** sent to the same file in its worktree. This works for a new file and for new directories.
+- **Driver that never entered `.drovr/wt`:** `drovr path` returns a listed worktree, so it enters it. This holds even when the run was launched from a subdirectory, because drovr still creates the worktree at a top-level path.
+- **Phase agent of a run launched from the primary:** `drovr path` is the primary itself or a subdirectory of it, so it stops and reports.
+- **Phase agent in an isolated run:** sent to the same file in its worktree.
+
+**Nits**
+
+1. If the session's branch lacks the file, the path mapping is still correct. But Edit fails, and an agent may Write the whole file back onto a branch that deleted it.
+2. The tests pin only the start of the orca command. Dropping `--no-parent`, `--json`, the "JSON output" clause or "EnterWorktree on an existing worktree works too." would still pass.
+3. The comment at `home.nix:2782-2784` has a ragged line wrap.
+4. The comment at `home.nix:2788-2789` says `drovr path` "is no worktree git lists". For a run launched from the primary's root, git does list it (it is the primary), so it should say "no worktree other than the primary".
+
+The other comments I checked are accurate, including that `.claude/worktrees` is globally gitignored (`home.nix:4765`).
+
+The full findings are in `/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees-r18.md`.
+
+Next action: add `EnterWorktree with a name` to the per-host assertions at `tests/claude-main-edit-guard.sh:192`, about 2 minutes.</result>
+<usage><subagent_tokens>89530</subagent_tokens><tool_uses>19</tool_uses><duration_ms>224951</duration_ms></usage>
+</task-notification>

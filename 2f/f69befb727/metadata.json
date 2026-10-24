@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "2ff69befb727",
+  "strategy": "manual-commit",
+  "branch": "symbol-fonts",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "README.md",
+    "home.nix",
+    "nix/font-gaps.py",
+    "tests/symbol-fonts.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/2f/f69befb727/0/metadata.json",
+      "transcript": "/2f/f69befb727/0/full.jsonl",
+      "compact_transcript": "/2f/f69befb727/0/transcript.jsonl",
+      "content_hash": "/2f/f69befb727/0/content_hash.txt",
+      "prompt": "/2f/f69befb727/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4,
+    "cache_creation_tokens": 2348,
+    "cache_read_tokens": 181451,
+    "output_tokens": 370,
+    "api_call_count": 2
+  }
+}

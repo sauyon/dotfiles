@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "a0f88180c976",
+  "strategy": "manual-commit",
+  "branch": "orca-gui-unsandbox",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "home.nix",
+    "tests/claude-main-edit-guard.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a0/f88180c976/0/metadata.json",
+      "transcript": "/a0/f88180c976/0/full.jsonl",
+      "compact_transcript": "/a0/f88180c976/0/transcript.jsonl",
+      "content_hash": "/a0/f88180c976/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 2160,
+    "cache_read_tokens": 1231792,
+    "output_tokens": 1236,
+    "api_call_count": 3
+  }
+}

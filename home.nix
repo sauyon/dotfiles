@@ -1245,6 +1245,11 @@ let
     # one blip. `last_ok` tracks the most recent attempt, not whether one ever
     # worked — the question at the deadline is "did the forge just tell us there
     # is no run", and a success ten tries ago does not answer it.
+    # The rest is a loop only so a transient CI failure can go round again: see
+    # the dispatch at the bottom. min_run hides the run that already failed,
+    # which the task list keeps showing first until the retry's run is created.
+    min_run=0; retries_left="''${HMS_RETRIES:-2}"; retrying=""
+    while :; do
     echo -n "hms: waiting for a run on ''${sha:0:7}"
     run=""; last_ok=""; why=""; busy=""; seen_busy=""; said_busy=""
     give_up=$((SECONDS + first_run_seconds))
@@ -1252,8 +1257,9 @@ let
     while [ -z "$run" ]; do
       if tasks=$(api "/api/v1/repos/$slug/actions/tasks?limit=20"); then
         last_ok=1
-        run=$(printf '%s' "$tasks" | $jq -r --arg s "$sha" 'first(.workflow_runs[]
-            | select(.head_sha == $s and .workflow_id == "nix-home.yml")
+        run=$(printf '%s' "$tasks" | $jq -r --arg s "$sha" --arg m "$min_run" 'first(.workflow_runs[]
+            | select(.head_sha == $s and .workflow_id == "nix-home.yml"
+                     and .run_number > ($m | tonumber))
             | .run_number) // empty' 2>/dev/null || true)
         # Any *other* commit's nix-home run still going. This is a proxy for
         # "the forge is mid-cycle, so a run for this sha may still be on its
@@ -1302,12 +1308,18 @@ let
         # switching locally" branch and build the closure here after all. A
         # *successful* poll showing an idle group is different, and still falls
         # through: the group freed up and no run appeared, so none is coming.
-        if { [ -n "$last_ok" ] && [ -n "$busy" ]; } \
+        # A retry we dispatched is owed a run as surely as a busy group is, so
+        # it waits the same way: "no run" there never means "nothing changed".
+        if [ -n "$retrying" ] || { [ -n "$last_ok" ] && [ -n "$busy" ]; } \
            || { [ -z "$last_ok" ] && [ -n "$seen_busy" ]; }; then
           if [ -z "$said_busy" ]; then
             echo
-            echo "hms: no run for ''${sha:0:7} yet — run $seen_busy is still going," >&2
-            echo "hms: so the forge may not have created ours. Waiting." >&2
+            if [ -n "$retrying" ]; then
+              echo "hms: no run for the retry yet. Waiting." >&2
+            else
+              echo "hms: no run for ''${sha:0:7} yet — run $seen_busy is still going," >&2
+              echo "hms: so the forge may not have created ours. Waiting." >&2
+            fi
             said_busy=1
             echo -n "hms: waiting"
           fi
@@ -1389,9 +1401,35 @@ let
       else
         tail -30 "$log" | cut -c30- >&2
       fi
+      # Retry a run that failed on the plumbing rather than the build: run 252
+      # (2026-10-24) died on `error: RPC failed; HTTP 503`, the forge 503ing
+      # the runner's git fetch, and the cure was a workflow_dispatch and a
+      # second wait. Only when *every* error line is that shape -- one
+      # `builder ... failed` among them is a real failure, and a re-run would
+      # just rebuild it. Forgejo has no re-run API (see nix-home.yml), and a
+      # dispatch builds the branch tip, so it is only a retry of *this* commit
+      # while origin/master still is this commit.
+      errlines=$(printf '%s\n' "$errs" | cut -c30- | ${lib.getExe pkgs.gnugrep} -a 'error:' || true)
+      if [ -n "$errlines" ] && [ "$retries_left" -gt 0 ] \
+         && ! printf '%s\n' "$errlines" | ${lib.getExe pkgs.gnugrep} -qavE \
+              'RPC failed; HTTP 5[0-9]{2}|returned error: 5[0-9]{2}|Could not resolve host|Failed to connect|Connection (timed out|reset)|early EOF'; then
+        tip=$(git -C "$repo" ls-remote origin refs/heads/master | cut -f1 || true)
+        if [ "$tip" != "$sha" ]; then
+          echo "hms: transient failure, but origin/master moved on — not retrying a different commit." >&2
+        elif api "/api/v1/repos/$slug/actions/workflows/nix-home.yml/dispatches" \
+               -X POST -H 'Content-Type: application/json' -d '{"ref":"master"}' >/dev/null; then
+          retries_left=$((retries_left - 1))
+          echo "hms: transient infra failure — dispatched a retry ($retries_left left)" >&2
+          min_run=$run; retrying=1
+          continue
+        else
+          echo "hms: transient failure, but the retry dispatch failed: $(api_why)" >&2
+        fi
+      fi
     fi
     echo "hms: not switching. Fix CI, or 'hms --local' to build here." >&2
     exit 1
+    done
   '';
 
   # `hmeval` — answer "does this still evaluate?" without turning the laptop

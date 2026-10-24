@@ -29,7 +29,7 @@ set -u
 
 SCRIPT="${1:-}"
 if [ -z "$SCRIPT" ]; then
-  host=$(cat /etc/hostname)
+  host=$(uname -n)
   drv=$(nix eval --raw ".#homeConfigurations.$host.config.home.packages" \
     --apply 'ps: (builtins.head (builtins.filter (p: p.name or "" == "hms") ps)).drvPath') \
     || { echo "could not evaluate hms for $host" >&2; exit 1; }
@@ -444,6 +444,69 @@ if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$took" -lt 10 ] \
 else
   report "a 401 mid-poll exits at once, not waits out the deadline" no \
     "took=${took}s switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+fi
+
+# --- a transient infra failure is retried, not handed back ------------------
+# Run 252 (2026-10-24) went red on `error: RPC failed; HTTP 503` -- the forge
+# 503'd the runner's git fetch, the commit was fine -- and hms stopped with "Fix
+# CI". The fix was a workflow_dispatch and a second wait, which hms can do
+# itself. Only when *every* error line in the log is infrastructure-shaped,
+# though: a run that also says `error: builder ... failed` is a real failure,
+# and re-dispatching it would just burn another build.
+#
+# A stub forge whose run for our sha fails with <log-line> until <n-fail>
+# dispatches have been made, then goes green. Each dispatch creates the next run
+# number, so a test can tell the retry's run from the one that failed.
+mkcurl_flaky() { # mkcurl_flaky <n-fail> <log-line>
+  echo 42 > "$D/run-number"; : > "$D/dispatches"
+  cat > "$D/curl" <<STUB
+#!/usr/bin/env bash
+url=""
+for a in "\$@"; do case "\$a" in https://*) url="\$a" ;; esac; done
+run=\$(cat "$D/run-number"); d=\$(wc -l < "$D/dispatches")
+case "\$url" in
+  *actions/workflows/nix-home.yml/dispatches)
+    echo call >> "$D/dispatches"; echo \$((run + 1)) > "$D/run-number"
+    printf '\n204\n' ;;
+  *actions/tasks*)
+    if [ "\$d" -ge $1 ]; then st=success; else st=failure; fi
+    printf '{"workflow_runs":[{"head_sha":"%s","workflow_id":"nix-home.yml","run_number":%s,"status":"%s"},{"head_sha":"%s","workflow_id":"nix-home.yml","run_number":41,"status":"failure"}]}\n200\n' \\
+      "\$(cat "$D/sha")" "\$run" "\$st" "\$(cat "$D/sha")" ;;
+  *jobs/0*)     printf 'job_id 7 not found\n200\n' ;;
+  *jobs/*logs*) printf 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxx%s\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxx🏁  Job failed\n200\n' '$2' ;;
+  *)            printf '{}\n200\n' ;;
+esac
+STUB
+  chmod +x "$D/curl"
+}
+
+setup_repo; mktoken good; mkcurl_flaky 1 'error: RPC failed; HTTP 503 curl 22 The requested URL returned error: 503'; mkswitch
+out=$(run); rc=$?
+if [ -f "$D/switched" ] && [ "$(wc -l < "$D/dispatches")" -eq 1 ] \
+   && printf '%s' "$out" | grep -q 'run 43 green'; then
+  report "a transient CI failure is re-dispatched and the retry switches" ok
+else
+  report "a transient CI failure is re-dispatched and the retry switches" no \
+    "dispatches=$(wc -l < "$D/dispatches") switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+fi
+
+setup_repo; mktoken good; mkcurl_flaky 1 'error: builder for /nix/store/x.drv failed with exit code 1'; mkswitch
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(wc -l < "$D/dispatches")" -eq 0 ]; then
+  report "a real build failure is not re-dispatched" ok
+else
+  report "a real build failure is not re-dispatched" no \
+    "dispatches=$(wc -l < "$D/dispatches") switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+fi
+
+# Bounded: a forge that 503s every run is down, not flaky, and hms must stop.
+setup_repo; mktoken good; mkcurl_flaky 99 'error: RPC failed; HTTP 503 curl 22 The requested URL returned error: 503'; mkswitch
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(wc -l < "$D/dispatches")" -eq 2 ]; then
+  report "transient retries stop after two dispatches" ok
+else
+  report "transient retries stop after two dispatches" no \
+    "dispatches=$(wc -l < "$D/dispatches") switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
 fi
 
 printf '\n%d/%d passed\n' "$((n - fails))" "$n"

@@ -1913,9 +1913,9 @@ attr=$attr
             # environment -- the user's at launch, or a settings `env` block, so
             # a repo committing one there switches the guard off for any session
             # started in it, in every repo -- and it lifts the guard for that
-            # whole session. The agent cannot
-            # set it in its own running session; the refusal tells it to ask,
-            # and that request is the only trace in the transcript.
+            # whole session. The agent cannot set it in its own running
+            # session; the refusal tells it to ask, and that request is the
+            # only trace in the transcript.
             #
             # `.claude/allow-main-edit` at a repo root opts that repo out
             # permanently. Only for trees small enough to read in one pass.
@@ -1962,13 +1962,15 @@ attr=$attr
               # Anyone else in a drovr run asks drovr where the run's worktree is
               # and enters the worktree of this repo, other than the primary,
               # that the path is inside -- which covers .drovr/wt, Orca
-              # worktrees, a --dir subdirectory and --no-worktree alike. A file
-              # path that reaches the primary only through `..` is not mapped. Everyone else
-              # makes one: an Orca worktree where Orca is installed (the repo
-              # named, since outside an Orca terminal there is nothing to infer
-              # it from and `orca` may not be on PATH), EnterWorktree's own
-              # .claude/worktrees (globally gitignored) elsewhere or as the
-              # fallback -- never a bare `git worktree add`, which an agent puts
+              # worktrees, a --dir subdirectory and --no-worktree alike. A path
+              # in the primary itself is a run nothing isolates; one in another
+              # repo is a run this file does not belong to. A file path that
+              # reaches the primary only through `..` is not mapped. Everyone
+              # else makes one: an Orca worktree where Orca is installed (the
+              # repo named, since outside an Orca terminal there is nothing to
+              # infer it from), EnterWorktree's own .claude/worktrees (globally
+              # gitignored) elsewhere, or as the fallback where `orca` is not on
+              # PATH outside an Orca terminal -- never a bare `git worktree add`, which an agent puts
               # inside the repo, leaving an untracked dir that makes hms refuse.
               here=$(j '.cwd // empty')
               wt=""
@@ -1987,7 +1989,7 @@ attr=$attr
               cwd=$here
               [ -n "$cwd" ] || cwd="<this directory>"
               [ -n "$CLAUDE_PROJECT_DIR" ] && cwd=$CLAUDE_PROJECT_DIR
-              ${pkgs.jq}/bin/jq -nc --arg r "$root" --arg f "$f" --arg s "$sid" --arg c "$cwd" --arg w "$wt" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout of " + $r + " on its default branch. " + (if $w != "" and ($f | startswith($r + "/")) then "Your session is already in a worktree of this repo, " + $w + ": edit " + $w + "/" + ($f | ltrimstr($r + "/")) + " there instead." else "If you are in a drovr run, as its driver or a phase agent: run `drovr path <run>`. If that path is inside a worktree of this repo other than " + $r + " (see `git -C " + $r + " worktree list`), EnterWorktree on that worktree; otherwise the run is not isolated: stop and report that it must be relaunched from a worktree. If you are not in a drovr run, work in a worktree: " + ${if hasOrca then ''"run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the worktree path in its JSON output. If that command fails, EnterWorktree with a name creates one under .claude/worktrees."'' else ''"EnterWorktree with a name creates one under .claude/worktrees."''} + " EnterWorktree on an existing worktree works too. For a genuine one-line fix you will finish and commit yourself, outside a drovr run, ask the user to relaunch this session with `cd " + $c + " && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume " + $s + "`, which lifts this guard for that whole session." end) + " You cannot set CLAUDE_ALLOW_MAIN_EDIT yourself, and must not route around this guard through Bash.")}}'
+              ${pkgs.jq}/bin/jq -nc --arg r "$root" --arg f "$f" --arg s "$sid" --arg c "$cwd" --arg w "$wt" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout of " + $r + " on its default branch. " + (if $w != "" and ($f | startswith($r + "/")) then "Your session is already in a worktree of this repo, " + $w + ": edit " + $w + "/" + ($f | ltrimstr($r + "/")) + " there instead." else "If you are in a drovr run, as its driver or a phase agent: run `drovr path <run>`. If that path is inside a worktree of this repo other than " + $r + " (see `git -C " + $r + " worktree list`), EnterWorktree on that worktree. If it is in " + $r + " itself, the run is not isolated: stop and report that it must be relaunched from a worktree. If it is anywhere else, or `drovr path` fails, this file is not your run" + "\u0027" + "s to edit: leave it and say so. If you are not in a drovr run, work in a worktree: " + ${if hasOrca then ''"run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the worktree path in its JSON output. If that command fails, EnterWorktree with a name creates one under .claude/worktrees."'' else ''"EnterWorktree with a name creates one under .claude/worktrees."''} + " EnterWorktree on an existing worktree works too. For a genuine one-line fix you will finish and commit yourself, outside a drovr run, ask the user to relaunch this session with `cd " + $c + " && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume " + $s + "`, which lifts this guard for that whole session." end) + " You cannot set CLAUDE_ALLOW_MAIN_EDIT yourself, and must not route around this guard through Bash.")}}'
             '';
           } ];
         }

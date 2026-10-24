@@ -104,12 +104,12 @@ check "primary checkout on master: edit refused" deny "$(verdict "$R/f")"
 check "a file that does not exist yet is refused too" deny "$(verdict "$R/new/dir/g")"
 check "CLAUDE_ALLOW_MAIN_EDIT=1 lets it through" allow \
   "$(verdict "$R/f" CLAUDE_ALLOW_MAIN_EDIT=1)"
-check "outside any repo: edit allowed (and the hook parses under dash)" allow "$(verdict /nonexistent/x)"
+check "outside any repo: edit allowed" allow "$(verdict /nonexistent/x)"
 
 # The refusal names the way out, and checks facts rather than describing them:
 # a session already in a worktree of this repo is pointed at the same file
-# there; anyone in a drovr run asks drovr where its worktree is and enters it
-# only if git lists it; everyone else makes one -- an Orca worktree where Orca
+# there; anyone in a drovr run asks drovr where its worktree is and enters the
+# worktree of this repo that path is inside; everyone else makes one -- an Orca worktree where Orca
 # is installed (orca.nix: GUI Linux), EnterWorktree's own elsewhere. Never a
 # bare in-repo `git worktree add`: its untracked dir makes hms refuse the tree.
 orca_on() { # orca_on <host> -> true | false; exits non-zero on an eval failure,
@@ -139,9 +139,11 @@ git init -q -b master "$T/other"; git -C "$T/other" commit -q --allow-empty -m o
 git -C "$T/other" worktree add -q -b ow "$T/ow" master
 reason=$(refusal "$R/f" "$T/ow")
 check "a session in another repo's worktree is not pointed there" no "$(says 'there instead')"
+check "...but is still refused" yes "$(says "This is the primary checkout of $R on its default branch.")"
 # A path that only reaches the file through `..` does not map: the generic way out.
 reason=$(refusal "$T/sess/../$(basename "$R")/f" "$T/sess")
 check "a ..-path is not mapped into the session's worktree" no "$(says 'there instead')"
+check "...but is still refused" yes "$(says "This is the primary checkout of")"
 reason=$(refusal "$R/f" "$R")
 check "a session in the primary checkout is not told it is in a worktree" no "$(says 'there instead')"
 check "a drovr run asks drovr where its worktree is" yes "$(says 'run `drovr path <run>`')"
@@ -150,7 +152,13 @@ check "a drovr run asks drovr where its worktree is" yes "$(says 'run `drovr pat
 # path can be a subdirectory, and git lists only worktree roots.
 check "...and enters the worktree of this repo it is inside, if any" yes \
   "$(says "If that path is inside a worktree of this repo other than $R (see \`git -C $R worktree list\`), EnterWorktree on that worktree")"
-check "...or stops and reports" yes "$(says 'otherwise the run is not isolated: stop and report')"
+# Three outcomes, by where that path is: a worktree of this repo, this
+# checkout itself (the run is not isolated), or another repo entirely (this
+# file is not the run's -- not a reason to call a healthy run broken).
+check "...stops and reports a run in this checkout itself" yes \
+  "$(says "If it is in $R itself, the run is not isolated: stop and report that it must be relaunched from a worktree.")"
+check "...leaves alone a file that is not its run's" yes \
+  "$(says "If it is anywhere else, or \`drovr path\` fails, this file is not your run's to edit: leave it and say so.")"
 if [ "$here" = true ]; then
   check "refusal names an Orca worktree of this repo" yes "$(says "orca worktree create --repo path:$R ")"
 else
@@ -202,11 +210,15 @@ for h in $hosts; do
     "$(says 'If that path is inside a worktree of this repo other than /x (see `git -C /x worktree list`), EnterWorktree on that worktree')"
   check "$h: everyone can make EnterWorktree's own worktree" yes \
     "$(says 'EnterWorktree with a name creates one under .claude/worktrees. EnterWorktree on an existing worktree works too.')"
-  check "$h: ...or stops and reports" yes "$(says 'otherwise the run is not isolated: stop and report')"
-  check "$h: everyone else falls back to EnterWorktree's own worktree" yes \
+  check "$h: refusal leads with what was refused" yes "$(says 'This is the primary checkout of /x on its default branch.')"
+  check "$h: ...stops and reports a run in this checkout itself" yes \
+    "$(says 'If it is in /x itself, the run is not isolated: stop and report that it must be relaunched from a worktree.')"
+  check "$h: ...leaves alone a file that is not its run's" yes \
+    "$(says 'If it is anywhere else, or `drovr path` fails, this file is not your run')"
+  check "$h: anyone outside a drovr run is told to make a worktree" yes \
     "$(says 'If you are not in a drovr run, work in a worktree:')"
   check "$h: refusal names the override for exactly this session, outside a run" yes \
-    "$(says 'outside a drovr run, ask the user to relaunch this session with `cd /cwd && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume sid-1`')"
+    "$(says 'outside a drovr run, ask the user to relaunch this session with `cd /cwd && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume sid-1`, which lifts this guard for that whole session.')"
   check "$h: refusal says the agent cannot grant the override" yes \
     "$(says 'You cannot set CLAUDE_ALLOW_MAIN_EDIT yourself, and must not route around this guard through Bash.')"
   check "$h: refusal suggests no in-repo git worktree" no "$(says 'git worktree add')"

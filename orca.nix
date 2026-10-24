@@ -128,17 +128,19 @@ let
     # manifest holding -- ripgrep/* there is resources/ripgrep
     # (packagedRipgrep). And no way to an unsandboxed Chromium: AppRun gone
     # (see installPhase), and the desktop Exec exactly the wrapper, no
-    # --no-sandbox carried over from upstream's line.
+    # --no-sandbox carried over from upstream's line; orca:// still handled.
     doInstallCheck = true;
     nativeInstallCheckInputs = [ pkgs.jq ];
     installCheckPhase = ''
       runHook preInstallCheck
       res=$out/lib/orca/resources
+      # Exec bits and file types; write bits differ by design (chmod u+w).
+      lsx() { cd $1 && find . \( -perm -u+x -printf 'x %y %p\n' \) -o -printf '- %y %p\n' | sort; }
       for d in node-runtime orcad-template ripgrep; do
         diff -r --no-dereference $src/resources/$d $res/$d
-        # Exec bits and file types; write bits differ by design (chmod u+w).
-        lsx() { (cd $1 && find . \( -perm -u+x -printf 'x %y %p\n' \) -o -printf '- %y %p\n' | sort); }
-        diff <(lsx $src/resources/$d) <(lsx $res/$d)
+        (lsx $src/resources/$d) > src.lsx
+        (lsx $res/$d) > out.lsx
+        diff src.lsx out.lsx
       done
       t=$res/orcad-template
       jq -r '(.commonSha256 | to_entries[] | "\(.value)  \(.key)"),
@@ -148,32 +150,36 @@ let
             f=$t/$p
             case $p in targets/*/ripgrep/*) [ -e "$f" ] || f=$res/''${p#targets/*/} ;; esac
             echo "$sha  $f"
-          done | sha256sum -c --quiet
+          done | sha256sum -c --quiet --strict
       pin=$(tr -d '[:space:]' < $t/targets/linux-x64-glibc/.runtime-node)
       echo "$pin  $res/node-runtime/bin/node" | sha256sum -c
       [ ! -e $out/lib/orca/AppRun ]
       [ "$(grep '^Exec=' $out/share/applications/orca-ide.desktop)" = 'Exec=orca-ide %U' ]
+      grep -q '^MimeType=.*x-scheme-handler/orca;' $out/share/applications/orca-ide.desktop
       runHook postInstallCheck
     '';
     meta.mainProgram = "orca-ide";
   };
-  # The app's fontconfig, the way every other nix GUI app here gets a
-  # nix-generated FONTCONFIG_FILE instead of the distro's. Hermetic: nixpkgs'
-  # own conf.d (store paths, the full standard alias set), whose 50-user.conf
-  # pulls in ~/.config/fontconfig -- home-manager's font dirs, i.e. the
-  # nix-profile fonts every other app here uses. Plus DejaVu, which the host
-  # does not have:
-  # Orca's Linux terminalFontFamily default is exactly "DejaVu Sans Mono" with
-  # no fallback, and Chromium refuses fontconfig's alias to another mono font,
-  # so without it the terminal lays a proportional fallback out on a mono grid.
-  # Scoped to orca rather than the profile because only orca hardcodes it.
+  # The app's fontconfig: the host's own, plus DejaVu. Orca's Linux
+  # terminalFontFamily default is exactly "DejaVu Sans Mono" with no
+  # fallback, and Chromium refuses fontconfig's alias to another mono font,
+  # so without it the terminal lays a proportional fallback out on a mono
+  # grid; the host does not have it. Scoped to orca rather than the profile
+  # because only orca hardcodes it.
+  #
+  # The host's, not a hermetic nixpkgs conf.d: FONTCONFIG_FILE is inherited
+  # by everything Orca spawns, which, unsandboxed, is the host's own programs,
+  # and they must keep seeing the host's fonts (pacman's included) -- this
+  # adds one family to what they see and takes nothing away. The host's
+  # conf.d links into /usr/share/fontconfig resolve now; under bwrap they
+  # dangled, which is why this used to be nixpkgs' conf.d. Its 50-user.conf
+  # still pulls in ~/.config/fontconfig, home-manager's font dirs.
   fontsConf = pkgs.writeText "orca-fonts.conf" ''
     <?xml version="1.0"?>
     <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
     <fontconfig>
-      <include ignore_missing="no">${pkgs.fontconfig.out}/etc/fonts/conf.d</include>
+      <include ignore_missing="no">/etc/fonts/fonts.conf</include>
       <dir>${pkgs.dejavu_fonts}/share/fonts</dir>
-      <cachedir prefix="xdg">fontconfig</cachedir>
     </fontconfig>
   '';
   # Extracted once, shared by orca and macKeybindings; let bindings

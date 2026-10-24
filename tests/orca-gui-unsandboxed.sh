@@ -16,15 +16,17 @@
 # through `systemd-run --user`, whose units the user manager starts outside it.
 # Once no bwrap-era Orca is left running anywhere, that path can go.
 #
-# That the two pinned trees (resources/node-runtime, resources/orcad-template)
-# stay the AppImage's byte for byte is the derivation's installCheckPhase, not
-# a case here: it gates the build.
+# That the pinned trees (resources/node-runtime, orcad-template, ripgrep) stay
+# the AppImage's, every pin in orcad's manifest holds, and the desktop file
+# launches the wrapper and nothing else, is the derivation's
+# installCheckPhase, not a case here: it gates the build.
 #
 # The GUI case (5) needs no desktop and never shows on one: it starts its own
-# headless sway (wlroots' headless backend, a private XDG_RUNTIME_DIR) and
-# runs Orca in that, with its own --user-data-dir and a throwaway HOME, so it
-# never touches a running Orca's profile, ~/.orca/agent-hooks or
-# ~/.claude/settings.json. ORCA_TEST_SHOT=<file.png> keeps its screenshot.
+# headless sway (wlroots' headless backend, a private XDG_RUNTIME_DIR and
+# D-Bus, a near-empty environment) and runs Orca in that, with its own
+# --user-data-dir and a throwaway HOME, so it never touches a running Orca's
+# profile, ~/.orca, ~/.config/orca or ~/.claude, nor the live desktop, keyring
+# or agents. ORCA_TEST_SHOT=<file.png> keeps its screenshot.
 #
 #   tests/orca-gui-unsandboxed.sh               build this host's orca and test it
 #   tests/orca-gui-unsandboxed.sh <orca-path>   test a given build, e.g. the live one:
@@ -74,9 +76,8 @@ T=$(mktemp -d "$HOME/.cache/orca-gui-test.XXXXXX") || { echo "mktemp failed" >&2
 trap 'host systemctl --user stop "$unit" 2>/dev/null; rm -rf "$T"' EXIT
 
 # 1. No bwrap anywhere in the launch chain.
-# grep -c reads it all: -q exits early, and under pipefail nix-store's
-# SIGPIPE would send a hit to the else branch.
-if [ "$(nix-store -qR "$ORCA" | grep -c -- '-bubblewrap-')" != 0 ]; then
+closure=$(nix-store -qR "$ORCA") || { echo "nix-store -qR $ORCA failed" >&2; exit 1; }
+if grep -q -- '-bubblewrap-' <<< "$closure"; then
   fail "no sandbox" "bubblewrap is in the closure of $ORCA"
 else
   pass "no bubblewrap in the closure"
@@ -93,7 +94,10 @@ got=$(host timeout 120 env ELECTRON_RUN_AS_NODE=1 "$GUI" -p 1 2>&1)
 [ "$got" = 1 ] && pass "ELECTRON_RUN_AS_NODE=1 runs node" \
   || fail "node mode" "printed '$got', want 1"
 
-# 3. What a spawned process sees is the host: hostname, zone, fonts.
+# 3. What a spawned process sees is the host: hostname, zone, fonts. The
+# app's FONTCONFIG_FILE reaches every child, so it must be the host's
+# fontconfig plus DejaVu: a child resolves families as the host does and
+# sees every font the host has.
 node_run() { # node_run <shell command>: run it from a child of the GUI in node mode
   host timeout 120 env ELECTRON_RUN_AS_NODE=1 "$GUI" -e \
     'process.stdout.write(require("child_process").execFileSync("/bin/sh", ["-c", process.argv[1]]))' \
@@ -106,16 +110,20 @@ for c in 'cat /etc/hostname' 'date +%Z' 'readlink /etc/localtime'; do
 done
 # Orca's Linux terminalFontFamily default is exactly "DejaVu Sans Mono", one
 # family with no fallback, and Chromium refuses fontconfig's alias to another
-# mono font; the host has no DejaVu, so orca.nix's fontsConf must apply.
+# mono font; the host has no DejaVu, so orca.nix's fontsConf must add it.
 got=$(node_run "fc-list -f '%{family[0]}\n' 'DejaVu Sans Mono' | sort -u | head -1")
 [ "$got" = "DejaVu Sans Mono" ] && pass "'DejaVu Sans Mono' exists for the app (terminal default)" \
   || fail "DejaVu" "app's fontconfig has '${got:-nothing}'"
-for c in 'sans\-serif:Noto Sans' 'monospace:Noto Sans Mono'; do
-  pat=${c%%:*}; want=${c#*:}
-  got=$(node_run "fc-match -f '%{family[0]}' '$pat'")
-  [ "$got" = "$want" ] && pass "$pat -> $want for the app" \
-    || fail "$pat" "resolves to '${got:-nothing}', want '$want'"
+# Patterns escaped: in fontconfig's syntax a bare hyphen starts a size.
+for pat in 'sans\-serif' 'sans' 'monospace' 'system\-ui' 'Arial'; do
+  want=$(host fc-match -f '%{family[0]}' "$pat"); got=$(node_run "fc-match -f '%{family[0]}' '$pat'")
+  [ -n "$want" ] && [ "$got" = "$want" ] && pass "'${pat//\\/}' -> $want for children, as on the host" \
+    || fail "${pat//\\/}" "children get '${got:-nothing}', the host '$want'"
 done
+want=$(host fc-list -f '%{file}\n' | sort -u); got=$(node_run "fc-list -f '%{file}\n'" | sort -u)
+hidden=$(comm -23 <(echo "$want") <(echo "$got") | wc -l)
+[ -n "$want" ] && [ "$hidden" = 0 ] && pass "children see all $(echo "$want" | wc -l) of the host's font files" \
+  || fail "font files" "$hidden of the host's are hidden from children"
 
 # Orca's terminals: the patched node-pty, loaded by this Electron, opens a pty.
 got=$(host timeout 120 env ELECTRON_RUN_AS_NODE=1 "$GUI" -e '
@@ -184,11 +192,15 @@ exec /bin/sh -c '"$GUI" ${exec_args[*]} --user-data-dir="$T/profile" & echo \$! 
 EOF
 in_session() { host env -u DISPLAY XDG_RUNTIME_DIR="$run" WAYLAND_DISPLAY=wayland-1 "$@"; }
 since=$(date +%s)
+# env -i, then an allowlist: the user manager's environment carries the live
+# session's sockets and real-home paths (GNUPGHOME, SSH_TPM_AUTH_SOCK, ...).
 "${sr:+$sr/bin/}systemd-run" --user --quiet --collect --unit="$unit" --property=RuntimeMaxSec=600 \
-  --setenv=HOME="$T/home" --setenv=XDG_RUNTIME_DIR="$run" --setenv=XDG_CURRENT_DESKTOP=sway \
-  --setenv=WLR_BACKENDS=headless --setenv=WLR_RENDERER=pixman --setenv=WLR_LIBINPUT_NO_DEVICES=1 \
-  /bin/sh -c 'exec env -u WAYLAND_DISPLAY -u DISPLAY -u DBUS_SESSION_BUS_ADDRESS -u SSH_AUTH_SOCK \
-    -u HYPRLAND_INSTANCE_SIGNATURE "$@"' sh "$dbus/bin/dbus-run-session" -- "$sway/bin/sway" -c "$T/sway.conf"
+  --working-directory="$T/home" \
+  /bin/sh -c 'exec env -i PATH="$PATH" LANG="${LANG:-C.UTF-8}" TZ="${TZ:-}" "$@"' sh \
+    HOME="$T/home" XDG_RUNTIME_DIR="$run" XDG_CURRENT_DESKTOP=sway \
+    WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
+    "$dbus/bin/dbus-run-session" -- "$sway/bin/sway" -c "$T/sway.conf" \
+  || { fail "session" "systemd-run could not start $unit"; }
 pid=""
 for _ in $(seq 60); do
   sleep 1

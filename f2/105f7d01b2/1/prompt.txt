@@ -1,5 +1,275 @@
-why does orca not see my fonts? and why does it not have icons
+<task-notification>
+<task-id>a5c9e32fbce851ec1</task-id>
+<tool-use-id>toolu_0113sYWWtfgLf6j4qcvgG6Py</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/d91a6a6c-612c-48bf-ac1b-d1211f6072e2/tasks/a5c9e32fbce851ec1.output</output-file>
+<status>completed</status>
+<summary>Agent "Review symbol-fonts change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical issues. There are 2 Important findings and 6 nits. The nix change is correct; the problems are a misleading cost claim in the comment and gaps in what the test covers.
+
+**Checks I ran (all read-only):**
+- **`variants` is a real argument:** `pkgs.noto-fonts.override.__functionArgs` lists `variants` (along with `suffix` and `longDescription`). The nixpkgs version is 2026.10.01.
+- **Both platforms evaluate:** The hosts are chiyari, fujiwara, kyuusaku, shiori and utsuho (x86_64-linux) and mari (aarch64-darwin). On both shiori and mari, `noto-fonts-2026.10.01` shows up in `home.packages` next to `noto-fonts-color-emoji` and `noto-fonts-cjk-sans`.
+- **The output is what the comment says:** shiori's output is one file, `share/fonts/noto/NotoSansSymbols2-Regular.otf`, 396K.
+- **The face covers all three codepoints:** its charset includes `23f1-2426`, `2b12-2b2f` and `1fb00-1fb92`.
+- **The live profile still lacks them:** `fc-list :charset=X` with the current host config returns 0 for all three (shiori hasn't been switched yet).
+
+## Critical
+None.
+
+## Important
+
+1. **home.nix:3270-3275: the comment hides the build cost.** The output is 400 KiB, but this override is not on cache.nixos.org. Whatever machine builds it has to fetch the full upstream source: `notofonts.github.io/archive/refs/tags/noto-monthly-release-2026.10.01.tar.gz`, which is 2,160,507,568 bytes (2.1G) in the store. That applies to every host without a private cache, including mari, and again every month when the release tag changes.
+   - The google-fonts comment a few lines up (around home.nix:3230) states this exact caveat: "The *build* still fetches the whole google/fonts repo; only the output … shrinks."
+   - This comment says "One 400 KiB face, not all of noto-fonts", which suggests it is cheap. The cost should be stated, or weighed against substituting the full cached `noto-fonts`.
+
+2. **tests/symbol-fonts.sh:23,36: only one host is checked, and the host lookup can fail.**
+   - `HOST=$(uname -n)` keeps any domain suffix. On macOS `uname -n` usually returns something like `mari.local`, so the lookup `homeConfigurations.mari.local` fails and the script exits with "home.path did not evaluate". It fails loudly, but it means the test cannot run on mari at all.
+   - Other tests strip the suffix: tests/wif-tpm.sh:54 uses `host="${host%%.*}"` and tests/wif-keygen.sh:101 uses `cut -d. -f1`.
+   - More broadly, tests/cjk-fonts.sh checks every host by reading `homeConfigurations`. This test only checks the host it runs on. If the package were dropped or gated for one host (for example a darwin-only `lib.optionals`), nothing would catch it unless someone runs the test on that host.
+   - A cheap fix: an eval-only check (`--max-jobs 0`) that the package is in every host's `home.packages`, plus the fontconfig check on the local host.
+
+## Nits
+
+3. **tests/symbol-fonts.sh:36: no `--max-jobs 0` on the eval.** tests/cjk-fonts.sh adds it to every `nix eval` and points to tests/hmeval.sh, which says it is the guard that keeps an eval from building. The realise step builds anyway, so this is about consistency, not correctness.
+
+4. **tests/symbol-fonts.sh:38: realise failures are detected correctly.** `set -o pipefail` applies inside the `$(...)` substitution, so a failed `nix-store --realise` makes the assignment fail and the `||` branch runs. Two small points:
+   - Build output on stderr goes straight to the terminal, unlike cjk-fonts.sh:63, which sends it to `&gt;/dev/null 2&gt;&amp;1`.
+   - This builds the whole `home.path` for the host, not just the font package. That's a reasonable choice because it tests the real profile, but it's heavy.
+
+5. **tests/symbol-fonts.sh:53: `fc-list … 2&gt;/dev/null` hides fontconfig errors.** Host fonts can't leak in through the config as written: it has a single `&lt;dir&gt;`, no `&lt;include&gt;` of conf.d or `~/.config/fontconfig`, and a private `&lt;cachedir&gt;`, so `/usr/share/fonts` can't make it pass. The remaining risk is that I believe fontconfig falls back to a built-in default config (the default font dirs) if `FONTCONFIG_FILE` fails to parse; I didn't confirm this. With stderr hidden, that would pass silently.
+   - The heredoc is fixed text and the store path contains no XML special characters, so this is unlikely.
+   - A one-line guard would close it, for example a check that `FONTCONFIG_FILE=… fc-list file` lists only paths under `$out`.
+
+6. **tests/symbol-fonts.sh:52: `printf "\\U…"` needs bash 4.2 or later.** macOS `/bin/bash` 3.2 doesn't support `\U`. With `#!/usr/bin/env bash`, mari probably picks up a nix bash, so this only affects how the glyph displays. Not urgent.
+
+7. **tests/symbol-fonts.sh:53: `head -1` can SIGPIPE `fc-list`.** With pipefail the pipeline status becomes non-zero, but it's ignored (there's no `set -e` and no status check), so `face` is still set correctly. No action needed. Under `set -u`, `$1` is guarded by `${1:-…}` and all other variables are set before use, so that's fine too.
+
+8. **Style and consistency.**
+   - The comment block matches its neighbours' "fails silently" style. However, home.nix:3274 ends with a bare "tests/symbol-fonts.sh.", while the CJK block says what its test checks ("so tests/cjk-fonts.sh checks every host has it"). Adding a few words would match.
+   - The test header (tests/symbol-fonts.sh:1-17) follows the cjk-fonts.sh layout well: the silent-failure story, then "The claim", then usage lines. The `pass`/`fail` helpers and the summary line are copied verbatim, which is consistent.
+
+## Can the test pass for the wrong reason, and would it catch a regression?
+- **Regression:** removing the package would make the test fail on the host where it runs, which matches the reported 0/3 before and 3/3 after. It would not catch a loss on other hosts (Important #2).
+- **Wrong reason:** the fontconfig isolation is sound (nit #5 covers the one remaining risk). It passes if any face in the profile has the codepoint, which is the right claim.
+- **Darwin:** the test only proves the fonts are in `home.path`. That is a fair stand-in for mari only because home-manager also copies the profile's fonts into `~/Library/Fonts` on macOS, where apps look up fonts through the system rather than fontconfig. That copying lives in home-manager, not this repo, and I did not verify it.</result>
+<usage><subagent_tokens>32263</subagent_tokens><tool_uses>7</tool_uses><duration_ms>98406</duration_ms></usage>
+</task-notification>
 
 ---
 
-no it doesn't? I still see boxes
+<task-notification>
+<task-id>a5222d392f00fce34</task-id>
+<tool-use-id>toolu_01HFmhu99JtmxFsisYBxrZLS</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/d91a6a6c-612c-48bf-ac1b-d1211f6072e2/tasks/a5222d392f00fce34.output</output-file>
+<status>completed</status>
+<summary>Agent "Re-review symbol-fonts change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical issues. There are three Important ones, all in how the test could pass or fail for the wrong reason, and the package change itself is sound. I checked by reading the code, running evals and querying the cache only. I did not build anything or re-run the test.
+
+## Checks that held up
+
+- **Scope:** the new block sits inside `++ (with pkgs; [ ... ])` (home.nix:3217), so `runCommand` and `noto-fonts` resolve there.
+- **Every host:** the package evals into all six hosts (chiyari, fujiwara, kyuusaku, mari, shiori, utsuho).
+- **Cache:** both default `noto-fonts` outputs are on cache.nixos.org.
+  - Linux: `/nix/store/5im72fci…-noto-fonts-2026.10.01`
+  - mari (aarch64-darwin): `/nix/store/v3zvvgv2…-noto-fonts-2026.10.01`
+  - Both are zstd, 27,038,879 bytes compressed and 51 MB unpacked. The symlink target exists in the Linux output.
+- **Not building `noto-fonts` from source:** `noto-fonts.override { variants = [...] }` uses the same source as the default build (the whole monthly-release tarball), so the comment's reason for linking out of the cached build is correct.
+- **Closure:** the runCommand output's symlink names `noto-fonts`, so `noto-fonts` stays in the closure.
+- **Linux pickup:** the live profile's `share/fonts/noto` is currently a directory symlink into `noto-fonts-color-emoji`. With this package added, buildEnv turns it into a real directory holding both files. The file names don't collide, and fontconfig follows the double symlink. home-manager's `10-hm-fonts.conf` points at `home.path/share/fonts`, and Orca's own `fontsConf` (orca.nix:80-88) pulls it in through `50-user.conf`. So the fonts dir the test checks is the one Orca actually sees.
+- **mari:** home-manager's darwin fonts module copies the fonts with `rsync -acL` into `~/Library/Fonts/HomeManager`. `-L` follows symlink chains, so macOS gets a real file.
+- **Isolation path prefix:** `fc-list : file` reports the path it walked to, not the resolved one. So a working isolated config does print lines starting with `$out/share/fonts/...`, and the prefix check is the right idea.
+- **Fallback claim:** a `FONTCONFIG_FILE` that fails to load does fall back to fontconfig's built-in default dirs, as the comment says.
+
+## Critical
+None.
+
+## Important
+
+1. **tests/symbol-fonts.sh:81 – the isolation guard can miss the leak it exists to catch.** Under `set -o pipefail`, `fc-list : file | grep -qv "^$out/"` goes wrong in exactly the leak case. When host fonts are visible, the first line already fails the prefix, so `grep -q` exits at once and `fc-list` can die of SIGPIPE (exit 141). The pipeline then returns non-zero and the `if` treats it as no leak. Whether that happens depends on output size and timing, and a fallback config listing all of `/usr/share/fonts` is the large-output case. Fix: capture the output first (`files=$(FONTCONFIG_FILE=… fc-list : file)`, then grep the variable), or use `grep -v … | head -1` and check for empty output.
+
+2. **tests/symbol-fonts.sh:66 – realising the whole `home.path` breaks the repo's eval-only rule.** `nix-store --realise "$drv"` has no `--max-jobs 0` and builds every uncached package in this host's profile for the checked-out config. The comment at line 42 and tests/hmeval.sh warn about exactly this ("twenty minutes later with the fans at full"), and `2&gt;/dev/null` also hides build output and errors. tests/cjk-fonts.sh only realises the one cached package. Fix options:
+   - Realise only the font packages: the `noto-sans-symbols-2` output plus the other packages' `share/fonts`.
+   - Or use `nix build --max-jobs 0`, so the test fails fast instead of compiling.
+
+3. **home.nix:3280-3283 – a missing target gives a dangling symlink and a green build.** `ln -s` doesn't check that its target exists. If a future `noto-fonts` bump moves or renames `NotoSansSymbols2-Regular.otf` (for example to ttf or a variable font), the derivation still builds and the glyphs go back to tofu. That is the same silent failure the comment describes. The test's eval check (line 50) only matches the name, so it still passes on every host. Only the coverage check, run by hand on a Linux host, would notice, and on mari it never fails because macOS doesn't render through fontconfig (see nit 2). Fix: add `test -e ${noto-fonts}/share/fonts/noto/NotoSansSymbols2-Regular.otf` (or `ln -s` then `test -e` on the link) so the build fails.
+
+## Nits
+
+1. **home.nix:3278 – "a 27 MiB download" is slightly off.** The download is 27,038,879 bytes, which is 27 MB or about 25.8 MiB.
+2. **tests/symbol-fonts.sh:56-89 – the coverage check on mari is only a proxy.** When run on mari it asks fontconfig, but Orca on macOS renders through CoreText from `~/Library/Fonts/HomeManager`. That check could pass while the rsync'd copy is wrong, or the reverse. A comment, or skipping the check on darwin, would help.
+3. **tests/symbol-fonts.sh:86 – the glyph printing needs bash 4.2 or newer.** `printf "\\U…"` doesn't work in macOS's `/bin/bash` 3.2 and prints an escape in a non-UTF-8 locale. It is cosmetic only, since it just affects the printed label.
+4. **tests/symbol-fonts.sh:69 – `mktemp -d` is unchecked.** Without `set -e`, a failure leaves `T` empty and the heredoc tries to write `/fonts.conf`. `rm -rf ""` is harmless, so this is low impact.
+5. **tests/symbol-fonts.sh:50 – the eval check only matches the name.** It uses `p.name` because runCommand has no `pname`, which is fine, and it differs from cjk-fonts.sh's `pname` match. But any derivation with that name passes, even an empty one. This is worth noting given Important 3.
+6. **Consistency with tests/cjk-fonts.sh:**
+   - cjk-fonts.sh only checks hosts whose system matches this machine. symbol-fonts.sh checks only `uname -n`'s host.
+   - cjk-fonts.sh uses `fc-scan` on the package. symbol-fonts.sh uses a temporary fontconfig over `home.path`.
+
+   The difference is defensible, since it tests what apps see, but it is why Important 1 and 2 exist. Calling `fc-query` on the runCommand output's file would avoid both. The header and the home.nix comment otherwise match the emoji and CJK blocks next to them in tone and structure.
+
+## Bash robustness (set -u / pipefail)
+Line 81 (Important 1) is the only real problem. The other pipelines either check their status (`hosts=` and `out=` with `||`) or ignore it on purpose (`face=` at line 87). `summary; exit` passes on `summary`'s status correctly. Every expansion is quoted or is a word split on purpose (`$hosts`, `$CODEPOINTS`).</result>
+<usage><subagent_tokens>45456</subagent_tokens><tool_uses>14</tool_uses><duration_ms>179520</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ade3f0bfc64cd1ae5</task-id>
+<tool-use-id>toolu_0197zH2Z7L7KTnsWqSY7i6y6</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/d91a6a6c-612c-48bf-ac1b-d1211f6072e2/tasks/ade3f0bfc64cd1ae5.output</output-file>
+<status>completed</status>
+<summary>Agent "Round 3 review symbol-fonts" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>No Critical findings. I found one Important gap, a missing README entry. The change does what it claims, and the test fails if the font goes missing.
+
+**What I checked against the real files**
+- **fc-query format:** I ran `fc-query -f '%{charset}\n'` on `/nix/store/5im72fci3slls4s3hmls5j4mi2pnj7q9-noto-fonts-2026.10.01/share/fonts/noto/NotoSansSymbols2-Regular.otf`. It prints one line of 173 space-separated lowercase hex tokens, with no `0x` prefix. Some tokens are single values (`20`, `2022`, `21af`) and some are `lo-hi` ranges (`23f1-2426`, `2b12-2b2f`, `1fb00-1fb92`).
+- **The `covers` helper (tests/symbol-fonts.sh:51-58):** For a single value, `${r%-*}` and `${r#*-}` both return the token itself, so lo = hi = the value, which is correct. `$((16#1fb00))` is valid bash and handles five-digit values. U+23F5 falls inside `23f1-2426`, U+2B22 inside `2b12-2b2f`, and U+1FB00 is the lower end of `1fb00-1fb92`, so the `-ge` boundary is exercised and correct. If `$ranges` is empty, the helper returns 1, so the test fails rather than passing.
+- **Nix:** All 6 hosts have `noto-sans-symbols-2` in `home.packages` (chiyari, fujiwara, kyuusaku, shiori and utsuho are x86_64-linux; mari is aarch64-darwin). Every Linux host gets the same drv, so the de-duplication step means it is realised once. The existing output `/nix/store/vx86ib77…-noto-sans-symbols-2` holds a single symlink to the noto-fonts file, and that target is in its closure. stdenv's builder runs with `set -e`, so a failing `test -e` stops the build, which matches your renamed-target result.
+- **Orca can see the font:** Orca's `FONTCONFIG_FILE` (orca.nix:80-88) includes the stock conf.d. That includes `50-user.conf`, which pulls in home-manager's `10-hm-fonts.conf` listing the home-manager-path `share/fonts` directory. tests/sandbox-fonts.sh already shows the sandbox sees Noto Sans from that same directory.
+- **Fails on regression, cannot pass for the wrong reason:** Removing the package fails the eval check on every host. Renaming the upstream file fails the build. A face without the glyphs fails the fc-query check. `pipefail` plus `|| { fail …; continue; }` catches realise failures. A host whose eval errors shows up as FAIL, not a skip.
+
+**Critical**
+- None.
+
+**Important**
+1. **README.md:110-111:** `./tests/symbol-fonts.sh` is not added to the README test list. tests/cjk-fonts.sh is listed at line 111, and I found nothing else in the repo that runs these scripts, so the README is the only place a reader would find the new test.
+
+**nit**
+2. **tests/symbol-fonts.sh:16 vs :77-79:** The header says "Only that one cached package is realised", but the test realises the `runCommand` drv, which is built locally (the comment at :77-78 says so). Only its noto-fonts dependency comes from the cache. Also, unlike most of the eval, `nix-store --realise` has no `--max-jobs` limit. If a nixpkgs bump lands before the binary cache has the new noto-fonts, this test would quietly start a large local build. cjk-fonts.sh realises a cached `outPath`, so it can't hit this.
+3. **tests/symbol-fonts.sh:81-82:** The comment "fc-query fails on a dangling link, so a moved upstream file shows up here too" describes a case that can't happen. The `test -e` stops the build first, and the link target is in the closure. It reads as a second safeguard that isn't really there.
+4. **tests/symbol-fonts.sh:65:** Matching on `p.name` rather than `pname` is necessary for `runCommand`, and the comment explains it. On mari (darwin), though, the name match is the only check: any derivation called `noto-sans-symbols-2` passes there. cjk-fonts.sh has the same limit, so this is consistent, just worth knowing.
+5. **Goal vs. what is verified:** The test checks host fontconfig, not Orca's sandbox. The sandbox reads the same font directory, so this is a coverage gap, not a bug. One `fc-match ':charset=23f5'` case run through the launcher in tests/sandbox-fonts.sh would close it.
+6. **README.md:101-104 vs the design:** The README says checks on what a build produced belong in the derivation's own install check. Running `fc-query` on the face inside the `runCommand` would stop the build on every host, mari included, instead of only on this system after the fact. cjk-fonts.sh does the same after-the-fact check, so this is defensible.
+7. **home.nix:3271 and tests/symbol-fonts.sh:29-30:** "the legacy-computing sextants TUI graphs draw" is true for U+1FB00-1FB3B. The face has no Unicode 16 octants (U+1CD00 block) at all, which newer TUI graph libraries use. That's not a regression, but the comment could suggest TUI graphs are now fully covered.
+8. **tests/symbol-fonts.sh:86:** The `printf "\\U…"` glyph display needs bash 4.2 or later and a UTF-8 locale, otherwise it prints the raw escape. This is display only and doesn't affect pass/fail.
+
+**Consistency with tests/cjk-fonts.sh and nearby home.nix comments**
+Apart from items 1, 2 and 4, there are no other inconsistencies. The structure, `set -u`/`pipefail`, the pass/fail helpers, the `--max-jobs 0` eval, reading hosts from the flake and the per-system de-duplication all mirror cjk-fonts.sh. The home.nix comment follows the same "silent failure, so a test checks it" pattern as the emoji and CJK blocks just above it.</result>
+<usage><subagent_tokens>42753</subagent_tokens><tool_uses>11</tool_uses><duration_ms>128685</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a09752b0aed5ffeca</task-id>
+<tool-use-id>toolu_01QysoFLRFx5SQNbYFt3BXza</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/d91a6a6c-612c-48bf-ac1b-d1211f6072e2/tasks/a09752b0aed5ffeca.output</output-file>
+<status>completed</status>
+<summary>Agent "Round 4 review symbol-fonts" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical or Important problems in de06bf7f..HEAD. There are two nits, both optional.
+
+**Critical:** none.
+
+**Important:** none. The things I checked:
+- **The test can't pass for the wrong reason.** The coverage check only reads the faces inside the realised `noto-sans-symbols-2` output. If the link were missing, `find` would return nothing, the codepoint lists would be empty, and all three codepoints would fail. With `pipefail` on, a failed `nix-store --realise` is caught too. If the package left any host's list, that host's name check fails, and new hosts are picked up from the flake.
+- **The name match is right.** It matches on `name` rather than `pname`, which is correct because `runCommand` sets no `pname`. The comment at tests/symbol-fonts.sh:65 says so, and it differs from cjk-fonts.sh on purpose.
+- **The `covers` helper is correct.** It handles fontconfig's charset string, including single values with no range: `${r%-*}` and `${r#*-}` both give the value itself.
+- **Hosts are deduplicated.** Same-system hosts share one derivation, and checking them once matches cjk-fonts.sh. The 0/6 on base and 9/9 on HEAD fit six hosts (chiyari, fujiwara, kyuusaku, mari, shiori, utsuho) plus three codepoint checks on one derivation.
+- **The symlink works inside Orca's sandbox.** The font file is a symlink into the `noto-fonts` store path. Orca's buildFHSEnv sandbox mounts `/nix`, and orca.nix's `fontsConf` includes nixpkgs' conf.d, which pulls in the home-manager font dirs. So the link resolves there as well as on the host. `fonts.fontconfig.enable = true` is set at home.nix:4024.
+- **No config blocks the font.** There are no `rejectfont`/`selectfont` rules anywhere.
+- **The comments are accurate.**
+  - The source really is the `noto-monthly-release-2026.10.01` tarball.
+  - `variants ? [ ]` is the default, so the override really would mean an uncached build.
+  - The file exists at `share/fonts/noto/NotoSansSymbols2-Regular.otf` in `/nix/store/5im72fci3slls4s3hmls5j4mi2pnj7q9-noto-fonts-2026.10.01`.
+  - The `test -e` does make a renamed file fail the build.
+
+**Nits:**
+1. **home.nix:3282, `runCommand` vs `runCommandLocal`.** tests/symbol-fonts.sh:79-80 calls the link "a trivial local build", but plain `runCommand` sets neither `preferLocalBuild` nor `allowSubstitutes = false`. So it could be sent to a remote builder, or looked up in the cache, for what is one symlink. `runCommandLocal` would match the comment. The only other `runCommand` in home.nix (`hostNssDir`, home.nix:320) is also plain, so the current choice is consistent with that.
+2. **home.nix:3270 and tests/symbol-fonts.sh:30-32, the sextant claim is broader than the test.** The comment says the font covers the legacy-computing sextants, plural, but the test only samples U+1FB00, the first one. It covers the stated symptom. A regression that dropped part of U+1FB00–1FB3B would still pass, which is unlikely since it's all one face. Adding a second point such as `1fb3b` would cover the whole block for the cost of one more check.
+
+**Consistency with the neighbouring tests:** the header, the two claims, the pass/fail helpers, the `--max-jobs 0` evals, the per-system realise and the summary line all follow tests/cjk-fonts.sh. The README entry sits next to cjk-fonts.sh with matching alignment.</result>
+<usage><subagent_tokens>36425</subagent_tokens><tool_uses>7</tool_uses><duration_ms>79565</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ac93bd3574b542760</task-id>
+<tool-use-id>toolu_019R2B8PLAqeEzXTtmraDLPK</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/d91a6a6c-612c-48bf-ac1b-d1211f6072e2/tasks/ac93bd3574b542760.output</output-file>
+<status>completed</status>
+<summary>Agent "Round 5 review symbol-fonts" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical issues. The fix should reach Orca's rendering after a switch, as long as Orca is restarted. Two Important findings are about side effects the commit doesn't mention, not about whether the fix works.
+
+**How the font reaches Orca (checked, works)**
+- `orca.nix` sets `FONTCONFIG_FILE` to a file that includes nixpkgs' `conf.d`. That `conf.d`'s `50-user.conf` pulls in `~/.config/fontconfig/conf.d`, where home-manager's own config lists the current home-manager store path's `share/fonts` and its prebuilt cache. A switch rewrites that config to point at the new store path, so stale caches aren't a risk. `tests/sandbox-fonts.sh` already shows that Orca's sandbox resolves fonts installed through home-manager.
+- I ran fc-query on the cached file (`/nix/store/5im72fci3slls4s3hmls5j4mi2pnj7q9-noto-fonts-2026.10.01/share/fonts/noto/NotoSansSymbols2-Regular.otf`). Its charset includes `23f1-2426`, `2b12-2b2f` and `1fb00-1fb92`, so all three target codepoints are covered.
+
+## Critical
+None.
+
+## Important
+1. **home.nix:3270-3287: the new font also has emoji codepoints, so some symbols that showed in color may turn monochrome. Not mentioned anywhere.** Its charset includes `231a-231b` and `23e9-23ea`, the same `23f1-2426` block, `1f000-1f0f5`, and many scattered emoji codepoints up to `1fad6`. Your test's own header says ⏸⏹⏺ "rendered only because the emoji font happens to have those." Those three default to text style (they are not emoji-by-default). For text-style codepoints, Chromium (and so Electron apps like Orca) runs a normal fallback search. Neither font is named in fontconfig's fallback lists, so which one wins is essentially arbitrary. The likely visible result is that Claude Code's ⏸/⏹/⏺ (and things like 🖥 U+1F5A5) switch from color emoji to monochrome Symbols 2 glyphs, in Orca and the rest of the GTK/Chromium stack. That may be what you want, since it would match the ⏵⏵ style, but it's a change across the whole profile that the comment doesn't record, and no test notices it. I haven't checked this in a running app; it comes from reading the charset and how Chromium picks fallbacks. Either say so in the comment or confirm `fc-match ':charset=23f8'` in and out of the sandbox.
+2. **home.nix:3270-3281: nothing says Orca must be restarted.** Chromium reads its fontconfig setup once at startup. A running Orca keeps the old config, which points at the old home-manager store path, and keeps drawing boxes after `home-manager switch` until it's restarted. `orca.nix` gives this same restart note for keybindings, but this commit, aimed at Orca, doesn't. Someone checking the fix in an already-open Orca would conclude it failed. This is Important only because it affects "does the fix reach Orca after a switch"; otherwise it's a comment fix.
+
+## Nits
+3. **home.nix:3277-3278: the size claim.** "a 27 MB download" may be right for the compressed download, but the whole `noto-fonts` output (50 MB unpacked, every script) now comes along as a dependency of the profile just to provide one face. The comment reads as if only one face's worth of data is pulled in. Suggest "27 MB download / 50 MB in the closure".
+4. **tests/symbol-fonts.sh:61-63: the host check matches only the derivation name** `noto-sans-symbols-2`. Swapping it for an equivalent (for example a `noto-fonts.override` or a renamed runCommand) fails the test even though coverage is fine. A rename that keeps the name but links the wrong face is still caught by the coverage check, so it misses nothing; it can only fail when nothing is wrong. Low impact.
+5. **tests/symbol-fonts.sh:5-9: the header says ⏸⏹⏺ come from the emoji font.** That stops being reliably true once this commit lands (see finding 1). Worth rewording so the header doesn't describe the old fallback.
+
+## Correctness of the test
+No problems found beyond nit 4:
+- A broken link, or a renamed file that somehow got past `test -e`, gives empty charset output, which fails the coverage check.
+- With `pipefail`, a failed build is reported as a failure instead of being missed.
+- The `covers` range parsing handles both single codepoints and lo-hi ranges.
+- `checked` skips realising the same derivation twice.
+
+## Comment accuracy
+Covered by findings 1, 2, 3 and 5. Everything else checks out: the "only that one face is linked in", `test -e`, and override-fetches-the-tarball explanations match the code.</result>
+<usage><subagent_tokens>43104</subagent_tokens><tool_uses>7</tool_uses><duration_ms>92353</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aed7f839393150170</task-id>
+<tool-use-id>toolu_01Mu1jwzkxUWcKKWwPtUdPqd</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/d91a6a6c-612c-48bf-ac1b-d1211f6072e2/tasks/aed7f839393150170.output</output-file>
+<status>completed</status>
+<summary>Agent "Round 6 review symbol-fonts" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical issues, one Important and three nits. The derivation itself and the test logic hold up.
+
+**Critical:** none.
+
+**Important**
+
+1. **home.nix:3276-3279: the comment lists far fewer side effects than there are.** It says the face "also carries ⏸⏹⏺ and 🖥", but those are only the ones on Claude Code's mode line. Checked against fc-query of `NotoSansSymbols2-Regular.otf`, the face also covers many characters that today only Noto Color Emoji covers:
+   - **Shown as text by default:** ✈ U+2708, ✉ 2709, ✖ 2716, ❄ 2744, 🗑 1F5D1 and 🌡 1F321. The face also covers most of the 1F5xx office/desktop block and 1F324-1F32C (the weather symbols).
+   - **Shown as emoji by default:** ⌚ 231A, ⏩ 23E9, ☔ 2614, ⭐ 2B50, ⭕ 2B55, 👍 1F44D and 🕐 1F550.
+
+   I ran `fc-match -s 'sans\-serif:charset=&lt;cp&gt;'` using the host's `/etc/fonts/fonts.conf` plus only the realised `noto-sans-symbols-2` dir. I passed that config through process substitution, so no file was written. For every codepoint above, the result ranked "Noto Sans Symbols 2" first and "Noto Color Emoji" second, exactly as for ⏸. For ❤ and ☑, Source Sans 3 still wins, as before.
+   - **In Orca:** the text-default group will almost certainly turn monochrome, by the same mechanism the user accepted for ⏸ and 🖥.
+   - **In other fontconfig clients:** the emoji-default group also flips in any client that doesn't explicitly ask for colour. Blink asks for the colour-emoji locale ("und-Zsye") for those, so Orca likely keeps them in colour, but I did not verify that.
+
+   The user approved a four-glyph trade-off, while the real one covers dozens of glyphs, so the comment doesn't accurately record the decision. Either list the real scope ("text-presentation symbols the face shares with Noto Color Emoji, e.g. ✈ ✉ ✖ ❄ 🗑 🌡, as well as ⏸⏹⏺ 🖥") or get the user's agreement again. tests/symbol-fonts.sh:6-10 says the same and needs the same correction.
+
+   Caveat: I measured with the host's fonts.conf, not through Orca's bwrap launcher, because that needs a temp script file. The ranking is driven by charset and family order, so I expect the sandbox to rank them the same way.
+
+**Nits**
+
+2. **home.nix:3284: "fetches the whole 2.1 GB monthly release tarball" is off in two ways.**
+   - The source (`fetchzip` of `noto-monthly-release-2026.10.01.tar.gz`) is 2.16 GB *unpacked*. The tarball itself is smaller.
+   - That source path is on cache.nixos.org (fixed-output, `closureDownloadSize` 749 MB), so an override would download about 750 MB and then build locally. It would not fetch 2.1 GB from GitHub.
+
+   The reasoning still holds (about 750 MB plus a local build, against 27 MB). Suggested wording: "whose build needs the whole 2.1 GB unpacked monthly release (a ~750 MB download even from the cache)".
+3. **home.nix:3285: the 27 MB and 50 MB figures are correct.** cache.nixos.org gives `downloadSize` 27,038,879 for `noto-fonts-2026.10.01`, and narSize/closureSize is 51,461,664 (about 49 MiB, `du -shL` says 50M). I also confirmed that noto-fonts is not in the current profile's closure, so the 50 MB really is new. Nothing to change; noted only because you asked for these to be checked.
+4. **tests/symbol-fonts.sh:34: the only side-effect codepoint sampled is ⏸ (23f8).** That's fine for a coverage test. But the test can't detect the face losing its first-place ranking, or Color Emoji winning back; it only checks coverage. That matches the header's "two claims" and is consistent with cjk-fonts.sh, so I mention it only so nobody reads more into the test than it checks.
+
+**Things I checked and found correct**
+- **Base state:** on the current profile, `fc-list ':charset=…'` returns nothing for 23F5, 1FB00 and 2B22. For 23F8-23FA and 1F5A5 it returns only Noto Color Emoji. So "not one installed face carried U+23F5" and "⏸⏹⏺ rendered only because the emoji font happened to have those" are both true.
+- **The new face:** its charset includes 23f1-2426, 2b12-2b2f, 1fb00-1fb92 and 1f5a5-1f5fa, which covers all four test codepoints.
+- **The derivation:** `test -e` is needed because `ln -s` doesn't check its target. The realised output is a single symlink into the cached noto-fonts. Its `share/fonts/noto` directory merges with noto-fonts-color-emoji's `share/fonts/noto` under buildEnv without a file clash.
+- **The test can't pass for the wrong reason:**
+  - A missing package, a failed realise, an empty `find` or an empty fc-query output all lead to FAIL.
+  - Single-value charset entries are handled by `covers` (stripping on `-` leaves `lo == hi`).
+  - Leaving `$1` unquoted is safe because hex ranges contain no glob characters.
+  - Dedup by drvPath is correct; two different `noto-sans-symbols-2` outputs exist in the store, so hosts can differ.
+- **Consistency:** the test mirrors tests/cjk-fonts.sh. It matches on `name` instead of `pname` (needed, since runCommand sets only `name`, and the comment says so) and uses `drvPath` plus `--realise` instead of `outPath`, which is better. The README line sits in the right place and its wording matches its neighbours.</result>
+<usage><subagent_tokens>47025</subagent_tokens><tool_uses>15</tool_uses><duration_ms>168189</duration_ms></usage>
+</task-notification>

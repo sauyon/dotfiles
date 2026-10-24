@@ -70,25 +70,56 @@ if [ "$app" = "$GUI/bin/orca-ide-app" ]; then
   pass "orca open launches the profile's nixGL-wrapped GUI"
 else fail "ORCA_APP_EXECUTABLE" "'${app:-unset}', want $GUI/bin/orca-ide-app"; fi
 
-# The GUI's --ozone-platform=wayland must stay out of node mode: the CLI's
-# `serve` probes ORCA_APP_EXECUTABLE with ELECTRON_RUN_AS_NODE=1 and a
-# script as argv, and Node rejects the flag ("bad option", exit 9).
-out=$(ELECTRON_RUN_AS_NODE=1 timeout 60 "$GUI/bin/orca-ide-app" -p '"node-ok"' 2>"$T/node-err")
-if [ "$out" = node-ok ]; then
-  pass "orca-ide-app runs in node mode (serve's runtime probe)"
-else fail "orca-ide-app node mode" "${out:-$(tail -1 "$T/node-err")}"; fi
+# The GUI wrapper's argv decision, on the real generated script with its
+# final exec swapped for a printf, so nothing launches: --ozone-platform=
+# wayland first (Hyprland has no X server, and Orca's gate picks X11 without
+# it), except in node mode or when the caller names a platform itself --
+# `--ozone-platform` or `--ozone-platform=...` before any `--`, as Orca's own
+# check reads it; a -hint is only a preference.
+inner=$(grep -o '/nix/store/[^ ]*/bin/orca-ide-app' "$GUI/bin/orca-ide-app" | tail -1)
+sed -E 's|^exec .*/\.orca-ide-unwrapped "\$@"$|printf "%s\\n" "$@"|' "$inner" > "$T/argv"
+grep -q '^printf' "$T/argv" || { echo "could not find the exec line in $inner" >&2; exit 1; }
+argv() { bash "$T/argv" "$@" | paste -sd' '; }
+for c in "open|--ozone-platform=wayland open" \
+         "--serve --ozone-platform=x11|--serve --ozone-platform=x11" \
+         "--ozone-platform x11|--ozone-platform x11" \
+         "--ozone-platform-hint=auto|--ozone-platform=wayland --ozone-platform-hint=auto" \
+         "-- --ozone-platform=x11|--ozone-platform=wayland -- --ozone-platform=x11"; do
+  in=${c%%|*}; want=${c#*|}
+  # shellcheck disable=SC2086
+  got=$(argv $in)
+  if [ "$got" = "$want" ]; then pass "GUI argv: '$in' -> '$want'"
+  else fail "GUI argv '$in'" "got '$got', want '$want'"; fi
+done
+got=$(ELECTRON_RUN_AS_NODE=1 argv -e 1)
+if [ "$got" = "-e 1" ]; then pass "GUI argv: node mode gets no flag"
+else fail "GUI argv node mode" "got '$got'"; fi
+
+# And for real: the CLI's `serve` probes ORCA_APP_EXECUTABLE with
+# ELECTRON_RUN_AS_NODE=1 and a script as argv, and Node rejects the flag
+# ("bad option", exit 9). Stdout to a file, not a pipe: were node mode lost,
+# this would be a GUI launch, and timeout only reaches bwrap, not it.
+ELECTRON_RUN_AS_NODE=1 timeout 60 "$GUI/bin/orca-ide-app" -p '"node-ok"' >"$T/node-out" 2>"$T/node-err"
+node_ok=
+if [ "$(cat "$T/node-out")" = node-ok ]; then
+  node_ok=1; pass "orca-ide-app runs in node mode (serve's runtime probe)"
+else fail "orca-ide-app node mode" "$(cat "$T/node-out")$(tail -1 "$T/node-err")"; fi
 
 # `orca-ide open` spawns the GUI detached, waits for it (up to 15s), then
 # exits. Each GUI wrapper layer execs the next, so the GUI's bwrap is the
 # CLI's own child; with --die-with-parent it would be SIGKILLed the moment
 # `open` returns. The parent here stays up past bwrap's startup, as `open`
 # does: one that exits first never arms bwrap's parent-death signal at all.
+if [ -z "$node_ok" ]; then
+  fail "GUI lifetime" "skipped: node mode failed above, so this would launch a real GUI"
+else
 bash -c 'ELECTRON_RUN_AS_NODE=1 "$1" -e "
   setTimeout(() => require(\"fs\").writeFileSync(process.argv[1], \"alive\"), 4000);
   setTimeout(() => process.exit(0), 5000);" "$2" >/dev/null 2>&1 & sleep 2' _ "$GUI/bin/orca-ide-app" "$T/alive"
 for _ in $(seq 75); do [ -s "$T/alive" ] && break; sleep 0.2; done
 if [ -s "$T/alive" ]; then pass "the GUI outlives the parent that spawned it (orca-ide open)"
-else fail "GUI lifetime" "payload died with its spawning parent"; fi
+else fail "GUI lifetime" "no alive marker within 15s (died with its parent, or never started)"; fi
+fi
 
 # The manifest travels with the extracted AppImage, which the CLI's script
 # references, so it is in the CLI's closure.

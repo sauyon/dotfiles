@@ -83,11 +83,13 @@ let
         install -Dm444 usr/share/icons/hicolor/''${size}x''${size}/apps/orca-ide.png \
           $out/share/icons/hicolor/''${size}x''${size}/apps/orca-ide.png
       done
-      # The AppImage ships bin/orca and an orca-ide.desktop; upstream's .deb
-      # names the app orca-ide, and that is what the desktop Exec and
-      # meta.mainProgram use.
+      # The AppImage ships bin/orca and an orca-ide.desktop. Upstream's .deb
+      # puts the CLI on PATH as `orca-ide` and leaves the GUI off it, and
+      # Orca's skills tell agents to run `orca-ide` outside an Orca terminal
+      # -- so `orca-ide` is orcaCli below, and the GUI is `orca-ide-app`,
+      # which the desktop Exec and meta.mainProgram use.
       substituteInPlace $out/share/applications/orca-ide.desktop \
-        --replace-fail 'Exec=AppRun' 'Exec=orca-ide'
+        --replace-fail 'Exec=AppRun' 'Exec=orca-ide-app'
       runHook postInstall
     '';
     postFixup = ''
@@ -110,17 +112,30 @@ let
       # --ozone-platform nor ELECTRON_OZONE_PLATFORM_HINT says otherwise, and
       # on a Hyprland-only session there is no X server -- a bare launch exits
       # 1 with "needs a usable display server". A flag, not an env var, so a
-      # desktop-file launch gets it too. Not in node mode: node rejects it
-      # ("bad option", exit 9), and Orca's CLI probes the app that way
-      # (ORCA_APP_EXECUTABLE, with a script as argv).
+      # desktop-file launch gets it too -- except in node mode: the CLI's
+      # `serve` probes ORCA_APP_EXECUTABLE with ELECTRON_RUN_AS_NODE=1 and a
+      # script as argv, and Node rejects the flag ("bad option", exit 9). Nor
+      # when the caller names a platform itself (the CLI's serve appends
+      # --ozone-platform=x11): `--ozone-platform` or `--ozone-platform=...`
+      # before any `--`, the rule of Orca's own hasExplicitOzonePlatform; a
+      # -hint does not count. (The flag also counts as explicit to Orca's
+      # serve-mode X11 restart, so a hand-run `orca-ide-app --serve` stays on
+      # wayland; the CLI's serve passes x11 itself.)
       #
       # FONTCONFIG_FILE: Orca's Linux terminalFontFamily default is exactly
       # "DejaVu Sans Mono", which the host's fontconfig lacks; see fontsConf.
       #
-      # A plain exec: signals and exit codes reach Electron directly.
-      makeWrapper $out/lib/orca/orca-ide $out/bin/orca-ide \
+      # A plain exec: signals and exit codes reach Electron directly, so
+      # `orca-ide serve`'s Electron server is the CLI's own child and goes
+      # down with it (tests/orca-gui-unsandboxed.sh case 6), and `orca-ide
+      # open`'s detached GUI outlives it, with no --die-with-parent to trade.
+      makeWrapper $out/lib/orca/orca-ide $out/bin/orca-ide-app \
         --set FONTCONFIG_FILE ${fontsConf} \
-        --run '[ -n "''${ELECTRON_RUN_AS_NODE-}" ] || set -- --ozone-platform=wayland "$@"'
+        --run 'explicit=
+      for a in "$@"; do
+        case $a in --) break ;; --ozone-platform|--ozone-platform=*) explicit=1; break ;; esac
+      done
+      [ -n "$explicit" ] || [ -n "''${ELECTRON_RUN_AS_NODE:-}" ] || set -- --ozone-platform=wayland "$@"'
     '';
     # Checked where it gates the build. The pinned trees: byte for byte, and
     # exec bit for exec bit, the AppImage's (fixup's patchShebangs and patchELF still
@@ -154,11 +169,11 @@ let
       pin=$(tr -d '[:space:]' < $t/targets/linux-x64-glibc/.runtime-node)
       echo "$pin  $res/node-runtime/bin/node" | sha256sum -c
       [ ! -e $out/lib/orca/AppRun ]
-      [ "$(grep '^Exec=' $out/share/applications/orca-ide.desktop)" = 'Exec=orca-ide %U' ]
+      [ "$(grep '^Exec=' $out/share/applications/orca-ide.desktop)" = 'Exec=orca-ide-app %U' ]
       grep -q '^MimeType=.*x-scheme-handler/orca;' $out/share/applications/orca-ide.desktop
       runHook postInstallCheck
     '';
-    meta.mainProgram = "orca-ide";
+    meta.mainProgram = "orca-ide-app";
   };
   # The app's fontconfig: the host's own, plus DejaVu. Orca's Linux
   # terminalFontFamily default is exactly "DejaVu Sans Mono" with no
@@ -185,6 +200,75 @@ let
   # Extracted once, shared by orca and macKeybindings; let bindings
   # are recursive, so position in the block does not matter.
   appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
+
+  # nixGL wrap: without it GBM/DRI resolve via the NixOS-only
+  # /run/opengl-driver path and fall back to software rendering — the
+  # same reason parsec gets it.
+  orcaGui = config.lib.nixGL.wrap orca;
+
+  # The CLI, as `orca-ide` (what the skills run outside an Orca terminal on
+  # Linux) and `orca`. Upstream avoids bare `orca` on Linux because it is
+  # usually the GNOME screen reader; it is not installed here, so `orca` is
+  # the CLI too. (Were it installed, the profile comes first on PATH --
+  # env.nix -- so `orca` would still be this CLI.) The skills say `orca-ide`.
+  #
+  # It is plain JavaScript: upstream's resources/bin/orca-ide runs it on the
+  # bundled Electron in node mode, but nothing in it needs Electron, so it
+  # runs on nixpkgs' node of the same major (Electron 43 bundles node 24)
+  # with no sandbox -- a plain exec, so signals and exit codes are the CLI's
+  # own. Orca's own installer puts a shim dir on PATH only in Orca
+  # terminals, and a ~/.local/bin symlink to a raw store path that goes
+  # stale on the next bump.
+  #
+  # ORCA_APP_EXECUTABLE: the Orca binary for `orca-ide open` and `serve` to
+  # launch; under plain node there is no other, and without it `open` fails
+  # and `serve` refuses to start. NODE_OPTIONS is handed over as
+  # ORCA_NODE_OPTIONS and cleared, as upstream's shim does.
+  # tests/orca-cli-skills.sh.
+  orcaCli = pkgs.runCommand "orca-cli-${version}" {
+    pname = "orca-cli";
+    inherit version;
+    meta.mainProgram = "orca-ide";
+  } ''
+    mkdir -p $out/bin
+    cat > $out/bin/orca-ide <<'EOF'
+    #!${pkgs.runtimeShell}
+    export ORCA_APP_EXECUTABLE="''${ORCA_APP_EXECUTABLE:-${orcaGui}/bin/orca-ide-app}"
+    export ORCA_NODE_OPTIONS="''${NODE_OPTIONS-}"
+    export ORCA_NODE_REPL_EXTERNAL_MODULE="''${NODE_REPL_EXTERNAL_MODULE-}"
+    unset NODE_OPTIONS NODE_REPL_EXTERNAL_MODULE
+    exec ${pkgs.nodejs_24}/bin/node ${appimageContents}/resources/app.asar.unpacked/out/cli/index.js "$@"
+    EOF
+    chmod +x $out/bin/orca-ide
+    ln -s orca-ide $out/bin/orca
+  '';
+
+  # Orca's agent skills, from the repo at the commit this AppImage was built
+  # from: `orca skills install` pins `npx skills add` to it, and the bundled
+  # resources/skills/current-manifest.json holds their sha256s. Bump this rev
+  # with the version — it is the `sourceCommit` in out/main/index.js of
+  # app.asar, and the test holds it to that. A fetch in this module rather
+  # than a flake input, because the rev tracks `version` above, not the
+  # repo's head; `nix flake update` does not touch it. The rev is in the
+  # store name so a rev bump without a hash bump fails to fetch instead of
+  # reusing the old tree. The skills are stubs that call
+  # `orca-ide skills get <name>`, so they need orcaCli above.
+  #
+  # A subset of the bundled ten: no Jira, no emulator. Each is a read-only
+  # store symlink, so Orca's own Settings > Skills "update" (npx skills add)
+  # will fail on them or replace them, and home-manager then refuses to
+  # clobber; update by bumping here instead.
+  orcaSkillsSrc = pkgs.fetchFromGitHub rec {
+    name = "orca-skills-${rev}";
+    owner = "stablyai";
+    repo = "orca";
+    rev = "e6f7fba58e8e47b45e4343f99101b3ca9e05a5da";
+    hash = "sha256-iBlQxYs2GkXEyzywKiLtNChY5gSQMt72B21HC0dN0TI=";
+  };
+  orcaSkills = [
+    "orca-cli" "orchestration" "computer-use" "orca-per-workspace-env"
+    "orca-linear" "linear-tickets"
+  ];
 
   # Mac-style shortcuts, the same Super-for-Cmd scheme as gtk's mac-bindings
   # and ghostty's super+c/v in home.nix: Orca's own macOS defaults, with Cmd
@@ -274,12 +358,12 @@ let
 in
 {
   home.packages =
-    lib.optionals (!isDarwin && isDesktop) [
-    # nixGL wrap: without it GBM/DRI resolve via the NixOS-only
-    # /run/opengl-driver path and fall back to software rendering — the
-    # same reason parsec gets it.
-      (config.lib.nixGL.wrap orca)
-    ];
+    lib.optionals (!isDarwin && isDesktop) [ orcaGui orcaCli ];
+
+  home.file = lib.mkIf (!isDarwin && isDesktop) (lib.listToAttrs (map (name: {
+    name = ".claude/skills/${name}";
+    value.source = "${orcaSkillsSrc}/skills/${name}";
+  }) orcaSkills));
 
   home.activation.orcaMacKeybindings = lib.mkIf (!isDarwin && isDesktop)
     (lib.hm.dag.entryAfter [ "writeBoundary" ] ''

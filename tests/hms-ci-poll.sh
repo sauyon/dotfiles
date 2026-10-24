@@ -464,8 +464,8 @@ fi
 # <mode>, optional: "moved" advances origin/master to another commit as the log
 # is fetched (someone pushed mid-run), "nodispatch" makes the dispatch itself
 # fail with a 503, "theirs" has another box's hms dispatch the retry (run 43,
-# green) while ours is reading the log, and "blip" 502s a listing
-# during the retry wait, and "cancelled" reports the run cancelled, not failed.
+# green) while ours is reading the log, "blip" 502s a listing during the retry
+# wait, and "cancelled" reports the run cancelled, not failed.
 mkcurl_flaky() { # mkcurl_flaky <n-fail> <log-file> [moved|nodispatch|theirs|blip|cancelled]
   echo 42 > "$D/run-number"; : > "$D/dispatches"; : > "$D/dispatch-tries"
   rm -f "$D/pending" "$D/theirs" "$D/blipped"
@@ -534,10 +534,10 @@ else
     "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
 fi
 
-# A real failure followed by a flood of transient lines: big enough (~200KB)
-# that `grep -q` quitting on the first line outside the allowlist would SIGPIPE
-# whatever is still writing to it, and under pipefail that 141 reads as
-# "every line was transient".
+# A real failure followed by a flood of transient lines, ~500KB: well past the
+# pipe buffer, so `grep -q` quitting on the first line outside the allowlist
+# would SIGPIPE whatever is still writing to it, and under pipefail that 141
+# reads as "every line was transient".
 big="$D/log-big"
 { cat "$FIX"
   printf '2026-10-24T04:47:29.0000000Z %s\n' 'error: builder for /nix/store/x.drv failed with exit code 1'
@@ -547,9 +547,9 @@ big="$D/log-big"
 setup_repo; mktoken good; mkcurl_flaky 1 "$big"; mkswitch
 out=$(run); rc=$?
 if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(ndisp)" -eq 0 ]; then
-  report "a real failure in a 200KB log of 503s is not retried" ok
+  report "a real failure in a 500KB log of 503s is not retried" ok
 else
-  report "a real failure in a 200KB log of 503s is not retried" no \
+  report "a real failure in a 500KB log of 503s is not retried" no \
     "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$(printf '%s' "$out" | tail -5)]"
 fi
 
@@ -564,6 +564,18 @@ for c in 'error: builder for /nix/store/x.drv failed with exit code 1' \
       "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
   fi
 done
+
+# The shipped default, two retries, both spent: the second pass has to skip
+# runs 42 *and* 43, and decrement again.
+setup_repo; mktoken good; mkcurl_flaky 2 "$FIX"; mkswitch
+out=$(HMS_WAIT_SECONDS=40 run); rc=$?
+if [ -f "$D/switched" ] && [ "$(ndisp)" -eq 2 ] \
+   && printf '%s' "$out" | grep -q 'run 44 green'; then
+  report "two transient failures in a row: two retries, then switch" ok
+else
+  report "two transient failures in a row: two retries, then switch" no \
+    "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
+fi
 
 # Bounded: a forge that 503s every run is down, not flaky, and hms must stop --
 # and say it gave up on a transient failure, since a bare "Fix CI" over a 503

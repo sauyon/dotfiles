@@ -1430,11 +1430,12 @@ let
       # A here-string, not `printf | grep -q`: grep quits on the first line
       # outside the allowlist -- the evidence of a real failure -- and on a log
       # past the pipe buffer that SIGPIPEs printf, whose 141 under pipefail the
-      # `!` would read as "every line was transient".
+      # `!` would read as "every line was transient". And exit 1 exactly, not
+      # "nonzero": grep's own exit 2 is not evidence of anything either.
       if [ "$status" = failure ] && [ -n "$errlines" ] \
-         && ! ${lib.getExe pkgs.gnugrep} -qavE \
-              'RPC failed; HTTP 5[0-9]{2}|returned error: 5[0-9]{2}|Could not resolve host|Failed to connect|Connection (timed out|reset)|early EOF' \
-              <<< "$errlines"; then
+         && { ${lib.getExe pkgs.gnugrep} -qavE \
+                'RPC failed; HTTP 5[0-9]{2}|returned error: 5[0-9]{2}|Could not resolve host|Failed to connect|Connection (timed out|reset)' \
+                <<< "$errlines"; [ $? -eq 1 ]; }; then
         # Every Linux box's hms waits on this same run, so each of them gets
         # here when it fails. A newer run for this commit already listed is
         # another box's retry: adopt it rather than queue a second build behind
@@ -1443,7 +1444,9 @@ let
         # together usually both dispatch, and the extra run is a mostly cached
         # rebuild of the same commit, queued in the concurrency group. Nobody
         # switches to the wrong build either way: each waits on the first run
-        # above min_run, and they converge.
+        # above min_run, and they converge -- or, if the group supersedes a
+        # queued run, a box that latched onto the superseded one sees it
+        # cancelled and hands back "not switching", which a re-run recovers.
         newer=""
         if tasks=$(api "/api/v1/repos/$slug/actions/tasks?limit=20"); then
           newer=$(printf '%s' "$tasks" | $jq -r --arg s "$sha" --arg m "$run" 'first(.workflow_runs[]

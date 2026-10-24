@@ -203,14 +203,14 @@ let
   # ONE decision with TWO consumers, which is the whole reason it is a binding:
   #
   #   * targets.genericLinux.nixGL.defaultWrapper (set below) drives
-  #     config.lib.nixGL.wrap -- ghostty, hyprlock, hyprpaper, cumora.
+  #     config.lib.nixGL.wrap -- ghostty, hyprlock, hyprpaper.
   #   * the `nixGL` shim just below drives hyprpolkitagent's ExecStart, and is the
   #     `nixGL` on PATH.
   #
   # Keeping them in one place is not tidiness. They are reached by different code
   # paths, so a reader who patches only the shim gets a config that evaluates
-  # while four apps quietly stay on mesa -- which is the failure this whole area
-  # exists to prevent, arrived at by a different route.
+  # while every wrapped app quietly stays on mesa -- which is the failure this
+  # whole area exists to prevent, arrived at by a different route.
   #
   # mesa covers Intel *and* AMD: nixgl's mesa wrapper is named nixGLIntel, but it
   # is "nixGL + mesa" and radeonsi ships in mesa's own lib/dri, so utsuho
@@ -231,7 +231,7 @@ let
         + "Fix BOTH consumers of glWrapper in home.nix or neither: "
         + "targets.genericLinux.nixGL.defaultWrapper takes one of "
         + "mesa/mesaPrime/nvidia/nvidiaPrime and drives config.lib.nixGL.wrap "
-        + "(ghostty, hyprlock, hyprpaper, cumora), while nixGLVendor below maps "
+        + "(ghostty, hyprlock, hyprpaper), while nixGLVendor below maps "
         + "the same choice onto a nixgl attr for hyprpolkitagent's ExecStart. "
         + "Patching one alone leaves the other on mesa, silently."
       );
@@ -310,36 +310,6 @@ let
   # script builds one and asserts against the same binary the live profile
   # ships.
   cryptomator-cli = import ./nix/cryptomator-cli.nix { inherit pkgs; };
-
-  # Cumora (cumora.ai) — closed-source, invite-only desktop chat app, not in
-  # nixpkgs. The electron-updater feed at https://updates.cumora.ai/latest-linux.yml
-  # is the source of truth for version + sha512 when bumping. Wrap the AppImage
-  # (not autoPatchelf the deb) so the Electron stack runs in appimageTools' FHS
-  # env, which works on non-NixOS hosts.
-  cumora =
-    let
-      pname = "cumora";
-      version = "0.18.7";
-      src = pkgs.fetchurl {
-        url = "https://updates.cumora.ai/Cumora-${version}.AppImage";
-        hash = "sha512-r3sm2UhPAAiv/XjnHJ3lZg35U7UrEOu2fKkwsxSWS77p9InbkqeVqD9NyjTgapM/wAWrEOguuuYM0/28WpuIYw==";
-      };
-      appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
-    in
-    pkgs.appimageTools.wrapType2 {
-      inherit pname version src;
-      # Electron safeStorage/keytar wants libsecret at runtime.
-      extraPkgs = pkgs: [ pkgs.libsecret ];
-      extraInstallCommands = ''
-        install -Dm444 ${appimageContents}/cumora.desktop \
-          $out/share/applications/cumora.desktop
-        install -Dm444 ${appimageContents}/usr/share/icons/hicolor/1024x1024/apps/cumora.png \
-          $out/share/icons/hicolor/1024x1024/apps/cumora.png
-        substituteInPlace $out/share/applications/cumora.desktop \
-          --replace-fail 'Exec=AppRun' 'Exec=cumora'
-      '';
-      meta.mainProgram = "cumora";
-    };
 
   # nix's glibc ships no libnss_systemd.so.2 and only searches the nix store, so
   # getpwnam on a systemd-homed user (not in /etc/passwd) fails from nix-built
@@ -3258,9 +3228,6 @@ in
     (withHostNss emacsPkg)
   ] ++ lib.optionals (!isDarwin && isDesktop) [
     caffeine
-    # nixGL wrap: without it the FHS env resolves GBM/DRI via the NixOS-only
-    # /run/opengl-driver path and falls back to software rendering.
-    (config.lib.nixGL.wrap cumora)
     hypr-fullscreen-inhibit
     hypr-unstuck-lock
     # Also on PATH so a lockout can be checked (and waited out) from a TTY.
@@ -3300,11 +3267,11 @@ in
     # tests/insecure-packages.sh is what keeps that true across a lock bump.
     pkgs.vesktop
     (pkgs.graftNode pkgs.signal-desktop)
-    # Parsec remote-desktop client. nixGL-wrapped like cumora: a nixpkgs GL app
+    # Parsec remote-desktop client. nixGL-wrapped: a nixpkgs GL app
     # on Arch cannot find the host's mesa drivers on its own.
     (config.lib.nixGL.wrap pkgs.parsec-bin)
     # Zed's Delta agent workspace; packaged from the upstream tarball in
-    # delta.nix. nixGL-wrapped for the same reason as parsec/cumora: GPUI
+    # delta.nix. nixGL-wrapped for the same reason as parsec: GPUI
     # dlopens Vulkan/EGL, and on Arch those resolve nowhere without it.
     (config.lib.nixGL.wrap pkgs.zed-delta)
     pkgs.beeper
@@ -4439,7 +4406,7 @@ in
       #
       # This is the module's own option (hm-module/package.nix), which applies
       # config.lib.nixGL.wrap to the selected package — the same wrap ghostty,
-      # hyprlock, hyprpaper and cumora already get. Gated like
+      # hyprlock and hyprpaper already get. Gated like
       # targets.genericLinux.nixGL.* below, since that wrap is only configured
       # on desktop Linux.
       nixGL.enable = !isDarwin && isDesktop;

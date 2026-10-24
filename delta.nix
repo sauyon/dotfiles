@@ -86,7 +86,7 @@ in
             # rather than linking it, so autoPatchelf never sees those. The
             # wrapper puts the loaders on LD_LIBRARY_PATH; the mesa drivers
             # behind them come from the nixGL wrap in home.nix, the same as
-            # ghostty/parsec/cumora.
+            # ghostty/parsec.
             makeWrapper $out/libexec/delta/bin/delta $out/bin/delta \
               --prefix LD_LIBRARY_PATH : ${
                 lib.makeLibraryPath [

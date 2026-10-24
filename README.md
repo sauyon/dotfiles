@@ -231,8 +231,8 @@ cases would otherwise have called a pass.
 
 Which GL stack a desktop host's nix GUI apps get is one decision, `glWrapper`, with
 two consumers that are reached by different code paths: `targets.genericLinux.nixGL.defaultWrapper`
-for everything going through `config.lib.nixGL.wrap` (ghostty, hyprlock, hyprpaper,
-cumora), and the `nixGL` shim for hyprpolkitagent's `ExecStart` and the `nixGL` on
+for everything going through `config.lib.nixGL.wrap` (ghostty, hyprlock,
+hyprpaper), and the `nixGL` shim for hyprpolkitagent's `ExecStart` and the `nixGL` on
 PATH. It is derived from `machine.gpu` and **refuses** a value it has no wrapper
 for. nixgl's mesa wrapper is *named* `nixGLIntel` but covers AMD too (radeonsi
 ships in mesa's `lib/dri`), so utsuho is correctly served by it and has a case

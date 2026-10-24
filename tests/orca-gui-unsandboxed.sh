@@ -70,7 +70,9 @@ T=$(mktemp -d "$HOME/.cache/orca-gui-test.XXXXXX") || { echo "mktemp failed" >&2
 trap 'host systemctl --user stop "$unit" 2>/dev/null; rm -rf "$T"' EXIT
 
 # 1. No bwrap anywhere in the launch chain.
-if nix-store -qR "$ORCA" | grep -q -- '-bubblewrap-'; then
+# grep -c reads it all: -q exits early, and under pipefail nix-store's
+# SIGPIPE would send a hit to the else branch.
+if [ "$(nix-store -qR "$ORCA" | grep -c -- '-bubblewrap-')" != 0 ]; then
   fail "no sandbox" "bubblewrap is in the closure of $ORCA"
 else
   pass "no bubblewrap in the closure"
@@ -114,21 +116,51 @@ done
 # Orca's terminals: the patched node-pty, loaded by this Electron, opens a pty.
 got=$(host env ELECTRON_RUN_AS_NODE=1 "$GUI" -e '
   const p = require(process.argv[1]).spawn("/bin/sh", ["-c", "echo pty-ok"], {});
-  let o = ""; p.onData(d => o += d); p.onExit(e => console.log(o.trim(), e.exitCode));' \
+  let o = ""; p.onData(d => o += d);
+  p.onExit(e => setTimeout(() => console.log(o.trim(), e.exitCode), 200));' \
   "$APP/resources/node_modules/node-pty" 2>&1)
 [ "$got" = "pty-ok 0" ] && pass "node-pty opens a pty" || fail "node-pty" "got '$got'"
 
-# 4. Every native ELF of this arch resolves all its libraries on the host.
+# 4. Every native ELF of this arch resolves all its libraries, through its
+# own loader -- `ld.so --list`, not ldd, whose host loader would find a
+# library in Arch's /usr/lib that the patched RUNPATH lost.
 mapfile -t elfs < <(find "$APP" -type f \( -name '*.so*' -o -name '*.node' -o -perm -u+x \) \
   -not -path '*/orcad-template/*' -print0 \
   | host xargs -0 file | grep -E 'ELF 64-bit LSB .*(executable|shared object), x86-64' | cut -d: -f1)
-if [ "${#elfs[@]}" -lt 10 ]; then
-  fail "ELFs" "only ${#elfs[@]} found under $APP"
+ldso=$(readelf -l "$APP/orca-ide" | grep -oE '/nix/store/[^]]*/ld-linux-x86-64.so.2')
+if [ "${#elfs[@]}" -lt 10 ] || [ -z "$ldso" ]; then
+  fail "ELFs" "only ${#elfs[@]} found under $APP (is file(1) on the host?), loader '$ldso'"
 else
-  missing=$(host /bin/sh -c 'for f; do ldd "$f" 2>&1 | grep "not found" | sed "s|^|$f: |"; done' sh "${elfs[@]}")
-  [ -z "$missing" ] && pass "all ${#elfs[@]} ELFs resolve their libraries" \
-    || fail "ldd" "$(printf '\n%s' "$missing")"
+  # A shared object has no interpreter of its own; it loads into one whose
+  # loader is the patched executables'. Unpatched ones (the pinned node)
+  # name the host's, which is what they get.
+  missing=$(host env -u LD_LIBRARY_PATH /bin/sh -c 'ldso=$1; shift; for f; do
+      i=$(readelf -l "$f" 2>/dev/null | sed -n "s/.*interpreter: \([^]]*\)]/\1/p")
+      "${i:-$ldso}" --list "$f" 2>&1 | grep "not found" | sed "s|^|$f: |"; done' sh "$ldso" "${elfs[@]}")
+  [ -z "$missing" ] && pass "all ${#elfs[@]} ELFs resolve their libraries, each with its own loader" \
+    || fail "ld.so --list" "$(printf '\n%s' "$missing")"
 fi
+
+# What they dlopen, which no loader listing shows: each must be on the
+# opener's RUNPATH, or it falls through to nothing (nix's loader has no
+# /usr/lib). The bwrap env's /usr used to supply all of these.
+dlopens() { # dlopens <elf> <soname>...: report the sonames not on its RUNPATH
+  local f=$1; shift
+  local rp; rp=$(readelf -d "$f" | sed -n 's/.*R.*PATH.*\[\(.*\)\]/\1/p' | sed "s|\$ORIGIN|$(dirname "$f")|g")
+  for so; do
+    local found=""
+    IFS=: read -ra dirs <<< "$rp"
+    for d in "${dirs[@]}"; do [ -e "$d/$so" ] && { found=1; break; }; done
+    [ -n "$found" ] || echo "${f#$APP/}: $so"
+  done
+}
+# Electron: audio (pulse; pipewire for screen capture), VA-API, safeStorage,
+# notifications, GL. The clipboard helper: wayland-client, and gtk3 for X11.
+lost=$(dlopens "$APP/orca-ide" libpulse.so.0 libpipewire-0.3.so.0 libva.so.2 libva-drm.so.2 \
+         libsecret-1.so.0 libnotify.so.4 libGL.so.1 libEGL.so.1 libudev.so.1
+       dlopens "$APP/resources/bin/orca-wayland-clipboard" libwayland-client.so.0 libgtk-3.so.0)
+[ -z "$lost" ] && pass "everything they dlopen is on their RUNPATH" \
+  || fail "dlopen" "$(printf '\n%s' "$lost")"
 
 # 5. A real instance renders, sandboxes its renderers, and exits 0 on
 # SIGTERM -- in a headless sway of its own, so it needs no desktop and never
@@ -177,6 +209,10 @@ else
   [ "${colours:-0}" -gt 100 ] 2>/dev/null && pass "it renders a UI ($colours colours on screen)" \
     || fail "render" "screen has '$colours' colours; blank or broken"
   if [ -n "${ORCA_TEST_SHOT:-}" ]; then in_session "$grim/bin/grim" "$ORCA_TEST_SHOT"; fi
+  # The clipboard helper Orca uses on Wayland, against a live compositor.
+  got=$(in_session "$APP/resources/bin/orca-wayland-clipboard" --probe 2>&1); rc=$?
+  [ "$rc" = 0 ] && pass "orca-wayland-clipboard --probe works in the session" \
+    || fail "clipboard" "exit $rc: $got"
   # Chromium's sandbox, with chrome-sandbox left unprivileged: renderers in
   # their own user namespace (layer 1; --no-sandbox renderers share the
   # browser's) and under a seccomp-bpf filter (layer 2, Seccomp: 2).

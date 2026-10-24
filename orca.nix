@@ -49,16 +49,21 @@ let
       libxkbcommon nspr nss pango stdenv.cc.cc.lib systemd
       libx11 libxcomposite libxdamage libxext libxfixes libxrandr libxcb
     ];
-    # dlopened, so autoPatchelf cannot see them: GL and udev for the GPU
-    # process, libsecret for Electron's safeStorage, notify and appindicator
-    # for notifications and the tray.
-    runtimeDependencies = with pkgs; [
-      libGL systemd libsecret libnotify libappindicator-gtk3
-    ];
+    # dlopened, so autoPatchelf cannot see them, and nix's loader has no
+    # /usr/lib to fall back on: GL and udev for the GPU process, pulse and
+    # pipewire for audio and screen capture, libva for video decode,
+    # libsecret for Electron's safeStorage, notify and appindicator for
+    # notifications and the tray; wayland-client and gtk3 for
+    # resources/bin/orca-wayland-clipboard, which links only libc.
+    runtimeDependencies = map lib.getLib (with pkgs; [
+      libGL systemd libpulseaudio pipewire libva libsecret libnotify
+      libappindicator-gtk3 wayland gtk3
+    ]);
     dontConfigure = true;
     dontBuild = true;
-    # Both run by hand, or not at all, around the pinned trees: strip would
-    # rewrite the pinned node as surely as patchelf.
+    # Kept off the pinned trees: autoPatchelf by running it by hand below,
+    # strip by not running it at all -- it rewrites the pinned node as surely
+    # as patchelf. installCheckPhase holds the trees to that.
     dontAutoPatchelf = true;
     dontStrip = true;
     installPhase = ''

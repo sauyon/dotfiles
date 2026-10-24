@@ -1,0 +1,37 @@
+say hi
+
+---
+
+can you debug why orca mobile is claiming there are no sessions yet
+
+---
+
+it's "Can't find this conversation yet"
+
+---
+
+oh, is it because I typed claude and not orca agent launch?
+
+---
+
+ah, it's because I typed 'cl'
+
+---
+
+go
+
+---
+
+ok figure it out
+
+---
+
+it reproduces in the child
+
+---
+
+nope. not cleared. you can clean up the child.
+
+---
+
+well figure out what the cause is

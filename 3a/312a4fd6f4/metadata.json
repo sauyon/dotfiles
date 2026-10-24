@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "3a312a4fd6f4",
+  "strategy": "manual-commit",
+  "branch": "orca-alt-up-down",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "orca.nix",
+    "tests/orca-mac-keybindings.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3a/312a4fd6f4/0/metadata.json",
+      "transcript": "/3a/312a4fd6f4/0/full.jsonl",
+      "compact_transcript": "/3a/312a4fd6f4/0/transcript.jsonl",
+      "content_hash": "/3a/312a4fd6f4/0/content_hash.txt",
+      "prompt": "/3a/312a4fd6f4/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 54,
+    "cache_creation_tokens": 53048,
+    "cache_read_tokens": 1629750,
+    "output_tokens": 10030,
+    "api_call_count": 27
+  }
+}

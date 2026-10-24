@@ -1,0 +1,15 @@
+{
+  "tool_use_id": "toolu_011JkXij84EGgGrK2DRbxtFv",
+  "agent_id": "a508f78ef7a38b753",
+  "subagent_type": "general-purpose",
+  "task_description": "Review orca Alt+Up/Down pin",
+  "token_usage": {
+    "input_tokens": 54,
+    "cache_creation_tokens": 70506,
+    "cache_read_tokens": 1398096,
+    "output_tokens": 12726,
+    "api_call_count": 27
+  },
+  "started_at": "2026-10-24T12:09:51.149569377Z",
+  "completed_at": "2026-10-24T12:49:47.598337428Z"
+}

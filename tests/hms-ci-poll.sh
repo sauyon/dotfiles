@@ -228,7 +228,7 @@ run() {
   # HMS_FIRST_RUN_SECONDS bounds the *other* poll -- the one waiting for a run
   # to be created at all, which ships at 90s. The cases below that exercise it
   # would otherwise sit through that window twice.
-  env -i PATH="$PATH" HOME="$HOME" \
+  timeout 180 env -i PATH="$PATH" HOME="$HOME" HMS_RETRIES="${HMS_RETRIES:-2}" \
     HMS_REPO="$D/repo" HMS_CURL="$D/curl" HMS_TOKEN_CMD="$D/token-cmd" \
     HMS_SWITCH_CMD="$D/switch" HMS_WAIT_SECONDS=20 HMS_FIRST_RUN_SECONDS=1 \
     "$SCRIPT" 2>&1
@@ -460,8 +460,13 @@ fi
 # next two task listings, and all the while the forge keeps listing the run
 # that failed, first. That is what makes hms tell the retry's run from the
 # failed one by number, and wait for it rather than give up.
-mkcurl_flaky() { # mkcurl_flaky <n-fail> <log-file>
-  echo 42 > "$D/run-number"; : > "$D/dispatches"; rm -f "$D/pending"
+#
+# <mode>, optional: "moved" advances origin/master to another commit as the log
+# is fetched (someone pushed mid-run), and "nodispatch" makes the dispatch
+# itself fail with a 503.
+mkcurl_flaky() { # mkcurl_flaky <n-fail> <log-file> [moved|nodispatch]
+  echo 42 > "$D/run-number"; : > "$D/dispatches"; : > "$D/dispatch-tries"; rm -f "$D/pending"
+  git -C "$D/repo" rev-parse HEAD~1 > "$D/other-sha"
   cp "$2" "$D/log"
   cat > "$D/curl" <<STUB
 #!/usr/bin/env bash
@@ -473,6 +478,8 @@ listing() { # listing <run> <status>
 }
 case "\$url" in
   *actions/workflows/nix-home.yml/dispatches)
+    echo call >> "$D/dispatch-tries"
+    if [ '${3:-}' = nodispatch ]; then printf 'unavailable\n503\n'; exit 0; fi
     echo call >> "$D/dispatches"; echo 2 > "$D/pending"
     printf '\n204\n' ;;
   *actions/tasks*)
@@ -487,7 +494,9 @@ case "\$url" in
     if [ "\$(wc -l < "$D/dispatches")" -ge $1 ]; then st=success; else st=failure; fi
     listing "\$(cat "$D/run-number")" "\$st" ;;
   *jobs/0*)     printf 'job_id 7 not found\n200\n' ;;
-  *jobs/*logs*) cat "$D/log"; printf '200\n' ;;
+  *jobs/*logs*)
+    [ '${3:-}' != moved ] || git -C "$D/origin.git" update-ref refs/heads/master "\$(cat "$D/other-sha")"
+    cat "$D/log"; printf '200\n' ;;
   *)            printf '{}\n200\n' ;;
 esac
 STUB
@@ -527,14 +536,41 @@ for c in 'error: builder for /nix/store/x.drv failed with exit code 1' \
   fi
 done
 
-# Bounded: a forge that 503s every run is down, not flaky, and hms must stop.
+# Bounded: a forge that 503s every run is down, not flaky, and hms must stop --
+# and say it gave up on a transient failure, since a bare "Fix CI" over a 503
+# log is the very message this whole feature exists to retire.
 setup_repo; mktoken good; mkcurl_flaky 99 "$FIX"; mkswitch
-out=$(run); rc=$?
-if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(ndisp)" -eq 2 ]; then
-  report "transient retries stop after two dispatches" ok
+out=$(HMS_RETRIES=1 run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(ndisp)" -eq 1 ] \
+   && printf '%s' "$out" | grep -q 'gave up after 1 retr'; then
+  report "transient retries stop at HMS_RETRIES, and say so" ok
 else
-  report "transient retries stop after two dispatches" no \
+  report "transient retries stop at HMS_RETRIES, and say so" no \
     "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
+fi
+
+# A dispatch builds the branch tip. Once origin/master has moved, a "retry" is
+# a build of someone else's commit and an hour waiting on a run for ours that
+# will never exist, so hms must hand the failure back instead.
+setup_repo; mktoken good; mkcurl_flaky 1 "$FIX" moved; mkswitch
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(wc -l < "$D/dispatch-tries")" -eq 0 ] \
+   && printf '%s' "$out" | grep -q 'moved on'; then
+  report "no retry once origin/master has moved past the failed commit" ok
+else
+  report "no retry once origin/master has moved past the failed commit" no \
+    "tries=$(wc -l < "$D/dispatch-tries") switched=$(sw) rc=$rc out=[$out]"
+fi
+
+# A dispatch the forge refuses is the end of it, said once, not a loop.
+setup_repo; mktoken good; mkcurl_flaky 1 "$FIX" nodispatch; mkswitch
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(wc -l < "$D/dispatch-tries")" -eq 1 ] \
+   && printf '%s' "$out" | grep -q 'retry dispatch failed'; then
+  report "a refused dispatch hands the failure back" ok
+else
+  report "a refused dispatch hands the failure back" no \
+    "tries=$(wc -l < "$D/dispatch-tries") switched=$(sw) rc=$rc out=[$out]"
 fi
 
 printf '\n%d/%d passed\n' "$((n - fails))" "$n"

@@ -1034,7 +1034,8 @@ let
     # Seams, all defaulted to the real thing. tests/hms-ci-poll.sh drives the
     # built script through them: a throwaway repo, a stub forge, a stub
     # credential helper and a marker-file "switch", with the status poll bounded
-    # to seconds rather than the hour it ships with.
+    # to seconds rather than the hour it ships with, and the retry count set
+    # per case.
     repo="''${HMS_REPO:-$HOME/devel/dotfiles}"
     host="$(uname -n)"
     forge="https://forge.ko.ag"
@@ -1048,9 +1049,10 @@ let
     # a run that exists and is still going.
     first_run_seconds="''${HMS_FIRST_RUN_SECONDS:-90}"
     # How many times a run that failed on infrastructure is re-dispatched
-    # before hms hands the failure back. Each retry can wait the full
-    # first_run_seconds + wait_seconds again, so the worst case is that many
-    # hours, not one; the normal case is still one build.
+    # before hms hands the failure back (HMS_RETRIES, a seam like the two
+    # above). Every attempt can spend first_run_seconds + wait_seconds waiting
+    # for its run to appear and wait_seconds more for it to finish, so the
+    # worst case is about two hours per attempt; the normal case is one build.
     retries="''${HMS_RETRIES:-2}"
 
     local_only=0
@@ -1424,11 +1426,15 @@ let
       # API (see nix-home.yml), and a dispatch builds the branch tip, so it is
       # only a retry of *this* commit while origin/master still is it.
       errlines=$(cut -c30- "$log" | ${lib.getExe pkgs.gnugrep} -ai 'error' || true)
-      if [ -n "$errlines" ] && [ "$retries_left" -gt 0 ] \
+      if [ -n "$errlines" ] \
          && ! printf '%s\n' "$errlines" | ${lib.getExe pkgs.gnugrep} -qavE \
               'RPC failed; HTTP 5[0-9]{2}|returned error: 5[0-9]{2}|Could not resolve host|Failed to connect|Connection (timed out|reset)|early EOF'; then
-        tip=$(git -C "$repo" ls-remote origin refs/heads/master | cut -f1 || true)
-        if [ -z "$tip" ]; then
+        # Said outright: a bare "Fix CI" over a 503 log is what run 252 printed.
+        # `! -gt` rather than `-le`, so a non-numeric HMS_RETRIES gives up too.
+        tip=$(git -C "$repo" ls-remote --heads origin master 2>/dev/null | cut -f1 || true)
+        if ! [ "$retries_left" -gt 0 ]; then
+          echo "hms: transient infra failure again — gave up after $retries retries." >&2
+        elif [ -z "$tip" ]; then
           echo "hms: transient failure, but could not read origin/master to retry it." >&2
         elif [ "$tip" != "$sha" ]; then
           echo "hms: transient failure, but origin/master moved on — not retrying a different commit." >&2

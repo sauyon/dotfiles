@@ -75,6 +75,14 @@ mkdir -p "$HOME/.cache"
 T=$(mktemp -d "$HOME/.cache/orca-gui-test.XXXXXX") || { echo "mktemp failed" >&2; exit 1; }
 trap 'host systemctl --user stop "$unit" "$unit-serve" 2>/dev/null; rm -rf "$T"' EXIT
 
+# Every node-mode run of the GUI, with no way to a display: were node mode
+# ever lost, this would be a GUI launch, and it must fail rather than open a
+# window on the live desktop -- no WAYLAND_DISPLAY/DISPLAY, and a runtime dir
+# with no socket in it (unset, Wayland falls back to wayland-0 there).
+mkdir -p -m700 "$T/nodisplay"
+appnode() { host timeout 120 env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u DISPLAY \
+  XDG_RUNTIME_DIR="$T/nodisplay" ELECTRON_RUN_AS_NODE=1 "$GUI" "$@"; }
+
 # 1. No bwrap anywhere in the launch chain.
 closure=$(nix-store -qR "$ORCA") || { echo "nix-store -qR $ORCA failed" >&2; exit 1; }
 if grep -q -- '-bubblewrap-' <<< "$closure"; then
@@ -90,7 +98,7 @@ APP=$(nix-store -qR "$ORCA" | while read -r p; do
 
 # 2. Node mode: the wrapper must not inject --ozone-platform, which node
 # rejects ("bad option", exit 9). orca's CLI probes the GUI this way.
-got=$(host timeout 120 env ELECTRON_RUN_AS_NODE=1 "$GUI" -p 1 2>&1)
+got=$(appnode -p 1 2>&1)
 [ "$got" = 1 ] && pass "ELECTRON_RUN_AS_NODE=1 runs node" \
   || fail "node mode" "printed '$got', want 1"
 
@@ -99,7 +107,7 @@ got=$(host timeout 120 env ELECTRON_RUN_AS_NODE=1 "$GUI" -p 1 2>&1)
 # fontconfig plus DejaVu: a child resolves families as the host does and
 # sees every font the host has.
 node_run() { # node_run <shell command>: run it from a child of the GUI in node mode
-  host timeout 120 env ELECTRON_RUN_AS_NODE=1 "$GUI" -e \
+  appnode -e \
     'process.stdout.write(require("child_process").execFileSync("/bin/sh", ["-c", process.argv[1]]))' \
     "$1" 2>&1
 }
@@ -125,8 +133,40 @@ hidden=$(comm -23 <(echo "$want") <(echo "$got") | wc -l)
 [ -n "$want" ] && [ "$hidden" = 0 ] && pass "children see all $(echo "$want" | wc -l) of the host's font files" \
   || fail "font files" "$hidden of the host's are hidden from children"
 
+# home.nix's symbol gap font does not yield to DejaVu (that would cut glyphs
+# that are tofu outside Orca); it relies on fontconfig ranking DejaVu ahead
+# wherever both have a glyph, under the app's own fontconfig. Every such
+# glyph, for a mono and a sans request.
+cat > "$T/gapcheck.sh" <<'EOF'
+# gapcheck.sh <scratch-prefix>: "<family>|<moved>|<shared>" per request, or "nogap"
+gap=$(fc-list -f '%{file}\n' 'Noto Sans Symbols 2' | grep -m1 Gaps) || { echo nogap; exit; }
+cps() { fc-query -f '%{charset}\n' "$1" | tr ' ' '\n' \
+  | awk -F- 'NF { a = strtonum("0x" $1); b = $2 == "" ? a : strtonum("0x" $2); for (i = a; i <= b; i++) printf "%x\n", i }' \
+  | sort -u; }
+cps "$gap" > "$1.gap"
+for pair in 'monospace:DejaVu Sans Mono' 'sans\-serif:DejaVu Sans'; do
+  req=${pair%%:*}; fam=${pair#*:}
+  cps "$(fc-list -f '%{file}\n' "$fam:style=Book" | head -1)" | comm -12 - "$1.gap" > "$1.both"
+  moved=0
+  while read -r cp; do
+    [ "$(fc-match -f '%{family[0]}' "$req:charset=$cp")" = 'Noto Sans Symbols 2' ] && moved=$((moved+1))
+  done < "$1.both"
+  echo "$fam|$moved|$(wc -l < "$1.both")"
+done
+EOF
+got=$(node_run "/bin/sh $T/gapcheck.sh $T/gapcheck")
+if [ "$got" = nogap ]; then
+  echo "skip gap-font ranking: no Noto Sans Symbols 2 gap font on this host"
+else
+  while IFS='|' read -r fam moved total; do
+    [ "${total:-0}" -gt 0 ] 2>/dev/null && [ "$moved" = 0 ] \
+      && pass "$fam keeps all $total glyphs it shares with the symbol gap font" \
+      || fail "gap font" "$fam: $moved of ${total:-?} shared glyphs go to the gap font"
+  done <<< "$got"
+fi
+
 # Orca's terminals: the patched node-pty, loaded by this Electron, opens a pty.
-got=$(host timeout 120 env ELECTRON_RUN_AS_NODE=1 "$GUI" -e '
+got=$(appnode -e '
   const p = require(process.argv[1]).spawn("/bin/sh", ["-c", "echo pty-ok"], {});
   let o = ""; p.onData(d => o += d);
   p.onExit(e => setTimeout(() => console.log(o.trim(), e.exitCode), 200));' \
@@ -171,7 +211,7 @@ dlopens() { # dlopens <elf> <soname>...: report the sonames not on its RUNPATH
 # clipboard helper: wayland-client, and gtk3 for X11.
 lost=$(dlopens "$APP/orca-ide" libpulse.so.0 libpipewire-0.3.so.0 libva.so.2 libva-drm.so.2 \
          libsecret-1.so.0 libnotify.so.4 libGL.so.1 libEGL.so.1 libudev.so.1
-       dlopens "$APP/libGLESv2.so" libEGL.so.1 libGL.so.1
+       for gl in libGLESv2.so libEGL.so libvk_swiftshader.so; do dlopens "$APP/$gl" libEGL.so.1 libGL.so.1; done
        dlopens "$APP/resources/bin/orca-wayland-clipboard" libwayland-client.so.0 libgtk-3.so.0)
 [ -z "$lost" ] && pass "everything they dlopen is on their RUNPATH" \
   || fail "dlopen" "$(printf '\n%s' "$lost")"
@@ -209,7 +249,7 @@ for _ in $(seq 60); do
   sock=$(ls "$run"/sway-ipc.*.sock 2>/dev/null | head -1)
   [ -n "$sock" ] || continue
   in_session "$sway/bin/swaymsg" -s "$sock" -t get_tree > "$T/tree.json" 2>/dev/null || continue
-  pid=$(host env ELECTRON_RUN_AS_NODE=1 "$GUI" -e '
+  pid=$(appnode -e '
     const walk = n => n.app_id === "orca" ? n.pid : [...n.nodes, ...n.floating_nodes].map(walk).find(Boolean);
     console.log(walk(JSON.parse(require("fs").readFileSync(process.argv[1]))) || "");' "$T/tree.json")
   [ -n "$pid" ] && break
@@ -228,7 +268,7 @@ else
   # a handful of colours, a rendered UI with antialiased text has hundreds.
   sleep 10
   in_session "$grim/bin/grim" -t ppm "$T/shot.ppm"
-  colours=$(host env ELECTRON_RUN_AS_NODE=1 "$GUI" -e '
+  colours=$(appnode -e '
     const b = require("fs").readFileSync(process.argv[1]);
     let i = 0, f = 0; const tok = () => { while (/\s/.test(String.fromCharCode(b[i]))) i++;
       const s = i; while (!/\s/.test(String.fromCharCode(b[i]))) i++; return b.slice(s, i).toString(); };
@@ -273,12 +313,19 @@ host systemctl --user reset-failed "$unit" 2>/dev/null
 # same command run by hand: nixpkgs' node 24 on the AppImage's CLI script.
 cli=${ORCA_CLI:-}
 if [ -z "$cli" ]; then
-  cli=$(nix eval --raw "$FLAKE#homeConfigurations.$HOSTNAME_.config.home.packages" \
+  # Realised by drv, as the GUI is above: a bare output path cannot be built.
+  clidrv=$(nix eval --raw "$FLAKE#homeConfigurations.$HOSTNAME_.config.home.packages" \
     --apply 'ps: let c = builtins.filter (p: builtins.match "orca-cli-[0-9.]+" (p.name or "") != null) ps;
-                 in if c == [] then "" else "${builtins.head c}/bin/orca-ide"' 2>/dev/null) || cli=""
-  [ -z "$cli" ] || nix build --no-link "${cli%/bin/orca-ide}" 2>/dev/null || cli=""
+                 in if c == [] then "" else (builtins.head c).drvPath') \
+    || { echo "could not evaluate home.packages for orca-cli" >&2; exit 1; }
+  if [ -n "$clidrv" ]; then
+    cli=$(nix-store --realise "$clidrv" | tail -1)/bin/orca-ide
+    [ -x "$cli" ] || { echo "could not build the profile's orca-cli ($clidrv)" >&2; exit 1; }
+  else
+    cli="$node24/bin/node $APP/resources/app.asar.unpacked/out/cli/index.js"
+  fi
 fi
-[ -n "$cli" ] || cli="$node24/bin/node $APP/resources/app.asar.unpacked/out/cli/index.js"
+echo "serve via: $cli"
 cat > "$T/serve.sh" <<EOF
 cd "$T/home"
 ORCA_SERVE_RUNTIME=electron ORCA_APP_EXECUTABLE="$GUI" $cli serve --no-pairing > "$T/serve.out" 2>&1 &

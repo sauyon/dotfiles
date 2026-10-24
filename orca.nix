@@ -197,7 +197,7 @@ let
       <dir>${pkgs.dejavu_fonts}/share/fonts</dir>
     </fontconfig>
   '';
-  # Extracted once, shared by orca and macKeybindings; let bindings
+  # Extracted once, shared by orca, orcaCli and macKeybindings; let bindings
   # are recursive, so position in the block does not matter.
   appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
 

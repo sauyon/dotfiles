@@ -27,8 +27,8 @@ fail() { n=$((n+1)); echo "FAIL $1: $2"; fails=$((fails+1)); }
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 
 FLAKE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-# /etc/hostname is what CI writes to say which host it is; Orca's sandbox does
-# not bind it in, so fall back to uname -n there.
+# /etc/hostname is what CI writes to say which host it is; a bwrap-era Orca
+# terminal has none, so fall back to uname -n there.
 host=$(cat /etc/hostname 2>/dev/null); HM="$FLAKE#homeConfigurations.${host:-$(uname -n)}.config"
 SKILLS="orca-cli orchestration computer-use orca-per-workspace-env orca-linear linear-tickets"
 

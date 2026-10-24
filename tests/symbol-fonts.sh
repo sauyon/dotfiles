@@ -26,8 +26,9 @@
 #   * on hosts of this machine's system, the realised face still covers the
 #     glyphs below, checked with fc-query;
 #   * on those hosts, fallback through a throwaway fontconfig over nixpkgs'
-#     conf.d (what orca.nix includes) with the gap font and what it yields
-#     to: ⏵ and 🬀
+#     conf.d with the gap font and what it yields to -- the profile alone,
+#     nothing from the host (orca's own fontconfig, the host's plus DejaVu,
+#     is tests/orca-gui-unsandboxed.sh's): ⏵ and 🬀
 #     reach the gap font, ⏸🖥⭐ still reach Noto Color Emoji and ␀ a text font
 #     -- for a monospace request and for a sans one.
 #

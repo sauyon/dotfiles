@@ -117,7 +117,9 @@ for (;;) {
     .findKeybindingConflicts('linux', effective)
     .flatMap((c) => c.actionIds)
     .filter((id) => id in written);
-  // Conflicts among the UI's own shortcuts are Orca's to report, not ours.
+  // Only generated keys are ever withdrawn. A conflict with none left in it
+  // -- between UI shortcuts, or a UI shortcut and the Linux default a
+  // withdrawal brought back -- is Orca's to report.
   if (withdrawn.length === 0) break;
   for (const id of new Set(withdrawn)) {
     console.error(`orca: ${id} ${JSON.stringify(written[id])} clashes with a shortcut set in Orca; keeping that one`);

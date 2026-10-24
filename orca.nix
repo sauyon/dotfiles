@@ -21,7 +21,11 @@ let
 
   # The AppImage's own tree, unsandboxed: its ELFs patched to store paths with
   # autoPatchelf and the binary wrapped with makeWrapper, the way nixpkgs
-  # packages slack or vscode. A patched binary runs on Arch as well as NixOS.
+  # packages slack or vscode -- minus wrapGAppsHook3, whose XDG_DATA_DIRS,
+  # GIO and pixbuf variables every process Orca spawns would inherit: GTK's
+  # GSettings schemas (the file chooser's, when no portal provides one) come
+  # from the host's XDG_DATA_DIRS instead, as they do for the host's own apps.
+  # A patched binary runs on Arch as well as NixOS.
   # This replaced appimageTools.wrapType2, whose bwrap FHS env everything Orca
   # spawns (its terminals, the agents in them) inherited: no /etc/hostname,
   # `date` in UTC (/etc/localtime points into a /usr the env replaced), fonts
@@ -43,8 +47,8 @@ let
   # with unprivileged user namespaces, which Arch has, Chromium uses its
   # namespace sandbox and never needs it.
   orcaRuntimeDeps = with pkgs; [
-    libGL systemd libpulseaudio pipewire libva libsecret libnotify
-    libappindicator-gtk3 wayland gtk3
+    libGL systemd libpulseaudio pipewire libva libsecret libnotify wayland
+    gtk3
   ];
   orca = pkgs.stdenv.mkDerivation {
     inherit pname version;
@@ -58,8 +62,8 @@ let
     # dlopened, so autoPatchelf cannot see them, and nix's loader has no
     # /usr/lib to fall back on: GL and udev for the GPU process, pulse and
     # pipewire for audio and screen capture, libva for video decode,
-    # libsecret for Electron's safeStorage, notify and appindicator for
-    # notifications and the tray; wayland-client and gtk3 for
+    # libsecret for Electron's safeStorage, notify for notifications;
+    # wayland-client and gtk3 for
     # resources/bin/orca-wayland-clipboard, which links only libc.
     runtimeDependencies = map lib.getLib orcaRuntimeDeps;
     dontConfigure = true;
@@ -90,8 +94,8 @@ let
       # orca-ide.desktop that runs AppRun. Upstream's .deb puts the CLI on
       # PATH as `orca-ide` and leaves the GUI off it, and Orca's skills tell
       # agents to run `orca-ide` outside an Orca terminal -- so `orca-ide` is
-      # orcaCli below, and the GUI is `orca-ide-app`,
-      # which the desktop Exec and meta.mainProgram use.
+      # orcaCli below, and the GUI is `orca-ide-app`, which the desktop Exec
+      # and meta.mainProgram use.
       substituteInPlace $out/share/applications/orca-ide.desktop \
         --replace-fail 'Exec=AppRun' 'Exec=orca-ide-app'
       runHook postInstall
@@ -131,8 +135,9 @@ let
       #
       # A plain exec: signals and exit codes reach Electron directly, so
       # `orca-ide serve`'s Electron server is the CLI's own child, which the
-      # CLI takes down on a signal it can catch (TERM, INT, HUP; a SIGKILLed
-      # CLI forwards nothing -- tests/orca-gui-unsandboxed.sh case 6), and
+      # CLI takes down on a signal it can catch (TERM, tested by
+      # tests/orca-gui-unsandboxed.sh case 6; a SIGKILLed CLI forwards
+      # nothing), and
       # `orca-ide open`'s detached GUI outlives it, with no --die-with-parent
       # to trade.
       makeWrapper $out/lib/orca/orca-ide $out/bin/orca-ide-app \

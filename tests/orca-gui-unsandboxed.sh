@@ -80,7 +80,8 @@ echo "testing $GUI"
 unit="orca-gui-test-$$"
 mkdir -p "$HOME/.cache"
 T=$(mktemp -d "$HOME/.cache/orca-gui-test.XXXXXX") || { echo "mktemp failed" >&2; exit 1; }
-trap 'host systemctl --user stop "$unit" "$unit-serve" 2>/dev/null; rm -rf "$T"' EXIT
+# chmod first: Orca may copy read-only store trees into the throwaway HOME.
+trap 'host systemctl --user stop "$unit" "$unit-serve" 2>/dev/null; chmod -R u+w "$T" 2>/dev/null; rm -rf "$T"' EXIT
 
 # Every node-mode run of the GUI, with no way to a display: were node mode
 # ever lost, this would be a GUI launch, and it must fail rather than open a
@@ -98,10 +99,16 @@ if grep -q -- '-bubblewrap-' <<< "$closure"; then
 else
   pass "no bubblewrap in the closure"
 fi
+# nixGL stays: without it GBM/DRI look in NixOS's /run/opengl-driver and fall
+# back to software rendering -- which the headless case 5, on pixman, would
+# never notice.
+if grep -q nixGL "$GUI"; then pass "the GUI goes through nixGL"
+else fail "nixGL" "$GUI does not exec a nixGL wrapper"; fi
 
 # The unwrapped tree: where resources/ lives.
+# The real file, not the nixGL layer's symlink to it.
 APP=$(nix-store -qR "$ORCA" | while read -r p; do
-  [ -f "$p/lib/orca/resources/app.asar" ] && echo "$p/lib/orca"; done | head -1)
+  [ -f "$p/lib/orca/orca-ide" ] && [ ! -L "$p/lib/orca/orca-ide" ] && echo "$p/lib/orca"; done | head -1)
 [ -n "$APP" ] || { fail "layout" "no lib/orca/resources/app.asar in the closure"; APP=/nonexistent; }
 
 # 2. Node mode: the wrapper must not inject --ozone-platform, which node
@@ -163,7 +170,7 @@ for pair in 'monospace:DejaVu Sans Mono' 'DejaVu Sans Mono:DejaVu Sans Mono'; do
   while read -r cp; do
     [ "$(fc-match -f '%{family[0]}' "$req:charset=$cp")" = 'Noto Sans Symbols 2' ] && moved=$((moved+1))
   done < "$1.both"
-  echo "$fam, for '$req',|$moved|$(wc -l < "$1.both")"
+  echo "$fam (for '$req')|$moved|$(wc -l < "$1.both")"
 done
 EOF
 got=$(node_run "/bin/sh $T/gapcheck.sh $T/gapcheck")
@@ -172,7 +179,7 @@ if [ "$got" = nogap ]; then
 else
   while IFS='|' read -r fam moved total; do
     [ "${total:-0}" -gt 0 ] 2>/dev/null && [ "$moved" = 0 ] \
-      && pass "$fam keeps all $total glyphs it shares with the symbol gap font" \
+      && pass "$fam: none of the $total glyphs it shares with the symbol gap font go to it" \
       || fail "gap font" "$fam: $moved of ${total:-?} shared glyphs go to the gap font"
   done <<< "$got"
 fi
@@ -234,11 +241,19 @@ lost=$(dlopens "$APP/orca-ide" libpulse.so.0 libpipewire-0.3.so.0 libva.so.2 lib
 # tray, notifications, portals or keyring on the real desktop), no ssh-agent,
 # no Hyprland socket. It needs no desktop and never appears on one.
 tools=$(nix build --no-link --print-out-paths --inputs-from "$FLAKE" \
-    nixpkgs#sway nixpkgs#grim nixpkgs#dbus nixpkgs#xvfb nixpkgs#nodejs_24) \
+    nixpkgs#sway nixpkgs#grim nixpkgs#dbus nixpkgs#xvfb nixpkgs#nodejs_24 'nixpkgs#glib^bin') \
   || { echo "could not build sway/grim/dbus/xvfb/node" >&2; exit 1; }
 sway=$(echo "$tools" | grep -- '-sway-'); grim=$(echo "$tools" | grep -- '-grim-')
 dbus=$(echo "$tools" | grep -E -- '-dbus-[0-9.]+$')
 xvfb=$(echo "$tools" | grep -- '-xvfb-'); node24=$(echo "$tools" | grep -- '-nodejs-')
+glib=$(echo "$tools" | grep -- '-glib-.*-bin$')
+
+# No wrapGAppsHook3 (orca.nix says why): nixpkgs' GTK in the app finds its
+# GSettings schemas through the host's XDG_DATA_DIRS. The file chooser's is
+# the one it aborts without, when no portal offers a chooser.
+got=$(node_run "$glib/bin/gsettings list-keys org.gtk.Settings.FileChooser | wc -l")
+[ "${got:-0}" -gt 0 ] 2>/dev/null && pass "the app's GTK finds the file chooser's GSettings schema" \
+  || fail "gsettings" "org.gtk.Settings.FileChooser not found by nixpkgs' GLib in the app's env: $got"
 run="$T/run"; mkdir -p -m700 "$run"; mkdir -p "$T/home"
 cat > "$T/sway.conf" <<EOF
 output HEADLESS-1 resolution 1280x800
@@ -291,6 +306,9 @@ else
     console.log(seen.size);' "$T/shot.ppm" 2>&1)
   [ "${colours:-0}" -gt 100 ] 2>/dev/null && pass "it renders a UI ($colours colours on screen)" \
     || fail "render" "screen has '$colours' colours; blank or broken"
+  # PrivateTmp took: this Orca's /tmp is not the host's.
+  priv=$(host /bin/sh -c 'touch /tmp/.orca-gui-test-probe-$$; [ -e /proc/'"$pid"'/root/tmp/.orca-gui-test-probe-$$ ] && echo shared || echo private; rm -f /tmp/.orca-gui-test-probe-$$')
+  [ "$priv" = private ] && pass "the session's /tmp is its own" || fail "PrivateTmp" "session /tmp is '$priv'"
   if [ -n "${ORCA_TEST_SHOT:-}" ]; then in_session "$grim/bin/grim" "$ORCA_TEST_SHOT"; fi
   # The clipboard helper Orca uses on Wayland, against a live compositor.
   got=$(in_session "$APP/resources/bin/orca-wayland-clipboard" --probe 2>&1); rc=$?
@@ -300,10 +318,11 @@ else
   # their own user namespace (layer 1; --no-sandbox renderers share the
   # browser's) and under a seccomp-bpf filter (layer 2, Seccomp: 2).
   ns=$(host /bin/sh -c '
-    main=$(readlink /proc/'"$pid"'/ns/user)
+    main=$(readlink /proc/'"$pid"'/ns/user); [ -n "$main" ] || { echo unreadable; exit; }
     for p in $(cat /sys/fs/cgroup$(systemctl --user show -p ControlGroup --value '"$unit"')/cgroup.procs); do
       tr "\0" " " < /proc/$p/cmdline 2>/dev/null | grep -q -- "--type=renderer" || continue
-      [ "$(readlink /proc/$p/ns/user)" != "$main" ] && echo -n userns || echo -n shared-ns
+      ns=$(readlink /proc/$p/ns/user); [ -n "$ns" ] || { echo unreadable; continue; }
+      [ "$ns" != "$main" ] && echo -n userns || echo -n shared-ns
       grep -q "^Seccomp:[[:space:]]*2" /proc/$p/status && echo +seccomp || echo +no-seccomp
     done' | sort -u | tr '\n' ' ')
   [ "$ns" = "userns+seccomp " ] && pass "renderers are sandboxed (own user namespace, seccomp)" \

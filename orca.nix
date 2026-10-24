@@ -95,8 +95,8 @@ let
   # spelled out, which Orca binds to Super (event.metaKey) on Linux. The point
   # is that Ctrl and Meta stay the terminal's -- emacs keys reach the shell --
   # so no Ctrl- or Alt-only chord is left at all: not the Mac table's own
-  # (Ctrl+1..9 tab select, Alt+Z word wrap), not a Linux default. Ctrl+Tab and
-  # Ctrl+PageUp/Down stay; no terminal can send them.
+  # (Ctrl+1..9 tab select, Alt+Z word wrap, Ctrl+PageUp/Down), not a Linux
+  # default. Only Ctrl+Tab stays: the terminal receives it as a bare Tab.
   #
   # Generated from the app's own keybinding definitions at build time
   # (nix/orca-mac-keybindings.js), so a version bump picks up new actions.

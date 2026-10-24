@@ -13,7 +13,7 @@
 #   * **Ctrl and Meta stay the terminal's.** The point of Cmd-on-Super is that
 #     emacs keys reach the shell. No Ctrl- or Alt-only chord is left, from the
 #     Mac table or from a Linux default, beyond the few pinned in orca.nix
-#     (find on Ctrl+S) and the tab-cycling chords terminals cannot send.
+#     (find on Ctrl+S) and Ctrl+Tab, which a terminal cannot tell from Tab.
 #     Cases 3 and 13.
 #
 #   * **The merge owns only its keys.** Orca's settings UI writes into the same
@@ -277,11 +277,13 @@ fi
 # 12c. Keysyms Orca spells differently are still Hyprland's, in either case:
 #      KP_Add is NumpadAdd (zoom.in's), prior is PageUp.
 #      A bare Delete is fileExplorer.delete's bare chord.
+#      (prior must translate rather than fail; no Orca chord is Cmd+PageUp, so
+#      what it takes is not visible in the output.)
 out=$(gen '["SUPER + KP_Add", "SUPER + prior", "Delete"]')
-got=$(jq -c '[.["zoom.in"], .["tab.previousTerminal"], .["fileExplorer.delete"]]' <<<"$out")
-[ "$got" = '[["Cmd+Equal","Cmd+Shift+Plus"],null,["Cmd+Backspace"]]' ] \
+got=$(jq -c '[.["zoom.in"], .["fileExplorer.delete"]]' <<<"$out")
+[ "$got" = '[["Cmd+Equal","Cmd+Shift+Plus"],["Cmd+Backspace"]]' ] \
   && pass "keysym aliases (KP_Add, lowercase prior) and a bare Delete taken" \
-  || fail "keysyms" "zoom.in/tab.previousTerminal/fileExplorer.delete got $got"
+  || fail "keysyms" "zoom.in/fileExplorer.delete got $got"
 
 # 12e. Hyprland matches the unshifted keysym; Orca sees the shifted key. So
 #      SUPER + SHIFT + equal is the press Orca reads as Cmd+Shift+Plus.
@@ -304,11 +306,12 @@ elif grep -q 'Hyprland bind "SUPER + Frobnicate"' "$T/gen.err"; then pass "unkno
 else fail "unknown-key" "failed for another reason: $(cat "$T/gen.err")"; fi
 
 # 13. Across the whole effective table -- generated keys over Orca's Linux
-#     defaults -- no chord is Ctrl- or Alt-only, save the pinned finds and the
-#     tab cycling terminals cannot send (Ctrl+Tab, Ctrl+PageUp/Down).
+#     defaults -- no chord is Ctrl- or Alt-only, save the pinned finds and
+#     Ctrl+Tab, which xterm.js sends as a bare Tab. (Ctrl+PageUp/Down it does
+#     send, as CSI 5;5~ / 6;5~: emacs' scroll keys.)
 got=$("$NODE" -e '
   const kb = require(process.argv[1] + "/keybindings.js"), o = require(process.argv[2]);
-  const ok = new Set(["Ctrl+Tab", "Ctrl+PageUp", "Ctrl+PageDown"]);
+  const ok = new Set(["Ctrl+Tab"]);
   const pinned = { "editor.find": "Ctrl+S", "browser.find": "Ctrl+S", "chat.find": "Ctrl+S", "settings.search": "Ctrl+S" };
   const bad = kb.KEYBINDING_DEFINITIONS.flatMap((d) =>
     (o[d.id] ?? kb.getDefaultBindings(d, "linux"))

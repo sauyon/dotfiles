@@ -91,9 +91,10 @@ for (const def of kb.KEYBINDING_DEFINITIONS) {
 
 // Ctrl and Meta are the terminal's: emacs, readline. Every action has an
 // override by now, so what is left to strip is the Mac table's own Ctrl and
-// Alt chords (Ctrl+1..9 tab select, Alt+Z word wrap). Tab cycling stays:
-// terminals cannot send Ctrl+Tab or Ctrl+PageUp/Down.
-const TERMINAL_CANNOT_SEND = new Set(['Ctrl+Tab', 'Ctrl+PageUp', 'Ctrl+PageDown']);
+// Alt chords (Ctrl+1..9 tab select, Alt+Z word wrap, Ctrl+PageUp/Down,
+// which xterm.js sends as CSI 5;5~ / 6;5~). Only Ctrl+Tab stays: xterm.js
+// sends it as a bare Tab, so the terminal has nothing to lose.
+const TERMINAL_CANNOT_SEND = new Set(['Ctrl+Tab']);
 const takesFromTerminal = (b) => {
   const mods = b.split('+').slice(0, -1);
   return !mods.includes('Cmd') && mods.some((m) => m === 'Ctrl' || m === 'Alt') && !TERMINAL_CANNOT_SEND.has(b);

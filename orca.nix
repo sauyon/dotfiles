@@ -120,6 +120,8 @@ let
     mkdir -p $out/lib/shared
     cp -r app/out/shared/keybindings.js app/out/shared/keybindings \
       app/out/shared/tui-agent-display-names.js $out/lib/shared/
+    # An Orca bump that adds an import fails here, not at activation.
+    node -e "require('$out/lib/shared/keybindings.js')"
     makeWrapper ${pkgs.nodejs}/bin/node $out/bin/orca-mac-keybindings \
       --add-flags "${./nix/orca-mac-keybindings-merge.js} $out/lib/shared $out/share/orca-mac-keybindings.json"
   '';

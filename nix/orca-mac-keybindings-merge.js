@@ -16,6 +16,14 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
+// Activation runs under set -e, so a throw here would abandon the rest of
+// the switch over a keybinding file. Any failure is one line and exit 0;
+// the file is then exactly as it was, since writes only ever rename over it.
+process.on('uncaughtException', (e) => {
+  console.error(`orca: keybinding merge skipped: ${e.message}`);
+  process.exit(0);
+});
+
 const [shared, ownedFile] = process.argv.slice(2);
 const kb = require(path.resolve(shared, 'keybindings.js'));
 const owned = JSON.parse(fs.readFileSync(ownedFile, 'utf8'));
@@ -26,11 +34,17 @@ const sidecar = path.join(dir, 'keybindings.nix-owned.json');
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-// Orca's own writer: whole file to a temp name, then rename over.
+// Orca's own writer (G$): whole file to a temp name, rename over, and the
+// temp removed if either step fails.
 function writeJson(file, value) {
-  const tmp = `${file}.nix-${process.pid}`;
-  fs.writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' });
-  fs.renameSync(tmp, file);
+  const tmp = `${file}.nix-${process.pid}-${Date.now()}`;
+  try {
+    fs.writeFileSync(tmp, `${JSON.stringify(value, null, 2)}\n`, { flag: 'wx' });
+    fs.renameSync(tmp, file);
+  } catch (e) {
+    fs.rmSync(tmp, { force: true });
+    throw e;
+  }
 }
 
 fs.mkdirSync(dir, { recursive: true });
@@ -56,9 +70,16 @@ if (!fs.existsSync(dest)) {
 let prev = {};
 try {
   const s = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
-  if (isObject(s.linux)) prev = s.linux;
-} catch {
-  // No sidecar: first run, nothing previously owned.
+  if (!isObject(s?.linux)) throw new Error('no .linux object');
+  prev = s.linux;
+} catch (e) {
+  // No sidecar is a first run. A bad one stops the merge: it decides what
+  // may be overwritten, and reading it as empty overwrites every key the UI
+  // has changed.
+  if (e.code !== 'ENOENT') {
+    console.error(`orca: ${sidecar}: ${e.message}; not merging -- delete it to start over`);
+    process.exit(0);
+  }
 }
 
 const platforms = isObject(doc.platforms) ? doc.platforms : {};
@@ -69,9 +90,13 @@ const theirs = new Set(Object.keys(prev).filter((id) => id in linux && !same(lin
 for (const id of Object.keys(prev)) {
   if (!theirs.has(id)) delete linux[id];
 }
+// What the UI had on each key about to be overwritten, for a withdrawal
+// below to put back. Stale keys are gone by now, so anything left is the UI's.
+const before = {};
 const written = {};
 for (const [id, bindings] of Object.entries(owned)) {
   if (theirs.has(id)) continue;
+  if (id in linux) before[id] = linux[id];
   linux[id] = bindings;
   written[id] = bindings;
 }
@@ -80,12 +105,12 @@ for (const [id, bindings] of Object.entries(owned)) {
 // section over it, with its string shorthand and null/false expanded.
 // Common is the root's action keys in the legacy shape with no .keybindings.
 const common = doc.keybindings === undefined ? doc : isObject(doc.keybindings) ? doc.keybindings : {};
+const expand = (v) =>
+  v === null || v === false ? [] : typeof v === 'string' ? [v]
+    : Array.isArray(v) && v.every((b) => typeof b === 'string') ? v : undefined;
 const effective = {};
 for (const [id, v] of Object.entries({ ...common, ...linux })) {
-  if (!kb.isKeybindingActionId(id)) continue;
-  if (v === null || v === false) effective[id] = [];
-  else if (typeof v === 'string') effective[id] = [v];
-  else if (Array.isArray(v) && v.every((b) => typeof b === 'string')) effective[id] = v;
+  if (kb.isKeybindingActionId(id) && expand(v) !== undefined) effective[id] = expand(v);
 }
 for (;;) {
   const withdrawn = kb
@@ -96,9 +121,15 @@ for (;;) {
   if (withdrawn.length === 0) break;
   for (const id of new Set(withdrawn)) {
     console.error(`orca: ${id} ${JSON.stringify(written[id])} clashes with a shortcut set in Orca; keeping that one`);
-    delete linux[id];
     delete written[id];
-    delete effective[id];
+    if (id in before) {
+      linux[id] = before[id];
+    } else {
+      delete linux[id];
+    }
+    const fallback = id in linux ? linux[id] : common[id];
+    if (kb.isKeybindingActionId(id) && expand(fallback) !== undefined) effective[id] = expand(fallback);
+    else delete effective[id];
   }
 }
 
@@ -110,8 +141,9 @@ doc.platforms = {
   win32: isObject(platforms.win32) ? platforms.win32 : {},
 };
 writeJson(dest, doc);
-// The UI's keys keep the value last written, so the next run still sees
-// them as changed rather than as never owned.
+// Every key this table claims, written or withdrawn, at its generated value;
+// the UI's keep the value last written. Either way a later UI value reads as
+// changed, the UI's, rather than as never owned and free to overwrite.
 writeJson(sidecar, {
-  linux: { ...Object.fromEntries([...theirs].map((id) => [id, prev[id]])), ...written },
+  linux: { ...Object.fromEntries([...theirs].map((id) => [id, prev[id]])), ...owned, ...written },
 });

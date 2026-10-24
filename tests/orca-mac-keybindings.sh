@@ -99,10 +99,10 @@ got=$(jq -c '[.platforms.linux["tab.close"], .platforms.linux["editor.find"], .k
 # 6. A file Orca cannot parse is left alone; activation does not fail on it.
 H="$T/broken"; mkdir -p "$H/.orca"; printf '{not json' > "$H/.orca/keybindings.json"
 if HOME=$H "$MERGE" >/dev/null 2>&1 && [ "$(cat "$H/.orca/keybindings.json")" = '{not json' ] \
-   && [ ! -e "$H/.orca/keybindings.json.new" ]; then
+   && [ -z "$(ls "$H/.orca" | grep -v "^keybindings.json$")" ]; then
   pass "unparseable file untouched, exit 0"
 else
-  fail "broken" "file changed, .new left behind, or non-zero exit"
+  fail "broken" "file changed, a temp file left behind, or non-zero exit"
 fi
 
 # 7. A key an earlier generation wrote, and this one no longer emits (Hyprland
@@ -115,7 +115,9 @@ cat > "$H/.orca/keybindings.json" <<'EOF'
 EOF
 echo '{"linux":{"editor.find":["Cmd+F"],"worktree.quickOpen":["Cmd+P"],"tab.close":["Cmd+W"]}}' \
   > "$H/.orca/keybindings.nix-owned.json"
-HOME=$H "$MERGE" >/dev/null 2>&1
+# Twice: the second run reads the sidecar the first wrote, which must still
+# know the UI's keys as changed rather than as never owned.
+HOME=$H "$MERGE" >/dev/null 2>&1; HOME=$H "$MERGE" >/dev/null 2>&1
 got=$(jq -c '[.platforms.linux["editor.find"], .platforms.linux["worktree.quickOpen"], .platforms.linux["tab.close"]]' "$H/.orca/keybindings.json")
 [ "$got" = '[null,["Alt+P"],["Ctrl+Q"]]' ] && pass "stale generated key dropped, UI-changed ones kept" \
   || fail "stale" "got $got"
@@ -134,6 +136,31 @@ else
   fail "clash" "got $got, stderr '$err'"
 fi
 
+# 8b. A withdrawn key puts back whatever the UI had there, and keeps it on
+#     the next switch, instead of deleting it.
+H="$T/clash-restore"; mkdir -p "$H/.orca"
+cat > "$H/.orca/keybindings.json" <<'EOF'
+{"version":1,"keybindings":{},"platforms":{"darwin":{},"linux":{"tab.newBrowser":["Cmd+T"],"tab.newTerminal":["Alt+N"]},"win32":{}}}
+EOF
+HOME=$H "$MERGE" >/dev/null 2>&1; HOME=$H "$MERGE" >/dev/null 2>&1
+got=$(jq -c '[.platforms.linux["tab.newBrowser"], .platforms.linux["tab.newTerminal"]]' "$H/.orca/keybindings.json")
+[ "$got" = '[["Cmd+T"],["Alt+N"]]' ] && pass "withdrawn key restores the UI's value, across switches" \
+  || fail "clash-restore" "got $got"
+
+# 8c. A shortcut set in the UI on an action withdrawn by an earlier switch is
+#     the UI's, not a free slot.
+H="$T/clash-later"; mkdir -p "$H/.orca"
+cat > "$H/.orca/keybindings.json" <<'EOF'
+{"version":1,"keybindings":{},"platforms":{"darwin":{},"linux":{"tab.newBrowser":["Cmd+T"]},"win32":{}}}
+EOF
+HOME=$H "$MERGE" >/dev/null 2>&1
+jq '.platforms.linux["tab.newTerminal"] = ["Cmd+Shift+Y"]' "$H/.orca/keybindings.json" > "$T/k" \
+  && mv "$T/k" "$H/.orca/keybindings.json"
+HOME=$H "$MERGE" >/dev/null 2>&1
+got=$(jq -c '.platforms.linux["tab.newTerminal"]' "$H/.orca/keybindings.json")
+[ "$got" = '["Cmd+Shift+Y"]' ] && pass "UI shortcut on a withdrawn action survives" \
+  || fail "clash-later" "got $got"
+
 # 9. An empty file is not JSON either: left alone, not "merged" into nothing.
 H="$T/empty"; mkdir -p "$H/.orca"; : > "$H/.orca/keybindings.json"
 if HOME=$H "$MERGE" >/dev/null 2>&1 && [ ! -s "$H/.orca/keybindings.json" ]; then
@@ -141,6 +168,26 @@ if HOME=$H "$MERGE" >/dev/null 2>&1 && [ ! -s "$H/.orca/keybindings.json" ]; the
 else
   fail "empty" "file rewritten or non-zero exit"
 fi
+
+# 10. An IO failure is one line and exit 0: activation runs under set -e, and
+#     a keybinding file is no reason to abandon the rest of the switch.
+H="$T/io"; mkdir -p "$H"; : > "$H/.orca"
+err=$(HOME=$H "$MERGE" 2>&1 >/dev/null); rc=$?
+if [ "$rc" -eq 0 ] && [[ $err == orca:* ]] && [ "$(printf '%s\n' "$err" | wc -l)" -eq 1 ]; then
+  pass "IO failure warns once, exit 0"
+else
+  fail "io" "exit $rc, stderr '$err'"
+fi
+
+# 11-12. The generator on fixture chords: a digit-index action's one binding
+#        stands for 1-9, and a bind form it cannot read fails the build.
+NODE=$(grep -oE '/nix/store/[^ "]+/bin/node' "$MERGE" | head -1)
+gen() { echo "$1" > "$T/chords.json"; "$NODE" "$FLAKE/nix/orca-mac-keybindings.js" "$PKG/lib/shared" "$T/chords.json" 2>/dev/null; }
+got=$(gen '[]' | jq -c '.["workspace.selectByIndex"]'),$(gen '["SUPER + 5"]' | jq -c '.["workspace.selectByIndex"]')
+[ "$got" = '["Cmd+1"],null' ] && pass "Super+5 taken drops the whole Cmd+1..9 family" \
+  || fail "digits" "free,taken got $got"
+if gen '["MOD4 + T"]' >/dev/null; then fail "unknown-bind" "MOD4 + T passed as a free chord"
+else pass "untranslatable Hyprland bind fails the generator"; fi
 
 printf '\n%d/%d passed\n' "$((n-fails))" "$n"
 [ "$fails" -eq 0 ]

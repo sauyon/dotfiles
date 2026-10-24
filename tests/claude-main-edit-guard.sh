@@ -106,10 +106,29 @@ reason=$(printf '{"tool_input":{"file_path":"%s"}}' "$R/f" \
   | jq -r '.hookSpecificOutput.permissionDecisionReason')
 says() { case "$reason" in *"$1"*) echo yes ;; *) echo no ;; esac; }
 check "refusal names an Orca worktree of this repo" yes "$(says "orca worktree create --repo path:$R ")"
+# The repo root, not the directory the hook walked up to from a new file.
+reason=$(printf '{"tool_input":{"file_path":"%s"}}' "$R/new/dir/g" \
+  | env -u CLAUDE_ALLOW_MAIN_EDIT bash "$T/hook.sh" \
+  | jq -r '.hookSpecificOutput.permissionDecisionReason')
+check "refusal for a new nested file still names the repo root" yes "$(says "--repo path:$R ")"
 check "refusal falls back to EnterWorktree's own worktree" yes "$(says 'EnterWorktree with a name')"
 check "refusal suggests no in-repo git worktree" no "$(says 'git worktree add')"
 check "refusal no longer names drovr new" no "$(says 'drovr new')"
 check "refusal no longer names .drovr/wt" no "$(says '.drovr/wt')"
+
+# drovr's own worktrees stay on wherever Orca is not installed to replace them
+# (orca.nix: GUI Linux only). Every host in the flake, not just this one.
+for h in $(nix eval --json "$REPO#homeConfigurations" --apply builtins.attrNames | jq -r '.[]'); do
+  want=$(nix eval --raw "$REPO#homeConfigurations.$h.config.home.packages" \
+    --apply 'ps: if builtins.any (p: builtins.match "orca-[0-9.]+" (p.name or "") != null) ps then "false" else "true"')
+  got=$(nix eval --raw "$REPO#homeConfigurations.$h.config.xdg.configFile.\"drovr/config.toml\".text" \
+    | sed -n 's/^worktree = //p')
+  check "$h: drovr worktree = $want (Orca installed: $([ "$want" = false ] && echo yes || echo no))" "$want" "$got"
+  # ...and auto mode lets an agent cd into the .drovr/wt it makes exactly there.
+  cdrule=$(nix eval --json "$REPO#homeConfigurations.$h.config.programs.claude-code.settings.autoMode.allow" \
+    | jq -r 'any(.[]; test("into a drovr worktree"))')
+  check "$h: auto mode allows cd into .drovr/wt iff drovr makes them" "$want" "$cdrule"
+done
 
 git -C "$R" worktree add -q "$T/wt" topic
 check "linked worktree: edit allowed" allow "$(verdict "$T/wt/f")"

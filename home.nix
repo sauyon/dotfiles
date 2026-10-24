@@ -2132,7 +2132,10 @@ attr=$attr
         # are exact-or-`:*`-prefix, so the only rule that would match is
         # `Bash(cd:*)`, which allows every cd anywhere.
         "Changing directory into an Orca worktree is ALLOWED: a `cd` whose target path is under `${config.home.homeDirectory}/orca/workspaces/`, with no `..` segment (for example `cd ${config.home.homeDirectory}/orca/workspaces/dotfiles/some-task`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only."
-      ];
+      ] ++ lib.optional (isDarwin || !isDesktop)
+        # No Orca here, so drovr still isolates runs in <repo>/.drovr/wt/<run>
+        # (see the drovr config below); same reasoning, inside the repo itself.
+        "Changing directory into a drovr worktree is ALLOWED: a `cd` whose target path contains `/.drovr/wt/`, with no `..` segment (for example `cd ${config.home.homeDirectory}/devel/dotfiles/.drovr/wt/some-run`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only.";
       environment = claudeAutoModeEnvShared ++ private.claudeAutoModeEnvByHost;
     };
     # Declare marketplaces here instead of shelling out to `claude plugin
@@ -2802,19 +2805,22 @@ in
   # reached over `ssh -L 8791:localhost:8791`. For a device that can run neither
   # that nor Tailscale, the answer is drovr's `serve_public_host` behind a proxy
   # that authenticates -- never a wider bind and another allowlist.
-  # worktree = false: isolation is Orca's job now. A run edits the checkout it
-  # was launched from, and that checkout is an Orca worktree
-  # (~/orca/workspaces/<repo>/<task>, its own branch), so a run in flight still
-  # leaves the primary checkout free -- the reason `worktree = true` existed: an
-  # agent editing main while the tree moved under it read stale files and
-  # reported a test count from a tree that no longer existed. A second
-  # .drovr/wt/<run> inside an Orca worktree is a worktree Orca cannot see.
-  # So launch runs from an Orca worktree. Launched from the primary checkout
-  # instead, nothing isolates a run: the main-edit guard above stops only
-  # Claude's Edit/Write/NotebookEdit tools -- not Bash writes, not other agents -- and an
-  # agent it refuses is told to relaunch the run from a worktree, because
-  # moving the agent leaves the run's recorded project dir (and `drovr path`,
-  # and the review diffs) behind on the primary checkout.
+  # worktree: per host. Where Orca is installed (GUI Linux, orca.nix) it is
+  # false and isolation is Orca's job: a run edits the checkout it was launched
+  # from, and that checkout is an Orca worktree (~/orca/workspaces/<repo>/<task>,
+  # its own branch), so a run in flight still leaves the primary checkout free.
+  # That is the reason `worktree = true` existed: an agent editing main while
+  # the tree moved under it read stale files and reported a test count from a
+  # tree that no longer existed. A nested .drovr/wt/<run> inside an Orca
+  # worktree is one Orca cannot see. One run per Orca worktree: two runs
+  # launched from the same one share its tree.
+  # Launched from the primary checkout instead, nothing isolates a run there:
+  # the main-edit guard above stops only Claude's Edit/Write/NotebookEdit tools
+  # -- not Bash writes, not other agents -- and an agent it refuses is told to
+  # relaunch the run from a worktree, because moving the agent leaves the run's
+  # recorded project dir (and `drovr path`) on the primary checkout.
+  # On darwin and headless hosts there is no Orca, so drovr keeps its own
+  # .drovr/wt/<run> worktrees, `--no-worktree` per run.
   # force: drovr rewrites this path itself — it replaces the symlink with a real
   # file and reserializes only the keys it knows, which is how a key went
   # missing on 2026-09-01 and how switch started aborting at checkLinkTargets.
@@ -2829,7 +2835,7 @@ in
       # writes it per review pass — see cli/src/pi_extension.rs upstream.
       #
       review_agent = "pi"
-      worktree = false
+      worktree = ${lib.boolToString (isDarwin || !isDesktop)}
     '' + lib.optionalString (hostname == "fujiwara") ''
       # The LAN address, not the tailnet one and not 0.0.0.0. This server has no
       # auth, so it is reachable unauthenticated from the whole LAN and from

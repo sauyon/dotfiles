@@ -454,59 +454,87 @@ fi
 # though: a run that also says `error: builder ... failed` is a real failure,
 # and re-dispatching it would just burn another build.
 #
-# A stub forge whose run for our sha fails with <log-line> until <n-fail>
-# dispatches have been made, then goes green. Each dispatch creates the next run
-# number, so a test can tell the retry's run from the one that failed.
-mkcurl_flaky() { # mkcurl_flaky <n-fail> <log-line>
-  echo 42 > "$D/run-number"; : > "$D/dispatches"
+# A stub forge whose run for our sha fails, serving <log-file> as its log,
+# until <n-fail> dispatches have been made, then goes green. The real shape of
+# a dispatch, not a convenient one: the run it asks for does not exist for the
+# next two task listings, and all the while the forge keeps listing the run
+# that failed, first. That is what makes hms tell the retry's run from the
+# failed one by number, and wait for it rather than give up.
+mkcurl_flaky() { # mkcurl_flaky <n-fail> <log-file>
+  echo 42 > "$D/run-number"; : > "$D/dispatches"; rm -f "$D/pending"
+  cp "$2" "$D/log"
   cat > "$D/curl" <<STUB
 #!/usr/bin/env bash
 url=""
 for a in "\$@"; do case "\$a" in https://*) url="\$a" ;; esac; done
-run=\$(cat "$D/run-number"); d=\$(wc -l < "$D/dispatches")
+listing() { # listing <run> <status>
+  printf '{"workflow_runs":[{"head_sha":"%s","workflow_id":"nix-home.yml","run_number":%s,"status":"%s"},{"head_sha":"%s","workflow_id":"nix-home.yml","run_number":41,"status":"failure"}]}\n200\n' \\
+    "\$(cat "$D/sha")" "\$1" "\$2" "\$(cat "$D/sha")"
+}
 case "\$url" in
   *actions/workflows/nix-home.yml/dispatches)
-    echo call >> "$D/dispatches"; echo \$((run + 1)) > "$D/run-number"
+    echo call >> "$D/dispatches"; echo 2 > "$D/pending"
     printf '\n204\n' ;;
   *actions/tasks*)
-    if [ "\$d" -ge $1 ]; then st=success; else st=failure; fi
-    printf '{"workflow_runs":[{"head_sha":"%s","workflow_id":"nix-home.yml","run_number":%s,"status":"%s"},{"head_sha":"%s","workflow_id":"nix-home.yml","run_number":41,"status":"failure"}]}\n200\n' \\
-      "\$(cat "$D/sha")" "\$run" "\$st" "\$(cat "$D/sha")" ;;
+    if [ -f "$D/pending" ]; then
+      p=\$(cat "$D/pending")
+      if [ "\$p" -gt 0 ]; then
+        echo \$((p - 1)) > "$D/pending"
+        listing "\$(cat "$D/run-number")" failure; exit 0
+      fi
+      rm "$D/pending"; echo \$((\$(cat "$D/run-number") + 1)) > "$D/run-number"
+    fi
+    if [ "\$(wc -l < "$D/dispatches")" -ge $1 ]; then st=success; else st=failure; fi
+    listing "\$(cat "$D/run-number")" "\$st" ;;
   *jobs/0*)     printf 'job_id 7 not found\n200\n' ;;
-  *jobs/*logs*) printf 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxx%s\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxx🏁  Job failed\n200\n' '$2' ;;
+  *jobs/*logs*) cat "$D/log"; printf '200\n' ;;
   *)            printf '{}\n200\n' ;;
 esac
 STUB
   chmod +x "$D/curl"
 }
 
-setup_repo; mktoken good; mkcurl_flaky 1 'error: RPC failed; HTTP 503 curl 22 The requested URL returned error: 503'; mkswitch
+# Run 252's real log, and that log with one more line in it -- the line a
+# real failure would add. Timestamps are the 29-char prefix hms strips.
+FIX="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/fixtures/hms-run252-git-503.log"
+with_line() { # with_line <text> -> path of the run 252 log plus that line
+  { cat "$FIX"; printf '2026-10-24T04:47:29.0000000Z %s\n' "$1"; } > "$D/log-$n"
+  echo "$D/log-$n"
+}
+ndisp() { wc -l < "$D/dispatches"; }
+sw() { [ -f "$D/switched" ] && echo y || echo n; }
+
+setup_repo; mktoken good; mkcurl_flaky 1 "$FIX"; mkswitch
 out=$(run); rc=$?
-if [ -f "$D/switched" ] && [ "$(wc -l < "$D/dispatches")" -eq 1 ] \
+if [ -f "$D/switched" ] && [ "$(ndisp)" -eq 1 ] \
+   && printf '%s' "$out" | grep -q 'no run for the retry yet' \
    && printf '%s' "$out" | grep -q 'run 43 green'; then
-  report "a transient CI failure is re-dispatched and the retry switches" ok
+  report "a transient CI failure is re-dispatched, waited for, and the retry switches" ok
 else
-  report "a transient CI failure is re-dispatched and the retry switches" no \
-    "dispatches=$(wc -l < "$D/dispatches") switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+  report "a transient CI failure is re-dispatched, waited for, and the retry switches" no \
+    "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
 fi
 
-setup_repo; mktoken good; mkcurl_flaky 1 'error: builder for /nix/store/x.drv failed with exit code 1'; mkswitch
-out=$(run); rc=$?
-if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(wc -l < "$D/dispatches")" -eq 0 ]; then
-  report "a real build failure is not re-dispatched" ok
-else
-  report "a real build failure is not re-dispatched" no \
-    "dispatches=$(wc -l < "$D/dispatches") switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
-fi
+for c in 'error: builder for /nix/store/x.drv failed with exit code 1' \
+         'Error: attic push: cache rejected the upload'; do
+  setup_repo; mktoken good; mkcurl_flaky 1 "$(with_line "$c")"; mkswitch
+  out=$(run); rc=$?
+  if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(ndisp)" -eq 0 ]; then
+    report "a 503 alongside '${c%%:*}: ...' is a real failure, not retried" ok
+  else
+    report "a 503 alongside '${c%%:*}: ...' is a real failure, not retried" no \
+      "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
+  fi
+done
 
 # Bounded: a forge that 503s every run is down, not flaky, and hms must stop.
-setup_repo; mktoken good; mkcurl_flaky 99 'error: RPC failed; HTTP 503 curl 22 The requested URL returned error: 503'; mkswitch
+setup_repo; mktoken good; mkcurl_flaky 99 "$FIX"; mkswitch
 out=$(run); rc=$?
-if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(wc -l < "$D/dispatches")" -eq 2 ]; then
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(ndisp)" -eq 2 ]; then
   report "transient retries stop after two dispatches" ok
 else
   report "transient retries stop after two dispatches" no \
-    "dispatches=$(wc -l < "$D/dispatches") switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+    "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
 fi
 
 printf '\n%d/%d passed\n' "$((n - fails))" "$n"

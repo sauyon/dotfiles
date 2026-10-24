@@ -1,0 +1,17 @@
+2026-10-24T04:47:18.4505902Z Runner 196f4137-ea67-4bd1-afee-0db26b91b5e5 (version:v13.0.0) received task 869 of job build-and-push, triggered by event: push
+2026-10-24T04:47:18.4527886Z workflow prepared
+2026-10-24T04:47:18.4583529Z 🚀  Start image=nixos/nix@sha256:1a711b619c8a713eff32c3f8d8781b3b4d0130cb91c0a57f67e87abfeeb90b01
+2026-10-24T04:47:18.4635865Z Cleaning up network for job build-and-push, and network name is: WORKFLOW-8115a7d2e6255593e4f518839aa7db29
+2026-10-24T04:47:18.4843076Z   🐳  docker create image=nixos/nix@sha256:1a711b619c8a713eff32c3f8d8781b3b4d0130cb91c0a57f67e87abfeeb90b01 platform=linux/amd64 entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="WORKFLOW-8115a7d2e6255593e4f518839aa7db29"
+2026-10-24T04:47:18.5307697Z   🐳  docker run image=nixos/nix@sha256:1a711b619c8a713eff32c3f8d8781b3b4d0130cb91c0a57f67e87abfeeb90b01 platform=linux/amd64 entrypoint=["tail" "-f" "/dev/null"] cmd=[] network="WORKFLOW-8115a7d2e6255593e4f518839aa7db29"
+2026-10-24T04:47:18.6928243Z ⭐ Run Main preflight — job container must be privileged
+2026-10-24T04:47:18.6964800Z   🐳  docker exec cmd=[sh /var/run/act/7f1af73eff6ef635.sh] user= workdir=
+2026-10-24T04:47:18.7103157Z   🐳  docker exec cmd=[bash --noprofile --norc -e -o pipefail /var/run/act/workflow/0.sh] user= workdir=
+2026-10-24T04:47:18.7213426Z CapEff=000001ffffffffff
+2026-10-24T04:47:18.7405956Z privileged OK; sandbox=true
+2026-10-24T04:47:18.9258216Z Cloning into '.'...
+2026-10-24T04:47:28.9086739Z error: RPC failed; HTTP 503 curl 22 The requested URL returned error: 503
+2026-10-24T04:47:28.9087300Z fatal: expected 'packfile'
+2026-10-24T04:47:28.9239335Z ⚙️ [runner]: exitcode '128': failure
+2026-10-24T04:47:28.9243405Z 🏁  Job failed
+2026-10-24T04:47:29.2442713Z Job 'build-and-push' failed

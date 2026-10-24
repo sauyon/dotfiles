@@ -1047,6 +1047,11 @@ let
     # before concluding none is coming. Separate from wait_seconds, which bounds
     # a run that exists and is still going.
     first_run_seconds="''${HMS_FIRST_RUN_SECONDS:-90}"
+    # How many times a run that failed on infrastructure is re-dispatched
+    # before hms hands the failure back. Each retry can wait the full
+    # first_run_seconds + wait_seconds again, so the worst case is that many
+    # hours, not one; the normal case is still one build.
+    retries="''${HMS_RETRIES:-2}"
 
     local_only=0
     hm_args=()
@@ -1248,7 +1253,7 @@ let
     # The rest is a loop only so a transient CI failure can go round again: see
     # the dispatch at the bottom. min_run hides the run that already failed,
     # which the task list keeps showing first until the retry's run is created.
-    min_run=0; retries_left="''${HMS_RETRIES:-2}"; retrying=""
+    min_run=0; retries_left="$retries"; retrying=""
     while :; do
     echo -n "hms: waiting for a run on ''${sha:0:7}"
     run=""; last_ok=""; why=""; busy=""; seen_busy=""; said_busy=""
@@ -1325,7 +1330,13 @@ let
           fi
           if [ "$SECONDS" -ge "$hard_stop" ]; then
             echo
-            echo "hms: still no run for ''${sha:0:7} after ''${wait_seconds}s of a busy group." >&2
+            if [ -n "$retrying" ]; then
+              # Most likely origin/master moved between the guard and the
+              # dispatch, and the retry is building someone else's commit.
+              echo "hms: the retry dispatched for ''${sha:0:7} never produced a run." >&2
+            else
+              echo "hms: still no run for ''${sha:0:7} after ''${wait_seconds}s of a busy group." >&2
+            fi
             echo "hms: check $forge/$slug/actions, or 'hms --local' to build here." >&2
             exit 1
           fi
@@ -1404,17 +1415,22 @@ let
       # Retry a run that failed on the plumbing rather than the build: run 252
       # (2026-10-24) died on `error: RPC failed; HTTP 503`, the forge 503ing
       # the runner's git fetch, and the cure was a workflow_dispatch and a
-      # second wait. Only when *every* error line is that shape -- one
-      # `builder ... failed` among them is a real failure, and a re-run would
-      # just rebuild it. Forgejo has no re-run API (see nix-home.yml), and a
-      # dispatch builds the branch tip, so it is only a retry of *this* commit
-      # while origin/master still is this commit.
-      errlines=$(printf '%s\n' "$errs" | cut -c30- | ${lib.getExe pkgs.gnugrep} -a 'error:' || true)
+      # second wait (tests/fixtures/hms-run252-git-503.log is that log). Only
+      # when *every* line of the whole log that says "error", in any case, is
+      # that shape -- one `builder ... failed` or attic `Error:` among them is
+      # a real failure, and a re-run would just rebuild it. A step that fails
+      # without the word "error" after a 503 that recovered would still be
+      # retried; that costs a build, not a wrong switch. Forgejo has no re-run
+      # API (see nix-home.yml), and a dispatch builds the branch tip, so it is
+      # only a retry of *this* commit while origin/master still is it.
+      errlines=$(cut -c30- "$log" | ${lib.getExe pkgs.gnugrep} -ai 'error' || true)
       if [ -n "$errlines" ] && [ "$retries_left" -gt 0 ] \
          && ! printf '%s\n' "$errlines" | ${lib.getExe pkgs.gnugrep} -qavE \
               'RPC failed; HTTP 5[0-9]{2}|returned error: 5[0-9]{2}|Could not resolve host|Failed to connect|Connection (timed out|reset)|early EOF'; then
         tip=$(git -C "$repo" ls-remote origin refs/heads/master | cut -f1 || true)
-        if [ "$tip" != "$sha" ]; then
+        if [ -z "$tip" ]; then
+          echo "hms: transient failure, but could not read origin/master to retry it." >&2
+        elif [ "$tip" != "$sha" ]; then
           echo "hms: transient failure, but origin/master moved on — not retrying a different commit." >&2
         elif api "/api/v1/repos/$slug/actions/workflows/nix-home.yml/dispatches" \
                -X POST -H 'Content-Type: application/json' -d '{"ref":"master"}' >/dev/null; then

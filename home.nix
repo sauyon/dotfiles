@@ -1189,17 +1189,31 @@ let
     # the last good curlrc in place, so one hiccup cannot throw away a wait that
     # is already minutes deep. The request then fails on its own merits and the
     # 401 branch of api_why says so.
+    # A 401/403 gets exactly one re-mint and retry, which is the helper's
+    # chance to refresh a grant that expired between two requests. One that
+    # survives that is a dead login, and the poll loops stop on it
+    # (die_if_rejected) rather than wait at it.
     api() {
       local p="$1"; shift
-      local out code
-      write_curlrc || true
-      if ! out=$($curl -K "$tmp/curlrc" -w '\n%{http_code}' "$forge$p" "$@"); then
-        echo 0 > "$tmp/code"; return 1
-      fi
-      code=''${out##*$'\n'}
+      local out code try
+      for try in 1 2; do
+        write_curlrc || true
+        if ! out=$($curl -K "$tmp/curlrc" -w '\n%{http_code}' "$forge$p" "$@"); then
+          echo 0 > "$tmp/code"; return 1
+        fi
+        code=''${out##*$'\n'}
+        case "$code" in 401|403) ;; *) break ;; esac
+      done
       echo "$code" > "$tmp/code"
       printf '%s' "''${out%$'\n'*}"
       [ "$code" -lt 400 ]
+    }
+
+    # api runs in $(...), so it cannot exit hms itself; callers check this.
+    die_if_rejected() {
+      case "$(cat "$tmp/code" 2>/dev/null)" in
+        401|403) echo; echo "hms: $(api_why)" >&2; exit 1 ;;
+      esac
     }
 
     # Why the request failed, in the terms that decide what you do about it.
@@ -1261,6 +1275,7 @@ let
         # record of that lives in a branch the loop has not reached yet.
         [ -z "$busy" ] || seen_busy="$busy"
       else
+        die_if_rejected
         last_ok=""; why=$(api_why); busy=""
       fi
       [ -z "$run" ] || break
@@ -1330,6 +1345,7 @@ let
       else
         # Say it once per outage rather than every 15s, and once on recovery: an
         # hour of silence is indistinguishable from an hour of patient waiting.
+        die_if_rejected
         [ -n "$degraded" ] || { echo "hms: $(api_why); still waiting" >&2; degraded=1; }
       fi
       case "$status" in

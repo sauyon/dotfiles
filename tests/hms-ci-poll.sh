@@ -393,5 +393,58 @@ else
     "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
 fi
 
+# --- a rejected token stops hms; it is not a blip --------------------------
+# Every request re-mints the header through the credential helper, so a 401 or
+# 403 that comes back anyway is a login that cannot be refreshed: no amount of
+# waiting fixes it, only `fj auth login` does. Before this, the discovery loop
+# read a 401 as "request failed — switching locally" and built the closure on
+# the laptop, and the status poll printed "still waiting" at the dead token for
+# the rest of the hour (2026-10-23, run 248, which had in fact gone red).
+#
+# A stub forge that answers its first <n-ok> task listings with our run in
+# progress, then 401s everything -- a token revoked mid-wait.
+mkcurl_revoked() { # mkcurl_revoked <n-ok>
+  : > "$D/task-calls"
+  cat > "$D/curl" <<STUB
+#!/usr/bin/env bash
+url=""
+for a in "\$@"; do case "\$a" in https://*) url="\$a" ;; esac; done
+case "\$url" in
+  *actions/tasks*)
+    echo call >> "$D/task-calls"
+    if [ "\$(wc -l < "$D/task-calls")" -le $1 ]; then
+      printf '{"workflow_runs":[{"head_sha":"%s","workflow_id":"nix-home.yml","run_number":42,"status":"running"}]}\n200\n' \\
+        "\$(cat "$D/sha")"
+      exit 0
+    fi ;;
+esac
+printf 'unauthorized\n401\n'
+STUB
+  chmod +x "$D/curl"
+}
+
+setup_repo; mktoken good; mkcurl_revoked 0; mkswitch
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] \
+   && printf '%s' "$out" | grep -q 'rejected our token' \
+   && ! printf '%s' "$out" | grep -q 'switching locally'; then
+  report "a 401 while looking for the run exits, not switches locally" ok
+else
+  report "a 401 while looking for the run exits, not switches locally" no \
+    "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+fi
+
+setup_repo; mktoken good; mkcurl_revoked 1; mkswitch
+start=$SECONDS; out=$(run); rc=$?; took=$((SECONDS - start))
+# HMS_WAIT_SECONDS is 20: an hms that keeps polling a dead token runs it out.
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$took" -lt 10 ] \
+   && printf '%s' "$out" | grep -q 'rejected our token' \
+   && ! printf '%s' "$out" | grep -q 'still waiting'; then
+  report "a 401 mid-poll exits at once, not waits out the deadline" ok
+else
+  report "a 401 mid-poll exits at once, not waits out the deadline" no \
+    "took=${took}s switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc out=[$out]"
+fi
+
 printf '\n%d/%d passed\n' "$((n - fails))" "$n"
 [ "$fails" -eq 0 ]

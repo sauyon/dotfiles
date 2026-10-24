@@ -42,11 +42,14 @@ let
     # buildFHSEnv, whose buildCommand short-circuits genericBuild's phase
     # list, so postFixup never runs. The bin/orca symlink from buildCommand
     # is replaced with a wrapper that prepends the flag and passes "$@"
-    # through — makeShellWrapper, not makeWrapper, because the target is a
-    # store path and must not be copied.
+    # through. buildFHSEnv's builder has no makeWrapper on PATH, so its setup
+    # hook is sourced by hand; and the wrapper must not target its own path
+    # (renaming to orca-ide and wrapping orca-ide in place makes it exec
+    # itself), so the bwrap launcher moves aside to .orca-ide-unwrapped.
     extraInstallCommands = ''
-      mv $out/bin/orca $out/bin/orca-ide
-      makeShellWrapper ${placeholder "out"}/bin/orca-ide $out/bin/orca-ide \
+      source ${pkgs.makeWrapper}/nix-support/setup-hook
+      mv $out/bin/orca $out/bin/.orca-ide-unwrapped
+      makeShellWrapper $out/bin/.orca-ide-unwrapped $out/bin/orca-ide \
         --add-flags '--ozone-platform=wayland'
       install -Dm444 ${appimageContents}/orca-ide.desktop \
         $out/share/applications/orca-ide.desktop

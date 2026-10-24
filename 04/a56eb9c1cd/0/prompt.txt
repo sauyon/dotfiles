@@ -1,0 +1,108 @@
+<task-notification>
+<task-id>a518b432c09dcb6ff</task-id>
+<tool-use-id>toolu_01XmMzthD3zvT9Dxt1S7Gjqy</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/tasks/a518b432c09dcb6ff.output</output-file>
+<status>completed</status>
+<summary>Agent "Review r7: security+quality" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical findings and no Important security findings. There is one Important quality finding (GTK runtime environment), and the rest are nits. The work tree is clean and HEAD is `6111bfaf`. Both permitted tests pass on shiori: `tests/orca-gui-unsandboxed.sh` 34/34 and `tests/orca-cli-skills.sh` 25/25. I ran them from a bwrap-era Orca terminal (there is no `/etc/hostname` here), so the `systemd-run` probe path was the one used. They left nothing in `~/.cache/orca-gui-test.*`. I couldn't list units from inside the sandbox (no `systemctl`), but every `systemd-run` call passes `--collect`.
+
+The eval resolves to `/nix/store/p28p8i4lihsadl4cmhbyxv94gkbb8xdj-orca-1.4.238` (nixGL layer, wrapping `9f6dz874…-orca-1.4.238`) and `/nix/store/REDACTED.4.238`.
+
+## Critical
+None.
+
+## Important
+**I1. The GUI gets no GTK runtime environment, and nothing tests a file dialog.** `orca.nix:21-24, 54-84`
+- The comment says this is packaged "the way nixpkgs packages slack or vscode". Both of those also use `wrapGAppsHook3`, which sets `XDG_DATA_DIRS` (GSettings schemas), `GDK_PIXBUF_MODULE_FILE` and `GIO_EXTRA_MODULES`. This build sets only `FONTCONFIG_FILE`.
+- Under bwrap, the FHS env supplied compiled schemas and pixbuf loaders. Now nixpkgs' GTK3 depends on whatever the host has in `/usr/share/glib-2.0/schemas`.
+- **Failure scenario:** no portal FileChooser backend is running (xdg-desktop-portal-hyprland has none; it needs -gtk). Chromium then falls back to the GTK chooser. If the schema `org.gtk.Settings.FileChooser` is missing, GLib aborts and Orca crashes on Open Folder. Even when it doesn't crash, SVG icons can render broken because nixpkgs' gdk-pixbuf has no SVG loader.
+- I couldn't check the host's schemas from inside the sandbox.
+- No test would catch this; case 5 never opens a dialog.
+- **Fix:** either exercise the dialog in case 5, or reword the "like slack/vscode" comment and record the trade-off. `wrapGAppsHook3` would leak `XDG_DATA_DIRS` and the other variables to everything Orca spawns, which may be exactly why it was left out.
+
+## Nits
+1. **`tests/orca-gui-unsandboxed.sh:306` – the sandbox check can pass when it can't read the namespaces.** `[ "$(readlink …renderer ns)" != "$main" ] &amp;&amp; echo userns`: if either `readlink` fails it prints empty, which differs from the other value, so the result is "userns". A `--no-sandbox` renderer would be readable, so a real false pass is unlikely. Still, it should require both namespace IDs to be non-empty.
+2. **`tests/orca-gui-unsandboxed.sh:253, 361` – `PrivateTmp=yes` is assumed, never checked.** In user units it depends on user namespaces, and systemd's docs warn not to rely on it. If it were ever silently dropped, cases 5 and 6 would share the live `/tmp/.orca-daemon-&lt;uid&gt;` ledger and `/tmp/.X11-unix`. It works on shiori today, since the renderer-namespace case passes. A one-line check would close it, for example comparing `/proc/$pid/ns/mnt` with the host's.
+3. **Node-mode probes (`orca-gui-unsandboxed.sh:91`, `orca-cli-skills.sh:110`) keep the real HOME and `/tmp`.** If node mode were lost, the regression would be a GUI launch against `~/.config/orca`. I checked app.asar for this version: Orca's display gate (`dPn()`, which exits 1) runs before `requestSingleInstanceLock`. So a no-display launch cannot reach the live instance's singleton socket. This is fail-closed today, but only because of Orca's internal ordering; a throwaway `HOME` would remove the dependency.
+4. **No test asserts the nixGL layer exists.** `orca-cli-skills.sh:80` falls back to "# no nixGL layer", and case 5 renders with pixman. Dropping `config.lib.nixGL.wrap` would pass every test, even though keeping nixGL is part of the intent.
+5. **`orca.nix:133` claims signals that aren't tested.** The comment says "TERM, INT, HUP", but case 6 tests only SIGTERM.
+6. **`tests/orca-gui-unsandboxed.sh:175` – the pass label overstates the check.** It says "keeps all N glyphs", but the check is only that none of them go to the gap font; a third font winning would still count as kept. "none move to the gap font" would be accurate.
+7. **`tests/orca-gui-unsandboxed.sh:103-104` – `APP` depends on `nix-store -qR` listing the inner store path first.** The outer nixGL path also has `lib/orca/resources/app.asar`, as symlinks. If the order flipped, cases 4 and 6 would fail rather than falsely pass. Picking the realpath of `lib/orca/orca-ide` would make it robust.
+8. **Minor inconsistencies:**
+   - `orca.nix:93-94` has a ragged line break ("…the GUI is `orca-ide-app`," then a short line).
+   - Case 5 passes `TZ` through (`:255`) and case 6 doesn't (`:362`).
+   - `${TZ+TZ="$TZ"}` and `${exec_args[*]}` (`:245`) are unquoted. Both are harmless with today's values.
+9. **Fontconfig version skew.** `fontsConf` now makes nixpkgs' fontconfig (in Electron and nix-built children) parse Arch's `/etc/fonts/fonts.conf` and conf.d. A newer conf.d syntax on Arch could produce warnings or ignored rules. Case 3's comparisons with the host would catch any change in how fonts resolve.
+
+## Checked and fine
+- **Sandbox paths are fail-closed:**
+  - Upstream's `electron-sandbox-switch.js` adds `--no-sandbox` only if `AppRun` sits next to the executable or `ORCA_ELECTRON_NO_SANDBOX=1` is set. `AppRun` is removed and the install check asserts that.
+  - The desktop Exec line is exactly `orca-ide-app %U`, checked in the built `.desktop`. A future upstream Exec line containing `--no-sandbox` would fail the build.
+  - Without unprivileged user namespaces, the non-setuid `chrome-sandbox` makes Chromium abort rather than run unsandboxed.
+  - Case 5 shows renderers with their own user namespace plus seccomp, and would fail if the sandbox regressed.
+- **The install check** runs after fixup. It is fail-closed: `pipefail` is on, and an empty manifest makes `sha256sum -c` fail. The ripgrep mapping from `${p#targets/*/}` to `resources/ripgrep` is correct.
+- **The wrapper as built:** a plain `exec`, and the `--ozone-platform` logic matches the comment. The argv cases in orca-cli-skills cover it on the real generated script.
+- **Isolation of cases 5 and 6:** `env -i` with an allowlist, a throwaway `HOME`, a private runtime dir, a private D-Bus, and no route to the live `systemctl --user`, since `XDG_RUNTIME_DIR` is private.
+- **Stale references:** none left in tracked files. `sandbox-fonts`, `.orca-ide-unwrapped`, `extraBwrapArgs` and `wrapType2` remain only in historical comments and the gitignored `.drovr/`. The README line is accurate. home.nix's "~140 glyphs" matches the measured 143. The `claude-main-edit-guard.sh` check `pname == "orca"` still holds.
+
+**Would the tests catch regressions?** Yes for AppRun, the Exec line and the pinned trees (the build fails), and for the Chromium sandbox, the host view and fonts, the exec chain and serve orphaning (the tests fail). Not for nixGL removal (nit 4) or GTK dialogs (I1).</result>
+<usage><subagent_tokens>112527</subagent_tokens><tool_uses>32</tool_uses><duration_ms>393174</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a6d0c04ee659b39a7</task-id>
+<tool-use-id>toolu_01G6BDgZ2Zm85xLAbFD8zhzA</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/tasks/a6d0c04ee659b39a7.output</output-file>
+<status>completed</status>
+<summary>Agent "Review r7: correctness+errors" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>No Critical or Important findings. I found five nits, none of which breaks anything today.
+
+**State checked:**
+- HEAD is `6111bfaf` and `git status` is clean.
+- The eval you gave builds `/nix/store/p28p8i4l…-orca-1.4.238` (the nixGL-wrapped GUI, the same build the test picks up) and `/nix/store/sb58gdyb…-orca-cli-1.4.238`.
+- I ran the review from a bwrap-era Orca terminal (no `/etc/hostname`), so the test used its `systemd-run` route to reach the host.
+- `tests/orca-gui-unsandboxed.sh`: 34/34 passed in 42s. `tests/orca-cli-skills.sh`: 25/25 passed.
+
+**Cleanup after the runs:**
+- `systemctl --user list-units --failed` is empty, the same as before the runs.
+- No `orca-gui-test*` units are left. The only `run-*.scope` units are the ones that were already there (the live orca-ide and zen).
+- No `~/.cache/orca-gui-test.*` directory is left.
+- Units that exit non-zero, like the trap's `systemctl stop` of units that are already gone, are removed because every unit is started with `--collect`.
+
+**Checked and found correct:**
+- **Build gate:** stdenv sets `-eo pipefail`, so a failing `jq` or an empty manifest fails the `sha256sum -c --strict` check. The check runs after fixup, so it would catch patchShebangs or shrink-rpath touching the pinned trees. The Exec line must match exactly, so an extra Exec line would also fail the build.
+- **Library paths:** the manual `autoPatchelf` and `--add-rpath` run in postFixup, after the fixup step that shrinks rpaths, so the dlopen paths survive.
+- **Pinned trees:** orcad slots use the template's own pinned `pty.node` and `watcher.node`, not the patched ones in `resources/node_modules`.
+- **Wrapper:** the generated script is correct under its `bash -e` shebang, and the empty-vs-unset rule matches Electron's own check for `ELECTRON_RUN_AS_NODE`.
+- **Case 6 and the live desktop:** the CLI starts its own Xvfb from `:99` and skips displays whose abstract socket shows in `/proc/net/unix`. Because the network namespace is shared, the test cannot attach to a live Xvfb.
+- **`set -u` / `pipefail`:** `${sr:+…}` and the empty-array expansions are safe. Pipelines ending in `head` sit inside `$()` with no `set -e`.
+- **Vacuous passes:** every probe needs a non-empty "want" value or a count above zero, so a broken probe fails rather than passes. Case 6 counts `before=0` as a failure.
+- **Coredump check:** `coredumpctl list` prints full EXE paths when piped, so the `grep -F "$APP"` match works.
+
+**Would the tests fail on a regression?**
+- Going back to bwrap fails cases 1 and 3 (hostname, timezone, fonts).
+- A wrapper that doesn't exec fails case 5's pid check and case 6's orphan check.
+- A missing dlopen dependency or broken RUNPATH fails case 4.
+- Losing node mode fails case 2 and the CLI test.
+- Patching or stripping a pinned tree fails the build.
+
+**Nits:**
+1. `orca.nix:51`, `orcaRuntimeDeps`: `libappindicator-gtk3` looks unused. I searched the `orca-ide` binary for every soname it might dlopen and found no appindicator one (libnotify, pulse, pipewire, va, secret, GL, EGL, udev and X11-xcb are there). The comment's "appindicator for … the tray" is probably wrong, and the package only adds closure size. No test would notice either way.
+2. `tests/orca-gui-unsandboxed.sh:83`: the trap's `rm -rf "$T"` has no `chmod -R u+w` first. If Orca ever copies read-only store trees into `$T/home` (an orcad slot install, for example), `rm` can't delete inside those directories. A `~/.cache/orca-gui-test.*` directory would then be left behind with no error, because the trap ignores the status. It didn't happen in this run.
+3. `tests/orca-gui-unsandboxed.sh:373-376`: the "no coredumps" check is weaker than it looks. Chromium makes its sandboxed renderers non-dumpable, and crashpad catches crashes if the crash reporter is on. So a renderer crash would mostly not show up; it really only covers the main and GPU processes.
+4. Coverage gaps:
+   - Case 6 sends only SIGTERM, although `orca.nix:131-136` says TERM, INT and HUP all work.
+   - The `--ozone-platform` argv test in `tests/orca-cli-skills.sh:86-100` never tries `ELECTRON_RUN_AS_NODE=` set but empty.
+   - With an `&lt;orca-path&gt;` argument, case 6 still uses the flake's current CLI (`tests/orca-gui-unsandboxed.sh:328-340`), which can be a different version from the GUI under test.
+5. Quoting in `tests/orca-gui-unsandboxed.sh`:
+   - Line 245 pastes `${exec_args[*]}` unquoted, and `$T` inside double quotes, into a single-quoted `sh -c` in `sway.conf`. A `'` in `$HOME` or a quoted desktop argument would break it. The build pins Exec to no arguments, so it's empty today.
+   - The same applies to the unquoted `$cli` at line 345.
+   - `${TZ+TZ="$TZ"}` at line 255 word-splits.
+
+One thing to know: if `hmeval` ever asks CI for this test, it can't pass there, because the CI container has no user systemd manager or display stack. That isn't a regression, since the deleted `tests/sandbox-fonts.sh` also needed the real launcher.</result>
+<usage><subagent_tokens>114198</subagent_tokens><tool_uses>36</tool_uses><duration_ms>566403</duration_ms></usage>
+</task-notification>

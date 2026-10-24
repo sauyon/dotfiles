@@ -1,0 +1,123 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "c389cae14c35",
+  "session_id": "9ba483e0-4eab-46f1-a189-99a5f9fcee3e",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-24T11:40:40.142324179Z",
+  "branch": "symbol-fonts",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "7cdec6f30196",
+  "checkpoint_transcript_start": 2506,
+  "transcript_lines_at_start": 2506,
+  "compact_transcript_start": 256,
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 8970,
+    "cache_read_tokens": 2805066,
+    "output_tokens": 4175,
+    "api_call_count": 6
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "claude-skill-toolu_01CcWQoKSp2h4jHnRqn4AD4j",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:tdd"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "06c6381ba102",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 35,
+        "end": 36,
+        "entry_ids": [
+          "01d9e16c-7b6d-434a-9328-16638f63e466"
+        ],
+        "tool_use_id": "toolu_01CcWQoKSp2h4jHnRqn4AD4j"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01CcWQoKSp2h4jHnRqn4AD4j"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:tdd",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_01TtD3Bm8KtpYuNMYLrqyvqc",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:code-review"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "06c6381ba102",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 436,
+        "end": 437,
+        "entry_ids": [
+          "6c14b420-e26f-4fb8-8952-5af18e73d9d9"
+        ],
+        "tool_use_id": "toolu_01TtD3Bm8KtpYuNMYLrqyvqc"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_01TtD3Bm8KtpYuNMYLrqyvqc"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:code-review",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "claude-skill-toolu_019vkEywwniE3d7qjJerTjig",
+      "event_type": "tool_invocation",
+      "skill": {
+        "name": "drovr:worktrees"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "skill_tool_use",
+        "confidence": "explicit"
+      },
+      "turn_id": "7cdec6f30196",
+      "transcript_anchor": {
+        "unit": "line",
+        "start": 2537,
+        "end": 2538,
+        "entry_ids": [
+          "f8bdf0eb-300e-421b-8b61-0384eb52d295"
+        ],
+        "tool_use_id": "toolu_019vkEywwniE3d7qjJerTjig"
+      },
+      "native": {
+        "tool_name": "Skill",
+        "tool_use_id": "toolu_019vkEywwniE3d7qjJerTjig"
+      },
+      "collapse": {
+        "target": "tool_pair",
+        "label": "Skill: drovr:worktrees",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 38
+  }
+}

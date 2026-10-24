@@ -58,7 +58,10 @@ fi
 ORCA=$(readlink -f "$ORCA")
 
 # The desktop file's Exec names the GUI bin, whatever it is called this week.
-exe=$(sed -n 's/^Exec=\([^ ]*\).*/\1/p' "$ORCA"/share/applications/orca-ide.desktop | head -1)
+# Its arguments, minus field codes (%U), are what case 5 launches with.
+read -ra exec_line < <(sed -n 's/^Exec=//p' "$ORCA"/share/applications/orca-ide.desktop | head -1)
+exe=${exec_line[0]:-}
+exec_args=(); for a in "${exec_line[@]:1}"; do case $a in %*) ;; *) exec_args+=("$a") ;; esac; done
 GUI="$ORCA/bin/$exe"
 [ -n "$exe" ] && [ -x "$GUI" ] || { echo "no GUI bin from $ORCA's desktop Exec ('$exe')" >&2; exit 1; }
 echo "testing $GUI"
@@ -66,6 +69,7 @@ echo "testing $GUI"
 # Under ~/.cache, not /tmp: the bwrap-era sandbox has its own /tmp, which the
 # host-side probes would not see.
 unit="orca-gui-test-$$"
+mkdir -p "$HOME/.cache"
 T=$(mktemp -d "$HOME/.cache/orca-gui-test.XXXXXX") || { echo "mktemp failed" >&2; exit 1; }
 trap 'host systemctl --user stop "$unit" 2>/dev/null; rm -rf "$T"' EXIT
 
@@ -85,13 +89,13 @@ APP=$(nix-store -qR "$ORCA" | while read -r p; do
 
 # 2. Node mode: the wrapper must not inject --ozone-platform, which node
 # rejects ("bad option", exit 9). orca's CLI probes the GUI this way.
-got=$(host env ELECTRON_RUN_AS_NODE=1 "$GUI" -p 1 2>&1)
+got=$(host timeout 120 env ELECTRON_RUN_AS_NODE=1 "$GUI" -p 1 2>&1)
 [ "$got" = 1 ] && pass "ELECTRON_RUN_AS_NODE=1 runs node" \
   || fail "node mode" "printed '$got', want 1"
 
 # 3. What a spawned process sees is the host: hostname, zone, fonts.
 node_run() { # node_run <shell command>: run it from a child of the GUI in node mode
-  host env ELECTRON_RUN_AS_NODE=1 "$GUI" -e \
+  host timeout 120 env ELECTRON_RUN_AS_NODE=1 "$GUI" -e \
     'process.stdout.write(require("child_process").execFileSync("/bin/sh", ["-c", process.argv[1]]))' \
     "$1" 2>&1
 }
@@ -114,7 +118,7 @@ for c in 'sans\-serif:Noto Sans' 'monospace:Noto Sans Mono'; do
 done
 
 # Orca's terminals: the patched node-pty, loaded by this Electron, opens a pty.
-got=$(host env ELECTRON_RUN_AS_NODE=1 "$GUI" -e '
+got=$(host timeout 120 env ELECTRON_RUN_AS_NODE=1 "$GUI" -e '
   const p = require(process.argv[1]).spawn("/bin/sh", ["-c", "echo pty-ok"], {});
   let o = ""; p.onData(d => o += d);
   p.onExit(e => setTimeout(() => console.log(o.trim(), e.exitCode), 200));' \
@@ -155,30 +159,36 @@ dlopens() { # dlopens <elf> <soname>...: report the sonames not on its RUNPATH
   done
 }
 # Electron: audio (pulse; pipewire for screen capture), VA-API, safeStorage,
-# notifications, GL. The clipboard helper: wayland-client, and gtk3 for X11.
+# notifications, GL; ANGLE (libGLESv2.so) opens the system GL itself. The
+# clipboard helper: wayland-client, and gtk3 for X11.
 lost=$(dlopens "$APP/orca-ide" libpulse.so.0 libpipewire-0.3.so.0 libva.so.2 libva-drm.so.2 \
          libsecret-1.so.0 libnotify.so.4 libGL.so.1 libEGL.so.1 libudev.so.1
+       dlopens "$APP/libGLESv2.so" libEGL.so.1 libGL.so.1
        dlopens "$APP/resources/bin/orca-wayland-clipboard" libwayland-client.so.0 libgtk-3.so.0)
 [ -z "$lost" ] && pass "everything they dlopen is on their RUNPATH" \
   || fail "dlopen" "$(printf '\n%s' "$lost")"
 
-# 5. A real instance renders, sandboxes its renderers, and exits 0 on
-# SIGTERM -- in a headless sway of its own, so it needs no desktop and never
-# appears on one.
-tools=$(nix build --no-link --print-out-paths --inputs-from "$FLAKE" nixpkgs#sway nixpkgs#grim) \
-  || { echo "could not build sway/grim" >&2; exit 1; }
+# 5. A real instance, launched as the desktop file launches it, renders,
+# sandboxes its renderers, and exits 0 on SIGTERM -- in a headless sway of its
+# own, cut off from the live session: a private runtime dir and D-Bus (no
+# tray, notifications, portals or keyring on the real desktop), no ssh-agent,
+# no Hyprland socket. It needs no desktop and never appears on one.
+tools=$(nix build --no-link --print-out-paths --inputs-from "$FLAKE" nixpkgs#sway nixpkgs#grim nixpkgs#dbus) \
+  || { echo "could not build sway/grim/dbus" >&2; exit 1; }
 sway=$(echo "$tools" | grep -- '-sway-'); grim=$(echo "$tools" | grep -- '-grim-')
+dbus=$(echo "$tools" | grep -E -- '-dbus-[0-9.]+$')
 run="$T/run"; mkdir -p -m700 "$run"; mkdir -p "$T/home"
 cat > "$T/sway.conf" <<EOF
 output HEADLESS-1 resolution 1280x800
-exec /bin/sh -c '"$GUI" --user-data-dir="$T/profile"; echo \$? > "$T/orca.exit"'
+exec /bin/sh -c '"$GUI" ${exec_args[*]} --user-data-dir="$T/profile" & echo \$! > "$T/orca.pid"; wait \$!; echo \$? > "$T/orca.exit"'
 EOF
 in_session() { host env -u DISPLAY XDG_RUNTIME_DIR="$run" WAYLAND_DISPLAY=wayland-1 "$@"; }
 since=$(date +%s)
-"${sr:+$sr/bin/}systemd-run" --user --quiet --unit="$unit" --setenv=HOME="$T/home" \
-  --setenv=XDG_RUNTIME_DIR="$run" --setenv=WLR_BACKENDS=headless --setenv=WLR_RENDERER=pixman \
-  --setenv=WLR_LIBINPUT_NO_DEVICES=1 --setenv=WAYLAND_DISPLAY= --setenv=DISPLAY= \
-  "$sway/bin/sway" -c "$T/sway.conf"
+"${sr:+$sr/bin/}systemd-run" --user --quiet --collect --unit="$unit" --property=RuntimeMaxSec=600 \
+  --setenv=HOME="$T/home" --setenv=XDG_RUNTIME_DIR="$run" --setenv=XDG_CURRENT_DESKTOP=sway \
+  --setenv=WLR_BACKENDS=headless --setenv=WLR_RENDERER=pixman --setenv=WLR_LIBINPUT_NO_DEVICES=1 \
+  /bin/sh -c 'exec env -u WAYLAND_DISPLAY -u DISPLAY -u DBUS_SESSION_BUS_ADDRESS -u SSH_AUTH_SOCK \
+    -u HYPRLAND_INSTANCE_SIGNATURE "$@"' sh "$dbus/bin/dbus-run-session" -- "$sway/bin/sway" -c "$T/sway.conf"
 pid=""
 for _ in $(seq 60); do
   sleep 1
@@ -195,6 +205,11 @@ if [ -z "$pid" ]; then
   host journalctl --user -u "$unit" --no-pager -n 20
 else
   pass "a window maps (pid $pid)"
+  # The pid the session launched is the window's: every wrapper execs, so
+  # signals and exit codes reach Electron with nothing in between.
+  launched=$(cat "$T/orca.pid" 2>/dev/null)
+  [ "$launched" = "$pid" ] && pass "the launched pid is Electron's (wrappers exec)" \
+    || fail "exec chain" "launched pid '$launched', window pid '$pid'"
   # Give the first frame time, then look at it: a blank or solid surface has
   # a handful of colours, a rendered UI with antialiased text has hundreds.
   sleep 10
@@ -225,8 +240,7 @@ else
     done' | sort -u | tr '\n' ' ')
   [ "$ns" = "userns+seccomp " ] && pass "renderers are sandboxed (own user namespace, seccomp)" \
     || fail "chromium sandbox" "renderers: '${ns:-none}'"
-  # SIGTERM to the window's own pid, which this case started: the wrappers
-  # all exec, so it is Electron itself, with nothing in between.
+  # SIGTERM to the pid this case started.
   host kill -TERM "$pid"
   for _ in $(seq 20); do [ -s "$T/orca.exit" ] && break; sleep 1; done
   code=$(cat "$T/orca.exit" 2>/dev/null)
@@ -234,7 +248,8 @@ else
 fi
 host systemctl --user stop "$unit" 2>/dev/null
 host systemctl --user reset-failed "$unit" 2>/dev/null
-cores=$(host coredumpctl list --no-legend --since="@$since" 2>/dev/null | grep -E "$ORCA|orca-ide" || true)
+# This build's only: a crash of some other Orca meanwhile is not this one's.
+cores=$(host coredumpctl list --no-legend --since="@$since" 2>/dev/null | grep -F "$APP" || true)
 [ -z "$cores" ] && pass "no coredumps" || fail "coredumps" "$cores"
 
 printf '\n%d/%d passed\n' "$((n-fails))" "$n"

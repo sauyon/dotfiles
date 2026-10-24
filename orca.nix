@@ -28,18 +28,24 @@ let
   # dangling, and bwrap between every caller and Electron, forwarding no
   # signals. tests/orca-gui-unsandboxed.sh.
   #
-  # Two trees stay byte-identical. resources/node-runtime's node is copied
-  # into orcad slots and checked against a sha256 pin (the template's
-  # targets/linux-x64-glibc/.runtime-node); patched -- or stripped -- it
-  # fails the check and Orca downloads stock node instead. resources/
-  # orcad-template holds per-target builds (arm64, musl) that Orca ships to
-  # remote hosts. Both run unpatched on a glibc host with an FHS loader, which
-  # Arch is. The AppImage's own usr/lib (libnotify, libappindicator, ...) is
+  # Three trees stay byte-identical: what orcad slots are built from, each
+  # file sha256-pinned in resources/orcad-template/orcad-template.json and
+  # checked when a slot is installed -- patched or stripped, the check fails
+  # and Orca downloads stock copies instead. resources/node-runtime's node is
+  # the slot's runtime (pinned by the template's .runtime-node);
+  # resources/orcad-template holds per-target builds (arm64, musl) that Orca
+  # ships to remote hosts; resources/ripgrep is the slots' rg
+  # (packagedRipgrep). All run unpatched on a glibc host with an FHS loader,
+  # which Arch is. The AppImage's own usr/lib (libnotify, libappindicator, ...) is
   # left out for nixpkgs' copies, below.
   #
   # chrome-sandbox ships without the setuid bit (the store cannot hold one);
   # with unprivileged user namespaces, which Arch has, Chromium uses its
   # namespace sandbox and never needs it.
+  orcaRuntimeDeps = with pkgs; [
+    libGL systemd libpulseaudio pipewire libva libsecret libnotify
+    libappindicator-gtk3 wayland gtk3
+  ];
   orca = pkgs.stdenv.mkDerivation {
     inherit pname version;
     src = appimageContents;
@@ -55,10 +61,7 @@ let
     # libsecret for Electron's safeStorage, notify and appindicator for
     # notifications and the tray; wayland-client and gtk3 for
     # resources/bin/orca-wayland-clipboard, which links only libc.
-    runtimeDependencies = map lib.getLib (with pkgs; [
-      libGL systemd libpulseaudio pipewire libva libsecret libnotify
-      libappindicator-gtk3 wayland gtk3
-    ]);
+    runtimeDependencies = map lib.getLib orcaRuntimeDeps;
     dontConfigure = true;
     dontBuild = true;
     # Kept off the pinned trees: autoPatchelf by running it by hand below,
@@ -91,11 +94,17 @@ let
       targets=()
       for p in $out/lib/orca/* $out/lib/orca/resources/*; do
         case $p in
-          */resources|*/resources/node-runtime|*/resources/orcad-template) ;;
+          */resources|*/resources/node-runtime|*/resources/orcad-template|*/resources/ripgrep) ;;
           *) targets+=("$p") ;;
         esac
       done
       autoPatchelf -- "''${targets[@]}"
+      # runtimeDependencies only reach executables, but Chromium's bundled GL
+      # (ANGLE, SwiftShader) dlopens libEGL/libGL itself, and a dlopen
+      # searches the calling library's RUNPATH. Without this they find GL
+      # only through nixGL's LD_LIBRARY_PATH -- as nixpkgs' electron-bin does.
+      patchelf --add-rpath ${lib.makeLibraryPath orcaRuntimeDeps} \
+        $out/lib/orca/{libEGL.so,libGLESv2.so,libvk_swiftshader.so}
 
       # --ozone-platform=wayland: Orca's startup gate picks X11 when neither
       # --ozone-platform nor ELECTRON_OZONE_PLATFORM_HINT says otherwise, and
@@ -113,20 +122,37 @@ let
         --set FONTCONFIG_FILE ${fontsConf} \
         --run '[ -n "''${ELECTRON_RUN_AS_NODE-}" ] || set -- --ozone-platform=wayland "$@"'
     '';
-    # The pinned trees, checked where it gates the build: byte for byte the
-    # AppImage's (fixup's strip and patchShebangs run over them too; today
-    # patchShebangs finds no node or python on PATH, and leaves them alone),
-    # and the node still the one orcad's runtime pin names. No chrome-sandbox
-    # escape hatch either: AppRun gone, see installPhase.
+    # Checked where it gates the build. The pinned trees: byte for byte, and
+    # exec bit for exec bit, the AppImage's (fixup's patchShebangs and patchELF still
+    # walk them; today they change nothing), and every pin in orcad's
+    # manifest holding -- ripgrep/* there is resources/ripgrep
+    # (packagedRipgrep). And no way to an unsandboxed Chromium: AppRun gone
+    # (see installPhase), and the desktop Exec exactly the wrapper, no
+    # --no-sandbox carried over from upstream's line.
     doInstallCheck = true;
+    nativeInstallCheckInputs = [ pkgs.jq ];
     installCheckPhase = ''
       runHook preInstallCheck
-      for d in node-runtime orcad-template; do
-        diff -r $src/resources/$d $out/lib/orca/resources/$d
+      res=$out/lib/orca/resources
+      for d in node-runtime orcad-template ripgrep; do
+        diff -r --no-dereference $src/resources/$d $res/$d
+        # Exec bits and file types; write bits differ by design (chmod u+w).
+        lsx() { (cd $1 && find . \( -perm -u+x -printf 'x %y %p\n' \) -o -printf '- %y %p\n' | sort); }
+        diff <(lsx $src/resources/$d) <(lsx $res/$d)
       done
-      pin=$(tr -d '[:space:]' < $out/lib/orca/resources/orcad-template/targets/linux-x64-glibc/.runtime-node)
-      echo "$pin  $out/lib/orca/resources/node-runtime/bin/node" | sha256sum -c
+      t=$res/orcad-template
+      jq -r '(.commonSha256 | to_entries[] | "\(.value)  \(.key)"),
+             (.targets | to_entries[] | .key as $t | .value.files | to_entries[]
+               | "\(.value)  targets/\($t)/\(.key)")' $t/orcad-template.json \
+        | while read -r sha p; do
+            f=$t/$p
+            case $p in targets/*/ripgrep/*) [ -e "$f" ] || f=$res/''${p#targets/*/} ;; esac
+            echo "$sha  $f"
+          done | sha256sum -c --quiet
+      pin=$(tr -d '[:space:]' < $t/targets/linux-x64-glibc/.runtime-node)
+      echo "$pin  $res/node-runtime/bin/node" | sha256sum -c
       [ ! -e $out/lib/orca/AppRun ]
+      [ "$(grep '^Exec=' $out/share/applications/orca-ide.desktop)" = 'Exec=orca-ide %U' ]
       runHook postInstallCheck
     '';
     meta.mainProgram = "orca-ide";

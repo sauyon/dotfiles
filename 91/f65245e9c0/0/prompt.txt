@@ -1,0 +1,86 @@
+<task-notification>
+<task-id>a4ca3c7349dadccef</task-id>
+<tool-use-id>toolu_01JBmCD1pfToMqybFkkkWa7A</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/a4ca3c7349dadccef.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-5 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found one Important problem: the new per-host test checks pass without testing anything if a host's config fails to evaluate. There are no Critical findings and three nits. The tree is clean at HEAD c7425fd9, and `bash tests/claude-main-edit-guard.sh` gives 37 cases, 0 failed, exit 0, with all six hosts evaluated.
+
+**Critical:** none.
+
+**Important**
+1. `tests/claude-main-edit-guard.sh:121-130`: the per-host loop can pass without checking anything.
+   - `want`, `got` and `cdrule` are each a bare `$(nix eval ...)`. Nothing checks the exit status, and the script only sets `set -u`.
+   - **Failure scenario:** a host stops evaluating, or the `xdg.configFile."drovr/config.toml"` or `autoMode.allow` attribute path gets renamed. All three values come back empty, so `check "" ""` prints `ok` for both checks. The nix error goes to stderr and the suite still exits 0.
+   - The same happens if the `homeConfigurations` host-list eval fails: the loop runs zero times and no per-host check runs at all.
+   - The PreToolUse hook eval at the top of the same script already does `exit 1` on failure, so the loop is inconsistent with it.
+   - **Fix:** add `|| exit 1` to each eval, require a non-empty `want`, and assert the host count is 6 (or at least above 0).
+
+**nit**
+1. `home.nix:2059-2061`: the comment says the Orca rule is "still narrower than the `/.drovr/wt/` substring this replaced". On darwin and headless hosts it didn't replace it; that rule is still added there at `home.nix:2064-2067`.
+2. `tests/claude-main-edit-guard.sh:121-130`: the test checks the `.drovr/wt` cd rule per host but never checks the `~/orca/workspaces/` cd rule, which is meant to be on every host. Deleting it or limiting it to some hosts would go unnoticed. A check that `any(.[]; test("into an Orca worktree"))` is true for every host would cover it.
+3. `tests/claude-main-edit-guard.sh:124`: `want` comes from matching `orca-[0-9.]+` against package names, which is brittle. A pre-release version like `1.5.0-rc1` would flip `want` to "true" on shiori and utsuho. That fails loudly rather than silently. Matching `p.pname or ""` against `"orca"` would hold up better.
+
+**Checked, no finding**
+- **List concatenation:** `[ ... ] ++ lib.optional (isDarwin || !isDesktop) "..."` groups correctly, because function application binds tighter than `++`. The comment between the condition and the string is valid Nix.
+- **Per-host gating:** `isDarwin` and `isDesktop` are defined the same way in `home.nix:22-24` and `orca.nix:4-5`. `(isDarwin || !isDesktop)` is the exact negation of orca.nix's condition. It is used the same way for `worktree =` and the `.drovr/wt` cd rule. The test confirms the `.drovr/wt` rule exists on chiyari, fujiwara, kyuusaku and mari, and is absent on shiori and utsuho.
+- **Escaping and JSON:** the hook's `''...''` string has no stray `${`, and the jq program has no single quotes, so the shell quoting holds. jq's compact output still matches `verdict()`'s deny pattern. The JSON is built by jq, so it is valid.
+- **autoMode strings:** single line with no double quotes, so they meet the same rule that applies to the environment block.
+- **drovr config:** its README (line 417) documents `worktree = false` as the off-switch. Each host emits exactly one `worktree =` line.
+- **Test strength:** each deny-reason check would fail on its regression: a wrong repo root, the reason going back to `drovr new` or `.drovr/wt`, or a suggested `git worktree add`. The new `env -u CLAUDE_ALLOW_MAIN_EDIT` correctly stops an inherited override from turning deny cases into allows.
+
+The findings are written to `/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees-r5.md`.
+
+Next action (about 10 minutes): add the eval-failure guards and the host-count assertion at `tests/claude-main-edit-guard.sh:121-130`, then re-run `bash tests/claude-main-edit-guard.sh`.</result>
+<usage><subagent_tokens>67123</subagent_tokens><tool_uses>13</tool_uses><duration_ms>82895</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>ab1de70a8d68ea710</task-id>
+<tool-use-id>toolu_01UjMXxt9Ah9gDn7vbeJCk7Y</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/ab1de70a8d68ea710.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-6 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>The tree is clean at c7425fd9, and `tests/claude-main-edit-guard.sh` passes all 37 cases. The review found two Important issues and no Critical ones. On every host the drovr setting agrees with orca.nix:
+
+- **shiori, utsuho:** `orca-1.4.238` is installed and `worktree = false`.
+- **chiyari, fujiwara, kyuusaku, mari:** no Orca, and `worktree = true`.
+
+The home.nix gate `isDarwin || !isDesktop` is the exact opposite of orca.nix's `!isDarwin &amp;&amp; isDesktop`.
+
+## Critical
+None.
+
+## Important
+
+1. **home.nix:1883: the drovr sentence gives the wrong recovery on hosts without Orca.** There drovr runs with `worktree = true`, so a drovr agent hits the guard in only two ways:
+   - **The driver ignored drovr's `ENTER IT` line** and stayed in the checkout it launched from. The drovr README (line 417) names this as the expected failure. The fix is EnterWorktree on `drovr path &lt;run&gt;`, not a relaunch.
+   - **The run was started with `--no-worktree`.** The fix is to relaunch without that flag.
+
+   "Relaunched from that worktree" points at the `.claude/worktrees` one. Following it either throws away a run that already has a worktree, or puts `.drovr/wt/&lt;run&gt;` inside `.claude/worktrees/&lt;name&gt;`. The test check "refusal no longer names drovr new" (around line 117) fixes this in place on every host. **Fix:** choose the deny text at eval time with the same `isDarwin || !isDesktop`, and make the test assert the text per host.
+
+2. **tests/claude-main-edit-guard.sh:120-131: the per-host loop passes when evaluation fails.** `want`, `got` and `cdrule` come from `nix eval` with no error check.
+   - If one host fails to evaluate, all three are empty, and `""` matches `""`: the test prints three "ok" lines for a host it never inspected.
+   - If listing the hosts fails, the loop runs zero times and the test still reports 0 failed.
+
+   Only the current host's evaluation is checked (line 33). Your Orca-detection question: it does not pass by accident in the other direction. A renamed package (a nixGL suffix, or a version like `-beta`) makes `want=true` on shiori, which fails loudly against `got=false`. CI's per-host build probably catches a broken host elsewhere, so this is lower risk than it looks. **Fix:** require `want` to be exactly `true` or `false`, and require at least one host of each kind.
+
+## nit
+
+3. **home.nix:1883:** `orca worktree create` comes first on every host. On mari and the headless hosts the agent's first attempt is "command not found"; the fallback is one sentence later. The eval-time gating from #1 fixes this too.
+4. **home.nix:2059-2061:** the comment says the Orca rule is narrower than "the `/.drovr/wt/` substring this replaced". On hosts without Orca nothing was replaced, because both rules ship (line 2067).
+5. **tests/claude-main-edit-guard.sh:101:** "Worktrees are Orca's now, not drovr's .drovr/wt" is out of date since c7425fd9.
+6. **home.nix:1883 (older than this range):** "Work in a worktree instead" assumes the agent is not already in one. An agent that is in a worktree but edits a main-checkout path by absolute path gets told to create another worktree, when it should edit the same file in its own. The new drovr sentence makes it more likely to relaunch such an agent.
+7. **Test coverage:** nothing checks that the Orca `cd` rule is present on every host. Only the drovr rule's present-only-without-Orca behaviour is checked.
+
+These hold up: the deny JSON built with jq escapes `$root` properly. The comment claims are true: `orca` is on PATH through Orca's CLI shim, Orca is on GUI Linux only, the guard matches Edit|Write|NotebookEdit, and the drovr config comment agrees with the README.
+
+Next step (about 2 min): decide whether the deny text should differ per host, as #1 suggests. That fixes #1 and #3 together.
+
+Findings file: /tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees-r6.md</result>
+<usage><subagent_tokens>59145</subagent_tokens><tool_uses>9</tool_uses><duration_ms>133787</duration_ms></usage>
+</task-notification>

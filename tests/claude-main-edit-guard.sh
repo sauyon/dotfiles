@@ -23,9 +23,10 @@ set -u
 # The flake ref comes from this script's own location, not `.#`, so running it
 # from a worktree tests THAT tree rather than whichever happens to be the cwd.
 # The host is read from /etc/hostname because the CI job writes $TEST_HOST into
-# it before running tests/ (see .forgejo/workflows/nix-eval.yml).
+# it before running tests/ (see .forgejo/workflows/nix-eval.yml). Orca's sandbox
+# has no /etc/hostname, and neither does darwin, so fall back to `uname -n`.
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-host=$(cat /etc/hostname)
+host=$(cat /etc/hostname 2>/dev/null || uname -n)
 
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fails=0; n=0
@@ -45,13 +46,20 @@ for p in $(grep -o '/nix/store/[^/ ]*' "$T/hook.sh" | sort -u); do
     || { echo "could not realise $p:" >&2; cat "$T/err" >&2; exit 1; }
 done
 
+# Claude Code runs a hook command with `/bin/sh -c`, and /bin/sh is dash on a
+# Debian-style host: one bashism there is a syntax error, exit 2, which is a
+# deny -- of every edit, everywhere. So the hook runs under dash here.
+SH=$(nix build --no-link --print-out-paths "$REPO#homeConfigurations.$host.pkgs.dash")/bin/dash \
+  || { echo "could not build dash" >&2; exit 1; }
+
 # Commits need an identity and a throwaway repo has none; nothing reads it.
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL= GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 
 verdict() { # verdict <file path> [VAR=value ...] -> allow | deny
   local f=$1 out; shift
-  out=$(printf '{"tool_input":{"file_path":"%s"}}' "$f" | env "$@" bash "$T/hook.sh")
+  out=$(printf '{"tool_input":{"file_path":"%s"}}' "$f" \
+    | env -u CLAUDE_ALLOW_MAIN_EDIT "$@" "$SH" "$T/hook.sh")
   case "$out" in
     "") echo allow ;;
     *'"permissionDecision":"deny"'*) echo deny ;;
@@ -96,6 +104,144 @@ check "primary checkout on master: edit refused" deny "$(verdict "$R/f")"
 check "a file that does not exist yet is refused too" deny "$(verdict "$R/new/dir/g")"
 check "CLAUDE_ALLOW_MAIN_EDIT=1 lets it through" allow \
   "$(verdict "$R/f" CLAUDE_ALLOW_MAIN_EDIT=1)"
+check "outside any repo: edit allowed" allow "$(verdict /nonexistent/x)"
+# NotebookEdit names its file notebook_path, not file_path; the hook matches
+# NotebookEdit, so it has to read that too, or notebooks bypass it entirely.
+nb=$(printf '{"tool_input":{"notebook_path":"%s"}}' "$R/n.ipynb" \
+  | env -u CLAUDE_ALLOW_MAIN_EDIT "$SH" "$T/hook.sh")
+check "a NotebookEdit in the primary checkout is refused too" deny \
+  "$(case "$nb" in *'"permissionDecision":"deny"'*) echo deny ;; *) echo allow ;; esac)"
+
+# The refusal names the way out, and checks facts rather than describing them:
+# a session already in a worktree of this repo is pointed at the same file
+# there; anyone in a drovr run asks drovr where its worktree is and enters the
+# worktree of this repo that path is inside; everyone else makes one -- an Orca worktree where Orca
+# is installed (orca.nix: GUI Linux), EnterWorktree's own elsewhere. Never a
+# bare in-repo `git worktree add`: its untracked dir makes hms refuse the tree.
+orca_on() { # orca_on <host> -> true | false; exits non-zero on an eval failure,
+           # which each call site turns into the suite failing
+  local v
+  v=$(nix eval --raw "$REPO#homeConfigurations.$1.config.home.packages" \
+    --apply 'ps: if builtins.any (p: (p.pname or "") == "orca") ps then "true" else "false"') \
+    || { echo "could not evaluate $1's packages" >&2; exit 1; }
+  case "$v" in true|false) echo "$v" ;; *) echo "orca_on $1: got '$v'" >&2; exit 1 ;; esac
+}
+refusal() { # refusal <file path> <session cwd> [VAR=value ...] -> deny reason, session sid-1
+  printf '{"session_id":"sid-1","cwd":"%s","tool_input":{"file_path":"%s"}}' "$2" "$1" \
+    | env -u CLAUDE_ALLOW_MAIN_EDIT -u CLAUDE_PROJECT_DIR "${@:3}" "$SH" "$T/hook.sh" \
+    | jq -r '.hookSpecificOutput.permissionDecisionReason'
+}
+says() { case "$reason" in *"$1"*) echo yes ;; *) echo no ;; esac; }
+here=$(orca_on "$host") || exit 1
+
+git -C "$R" worktree add -q -b sess "$T/sess" master; mkdir "$T/sess/sub"
+reason=$(refusal "$R/new/dir/g" "$T/sess/sub")
+check "a session in a worktree of this repo is pointed at the same file there" yes \
+  "$(says "edit $T/sess/new/dir/g there instead")"
+check "...and is not sent off to make another" no "$(says 'EnterWorktree with a name')"
+# Another repo's worktree is not this one's: pointing there would have a Write
+# create a stray file in an unrelated repo.
+git init -q -b master "$T/other"; git -C "$T/other" commit -q --allow-empty -m o
+git -C "$T/other" worktree add -q -b ow "$T/ow" master
+reason=$(refusal "$R/f" "$T/ow")
+check "a session in another repo's worktree is not pointed there" no "$(says 'there instead')"
+check "...but is still refused" yes "$(says "This is the primary checkout of $R on its default branch.")"
+# A path that only reaches the file through `..` does not map: the generic way out.
+reason=$(refusal "$T/sess/../$(basename "$R")/f" "$T/sess")
+check "a ..-path is not mapped into the session's worktree" no "$(says 'there instead')"
+check "...but is still refused" yes "$(says "This is the primary checkout of")"
+reason=$(refusal "$R/f" "$R")
+check "a session in the primary checkout is not told it is in a worktree" no "$(says 'there instead')"
+check "a drovr run asks drovr where its worktree is" yes "$(says 'run `drovr path <run>`')"
+# Named by repo: from a session in another repo, a bare `git worktree list`
+# lists that repo's worktrees. Inside one, not equal to one: a --dir run's
+# path can be a subdirectory, and git lists only worktree roots.
+check "...and enters the worktree of this repo it is inside, if any" yes \
+  "$(says "If that path is inside a worktree of this repo other than $R (see \`git -C $R worktree list\`), EnterWorktree on that worktree")"
+# Three outcomes, by where that path is: a worktree of this repo, this
+# checkout itself (the run is not isolated), or another repo entirely (this
+# file is not the run's -- not a reason to call a healthy run broken).
+check "...stops and reports a run in this checkout itself" yes \
+  "$(says "If it is in $R itself, the run is not isolated: stop and report that it must be relaunched from a worktree.")"
+check "...leaves alone a file that is not its run's" yes \
+  "$(says "If it is anywhere else, or \`drovr path\` fails, this file is not your run's to edit: leave it and say so.")"
+if [ "$here" = true ]; then
+  check "refusal names an Orca worktree of this repo" yes "$(says "orca worktree create --repo path:$R ")"
+else
+  check "refusal names no orca command on a host without it" no "$(says 'orca worktree create')"
+fi
+check "refusal falls back to EnterWorktree's own worktree" yes "$(says 'EnterWorktree with a name')"
+# --resume with this session's id, from its own directory: --continue picks the
+# most recent conversation there, which need not be the refused one.
+check "refusal names the override for exactly this session" yes \
+  "$(says "\`cd $R && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume sid-1\`")"
+reason=$(refusal "$R/f" "$R" CLAUDE_PROJECT_DIR=/proj)
+check "the override resumes from the project dir when Claude names one" yes \
+  "$(says '`cd /proj && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume sid-1`')"
+reason=$(printf '{"tool_input":{"file_path":"%s"}}' "$R/f" \
+  | env -u CLAUDE_ALLOW_MAIN_EDIT -u CLAUDE_PROJECT_DIR "$SH" "$T/hook.sh" \
+  | jq -r '.hookSpecificOutput.permissionDecisionReason')
+check "with no session in the input the override still reads as a command" yes \
+  "$(says '`cd <this directory> && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume <session id>`')"
+
+# Every host in the flake, not just this one: the hook text, drovr's own
+# worktrees and the auto-mode cd rules all follow whether Orca is installed.
+hosts=$(nix eval --json "$REPO#homeConfigurations" --apply builtins.attrNames) \
+  || { echo "could not list homeConfigurations" >&2; exit 1; }
+hosts=$(jq -r '.[]' <<<"$hosts")
+with=0; without=0
+for h in $hosts; do
+  orca=$(orca_on "$h") || exit 1
+  if [ "$orca" = true ]; then with=$((with+1)); wt=false; else without=$((without+1)); wt=true; fi
+  toml=$(nix eval --raw "$REPO#homeConfigurations.$h.config.xdg.configFile.\"drovr/config.toml\".text") \
+    || { echo "could not evaluate $h's drovr config" >&2; exit 1; }
+  got=$(sed -n 's/^worktree = //p' <<<"$toml")
+  check "$h: drovr worktree = $wt (Orca: $orca)" "$wt" "$got"
+  hook=$(nix eval --json "$REPO#homeConfigurations.$h.config.programs.claude-code.settings.hooks.PreToolUse") \
+    || { echo "could not evaluate $h's hooks" >&2; exit 1; }
+  hook=$(jq -r '[.[] | select(.matcher | test("Edit")) | .hooks[0].command] | first // ""' <<<"$hook")
+  # Run this host's own refusal program, not just grep it: CI runs the live hook
+  # only as an Orca host, so a broken no-Orca branch would otherwise pass here
+  # and, as invalid jq, emit nothing -- which lets every edit through.
+  # The jq program between its quotes. Tied to the hook's exact spelling of
+  # `--arg w "$wt" '...'`: a respelling fails every host loudly, not silently.
+  prog=${hook#*--arg w \"\$wt\" \'}; prog=${prog%%\'*}
+  run() { jq -nc --arg r /x --arg f /x/f --arg s sid-1 --arg c /cwd --arg w "$1" "$prog" 2>/dev/null \
+    | jq -r 'select(.hookSpecificOutput.permissionDecision == "deny") | .hookSpecificOutput.permissionDecisionReason'; }
+  reason=$(run "")
+  check "$h: refusal program emits a deny" yes "$([ -n "$reason" ] && echo yes || echo no)"
+  check "$h: refusal names the whole orca command iff Orca is installed" "$orca" \
+    "$([ "$(says 'run `orca worktree create --repo path:/x --name <task> --no-parent --json` and EnterWorktree on the worktree path in its JSON output. If that command fails, ')" = yes ] && echo true || echo false)"
+  check "$h: a drovr run enters only a worktree of this repo it is inside" yes \
+    "$(says 'If that path is inside a worktree of this repo other than /x (see `git -C /x worktree list`), EnterWorktree on that worktree')"
+  check "$h: everyone can make EnterWorktree's own worktree" yes \
+    "$(says 'EnterWorktree with a name creates one under .claude/worktrees. EnterWorktree on an existing worktree works too.')"
+  check "$h: refusal leads with what was refused" yes "$(says 'This is the primary checkout of /x on its default branch.')"
+  check "$h: ...stops and reports a run in this checkout itself" yes \
+    "$(says 'If it is in /x itself, the run is not isolated: stop and report that it must be relaunched from a worktree.')"
+  check "$h: ...leaves alone a file that is not its run's" yes \
+    "$(says 'If it is anywhere else, or `drovr path` fails, this file is not your run')"
+  check "$h: anyone outside a drovr run is told to make a worktree" yes \
+    "$(says 'If you are not in a drovr run, work in a worktree:')"
+  check "$h: refusal names the override for exactly this session, outside a run" yes \
+    "$(says 'outside a drovr run, ask the user to relaunch this session with `cd /cwd && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume sid-1`, which lifts this guard for that whole session.')"
+  check "$h: refusal says the agent cannot grant the override" yes \
+    "$(says 'You cannot set CLAUDE_ALLOW_MAIN_EDIT yourself, and must not route around this guard through Bash.')"
+  check "$h: refusal suggests no in-repo git worktree" no "$(says 'git worktree add')"
+  check "$h: refusal never says to relaunch with drovr new" no "$(says 'drovr new')"
+  reason=$(run /x-wt)
+  check "$h: in a worktree, the refusal names the same file there" yes "$(says 'edit /x-wt/f there instead')"
+  check "$h: ...and nothing else to do" no "$(says 'drovr path')"
+  allow=$(nix eval --json "$REPO#homeConfigurations.$h.config.programs.claude-code.settings.autoMode.allow") \
+    || { echo "could not evaluate $h's auto-mode rules" >&2; exit 1; }
+  check "$h: auto mode allows cd into .drovr/wt iff drovr makes them" "$wt" \
+    "$(jq -r 'any(.[]; test("into a drovr worktree"))' <<<"$allow")"
+  check "$h: auto mode allows cd into an Orca worktree" true \
+    "$(jq -r 'any(.[]; test("into an Orca worktree"))' <<<"$allow")"
+done
+# A loop that saw only one kind of host tested only half the gate.
+check "hosts with Orca and without both exist" "yes yes" \
+  "$([ "$with" -gt 0 ] && echo yes || echo no) $([ "$without" -gt 0 ] && echo yes || echo no)"
 
 git -C "$R" worktree add -q "$T/wt" topic
 check "linked worktree: edit allowed" allow "$(verdict "$T/wt/f")"

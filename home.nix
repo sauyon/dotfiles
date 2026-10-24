@@ -22,6 +22,9 @@ let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
+  # Orca (orca.nix) is GUI-Linux only. Where it is, it owns agent worktrees;
+  # elsewhere drovr keeps its own .drovr/wt/<run> ones.
+  hasOrca = !isDarwin && isDesktop;
   gpu = machine.gpu or null;
 
   # Values the public repo deliberately does not carry: see the
@@ -1897,19 +1900,24 @@ attr=$attr
             # default branch. Sustained agent work there is invisible until it
             # goes wrong: the tree moves under the agent while it reads, HEAD
             # advances past the commit it is reviewing, and a test count gets
-            # reported about a state nobody has any more. drovr's `worktree =
-            # true` fixes that for `drovr new` runs, but inline work -- which is
-            # most of it -- creates no run and so binds to nothing.
+            # reported about a state nobody has any more. Orca (where installed)
+            # gives every task its own worktree, and elsewhere drovr gives each
+            # `drovr new` run one -- but only work started that way lands in
+            # one; inline work in the primary checkout binds to nothing.
             #
             # Detection is structural, not by path: a LINKED worktree has .git
             # as a file pointing at the real gitdir, the primary checkout has a
-            # directory. So .drovr/wt/* and .claude/worktrees/* pass untouched
-            # and need no allowlist to maintain.
+            # directory. So Orca's ~/orca/workspaces/*, .claude/worktrees/* and
+            # any other linked worktree pass untouched and need no allowlist.
             #
-            # CLAUDE_ALLOW_MAIN_EDIT=1 is the way through for the one-line fix
-            # drovr:worktrees explicitly says not to isolate. It has to be an
-            # env var rather than a prompt so that skipping isolation is a
-            # deliberate act and shows up in the transcript.
+            # CLAUDE_ALLOW_MAIN_EDIT (any non-empty value) is the way through for
+            # the one-line fix not worth isolating. It is read from the hook's
+            # environment -- the user's at launch, or a settings `env` block, so
+            # a repo committing one there switches the guard off for any session
+            # started in it, in every repo -- and it lifts the guard for that
+            # whole session. The agent cannot set it in its own running
+            # session; the refusal tells it to ask, and that request is the
+            # only trace in the transcript.
             #
             # `.claude/allow-main-edit` at a repo root opts that repo out
             # permanently. Only for trees small enough to read in one pass.
@@ -1932,7 +1940,13 @@ attr=$attr
             # below already passes it.
             command = ''
               [ -n "$CLAUDE_ALLOW_MAIN_EDIT" ] && exit 0
-              f=$(${pkgs.jq}/bin/jq -r '.tool_input.file_path // empty')
+              # POSIX sh throughout: Claude Code runs this with /bin/sh -c, which
+              # is dash on a Debian-style host, where one bashism is a syntax
+              # error -- exit 2, a deny of every edit everywhere.
+              input=$(cat)
+              j() { printf '%s' "$input" | ${pkgs.jq}/bin/jq -r "$1"; }
+              # NotebookEdit names its file notebook_path.
+              f=$(j '.tool_input.file_path // .tool_input.notebook_path // empty')
               [ -n "$f" ] || exit 0
               # Walk up to the nearest EXISTING directory: a Write may create
               # both the file and the directories above it.
@@ -1945,7 +1959,41 @@ attr=$attr
               done
               br=$(${pkgs.git}/bin/git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)
               case "$br" in main|master) ;; *) exit 0 ;; esac
-              printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"This is the primary checkout on its default branch. Work in a worktree instead: `drovr new <run> --worktree` then EnterWorktree, or EnterWorktree on an existing one. For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set."}}'
+              # The way out is decided from facts here, not described in prose
+              # for the agent to work out. A session whose cwd is already in a
+              # linked worktree of this repo is pointed at the same file there.
+              # Anyone else in a drovr run asks drovr where the run's worktree is
+              # and enters the worktree of this repo, other than the primary,
+              # that the path is inside -- which covers .drovr/wt, Orca
+              # worktrees, a --dir subdirectory and --no-worktree alike. A path
+              # in the primary itself is a run nothing isolates; one in another
+              # repo is a run this file does not belong to. A file path that
+              # reaches the primary only through `..` is not mapped. Everyone
+              # else makes one: an Orca worktree where Orca is installed (the
+              # repo named, since outside an Orca terminal there is nothing to
+              # infer it from), EnterWorktree's own .claude/worktrees (globally
+              # gitignored) elsewhere, or as the fallback when the orca command
+              # fails, say with the app not running -- never a bare `git worktree
+              # add`, which an agent puts inside the repo, leaving an untracked
+              # dir that makes hms refuse.
+              here=$(j '.cwd // empty')
+              wt=""
+              if [ -n "$here" ] && [ -d "$here" ]; then
+                wt=$(${pkgs.git}/bin/git -C "$here" rev-parse --show-toplevel 2>/dev/null) || wt=""
+                if [ -z "$wt" ] || [ ! -f "$wt/.git" ] \
+                  || [ "$(${pkgs.git}/bin/git -C "$wt" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" != "$root/.git" ]; then
+                  wt=""
+                fi
+              fi
+              # The override names this session and the dir to resume it from:
+              # `claude --continue` resumes the most recent conversation there,
+              # which need not be the one refused. CLAUDE_PROJECT_DIR is the
+              # session's launch-time project root, which a `cd` does not move.
+              sid=$(j '.session_id // "<session id>"')
+              cwd=$here
+              [ -n "$cwd" ] || cwd="<this directory>"
+              [ -n "$CLAUDE_PROJECT_DIR" ] && cwd=$CLAUDE_PROJECT_DIR
+              ${pkgs.jq}/bin/jq -nc --arg r "$root" --arg f "$f" --arg s "$sid" --arg c "$cwd" --arg w "$wt" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout of " + $r + " on its default branch. " + (if $w != "" and ($f | startswith($r + "/")) then "Your session is already in a worktree of this repo, " + $w + ": edit " + $w + "/" + ($f | ltrimstr($r + "/")) + " there instead." else "If you are in a drovr run, as its driver or a phase agent: run `drovr path <run>`. If that path is inside a worktree of this repo other than " + $r + " (see `git -C " + $r + " worktree list`), EnterWorktree on that worktree. If it is in " + $r + " itself, the run is not isolated: stop and report that it must be relaunched from a worktree. If it is anywhere else, or `drovr path` fails, this file is not your run" + "\u0027" + "s to edit: leave it and say so. If you are not in a drovr run, work in a worktree: " + ${if hasOrca then ''"run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the worktree path in its JSON output. If that command fails, EnterWorktree with a name creates one under .claude/worktrees."'' else ''"EnterWorktree with a name creates one under .claude/worktrees."''} + " EnterWorktree on an existing worktree works too. For a genuine one-line fix you will finish and commit yourself, outside a drovr run, ask the user to relaunch this session with `cd " + $c + " && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume " + $s + "`, which lifts this guard for that whole session." end) + " You cannot set CLAUDE_ALLOW_MAIN_EDIT yourself, and must not route around this guard through Bash.")}}'
             '';
           } ];
         }
@@ -2121,14 +2169,19 @@ attr=$attr
         # prompt, which is what CLAUDE.md's confirm-before-a-PR rule wants.
         "Creating a pull request (`gh pr create`, a `gh api` POST to a repo's pulls endpoint, or mcp__github__create_pull_request) is ALLOWED when the working directory is under ${config.home.homeDirectory}/devel/quite-app."
         "Git Push to Default Branch is allowed when the current working directory is under ${config.home.homeDirectory}/devel/kube. That repo is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow; no PR review applies."
-        # drovr worktrees live at <repo>/.drovr/wt/<run>, i.e. inside the repo the
-        # session is already working in, so a `cd` there is navigation within the
-        # project rather than an escape from it. Expressing this as a permissions
-        # .allow rule isn't possible: Bash rules are exact-or-`:*`-prefix, so the
-        # repo name can't be wildcarded mid-path and the only rule that would
-        # match is `Bash(cd:*)`, which allows every cd anywhere.
-        "Changing directory into a drovr worktree is ALLOWED: a `cd` whose target path contains `/.drovr/wt/` (for example `cd ${config.home.homeDirectory}/devel/dotfiles/.drovr/wt/some-run`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only."
-      ];
+        # A `cd` into a worktree is navigation between checkouts of the work in
+        # hand, not an escape from the project. Orca's live at
+        # ~/orca/workspaces/<repo>/<task>, for every repo Orca manages, not only
+        # the session's own; harmless on a host without Orca, where nothing is
+        # there to enter. Not a permissions .allow rule: a `Bash(cd <prefix>:*)`
+        # prefix match admits `cd <prefix>/../..`, and only the classifier can
+        # be told to refuse a `..` segment.
+        "Changing directory into an Orca worktree is ALLOWED: a `cd` whose target path is under `${config.home.homeDirectory}/orca/workspaces/`, with no `..` segment (for example `cd ${config.home.homeDirectory}/orca/workspaces/dotfiles/some-task`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only."
+      ] ++ lib.optional (!hasOrca)
+        # No Orca here, so drovr still isolates runs in <repo>/.drovr/wt/<run>
+        # (see the drovr config below): the same navigation, inside the repo,
+        # and a path that varies by repo mid-string, which no Bash rule matches.
+        "Changing directory into a drovr worktree is ALLOWED: a `cd` whose target path contains `/.drovr/wt/`, with no `..` segment (for example `cd ${config.home.homeDirectory}/devel/dotfiles/.drovr/wt/some-run`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only.";
       environment = claudeAutoModeEnvShared ++ private.claudeAutoModeEnvByHost;
     };
     # Declare marketplaces here instead of shelling out to `claude plugin
@@ -2798,21 +2851,31 @@ in
   # reached over `ssh -L 8791:localhost:8791`. For a device that can run neither
   # that nor Tailscale, the answer is drovr's `serve_public_host` behind a proxy
   # that authenticates -- never a wider bind and another allowlist.
-  # worktree: every run gets .drovr/wt/<run> on its own branch, so a run in
-  # flight leaves the invoking checkout free. The default was off, and the cost
-  # showed up as an agent editing main while the tree moved under it: reads went
-  # stale, HEAD advanced past the commit under review, and a test count was
-  # reported from a tree that no longer existed. `--no-worktree` per run.
+  # worktree: per host. Where Orca is installed (GUI Linux, orca.nix) it is
+  # false and isolation is Orca's job: a run edits the checkout it was launched
+  # from (or its --dir), and that checkout is an Orca worktree
+  # (~/orca/workspaces/<repo>/<task>, its own branch), so a run in flight still
+  # leaves the primary checkout free. That is what drovr's own worktrees are
+  # for: an agent editing main while the tree moved under it read stale files
+  # and reported a test count from a tree that no longer existed. A nested
+  # .drovr/wt/<run> inside an Orca worktree is one Orca cannot see. One run per
+  # Orca worktree: two runs launched from the same one share its tree.
+  # Launched from the primary checkout instead, nothing isolates a run there:
+  # the main-edit guard above stops only Claude's Edit/Write/NotebookEdit tools
+  # -- not Bash writes, not other agents -- and an agent of such a run that it
+  # refuses finds `drovr path` inside no worktree but the primary, so it is
+  # told to stop and report that the run needs relaunching from one: moving the
+  # agent would leave the run's recorded project dir on the primary checkout.
+  # On darwin and headless hosts there is no Orca, so drovr keeps its own
+  # .drovr/wt/<run> worktrees, `--no-worktree` per run. Either way the flag
+  # overrides the key for one run: `drovr new --worktree` still isolates one
+  # where the key is false.
   # force: drovr rewrites this path itself — it replaces the symlink with a real
-  # file and reserializes only the keys it knows, which is how `worktree = true`
-  # went missing on 2026-09-01 and how switch started aborting at
-  # checkLinkTargets. Nothing in here is a secret or runtime state, so let the
-  # generation win every time rather than hand-deleting the file each switch.
-  # Note the guarantee is per-switch, not continuous: force only fixes the abort
-  # and restores this content at activation. Between switches drovr still owns
-  # the file, so a key-dropping rewrite can silently disable worktree isolation
-  # again — with exactly the stale-read failure mode described just above — until
-  # the next switch puts it back.
+  # file and reserializes only the keys it knows, which is how a key went
+  # missing on 2026-09-01 and how switch started aborting at checkLinkTargets.
+  # Nothing in here is a secret or runtime state, so let the generation win
+  # every time rather than hand-deleting the file each switch. The guarantee is
+  # per-switch, not continuous: between switches drovr still owns the file.
   xdg.configFile."drovr/config.toml" = {
     force = true;
     text = ''
@@ -2821,7 +2884,7 @@ in
       # writes it per review pass — see cli/src/pi_extension.rs upstream.
       #
       review_agent = "pi"
-      worktree = true
+      worktree = ${lib.boolToString (!hasOrca)}
     '' + lib.optionalString (hostname == "fujiwara") ''
       # The LAN address, not the tailnet one and not 0.0.0.0. This server has no
       # auth, so it is reachable unauthenticated from the whole LAN and from

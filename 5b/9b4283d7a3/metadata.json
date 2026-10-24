@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "5b9b4283d7a3",
+  "strategy": "manual-commit",
+  "branch": "orca-cli-skills",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".gitignore",
+    "CLAUDE.md",
+    "README.md",
+    "home.nix",
+    "nix/orca-mac-keybindings-merge.js",
+    "nix/orca-mac-keybindings.js",
+    "orca.nix",
+    "tests/fixtures/hms-run252-git-503.log",
+    "tests/hms-ci-poll.sh",
+    "tests/orca-mac-keybindings.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/5b/9b4283d7a3/0/metadata.json",
+      "transcript": "/5b/9b4283d7a3/0/full.jsonl",
+      "compact_transcript": "/5b/9b4283d7a3/0/transcript.jsonl",
+      "content_hash": "/5b/9b4283d7a3/0/content_hash.txt",
+      "prompt": "/5b/9b4283d7a3/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 14696,
+    "cache_read_tokens": 1842326,
+    "output_tokens": 2631,
+    "api_call_count": 8
+  }
+}

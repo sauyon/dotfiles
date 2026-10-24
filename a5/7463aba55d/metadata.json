@@ -3,7 +3,7 @@
   "checkpoint_id": "a57463aba55d",
   "strategy": "manual-commit",
   "branch": "orca-alt-up-down",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "orca.nix"
   ],
@@ -14,20 +14,27 @@
       "compact_transcript": "/a5/7463aba55d/0/transcript.jsonl",
       "content_hash": "/a5/7463aba55d/0/content_hash.txt",
       "prompt": "/a5/7463aba55d/0/prompt.txt"
+    },
+    {
+      "metadata": "/a5/7463aba55d/1/metadata.json",
+      "transcript": "/a5/7463aba55d/1/full.jsonl",
+      "compact_transcript": "/a5/7463aba55d/1/transcript.jsonl",
+      "content_hash": "/a5/7463aba55d/1/content_hash.txt",
+      "prompt": "/a5/7463aba55d/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 4,
-    "cache_creation_tokens": 2218,
-    "cache_read_tokens": 84472,
-    "output_tokens": 1056,
-    "api_call_count": 1,
+    "input_tokens": 8,
+    "cache_creation_tokens": 5455,
+    "cache_read_tokens": 672463,
+    "output_tokens": 3256,
+    "api_call_count": 3,
     "subagent_tokens": {
-      "input_tokens": 6,
-      "cache_creation_tokens": 4552,
-      "cache_read_tokens": 202051,
-      "output_tokens": 3909,
-      "api_call_count": 3
+      "input_tokens": 22,
+      "cache_creation_tokens": 58623,
+      "cache_read_tokens": 334555,
+      "output_tokens": 6129,
+      "api_call_count": 11
     }
   }
 }

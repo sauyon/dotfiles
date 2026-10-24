@@ -51,6 +51,10 @@ let
   rev = "23323337ad5936b0c39d3d3d0bad41240d108d68";
 in
 base.overrideAttrs (old: {
+  # The fork's Cargo.toml version, not nixpkgs': nixpkgs' versionCheckHook
+  # greps `fj version` for this string, and a fork rev built under nixpkgs'
+  # newer version label (0.7.0 at the 5adc508 bump) fails that check.
+  version = "0.6.0";
   src = pkgs.fetchFromGitea {
     domain = "forge.ko.ag";
     owner = "sauyon";

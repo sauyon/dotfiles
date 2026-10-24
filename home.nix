@@ -1969,9 +1969,10 @@ attr=$attr
               # else makes one: an Orca worktree where Orca is installed (the
               # repo named, since outside an Orca terminal there is nothing to
               # infer it from), EnterWorktree's own .claude/worktrees (globally
-              # gitignored) elsewhere, or as the fallback where `orca` is not on
-              # PATH outside an Orca terminal -- never a bare `git worktree add`, which an agent puts
-              # inside the repo, leaving an untracked dir that makes hms refuse.
+              # gitignored) elsewhere, or as the fallback when the orca command
+              # fails, say with the app not running -- never a bare `git worktree
+              # add`, which an agent puts inside the repo, leaving an untracked
+              # dir that makes hms refuse.
               here=$(j '.cwd // empty')
               wt=""
               if [ -n "$here" ] && [ -d "$here" ]; then

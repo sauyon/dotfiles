@@ -15,19 +15,34 @@ const [shared, chordsFile] = process.argv.slice(2);
 const kb = require(path.resolve(shared, 'keybindings.js'));
 
 // Chords Hyprland binds never reach the window. "SUPER + SHIFT + W" ->
-// "Cmd+Shift+W". Mouse, switch and media-key binds cannot be an Orca chord;
-// anything else that does not translate is an error, not a free chord.
-const MODS = { SUPER: 'Cmd', CTRL: 'Ctrl', CONTROL: 'Ctrl', ALT: 'Alt', SHIFT: 'Shift' };
-const KEYS = { return: 'Enter', left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown' };
+// "Cmd+Shift+W", Hyprland's modifier and keysym aliases included. An unknown
+// modifier fails the build: it may well be a chord Orca uses. A key Orca has
+// no name for (Print, Scroll_Lock), or a mouse/switch/media bind, cannot be
+// any Orca chord, so it is skipped -- noted in the log, not fatal.
+const MODS = {
+  SUPER: 'Cmd', WIN: 'Cmd', LOGO: 'Cmd', MOD4: 'Cmd',
+  CTRL: 'Ctrl', CONTROL: 'Ctrl',
+  ALT: 'Alt', MOD1: 'Alt',
+  SHIFT: 'Shift',
+};
+const KEYS = {
+  return: 'Enter', left: 'ArrowLeft', right: 'ArrowRight', up: 'ArrowUp', down: 'ArrowDown',
+  grave: 'Backquote', Prior: 'PageUp', Next: 'PageDown',
+};
 const taken = new Set();
 for (const chord of JSON.parse(fs.readFileSync(chordsFile, 'utf8'))) {
   const parts = chord.split('+').map((s) => s.trim());
   const key = parts.pop();
   if (/^(mouse[:_]|XF86)/.test(key) || chord.startsWith('switch:')) continue;
   const mods = parts.map((p) => MODS[p.toUpperCase()]);
-  const n = mods.every(Boolean) && kb.normalizeKeybinding([...mods, KEYS[key] ?? key].join('+'));
-  if (!n || !n.ok) throw new Error(`cannot translate Hyprland bind "${chord}" to an Orca chord`);
-  taken.add(n.value);
+  if (!mods.every(Boolean)) throw new Error(`unknown modifier in Hyprland bind "${chord}"`);
+  // Bare keys too: Orca's few bare chords (F7, Delete) can be Hyprland's.
+  const n = kb.normalizeKeybindingWithOptions([...mods, KEYS[key] ?? key].join('+'), {
+    allowBareKeybindings: true,
+    allowShiftOnlyKeybindings: true,
+  });
+  if (n.ok) taken.add(n.value);
+  else console.error(`Hyprland bind "${chord}" is no Orca chord (${n.error}); skipped`);
 }
 // A digit-index action's one binding stands for its whole 1-9 family.
 const isTaken = (id, binding) =>

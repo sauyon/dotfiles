@@ -135,8 +135,11 @@ let
     echo '{"version":1,"keybindings":{},"platforms":{"linux":{"zoom.reset":"Alt+0, Alt+Shift+0"}}}' \
       > $TMPDIR/home/.orca/keybindings.json
     HOME=$TMPDIR/home $out/bin/orca-mac-keybindings 2> merge.err
-    if [ -s merge.err ] || [ ! -s $TMPDIR/home/.orca/keybindings.json ]; then
-      cat merge.err >&2; exit 1
+    if [ -s merge.err ] \
+       || ! grep -q '"Cmd+W"' $TMPDIR/home/.orca/keybindings.json \
+       || ! grep -q '"Alt+0, Alt+Shift+0"' $TMPDIR/home/.orca/keybindings.json \
+       || [ ! -s $TMPDIR/home/.orca/keybindings.nix-owned.json ]; then
+      cat merge.err >&2; echo "orca: build-time merge did not apply the table" >&2; exit 1
     fi
   '';
   # ~/.orca/keybindings.json is Orca's read-write state: its settings UI saves

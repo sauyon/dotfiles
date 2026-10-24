@@ -155,6 +155,15 @@ got=$(jq -c '.platforms.linux["tab.newTerminal"]' "$H/.orca/keybindings.json")
 [ "$got" = '["Alt+N"]' ] && pass "UI value on a newly generated action stays the UI's" \
   || fail "newly" "got $got"
 
+# 7d. A generated key reset in the UI (absent, though claimed) comes back:
+#     the reset target is this table.
+H="$T/reset"; mkdir -p "$H/.orca"
+echo '{"version":1,"keybindings":{},"platforms":{"darwin":{},"linux":{},"win32":{}}}' > "$H/.orca/keybindings.json"
+echo '{"linux":{"tab.close":["Cmd+W"]}}' > "$H/.orca/keybindings.nix-owned.json"
+HOME=$H "$MERGE" >/dev/null 2>&1
+got=$(jq -c '.platforms.linux["tab.close"]' "$H/.orca/keybindings.json")
+[ "$got" = '["Cmd+W"]' ] && pass "UI reset of a generated key re-applies it" || fail "reset" "got $got"
+
 # 8. A UI shortcut on a generated chord: Orca would drop *both* actions at load.
 #    The UI's choice stands; the generated action falls back to its default.
 H="$T/clash"; mkdir -p "$H/.orca"
@@ -205,6 +214,17 @@ got=$(jq -c '[.platforms.linux["tab.newBrowser"], .platforms.linux["tab.newTermi
 [ "$got" = '["Cmd+T, Alt+B",null]' ] && pass "comma-shorthand UI value still wins the clash" \
   || fail "clash-shorthand" "got $got"
 
+# 8e. Sections parse separately, then layer, as Orca's loader does: a bad
+#     linux value is dropped and the common one under it still clashes.
+H="$T/layer"; mkdir -p "$H/.orca"
+cat > "$H/.orca/keybindings.json" <<'EOF'
+{"version":1,"keybindings":{"tab.newBrowser":["Cmd+T"]},"platforms":{"darwin":{},"linux":{"tab.newBrowser":"bogus+"},"win32":{}}}
+EOF
+HOME=$H "$MERGE" >/dev/null 2>&1
+got=$(jq -c '.platforms.linux["tab.newTerminal"]' "$H/.orca/keybindings.json")
+[ "$got" = 'null' ] && pass "common value under a bad linux one still wins its clash" \
+  || fail "layer" "tab.newTerminal got $got"
+
 # 9. An empty file is not JSON either: left alone, not "merged" into nothing.
 H="$T/empty"; mkdir -p "$H/.orca"; : > "$H/.orca/keybindings.json"
 if HOME=$H "$MERGE" >/dev/null 2>&1 && [ ! -s "$H/.orca/keybindings.json" ]; then
@@ -230,9 +250,20 @@ gen() { echo "$1" > "$T/chords.json"; "$NODE" "$FLAKE/nix/orca-mac-keybindings.j
 got=$(gen '[]' | jq -c '.["workspace.selectByIndex"]'),$(gen '["SUPER + 5"]' | jq -c '.["workspace.selectByIndex"]')
 [ "$got" = '["Cmd+1"],null' ] && pass "Super+5 taken drops the whole Cmd+1..9 family" \
   || fail "digits" "free,taken got $got"
-if gen '["MOD4 + T"]' >/dev/null; then fail "unknown-bind" "MOD4 + T passed as a free chord"
-elif grep -q 'cannot translate Hyprland bind "MOD4 + T"' "$T/gen.err"; then pass "untranslatable Hyprland bind fails the generator"
+if gen '["HYPER + T"]' >/dev/null; then fail "unknown-bind" "HYPER + T passed as a free chord"
+elif grep -q 'unknown modifier in Hyprland bind "HYPER + T"' "$T/gen.err"; then pass "unknown Hyprland modifier fails the generator"
 else fail "unknown-bind" "failed for another reason: $(cat "$T/gen.err")"; fi
+
+# 12b. Binds that can never be an Orca chord do not fail the build -- a bare
+#      Print screenshot key, a key Orca has no name for, a bare F7 -- while
+#      Hyprland's aliases still count: MOD4 + T is Super+T, tab.newTerminal's.
+if out=$(gen '["Print", "SUPER + Scroll_Lock", "MOD4 + T", "SUPER + grave", "F7"]'); then
+  got=$(jq -c 'has("tab.newTerminal")' <<<"$out")
+  [ "$got" = 'false' ] && pass "unmappable binds skipped, Hyprland aliases taken" \
+    || fail "aliases" "tab.newTerminal still generated under MOD4 + T"
+else
+  fail "aliases" "generator failed: $(cat "$T/gen.err")"
+fi
 
 # 13. A generated chord may not land on an action left on its Linux default:
 #     Orca dispatches across scopes, so the conflict check never sees it.

@@ -100,13 +100,11 @@ const theirs = new Set(
 for (const id of Object.keys(prev)) {
   if (!theirs.has(id)) delete linux[id];
 }
-// What the UI had on each key about to be overwritten, for a withdrawal
-// below to put back. Stale keys are gone by now, so anything left is the UI's.
-const before = {};
+// Every owned key still in the file is the UI's by now (stale ones are
+// gone), so writing the rest overwrites nothing.
 const written = {};
 for (const [id, bindings] of Object.entries(owned)) {
   if (theirs.has(id)) continue;
-  if (id in linux) before[id] = linux[id];
   linux[id] = bindings;
   written[id] = bindings;
 }
@@ -149,14 +147,8 @@ for (;;) {
   for (const id of new Set(withdrawn)) {
     console.error(`orca: ${id} ${JSON.stringify(written[id])} clashes with a shortcut set in Orca; keeping that one`);
     delete written[id];
-    if (id in before) {
-      linux[id] = before[id];
-    } else {
-      delete linux[id];
-    }
-    const restored = id in linux ? expand(id, linux[id]) : undefined;
-    if (restored !== undefined) effective[id] = restored;
-    else if (id in commonParsed) effective[id] = commonParsed[id];
+    delete linux[id];
+    if (id in commonParsed) effective[id] = commonParsed[id];
     else delete effective[id];
   }
 }

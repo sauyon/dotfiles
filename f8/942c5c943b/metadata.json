@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "f8942c5c943b",
+  "strategy": "manual-commit",
+  "branch": "hms-ci-retry",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "home.nix",
+    "tests/hms-ci-poll.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f8/942c5c943b/0/metadata.json",
+      "transcript": "/f8/942c5c943b/0/full.jsonl",
+      "compact_transcript": "/f8/942c5c943b/0/transcript.jsonl",
+      "content_hash": "/f8/942c5c943b/0/content_hash.txt",
+      "prompt": "/f8/942c5c943b/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 16,
+    "cache_creation_tokens": 13479,
+    "cache_read_tokens": 1074986,
+    "output_tokens": 10064,
+    "api_call_count": 8
+  }
+}

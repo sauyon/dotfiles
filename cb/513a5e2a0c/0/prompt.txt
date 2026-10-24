@@ -1,0 +1,9 @@
+is orca constantly dying? why?
+
+---
+
+why are home manager switches killing the machine? and why the shit are you giving me times in utc? orca just died in the last 20 minutes
+
+---
+
+sure. you can change that. but elephant config or version isn't changing so why is it being restarted anyway

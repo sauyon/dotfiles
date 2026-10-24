@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "cb513a5e2a0c",
+  "strategy": "manual-commit",
+  "branch": "elephant-detach",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "home.nix",
+    "tests/elephant-launch-detached.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/cb/513a5e2a0c/0/metadata.json",
+      "transcript": "/cb/513a5e2a0c/0/full.jsonl",
+      "compact_transcript": "/cb/513a5e2a0c/0/transcript.jsonl",
+      "content_hash": "/cb/513a5e2a0c/0/content_hash.txt",
+      "prompt": "/cb/513a5e2a0c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 82,
+    "cache_creation_tokens": 128241,
+    "cache_read_tokens": 4371029,
+    "output_tokens": 33266,
+    "api_call_count": 41
+  }
+}

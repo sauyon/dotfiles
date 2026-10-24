@@ -80,6 +80,10 @@ H="$T/fresh"; mkdir -p "$H"
 HOME=$H "$MERGE" >/dev/null 2>&1
 got=$(jq -c --slurpfile o "$OWNED" '[.version, (.platforms.linux == $o[0]), .keybindings, .platforms.darwin]' "$H/.orca/keybindings.json" 2>/dev/null)
 [ "$got" = '[1,true,{},{}]' ] && pass "fresh HOME gets a version-1 file" || fail "fresh" "got $got"
+cp "$H/.orca/keybindings.json" "$T/first.json"
+HOME=$H "$MERGE" >/dev/null 2>&1
+cmp -s "$T/first.json" "$H/.orca/keybindings.json" && pass "second switch changes nothing" \
+  || fail "idempotent" "re-running the merge rewrote the file"
 
 # 5. Owned keys win; UI edits to other actions, common and darwin survive.
 H="$T/edited"; mkdir -p "$H/.orca"
@@ -99,6 +103,43 @@ if HOME=$H "$MERGE" >/dev/null 2>&1 && [ "$(cat "$H/.orca/keybindings.json")" = 
   pass "unparseable file untouched, exit 0"
 else
   fail "broken" "file changed, .new left behind, or non-zero exit"
+fi
+
+# 7. A key an earlier generation wrote, and this one no longer emits (Hyprland
+#    took the chord, say), is removed -- unless the UI has changed it since.
+#    A generated key the UI changed after it was written stays the UI's.
+H="$T/stale"; mkdir -p "$H/.orca"
+cat > "$H/.orca/keybindings.json" <<'EOF'
+{"version":1,"keybindings":{},
+ "platforms":{"darwin":{},"linux":{"editor.find":["Cmd+F"],"worktree.quickOpen":["Alt+P"],"tab.close":["Ctrl+Q"]},"win32":{}}}
+EOF
+echo '{"linux":{"editor.find":["Cmd+F"],"worktree.quickOpen":["Cmd+P"],"tab.close":["Cmd+W"]}}' \
+  > "$H/.orca/keybindings.nix-owned.json"
+HOME=$H "$MERGE" >/dev/null 2>&1
+got=$(jq -c '[.platforms.linux["editor.find"], .platforms.linux["worktree.quickOpen"], .platforms.linux["tab.close"]]' "$H/.orca/keybindings.json")
+[ "$got" = '[null,["Alt+P"],["Ctrl+Q"]]' ] && pass "stale generated key dropped, UI-changed ones kept" \
+  || fail "stale" "got $got"
+
+# 8. A UI shortcut on a generated chord: Orca would drop *both* actions at load.
+#    The UI's choice stands; the generated action falls back to its default.
+H="$T/clash"; mkdir -p "$H/.orca"
+cat > "$H/.orca/keybindings.json" <<'EOF'
+{"version":1,"keybindings":{},"platforms":{"darwin":{},"linux":{"tab.newBrowser":["Cmd+T"]},"win32":{}}}
+EOF
+err=$(HOME=$H "$MERGE" 2>&1 >/dev/null)
+got=$(jq -c '[.platforms.linux["tab.newBrowser"], .platforms.linux["tab.newTerminal"]]' "$H/.orca/keybindings.json")
+if [ "$got" = '[["Cmd+T"],null]' ] && [[ $err == *tab.newTerminal* ]]; then
+  pass "UI chord wins a clash, and the dropped key is named"
+else
+  fail "clash" "got $got, stderr '$err'"
+fi
+
+# 9. An empty file is not JSON either: left alone, not "merged" into nothing.
+H="$T/empty"; mkdir -p "$H/.orca"; : > "$H/.orca/keybindings.json"
+if HOME=$H "$MERGE" >/dev/null 2>&1 && [ ! -s "$H/.orca/keybindings.json" ]; then
+  pass "empty file untouched, exit 0"
+else
+  fail "empty" "file rewritten or non-zero exit"
 fi
 
 printf '\n%d/%d passed\n' "$((n-fails))" "$n"

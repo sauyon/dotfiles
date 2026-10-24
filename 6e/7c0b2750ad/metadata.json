@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "6e7c0b2750ad",
+  "strategy": "manual-commit",
+  "branch": "orca-mac-keys",
+  "checkpoints_count": 3,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/6e/7c0b2750ad/0/metadata.json",
+      "transcript": "/6e/7c0b2750ad/0/full.jsonl",
+      "compact_transcript": "/6e/7c0b2750ad/0/transcript.jsonl",
+      "content_hash": "/6e/7c0b2750ad/0/content_hash.txt",
+      "prompt": "/6e/7c0b2750ad/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 18,
+    "cache_creation_tokens": 16789,
+    "cache_read_tokens": 2482781,
+    "output_tokens": 7044,
+    "api_call_count": 9,
+    "subagent_tokens": {
+      "input_tokens": 114,
+      "cache_creation_tokens": 232605,
+      "cache_read_tokens": 3469216,
+      "output_tokens": 34371,
+      "api_call_count": 57
+    }
+  }
+}

@@ -73,7 +73,7 @@ echo "testing $GUI"
 unit="orca-gui-test-$$"
 mkdir -p "$HOME/.cache"
 T=$(mktemp -d "$HOME/.cache/orca-gui-test.XXXXXX") || { echo "mktemp failed" >&2; exit 1; }
-trap 'host systemctl --user stop "$unit" 2>/dev/null; rm -rf "$T"' EXIT
+trap 'host systemctl --user stop "$unit" "$unit-serve" 2>/dev/null; rm -rf "$T"' EXIT
 
 # 1. No bwrap anywhere in the launch chain.
 closure=$(nix-store -qR "$ORCA") || { echo "nix-store -qR $ORCA failed" >&2; exit 1; }
@@ -181,10 +181,12 @@ lost=$(dlopens "$APP/orca-ide" libpulse.so.0 libpipewire-0.3.so.0 libva.so.2 lib
 # own, cut off from the live session: a private runtime dir and D-Bus (no
 # tray, notifications, portals or keyring on the real desktop), no ssh-agent,
 # no Hyprland socket. It needs no desktop and never appears on one.
-tools=$(nix build --no-link --print-out-paths --inputs-from "$FLAKE" nixpkgs#sway nixpkgs#grim nixpkgs#dbus) \
-  || { echo "could not build sway/grim/dbus" >&2; exit 1; }
+tools=$(nix build --no-link --print-out-paths --inputs-from "$FLAKE" \
+    nixpkgs#sway nixpkgs#grim nixpkgs#dbus nixpkgs#xvfb nixpkgs#nodejs_24) \
+  || { echo "could not build sway/grim/dbus/xvfb/node" >&2; exit 1; }
 sway=$(echo "$tools" | grep -- '-sway-'); grim=$(echo "$tools" | grep -- '-grim-')
 dbus=$(echo "$tools" | grep -E -- '-dbus-[0-9.]+$')
+xvfb=$(echo "$tools" | grep -- '-xvfb-'); node24=$(echo "$tools" | grep -- '-nodejs-')
 run="$T/run"; mkdir -p -m700 "$run"; mkdir -p "$T/home"
 cat > "$T/sway.conf" <<EOF
 output HEADLESS-1 resolution 1280x800
@@ -260,6 +262,45 @@ else
 fi
 host systemctl --user stop "$unit" 2>/dev/null
 host systemctl --user reset-failed "$unit" 2>/dev/null
+
+# 6. `orca-ide serve` runs this GUI as its Electron server; a signal to the
+# CLI (kill, an agent's timeout) must take the server down with it, not
+# orphan it with the profile and port held. Under bwrap it did orphan it:
+# bwrap forwards no signals, and with --die-with-parent off nothing else
+# reached Electron. Forced onto the Electron runtime (it prefers orcad, a
+# node daemon), on Xvfb -- serve wants X11 -- in the same kind of isolated
+# session as case 5. The CLI is the profile's own when it has one, else the
+# same command run by hand: nixpkgs' node 24 on the AppImage's CLI script.
+cli=${ORCA_CLI:-}
+if [ -z "$cli" ]; then
+  cli=$(nix eval --raw "$FLAKE#homeConfigurations.$HOSTNAME_.config.home.packages" \
+    --apply 'ps: let c = builtins.filter (p: builtins.match "orca-cli-[0-9.]+" (p.name or "") != null) ps;
+                 in if c == [] then "" else "${builtins.head c}/bin/orca-ide"' 2>/dev/null) || cli=""
+  [ -z "$cli" ] || nix build --no-link "${cli%/bin/orca-ide}" 2>/dev/null || cli=""
+fi
+[ -n "$cli" ] || cli="$node24/bin/node $APP/resources/app.asar.unpacked/out/cli/index.js"
+cat > "$T/serve.sh" <<EOF
+cd "$T/home"
+ORCA_SERVE_RUNTIME=electron ORCA_APP_EXECUTABLE="$GUI" $cli serve --no-pairing > "$T/serve.out" 2>&1 &
+cli=\$!
+for _ in \$(seq 90); do grep -q 'Terminal daemon' "$T/serve.out" && break; sleep 1; done
+servers() { for p in \$(cat /sys/fs/cgroup\$(cut -d: -f3 /proc/self/cgroup)/cgroup.procs); do
+  [ "\$(readlink /proc/\$p/exe 2>/dev/null)" = "$APP/orca-ide" ] && echo \$p; done; }
+before=\$(servers | wc -l)
+kill -TERM \$cli
+for _ in \$(seq 15); do [ -z "\$(servers)" ] && break; sleep 1; done
+echo "before=\$before after=\$(servers | wc -l)"
+EOF
+res=$("${sr:+$sr/bin/}systemd-run" --user --quiet --collect --pipe --wait --unit="$unit-serve" \
+  --property=RuntimeMaxSec=300 --working-directory="$T/home" \
+  /bin/sh -c 'x=$1; shift; exec env -i PATH="$x:$PATH" LANG="${LANG:-C.UTF-8}" "$@"' sh "$xvfb/bin" \
+    HOME="$T/home" XDG_RUNTIME_DIR="$run" "$dbus/bin/dbus-run-session" -- /bin/sh "$T/serve.sh" 2>/dev/null \
+  | grep -o 'before=[0-9]* after=[0-9]*')
+case $res in
+  before=0*|"") fail "serve" "no Electron server started ($res): $(tail -3 "$T/serve.out" 2>/dev/null)" ;;
+  *after=0) pass "SIGTERM to orca-ide serve takes its Electron server down (${res%% *} processes)" ;;
+  *) fail "serve" "Electron server orphaned after the CLI was killed: $res" ;;
+esac
 # This build's only: a crash of some other Orca meanwhile is not this one's.
 cores=$(host coredumpctl list --no-legend --since="@$since" 2>/dev/null | grep -F "$APP" || true)
 [ -z "$cores" ] && pass "no coredumps" || fail "coredumps" "$cores"

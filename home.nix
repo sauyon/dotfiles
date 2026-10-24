@@ -1905,9 +1905,9 @@ attr=$attr
             # any other linked worktree pass untouched and need no allowlist.
             #
             # CLAUDE_ALLOW_MAIN_EDIT=1 is the way through for the one-line fix
-            # not worth isolating. It has to be an
-            # env var rather than a prompt so that skipping isolation is a
-            # deliberate act and shows up in the transcript.
+            # not worth isolating. It has to be an env var rather than a prompt
+            # so that skipping isolation is a deliberate act and shows up in the
+            # transcript.
             #
             # `.claude/allow-main-edit` at a repo root opts that repo out
             # permanently. Only for trees small enough to read in one pass.
@@ -1945,9 +1945,11 @@ attr=$attr
               case "$br" in main|master) ;; *) exit 0 ;; esac
               # The repo is named explicitly: outside an Orca terminal there is
               # no current Orca worktree to infer it from. `orca` itself is only
-              # on PATH inside Orca, and Orca only on GUI Linux hosts, hence the
-              # plain-git way out.
-              ${pkgs.jq}/bin/jq -nc --arg r "$root" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout on its default branch. Work in a worktree instead: `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` (or, where `orca` is not on PATH or does not know this repo, `git worktree add <path> -b <task>`), then EnterWorktree on its path, or EnterWorktree on an existing one. A drovr run refused here is relaunched from that worktree, not continued by moving its agent. For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set.")}}'
+              # on PATH inside Orca, and Orca only on GUI Linux hosts. The fallback is
+              # EnterWorktree's own .claude/worktrees (globally gitignored), not
+              # a bare `git worktree add`, which an agent puts inside the repo,
+              # leaving an untracked dir that makes hms refuse the tree.
+              ${pkgs.jq}/bin/jq -nc --arg r "$root" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout on its default branch. Work in a worktree instead: run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the path it prints. Where `orca` is not on PATH or does not know this repo, EnterWorktree with a name creates one under .claude/worktrees. EnterWorktree on an existing worktree works too. A drovr run refused here is relaunched from that worktree, not continued by moving its agent. For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set.")}}'
             '';
           } ];
         }
@@ -2809,7 +2811,7 @@ in
   # .drovr/wt/<run> inside an Orca worktree is a worktree Orca cannot see.
   # So launch runs from an Orca worktree. Launched from the primary checkout
   # instead, nothing isolates a run: the main-edit guard above stops only
-  # Claude's Edit/Write tools -- not Bash writes, not other agents -- and an
+  # Claude's Edit/Write/NotebookEdit tools -- not Bash writes, not other agents -- and an
   # agent it refuses is told to relaunch the run from a worktree, because
   # moving the agent leaves the run's recorded project dir (and `drovr path`,
   # and the review diffs) behind on the primary checkout.

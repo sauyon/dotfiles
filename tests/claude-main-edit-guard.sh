@@ -99,14 +99,17 @@ check "a file that does not exist yet is refused too" deny "$(verdict "$R/new/di
 check "CLAUDE_ALLOW_MAIN_EDIT=1 lets it through" allow \
   "$(verdict "$R/f" CLAUDE_ALLOW_MAIN_EDIT=1)"
 # Worktrees are Orca's now, not drovr's .drovr/wt: the refusal names the way
-# out, for this repo, with plain git for a host Orca is not installed on.
+# out, for this repo, and where Orca is not installed one that leaves no
+# untracked worktree in the primary checkout for hms to refuse on.
 reason=$(printf '{"tool_input":{"file_path":"%s"}}' "$R/f" \
   | env -u CLAUDE_ALLOW_MAIN_EDIT bash "$T/hook.sh" \
   | jq -r '.hookSpecificOutput.permissionDecisionReason')
 says() { case "$reason" in *"$1"*) echo yes ;; *) echo no ;; esac; }
 check "refusal names an Orca worktree of this repo" yes "$(says "orca worktree create --repo path:$R ")"
-check "refusal names plain git where Orca is absent" yes "$(says 'git worktree add')"
-check "refusal no longer names drovr's worktrees" no "$(says 'drovr new')"
+check "refusal falls back to EnterWorktree's own worktree" yes "$(says 'EnterWorktree with a name')"
+check "refusal suggests no in-repo git worktree" no "$(says 'git worktree add')"
+check "refusal no longer names drovr new" no "$(says 'drovr new')"
+check "refusal no longer names .drovr/wt" no "$(says '.drovr/wt')"
 
 git -C "$R" worktree add -q "$T/wt" topic
 check "linked worktree: edit allowed" allow "$(verdict "$T/wt/f")"

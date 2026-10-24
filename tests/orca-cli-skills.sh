@@ -29,7 +29,7 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 FLAKE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # /etc/hostname is what CI writes to say which host it is; Orca's sandbox does
 # not bind it in, so fall back to uname -n there.
-HM="$FLAKE#homeConfigurations.$(cat /etc/hostname 2>/dev/null || uname -n).config"
+host=$(cat /etc/hostname 2>/dev/null); HM="$FLAKE#homeConfigurations.${host:-$(uname -n)}.config"
 SKILLS="orca-cli orchestration computer-use orca-per-workspace-env orca-linear linear-tickets"
 
 pkg_attr() { # pkg_attr <pname> <attr>
@@ -46,13 +46,13 @@ echo "testing $CLI and $GUI"
 
 # The skills' own rule: outside an Orca terminal, on Linux, the CLI is
 # `orca-ide`; elsewhere it is `orca`. Both names must be the CLI, and the GUI
-# must not also claim `orca-ide` -- in the profile the two would collide.
+# must not also claim `orca-ide` or `orca` -- in the profile they would collide.
 for b in orca orca-ide; do
   if [ -x "$CLI/bin/$b" ]; then pass "orca-cli provides bin/$b"
   else fail "bin/$b" "missing from $CLI"; fi
 done
-if [ -x "$GUI/bin/orca-ide-app" ] && [ ! -e "$GUI/bin/orca-ide" ]; then
-  pass "the GUI is orca-ide-app and leaves orca-ide to the CLI"
+if [ -x "$GUI/bin/orca-ide-app" ] && [ ! -e "$GUI/bin/orca-ide" ] && [ ! -e "$GUI/bin/orca" ]; then
+  pass "the GUI is orca-ide-app and leaves orca-ide and orca to the CLI"
 else fail "GUI bin names" "$(ls "$GUI/bin" | paste -sd' ')"; fi
 
 # No sandbox between the caller and the CLI: a plain exec of node, so
@@ -103,7 +103,7 @@ else fail "GUI argv node mode" "got '$got'"; fi
 # were node mode lost, this would be a GUI launch, which timeout cannot
 # reach past bwrap; without a display it exits before any window opens.
 nodisplay() { env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u DISPLAY "$@"; }
-ELECTRON_RUN_AS_NODE=1 nodisplay timeout 60 "$GUI/bin/orca-ide-app" -p '"node-ok"' >"$T/node-out" 2>"$T/node-err"
+ELECTRON_RUN_AS_NODE=1 nodisplay timeout 60 "$GUI/bin/orca-ide-app" -e 'setTimeout(() => process.exit(1), 10000).unref(); console.log("node-ok")' >"$T/node-out" 2>"$T/node-err"
 node_ok=
 if [ "$(cat "$T/node-out")" = node-ok ]; then
   node_ok=1; pass "orca-ide-app runs in node mode (serve's runtime probe)"

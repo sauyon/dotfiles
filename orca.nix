@@ -114,7 +114,7 @@ let
       # bind, bindl, binde, ...: the lists. `binds` is a config section, a set.
       (builtins.filter (k: lib.hasPrefix "bind" k && builtins.isList s.${k}) (builtins.attrNames s));
   macKeybindings = pkgs.runCommand "orca-mac-keybindings" {
-    nativeBuildInputs = [ pkgs.nodejs pkgs.asar pkgs.makeWrapper ];
+    nativeBuildInputs = [ pkgs.nodejs pkgs.asar pkgs.makeWrapper pkgs.jq ];
   } ''
     asar extract ${appimageContents}/resources/app.asar app
     mkdir -p $out/share $out/bin
@@ -130,14 +130,20 @@ let
       --add-flags "${./nix/orca-mac-keybindings-merge.js} $out/lib/shared $out/share/orca-mac-keybindings.json"
     # One real merge, so an Orca bump that moves an import or an export the
     # merge uses fails here, not as a warning at every activation. The seed
-    # is a string (comma-list) value, so the shorthand parser runs too.
+    # is a string (comma-list) value, so the shorthand parser runs too; it
+    # sits on a New-agent-tab action, unbound on every platform, so the
+    # table never claims it whatever Hyprland binds. The check is that every
+    # generated entry landed as generated, and the seed survived.
     mkdir -p $TMPDIR/home/.orca
-    echo '{"version":1,"keybindings":{},"platforms":{"linux":{"zoom.reset":"Alt+0, Alt+Shift+0"}}}' \
+    echo '{"version":1,"keybindings":{},"platforms":{"linux":{"tab.newAgent.claude":"Alt+F12, Alt+Shift+F12"}}}' \
       > $TMPDIR/home/.orca/keybindings.json
     HOME=$TMPDIR/home $out/bin/orca-mac-keybindings 2> merge.err
     if [ -s merge.err ] \
-       || ! grep -q '"Cmd+W"' $TMPDIR/home/.orca/keybindings.json \
-       || ! grep -q '"Alt+0, Alt+Shift+0"' $TMPDIR/home/.orca/keybindings.json \
+       || ! jq -e --slurpfile o $out/share/orca-mac-keybindings.json '
+            .platforms.linux as $l
+            | ($o[0] | to_entries | all(.value == $l[.key]))
+              and $l["tab.newAgent.claude"] == "Alt+F12, Alt+Shift+F12"' \
+            $TMPDIR/home/.orca/keybindings.json >/dev/null \
        || [ ! -s $TMPDIR/home/.orca/keybindings.nix-owned.json ]; then
       cat merge.err >&2; echo "orca: build-time merge did not apply the table" >&2; exit 1
     fi

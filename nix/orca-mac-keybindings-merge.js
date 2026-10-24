@@ -5,8 +5,8 @@
 //
 // The file is Orca's read-write state, so this owns only what it claimed: a
 // sidecar, keybindings.nix-owned.json, maps each claimed action to the value
-// it was claimed at -- the value written, or for a key withdrawn in a clash,
-// the generated value it would have had. Per key:
+// it was claimed at: the value written, which is [] for a key withdrawn in a
+// clash. Per key:
 //   - claimed, no longer generated, value unchanged: removed;
 //   - claimed, value changed since (or the claim withdrawn and a value set):
 //     the UI's, left alone;
@@ -15,8 +15,9 @@
 //   - everything else in the file is untouched.
 // Then the merged file gets Orca's own conflict check. Orca drops every
 // action in a conflicting set at load, so a generated key that clashes with
-// a UI shortcut is withdrawn instead, and named, leaving the UI's choice and
-// the generated action's Linux default.
+// a UI shortcut is withdrawn instead, and named: the UI's choice stands and
+// the generated action is unbound ([]) -- not handed back to Orca's Linux
+// default, a Ctrl chord the terminal would lose.
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -140,16 +141,15 @@ for (;;) {
     .findKeybindingConflicts('linux', effective)
     .flatMap((c) => c.actionIds)
     .filter((id) => id in written);
-  // Only generated keys are ever withdrawn. A conflict with none left in it
-  // -- between UI shortcuts, or a UI shortcut and the Linux default a
-  // withdrawal brought back -- is Orca's to report.
+  // Only generated keys are ever withdrawn, to [], which conflicts with
+  // nothing, so this ends. A conflict with no generated key in it -- between
+  // UI shortcuts -- is Orca's to report.
   if (withdrawn.length === 0) break;
   for (const id of new Set(withdrawn)) {
     console.error(`orca: ${id} ${JSON.stringify(written[id])} clashes with a shortcut set in Orca; keeping that one`);
-    delete written[id];
-    delete linux[id];
-    if (id in commonParsed) effective[id] = commonParsed[id];
-    else delete effective[id];
+    written[id] = [];
+    linux[id] = [];
+    effective[id] = [];
   }
 }
 
@@ -161,9 +161,8 @@ doc.platforms = {
   win32: isObject(platforms.win32) ? platforms.win32 : {},
 };
 writeJson(dest, doc);
-// Every key this table claims, written or withdrawn, at its generated value;
-// the UI's keep the value last written. Either way a later UI value reads as
-// changed, the UI's, rather than as never owned and free to overwrite.
+// Every key this table claims, at the value it wrote ([] where withdrawn);
+// the UI's keep the value last written, so a later UI value reads as changed.
 writeJson(sidecar, {
   linux: {
     ...owned,

@@ -89,17 +89,17 @@ for (const def of kb.KEYBINDING_DEFINITIONS) {
   overrides[def.id] = free;
 }
 
-// Ctrl and Meta are the terminal's: emacs, readline. Any chord with Ctrl or
-// Alt and no Super goes -- the Mac table's own (Ctrl+1..9 tab select, Alt+Z
-// word wrap) as much as Linux defaults left standing (Alt+Shift+D split).
-// Tab cycling stays: terminals cannot send Ctrl+Tab or Ctrl+PageUp/Down.
+// Ctrl and Meta are the terminal's: emacs, readline. Every action has an
+// override by now, so what is left to strip is the Mac table's own Ctrl and
+// Alt chords (Ctrl+1..9 tab select, Alt+Z word wrap). Tab cycling stays:
+// terminals cannot send Ctrl+Tab or Ctrl+PageUp/Down.
 const TERMINAL_CANNOT_SEND = new Set(['Ctrl+Tab', 'Ctrl+PageUp', 'Ctrl+PageDown']);
 const takesFromTerminal = (b) => {
   const mods = b.split('+').slice(0, -1);
-  return !mods.includes('Cmd') && mods.some((m) => m === 'Ctrl' || m === 'Alt' || m === 'Mod') && !TERMINAL_CANNOT_SEND.has(b);
+  return !mods.includes('Cmd') && mods.some((m) => m === 'Ctrl' || m === 'Alt') && !TERMINAL_CANNOT_SEND.has(b);
 };
 for (const def of kb.KEYBINDING_DEFINITIONS) {
-  const effective = overrides[def.id] ?? kb.getDefaultBindings(def, 'linux');
+  const effective = overrides[def.id];
   const kept = effective.filter((b) => !takesFromTerminal(b));
   if (kept.length < effective.length) {
     console.error(`${def.id}: ${effective.filter(takesFromTerminal).join(', ')} is the terminal's`);
@@ -111,6 +111,7 @@ for (const def of kb.KEYBINDING_DEFINITIONS) {
 if (pinnedFile) {
   for (const [id, bindings] of Object.entries(JSON.parse(fs.readFileSync(pinnedFile, 'utf8')))) {
     if (!kb.getKeybindingDefinition(id)) throw new Error(`pinned: unknown Orca action "${id}"`);
+    if (!Array.isArray(bindings)) throw new Error(`pinned: ${id}: give a list of chords, e.g. [ "Ctrl+S" ]`);
     overrides[id] = bindings.map((b) => {
       const n = kb.normalizeKeybindingWithOptions(b, kb.normalizeOptionsForAction(id));
       if (!n.ok) throw new Error(`pinned: ${id}: ${b}: ${n.error}`);

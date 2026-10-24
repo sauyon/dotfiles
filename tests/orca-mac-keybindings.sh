@@ -179,7 +179,9 @@ cat > "$H/.orca/keybindings.json" <<'EOF'
 EOF
 err=$(HOME=$H "$MERGE" 2>&1 >/dev/null)
 got=$(jq -c '[.platforms.linux["tab.newBrowser"], .platforms.linux["tab.newTerminal"]]' "$H/.orca/keybindings.json")
-if [ "$got" = '[["Cmd+T"],null]' ] && [[ $err == *tab.newTerminal* ]]; then
+# Withdrawn means unbound ([]), not deleted: deleted would hand the action
+# back to Orca's Linux default, Ctrl+T, which is the terminal's.
+if [ "$got" = '[["Cmd+T"],[]]' ] && [[ $err == *tab.newTerminal* ]]; then
   pass "UI chord wins a clash, and the dropped key is named"
 else
   fail "clash" "got $got, stderr '$err'"
@@ -218,7 +220,7 @@ cat > "$H/.orca/keybindings.json" <<'EOF'
 EOF
 HOME=$H "$MERGE" >/dev/null 2>&1
 got=$(jq -c '[.platforms.linux["tab.newBrowser"], .platforms.linux["tab.newTerminal"]]' "$H/.orca/keybindings.json")
-[ "$got" = '["Cmd+T, Alt+B",null]' ] && pass "comma-shorthand UI value still wins the clash" \
+[ "$got" = '["Cmd+T, Alt+B",[]]' ] && pass "comma-shorthand UI value still wins the clash" \
   || fail "clash-shorthand" "got $got"
 
 # 8e. Sections parse separately, then layer, as Orca's loader does: a bad
@@ -229,7 +231,7 @@ cat > "$H/.orca/keybindings.json" <<'EOF'
 EOF
 HOME=$H "$MERGE" >/dev/null 2>&1
 got=$(jq -c '.platforms.linux["tab.newTerminal"]' "$H/.orca/keybindings.json")
-[ "$got" = 'null' ] && pass "common value under a bad linux one still wins its clash" \
+[ "$got" = '[]' ] && pass "common value under a bad linux one still wins its clash" \
   || fail "layer" "tab.newTerminal got $got"
 
 # 9. An empty file is not JSON either: left alone, not "merged" into nothing.

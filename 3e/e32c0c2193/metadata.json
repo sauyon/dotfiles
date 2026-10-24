@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "3ee32c0c2193",
+  "strategy": "manual-commit",
+  "branch": "orca-mac-keys",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "nix/orca-mac-keybindings.js",
+    "orca.nix",
+    "tests/orca-mac-keybindings.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3e/e32c0c2193/0/metadata.json",
+      "transcript": "/3e/e32c0c2193/0/full.jsonl",
+      "compact_transcript": "/3e/e32c0c2193/0/transcript.jsonl",
+      "content_hash": "/3e/e32c0c2193/0/content_hash.txt",
+      "prompt": "/3e/e32c0c2193/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 30039,
+    "cache_read_tokens": 1710914,
+    "output_tokens": 13611,
+    "api_call_count": 14
+  }
+}

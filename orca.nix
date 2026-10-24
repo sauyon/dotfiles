@@ -32,10 +32,16 @@ let
     # so all of them dangled and every family fell to Montserrat Thin. See
     # fontsConf below. tests/sandbox-fonts.sh.
     extraBwrapArgs = [ "--setenv FONTCONFIG_FILE ${fontsConf}" ];
-    # The AppImage ships bin/orca and an orca-ide.desktop; upstream's .deb
-    # installs the CLI as `orca-ide`, and that is what the desktop Exec and
-    # meta.mainProgram use below. appimageTools keeps the AppImage's own bin
-    # name, so the wrapper is renamed by hand.
+    # `orca-ide open` (orcaCli below) spawns the GUI detached, but every
+    # wrapper layer execs the next, so this bwrap is the CLI's own child, and
+    # --die-with-parent SIGKILLs the window the moment `open` returns.
+    dieWithParent = false;
+    # The AppImage ships bin/orca and an orca-ide.desktop. Upstream's .deb
+    # puts the CLI on PATH as `orca-ide` and leaves the GUI off it, and Orca's
+    # skills tell agents to run `orca-ide` outside an Orca terminal -- so
+    # `orca-ide` is orcaCli below, and the GUI is `orca-ide-app`, which the
+    # desktop Exec and meta.mainProgram use. appimageTools keeps the
+    # AppImage's own bin name, so the wrapper is written by hand.
     #
     # --ozone-platform=wayland: Orca's startup gate picks X11 when neither
     # --ozone-platform nor ELECTRON_OZONE_PLATFORM_HINT says otherwise, and on
@@ -43,21 +49,24 @@ let
     # bare launch exits 1 with "needs a usable display server", and the
     # explicit wayland switch keeps it running (timeout kill at 20s, exit 124).
     # An env var would work from a shell but not a desktop-file launch, so it
-    # is a flag on the command line.
+    # is a flag on the command line -- except in node mode: the CLI's `serve`
+    # probes ORCA_APP_EXECUTABLE with ELECTRON_RUN_AS_NODE=1 and a script as
+    # argv, and Node rejects the flag ("bad option", exit 9).
     #
     # The flag lands in extraInstallCommands, not postFixup: wrapType2 is a
     # buildFHSEnv, whose buildCommand short-circuits genericBuild's phase
-    # list, so postFixup never runs. The bin/orca symlink from buildCommand
-    # is replaced with a wrapper that prepends the flag and passes "$@"
-    # through. buildFHSEnv's builder has no makeWrapper on PATH, so its setup
-    # hook is sourced by hand; and the wrapper must not target its own path
-    # (renaming to orca-ide and wrapping orca-ide in place makes it exec
-    # itself), so the bwrap launcher moves aside to .orca-ide-unwrapped.
+    # list, so postFixup never runs. The bwrap launcher moves aside to
+    # .orca-ide-unwrapped and orca-ide-app execs it, the flag first.
     extraInstallCommands = ''
-      source ${pkgs.makeWrapper}/nix-support/setup-hook
       mv $out/bin/orca $out/bin/.orca-ide-unwrapped
-      makeShellWrapper $out/bin/.orca-ide-unwrapped $out/bin/orca-ide \
-        --add-flags '--ozone-platform=wayland'
+      cat > $out/bin/orca-ide-app <<'EOF'
+      #!${pkgs.runtimeShell}
+      if [ -z "''${ELECTRON_RUN_AS_NODE:-}" ]; then
+        set -- --ozone-platform=wayland "$@"
+      fi
+      exec ${placeholder "out"}/bin/.orca-ide-unwrapped "$@"
+      EOF
+      chmod +x $out/bin/orca-ide-app
       install -Dm444 ${appimageContents}/orca-ide.desktop \
         $out/share/applications/orca-ide.desktop
       for size in 16 24 32 48 64 128 256 512; do
@@ -66,9 +75,9 @@ let
           $out/share/icons/hicolor/''${size}x''${size}/apps/orca-ide.png
       done
       substituteInPlace $out/share/applications/orca-ide.desktop \
-        --replace-fail 'Exec=AppRun' 'Exec=orca-ide'
+        --replace-fail 'Exec=AppRun' 'Exec=orca-ide-app'
     '';
-    meta.mainProgram = "orca-ide";
+    meta.mainProgram = "orca-ide-app";
   };
   # Hermetic: nixpkgs' own conf.d (store paths, the full standard alias set),
   # whose 50-user.conf pulls in ~/.config/fontconfig -- home-manager's font
@@ -89,6 +98,69 @@ let
   # Extracted once, shared by the wrapper's extraInstallCommands below;
   # let bindings are recursive, so position in the block does not matter.
   appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
+
+  # nixGL wrap: without it the FHS env resolves GBM/DRI via the NixOS-only
+  # /run/opengl-driver path and falls back to software rendering — the
+  # same reason parsec gets it.
+  orcaGui = config.lib.nixGL.wrap orca;
+
+  # The CLI, as `orca-ide` (what the skills run outside an Orca terminal on
+  # Linux) and `orca` (their name for it elsewhere). It is plain JavaScript:
+  # upstream's resources/bin/orca-ide runs it on the bundled Electron in node
+  # mode, but nothing in it needs Electron, so it runs on nixpkgs' node of
+  # the same major (Electron 43 bundles node 24) with no sandbox -- a plain
+  # exec, so signals and exit codes are the CLI's own. Orca's own installer
+  # only reaches an Orca terminal (a shim dir on PATH there, and a
+  # ~/.local/bin symlink to a raw store path).
+  #
+  # ORCA_APP_EXECUTABLE: `orca-ide open` spawns it, else process.execPath --
+  # node, here. NODE_OPTIONS is handed over as ORCA_NODE_OPTIONS and cleared,
+  # as upstream's shim does, so the CLI decides what its children inherit.
+  # tests/orca-cli-skills.sh.
+  orcaCli = pkgs.runCommand "orca-cli-${version}" {
+    pname = "orca-cli";
+    inherit version;
+    meta.mainProgram = "orca-ide";
+  } ''
+    mkdir -p $out/bin
+    cat > $out/bin/orca-ide <<'EOF'
+    #!${pkgs.runtimeShell}
+    export ORCA_APP_EXECUTABLE="''${ORCA_APP_EXECUTABLE:-${orcaGui}/bin/orca-ide-app}"
+    export ORCA_NODE_OPTIONS="''${NODE_OPTIONS-}"
+    export ORCA_NODE_REPL_EXTERNAL_MODULE="''${NODE_REPL_EXTERNAL_MODULE-}"
+    unset NODE_OPTIONS NODE_REPL_EXTERNAL_MODULE
+    exec ${pkgs.nodejs_24}/bin/node ${appimageContents}/resources/app.asar.unpacked/out/cli/index.js "$@"
+    EOF
+    chmod +x $out/bin/orca-ide
+    ln -s orca-ide $out/bin/orca
+  '';
+
+  # Orca's agent skills, from the repo at the commit this AppImage was built
+  # from: `orca skills install` pins `npx skills add` to it, and the bundled
+  # resources/skills/current-manifest.json holds their sha256s. Bump this rev
+  # with the version — it is the `sourceCommit` in out/main/index.js of
+  # app.asar, and the test holds it to that. A fetch in this module rather
+  # than a flake input, because the rev tracks `version` above, not the
+  # repo's head; `nix flake update` does not touch it. The rev is in the
+  # store name so a rev bump without a hash bump fails to fetch instead of
+  # reusing the old tree. The skills are stubs that call
+  # `orca-ide skills get <name>`, so they need orcaCli above.
+  #
+  # A subset of the bundled ten: no Jira, no emulator. Each is a read-only
+  # store symlink, so Orca's own Settings > Skills "update" (npx skills add)
+  # will fail on them or replace them, and home-manager then refuses to
+  # clobber; update by bumping here instead.
+  orcaSkillsSrc = pkgs.fetchFromGitHub rec {
+    name = "orca-skills-${rev}";
+    owner = "stablyai";
+    repo = "orca";
+    rev = "e6f7fba58e8e47b45e4343f99101b3ca9e05a5da";
+    hash = "sha256-iBlQxYs2GkXEyzywKiLtNChY5gSQMt72B21HC0dN0TI=";
+  };
+  orcaSkills = [
+    "orca-cli" "orchestration" "computer-use" "orca-per-workspace-env"
+    "orca-linear" "linear-tickets"
+  ];
 
   # Mac-style shortcuts, the same Super-for-Cmd scheme as gtk's mac-bindings
   # and ghostty's super+c/v in home.nix: Orca's own macOS defaults, with Cmd
@@ -178,12 +250,12 @@ let
 in
 {
   home.packages =
-    lib.optionals (!isDarwin && isDesktop) [
-    # nixGL wrap: without it the FHS env resolves GBM/DRI via the NixOS-only
-    # /run/opengl-driver path and falls back to software rendering — the
-    # same reason parsec gets it.
-      (config.lib.nixGL.wrap orca)
-    ];
+    lib.optionals (!isDarwin && isDesktop) [ orcaGui orcaCli ];
+
+  home.file = lib.mkIf (!isDarwin && isDesktop) (lib.listToAttrs (map (name: {
+    name = ".claude/skills/${name}";
+    value.source = "${orcaSkillsSrc}/skills/${name}";
+  }) orcaSkills));
 
   home.activation.orcaMacKeybindings = lib.mkIf (!isDarwin && isDesktop)
     (lib.hm.dag.entryAfter [ "writeBoundary" ] ''

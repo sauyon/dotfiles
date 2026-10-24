@@ -656,5 +656,116 @@ else
     "tries=$(wc -l < "$D/dispatch-tries") switched=$(sw) rc=$rc out=[$out]"
 fi
 
+
+
+# --- a strictly behind checkout fast-forwards ------------------------------
+# These boxes push to each other constantly, so "another box already pushed" is
+# the common case, not the exception. The old script stopped with "pull, then
+# re-run" — a second command for what is mechanically a fast-forward — and the
+# checkout stayed stale until a human ran it. A stale checkout is not a history
+# decision; rebasing still is, and that refusal is unchanged.
+#
+# Staged per case: setup_repo leaves HEAD one commit ahead of origin/master,
+# with that sha in $D/sha. advance_origin pushes that commit (so origin and
+# the checkout agree before the split), then adds two commits from a scratch
+# clone so origin/master is 2 ahead of the common ancestor — and re-points
+# $D/sha at the new tip, because that is the SHA hms waits on after
+# fast-forwarding (the stub forge answers for it).
+# The variant that skips the first push is for the diverged case: there the
+# checkout's commit is local-only on purpose, and pushing it would erase the
+# divergence under test.
+advance_origin() { # advance_origin: +2 commits on origin/master
+  [ -n "${push_skip:-}" ] || git -C "$D/repo" push --quiet origin master
+  git init --quiet "$D/other"
+  git -C "$D/other" config user.email "t@t"
+  git -C "$D/other" config user.name "t"
+  git -C "$D/other" fetch --quiet "$D/origin.git" master
+  git -C "$D/other" checkout --quiet FETCH_HEAD
+  for i in 1 2; do
+    echo "z$i" >> "$D/other/f"
+    git -C "$D/other" add f
+    git -C "$D/other" commit --quiet -m "remote$i"
+  done
+  git -C "$D/other" push --quiet "$D/origin.git" HEAD:master
+  git -C "$D/repo" fetch --quiet origin master
+  git -C "$D/repo" rev-parse origin/master > "$D/sha"
+}
+advance_origin_nopush() { push_skip=1 advance_origin; unset push_skip; }
+
+# 1. Behind on master: fast-forward to the fetched SHA, then wait and switch.
+setup_repo; advance_origin; mktoken good; mkcurl good success; mkswitch
+out=$(run); rc=$?
+expect=$(git -C "$D/repo" rev-parse origin/master)
+if [ "$rc" -eq 0 ] && [ -f "$D/switched" ] \
+   && [ "$(git -C "$D/repo" rev-parse HEAD)" = "$expect" ] \
+   && printf '%s' "$out" | grep -q 'fast-forwarded 2 commit(s)'; then
+  report "a strictly behind master checkout fast-forwards to origin/master" ok
+else
+  report "a strictly behind master checkout fast-forwards to origin/master" no \
+    "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc head=$(git -C "$D/repo" rev-parse HEAD) out=[$out]"
+fi
+
+# 2. Diverged: refuse, leave HEAD alone, never touch the switch. Staging:
+# reset to what origin holds, add a local-only commit, then advance origin by
+# two — ahead>0 and behind>0 is divergence, and neither side contains the other.
+setup_repo; git -C "$D/repo" reset --quiet --hard origin/master
+git -C "$D/repo" commit --quiet --allow-empty -m local
+advance_origin_nopush; mktoken good; mkcurl good success; mkswitch
+head_before=$(git -C "$D/repo" rev-parse HEAD)
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] \
+   && [ "$(git -C "$D/repo" rev-parse HEAD)" = "$head_before" ] \
+   && printf '%s' "$out" | grep -q 'rebase, then re-run'; then
+  report "a diverged checkout refuses and keeps HEAD" ok
+else
+  report "a diverged checkout refuses and keeps HEAD" no \
+    "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc head=$(git -C "$D/repo" rev-parse HEAD) out=[$out]"
+fi
+
+# 3. Behind on some other branch, or on a detached HEAD: hms never moves a ref
+#    it was not asked to move. Word-for-word the old refusal.
+check_unmoved_refusal() { # check_unmoved_refusal <name>
+  local name="$1" out rc
+  head_before=$(git -C "$D/repo" rev-parse HEAD)
+  git -C "$D/repo" for-each-ref --format='%(refname) %(objectname)' refs/heads > "$D/refs-before"
+  out=$(run); rc=$?
+  git -C "$D/repo" for-each-ref --format='%(refname) %(objectname)' refs/heads > "$D/refs-after"
+  if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] \
+     && [ "$(git -C "$D/repo" rev-parse HEAD)" = "$head_before" ] \
+     && cmp -s "$D/refs-before" "$D/refs-after" \
+     && printf '%s' "$out" | grep -q 'strictly behind — pull, then re-run' \
+     && printf '%s' "$out" | grep -q 'origin/master'; then
+    report "$name" ok
+  else
+    report "$name" no \
+      "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc head=$(git -C "$D/repo" rev-parse HEAD) out=[$out]"
+  fi
+}
+
+setup_repo; advance_origin
+git -C "$D/repo" checkout --quiet -b other
+mktoken good; mkcurl good success; mkswitch
+check_unmoved_refusal "a behind checkout on a non-master branch is refused, refs untouched"
+
+setup_repo; advance_origin
+git -C "$D/repo" checkout --quiet --detach HEAD
+mktoken good; mkcurl good success; mkswitch
+check_unmoved_refusal "a behind detached HEAD is refused, refs untouched"
+
+# 4. A dirty tree never gets pulled, even when behind: the refusal runs first.
+setup_repo; advance_origin
+echo dirty > "$D/repo/f"
+mktoken good; mkcurl good success; mkswitch
+head_before=$(git -C "$D/repo" rev-parse HEAD)
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] \
+   && [ "$(git -C "$D/repo" rev-parse HEAD)" = "$head_before" ] \
+   && printf '%s' "$out" | grep -q 'working tree dirty'; then
+  report "a dirty tree is refused before any fetch-and-decide, even when behind" ok
+else
+  report "a dirty tree is refused before any fetch-and-decide, even when behind" no \
+    "switched=$([ -f "$D/switched" ] && echo y || echo n) rc=$rc head=$(git -C "$D/repo" rev-parse HEAD) out=[$out]"
+fi
+
 printf '\n%d/%d passed\n' "$((n - fails))" "$n"
 [ "$fails" -eq 0 ]

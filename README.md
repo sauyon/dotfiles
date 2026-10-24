@@ -53,9 +53,12 @@ Things it deliberately refuses rather than works around:
 
 - **A dirty tree.** CI builds a pushed commit, so an uncommitted switch is one CI
   can never reproduce. Commit, or use `--local`.
-- **A stale checkout.** If `origin/master` has commits you do not, it says so and
-  stops — rebasing is your call, and waiting on a run for a SHA that is not
-  `origin/master` would be waiting on the wrong build.
+- **A diverged checkout.** If `origin/master` has commits you do not have and
+  you have commits it does not, it says so and stops — rebasing is your call,
+  and waiting on a run for a SHA that is not `origin/master` would be waiting
+  on the wrong build. Strictly behind, on master, is not a decision at all: it
+  fast-forwards to the fetched SHA and carries on. (Strictly behind on any
+  other checkout — another branch, a detached HEAD — still stops.)
 
 It falls back to a local build, with a note, when the host has no CI job (mari)
 or when the commit touched nothing `nix-home.yml`'s `paths:` filter matches. On a
@@ -113,7 +116,7 @@ where it gates the build instead of being checked after the fact.
 ./tests/thermald-setup.sh        # drives 8 cases against system/thermald-setup
 ./tests/ghostty-p10k-prompt.sh   # drives 13 cases against the live zsh config
 ./tests/zsh-compinit-once.sh     # drives 4 cases against the live zsh config
-./tests/hms-ci-poll.sh           # drives 7 cases against the built hms
+./tests/hms-ci-poll.sh           # drives 29 cases against the built hms
 ./tests/hmeval.sh                # drives 27 cases against the built hmeval
 ./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
 ./tests/polkit-agent.sh          # evaluates 5 hosts + a synthetic one, 17 cases

@@ -1105,18 +1105,20 @@ let
     # unconditional `push HEAD:master` loses the race regularly, and `set -e`
     # would turn that into a wall of git hints. Worse, waiting on a run for a SHA
     # that is not what origin/master holds would be waiting on the wrong build.
-    # Rebasing is a history decision, so say what is wrong and stop.
+    # Rebasing is a history decision, so say what is wrong and stop; a
+    # fast-forward is not one, so take it.
     git -C "$repo" fetch --quiet origin master
     sha=$(git -C "$repo" rev-parse HEAD)
     remote=$(git -C "$repo" rev-parse origin/master)
     if [ "$sha" = "$remote" ]; then
       echo "hms: ''${sha:0:7} is already origin/master"
     elif git -C "$repo" merge-base --is-ancestor "$remote" "$sha"; then
-      # Fetching narrows the race but cannot close it — another box can advance
-      # origin/master between the fetch and the push. Catch that rather than let
-      # `set -e` surface the same hint wall this block exists to avoid. git keeps
-      # its stderr: a rejected push and a failed auth are not the same problem,
-      # and only a ref that actually moved earns the race message.
+      # Strictly ahead: we contain origin/master's history, so push. Fetching
+      # narrows the push race but cannot close it — another box can advance
+      # origin/master between the fetch and the push. Catch that rather than
+      # let `set -e` surface the same hint wall this block exists to avoid.
+      # git keeps its stderr: a rejected push and a failed auth are not the same
+      # problem, and only a ref that actually moved earns the race message.
       if git -C "$repo" push --quiet origin HEAD:master; then
         echo "hms: pushed ''${sha:0:7}"
       else
@@ -1135,15 +1137,41 @@ let
         fi
         exit 1
       fi
+    elif git -C "$repo" merge-base --is-ancestor "$sha" "$remote"; then
+      # Strictly behind: origin/master contains everything we have. On master
+      # that has one answer — fast-forward to the exact SHA the fetch just
+      # produced and wait on that. `git pull` is the wrong tool: it re-fetches,
+      # and another box can advance origin/master in the gap, so it can move
+      # further than the SHA we are about to wait on. merge --ff-only keeps
+      # that from becoming a merge or a rebase: it either lands on $remote
+      # exactly or it fails and leaves HEAD where it was.
+      # Any other checkout — another branch, a detached HEAD — is left alone:
+      # moving a ref hms was not asked to move is not hms's call, so it gets
+      # today's refusal, word for word.
+      if [ "$(git -C "$repo" rev-parse --abbrev-ref HEAD)" = master ]; then
+        behind=$(git -C "$repo" rev-list --count "$sha..$remote")
+        if git -C "$repo" merge --ff-only --quiet "$remote"; then
+          echo "hms: fast-forwarded $behind commit(s) to ''${remote:0:7}"
+          sha=$remote
+        else
+          echo "hms: fast-forward to ''${remote:0:7} failed — see git's error above." >&2
+          exit 1
+        fi
+      else
+        behind=$(git -C "$repo" rev-list --count "$sha..$remote")
+        echo "hms: origin/master (''${remote:0:7}) has $behind commit(s) you do not have." >&2
+        echo "hms: you are strictly behind — pull, then re-run." >&2
+        # -n 5 rather than `| head -5`: under pipefail, head closing the pipe makes
+        # git exit 141 and `set -e` aborts on that instead of the exit 1 below.
+        git -C "$repo" --no-pager log --oneline -n 5 "$sha..$remote" >&2
+        exit 1
+      fi
     else
+      # Diverged: rebasing is a history decision, so say what is wrong and stop.
       behind=$(git -C "$repo" rev-list --count "$sha..$remote")
       ahead=$(git -C "$repo" rev-list --count "$remote..$sha")
       echo "hms: origin/master (''${remote:0:7}) has $behind commit(s) you do not have." >&2
-      if [ "$ahead" -gt 0 ]; then
-        echo "hms: and you have $ahead it does not — rebase, then re-run." >&2
-      else
-        echo "hms: you are strictly behind — pull, then re-run." >&2
-      fi
+      echo "hms: and you have $ahead it does not — rebase, then re-run." >&2
       # -n 5 rather than `| head -5`: under pipefail, head closing the pipe makes
       # git exit 141 and `set -e` aborts on that instead of the exit 1 below.
       git -C "$repo" --no-pager log --oneline -n 5 "$sha..$remote" >&2

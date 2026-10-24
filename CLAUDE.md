@@ -29,10 +29,13 @@ commit's CI run on `forge.ko.ag`, then switches — so the switch is a download 
 the closure the in-cluster runner built, not a local compile. Expect it to block
 for ten-odd minutes. `hms --local` builds here instead.
 
-It refuses on a dirty tree and on a checkout behind `origin/master`. **Both
-refusals are the feature.** CI can only build a pushed commit, so do not route
-around them with a bare `home-manager switch` — commit and push, or pass
-`--local` deliberately and say that you did.
+It refuses on a dirty tree and on a diverged checkout — **both refusals are
+the feature.** CI can only build a pushed commit, so do not route around them
+with a bare `home-manager switch` — commit and push, or pass `--local`
+deliberately and say that you did.
+
+A checkout on master that is strictly behind `origin/master` fast-forwards to
+the fetched SHA and continues — no refusal, nothing to decide.
 
 If a run goes red, `hms` prints the job's `error:` lines; read those rather than
 re-running blind. Background on why CI is worth waiting for — and the 600s attic

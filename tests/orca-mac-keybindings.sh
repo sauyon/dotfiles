@@ -142,6 +142,19 @@ got=$(jq -c '.linux["tab.close"]' "$H/.orca/keybindings.nix-owned.json")
 [ "$got" = '["Cmd+X"]' ] && pass "UI value equal to a generated one stays the UI's" \
   || fail "coincide" "sidecar now records $got"
 
+# 7c. Ownership is per key: an action newly generated since the last switch
+#     (Hyprland freed its chord, an Orca bump added it) that the UI already
+#     set is the UI's, though the sidecar exists.
+H="$T/newly"; mkdir -p "$H/.orca"
+cat > "$H/.orca/keybindings.json" <<'EOF'
+{"version":1,"keybindings":{},"platforms":{"darwin":{},"linux":{"tab.close":["Cmd+W"],"tab.newTerminal":["Alt+N"]},"win32":{}}}
+EOF
+echo '{"linux":{"tab.close":["Cmd+W"]}}' > "$H/.orca/keybindings.nix-owned.json"
+HOME=$H "$MERGE" >/dev/null 2>&1
+got=$(jq -c '.platforms.linux["tab.newTerminal"]' "$H/.orca/keybindings.json")
+[ "$got" = '["Alt+N"]' ] && pass "UI value on a newly generated action stays the UI's" \
+  || fail "newly" "got $got"
+
 # 8. A UI shortcut on a generated chord: Orca would drop *both* actions at load.
 #    The UI's choice stands; the generated action falls back to its default.
 H="$T/clash"; mkdir -p "$H/.orca"

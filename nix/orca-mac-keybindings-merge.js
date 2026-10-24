@@ -3,11 +3,15 @@
 //
 //   node orca-mac-keybindings-merge.js <app>/out/shared <owned.json>
 //
-// The file is Orca's read-write state, so this owns only what it wrote: a
-// sidecar, keybindings.nix-owned.json, records the values of the last write.
-//   - a key written last time and no longer generated is removed;
-//   - a key whose value the UI has changed since is left as the UI's;
-//   - with no sidecar yet, any value already on a generated key is the UI's;
+// The file is Orca's read-write state, so this owns only what it claimed: a
+// sidecar, keybindings.nix-owned.json, maps each claimed action to the value
+// it was claimed at -- the value written, or for a key withdrawn in a clash,
+// the generated value it would have had. Per key:
+//   - claimed, no longer generated, value unchanged: removed;
+//   - claimed, value changed since (or the claim withdrawn and a value set):
+//     the UI's, left alone;
+//   - never claimed but holding a value (no sidecar yet, or newly generated
+//     since): the UI's, left alone;
 //   - everything else in the file is untouched.
 // Then the merged file gets Orca's own conflict check. Orca drops every
 // action in a conflicting set at load, so a generated key that clashes with
@@ -68,9 +72,6 @@ if (!fs.existsSync(dest)) {
   }
 }
 
-// No sidecar over a file that exists: Orca (or a deleted sidecar) wrote
-// what is there, so nothing in it is this table's to overwrite.
-const adopting = fs.existsSync(dest) && !fs.existsSync(sidecar);
 let prev = {};
 try {
   const s = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
@@ -88,12 +89,13 @@ try {
 
 const platforms = isObject(doc.platforms) ? doc.platforms : {};
 const linux = isObject(platforms.linux) ? { ...platforms.linux } : {};
-// Changed since the last write: the UI's now. Absent (reset in the UI)
-// is not a change -- the reset target is this table, so it comes back.
+// The UI's: a value on a claimed key that differs from its claim, or any
+// value on a key never claimed. Absent (reset in the UI) is not a change --
+// the reset target is this table, so it comes back.
 const theirs = new Set(
-  adopting
-    ? Object.keys(owned).filter((id) => id in linux)
-    : Object.keys(prev).filter((id) => id in linux && !same(linux[id], prev[id])),
+  [...new Set([...Object.keys(prev), ...Object.keys(owned)])].filter(
+    (id) => id in linux && (id in prev ? !same(linux[id], prev[id]) : true),
+  ),
 );
 for (const id of Object.keys(prev)) {
   if (!theirs.has(id)) delete linux[id];
@@ -115,14 +117,15 @@ for (const [id, bindings] of Object.entries(owned)) {
 const common = doc.keybindings === undefined ? doc : isObject(doc.keybindings) ? doc.keybindings : {};
 // Orca's loader (jHn): null/false unbind; a string is a comma list; an array
 // of strings may hold comma lists too; one bad chord rejects the whole value,
-// leaving the action on its default (undefined here).
+// leaving the action on its default (undefined here). Both normalisers return
+// string[] or {ok:false}.
 const expand = (id, v) => {
   if (v === null || v === false) return [];
   const n =
     typeof v === 'string' ? kb.normalizeKeybindingListForAction(id, v)
       : Array.isArray(v) && v.every((b) => typeof b === 'string') ? kb.normalizeKeybindingArrayForAction(id, v)
-        : { ok: false };
-  return Array.isArray(n) ? n : n.ok ? [n.value] : undefined;
+        : null;
+  return Array.isArray(n) ? n : undefined;
 };
 // Each section parsed on its own, then layered (q$): a bad platform value is
 // dropped, not allowed to hide a good common one.

@@ -1426,13 +1426,19 @@ let
       # API (see nix-home.yml), and a dispatch builds the branch tip, so it is
       # only a retry of *this* commit while origin/master still is it.
       errlines=$(cut -c30- "$log" | ${lib.getExe pkgs.gnugrep} -ai 'error' || true)
-      if [ -n "$errlines" ] \
+      # `failure` only: a run cancelled by hand was someone's decision.
+      if [ "$status" = failure ] && [ -n "$errlines" ] \
          && ! printf '%s\n' "$errlines" | ${lib.getExe pkgs.gnugrep} -qavE \
               'RPC failed; HTTP 5[0-9]{2}|returned error: 5[0-9]{2}|Could not resolve host|Failed to connect|Connection (timed out|reset)|early EOF'; then
         # Every Linux box's hms waits on this same run, so each of them gets
         # here when it fails. A newer run for this commit already listed is
-        # another box's retry: adopt it rather than queue a second full build
-        # behind it, and do not spend a retry on it.
+        # another box's retry: adopt it rather than queue a second build behind
+        # it, and do not spend a retry on it. That only helps a box at least one
+        # dispatch-to-listing delay behind the first; boxes that finish polling
+        # together usually both dispatch, and the extra run is a mostly cached
+        # rebuild of the same commit, queued in the concurrency group. Nobody
+        # switches to the wrong build either way: each waits on the first run
+        # above min_run, and they converge.
         newer=""
         if tasks=$(api "/api/v1/repos/$slug/actions/tasks?limit=20"); then
           newer=$(printf '%s' "$tasks" | $jq -r --arg s "$sha" --arg m "$run" 'first(.workflow_runs[]
@@ -1448,7 +1454,9 @@ let
         # `! -gt` rather than `-le`, so a non-numeric HMS_RETRIES gives up too.
         elif ! [ "$retries_left" -gt 0 ] 2>/dev/null; then
           echo "hms: transient infra failure — gave up after $retries retries (HMS_RETRIES)." >&2
-        elif ! tip=$(git -C "$repo" ls-remote --heads origin master 2>/dev/null | cut -f1) \
+        # The full refname: `ls-remote` matches ref tails, so a bare "master"
+        # would also pick up refs/heads/feature/master and read as "moved on".
+        elif ! tip=$(git -C "$repo" ls-remote origin refs/heads/master 2>/dev/null | cut -f1) \
              || [ -z "$tip" ]; then
           echo "hms: transient failure, but could not read origin/master to retry it." >&2
         elif [ "$tip" != "$sha" ]; then
@@ -1460,7 +1468,9 @@ let
           min_run=$run; retrying=1
           continue
         else
-          echo "hms: transient failure, but the retry dispatch failed: $(api_why)" >&2
+          # Not "refused": a POST that hit max-time may have been accepted.
+          echo "hms: transient failure, but the retry dispatch did not go through: $(api_why)" >&2
+          echo "hms: check $forge/$slug/actions — a timed-out dispatch may have queued anyway." >&2
         fi
       fi
     fi

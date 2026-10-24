@@ -465,8 +465,8 @@ fi
 # is fetched (someone pushed mid-run), "nodispatch" makes the dispatch itself
 # fail with a 503, "theirs" has another box's hms dispatch the retry (run 43,
 # green) while ours is reading the log, and "blip" 502s a listing
-# during the retry wait.
-mkcurl_flaky() { # mkcurl_flaky <n-fail> <log-file> [moved|nodispatch|theirs|blip]
+# during the retry wait, and "cancelled" reports the run cancelled, not failed.
+mkcurl_flaky() { # mkcurl_flaky <n-fail> <log-file> [moved|nodispatch|theirs|blip|cancelled]
   echo 42 > "$D/run-number"; : > "$D/dispatches"; : > "$D/dispatch-tries"
   rm -f "$D/pending" "$D/theirs" "$D/blipped"
   git -C "$D/repo" rev-parse HEAD~1 > "$D/other-sha"
@@ -499,7 +499,8 @@ case "\$url" in
       fi
       rm "$D/pending"; echo \$((\$(cat "$D/run-number") + 1)) > "$D/run-number"
     fi
-    if [ -f "$D/theirs" ] || [ "\$(wc -l < "$D/dispatches")" -ge $1 ]; then st=success; else st=failure; fi
+    if [ -f "$D/theirs" ] || [ "\$(wc -l < "$D/dispatches")" -ge $1 ]; then st=success
+    elif [ '${3:-}' = cancelled ]; then st=cancelled; else st=failure; fi
     listing "\$(cat "$D/run-number")" "\$st" ;;
   *jobs/0*)     printf 'job_id 7 not found\n200\n' ;;
   *jobs/*logs*)
@@ -599,11 +600,22 @@ else
     "blipped=$([ -f "$D/blipped" ] && echo y || echo n) switched=$(sw) rc=$rc out=[$out]"
 fi
 
+# A run cancelled by hand is someone's decision, not a failure to retry, even
+# when the log it left behind is transient-shaped.
+setup_repo; mktoken good; mkcurl_flaky 1 "$FIX" cancelled; mkswitch
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(wc -l < "$D/dispatch-tries")" -eq 0 ]; then
+  report "a cancelled run is not re-dispatched" ok
+else
+  report "a cancelled run is not re-dispatched" no \
+    "tries=$(wc -l < "$D/dispatch-tries") switched=$(sw) rc=$rc out=[$out]"
+fi
+
 # A dispatch the forge refuses is the end of it, said once, not a loop.
 setup_repo; mktoken good; mkcurl_flaky 1 "$FIX" nodispatch; mkswitch
 out=$(run); rc=$?
 if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(wc -l < "$D/dispatch-tries")" -eq 1 ] \
-   && printf '%s' "$out" | grep -q 'retry dispatch failed'; then
+   && printf '%s' "$out" | grep -q 'retry dispatch did not go through'; then
   report "a refused dispatch hands the failure back" ok
 else
   report "a refused dispatch hands the failure back" no \

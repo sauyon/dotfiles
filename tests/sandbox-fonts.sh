@@ -77,5 +77,19 @@ for c in 'sans\-serif:Noto Sans' 'sans:Noto Sans' 'Arial:' \
   fi
 done
 
+# Exact families, not matches. Chromium takes a named family only when
+# fontconfig has it (a weak alias is refused), so "fc-match X" coming back with
+# some other mono font is no comfort: orca's terminal then renders in a
+# proportional fallback laid out on a monospace grid. DejaVu Sans Mono is orca's
+# Linux default terminalFontFamily, a single family with no fallback.
+for fam in 'DejaVu Sans Mono'; do
+  got=$("$T/launch" /usr/bin/fc-list -f '%{family[0]}\n' "$fam" 2>/dev/null | sort -u | head -1)
+  if [ "$got" = "$fam" ]; then
+    pass "'$fam' exists in the sandbox (orca's default terminal font)"
+  else
+    fail "$fam" "not installed in the sandbox; Chromium falls back to a proportional font"
+  fi
+done
+
 printf '\n%d/%d passed\n' "$((n-fails))" "$n"
 [ "$fails" -eq 0 ]

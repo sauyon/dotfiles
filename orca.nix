@@ -25,13 +25,13 @@ let
   orca = pkgs.appimageTools.wrapType2 {
     inherit pname version src;
     extraPkgs = pkgs: [ pkgs.libsecret ];
-    # buildFHSEnv binds the host's /etc/fonts in, assuming NixOS, where its
-    # conf.d links point into /nix/store. Arch's point into
-    # /usr/share/fontconfig, which the sandbox's /usr replaces, so every one
-    # dangled and the UI fell through to Montserrat Thin. Bind the host's copy
-    # over the rootfs's (which exists, so bwrap has a mount point). -try: a
-    # NixOS host has no such dir and needs none. tests/sandbox-fonts.sh.
-    extraBwrapArgs = [ "--ro-bind-try /usr/share/fontconfig /usr/share/fontconfig" ];
+    # The sandbox gets its own fontconfig, the way every other nix GUI app here
+    # gets a nix-generated FONTCONFIG_FILE, instead of the distro's.
+    # buildFHSEnv binds the host's /etc/fonts in, assuming NixOS; Arch's conf.d
+    # links point into /usr/share/fontconfig, which the sandbox's /usr replaces,
+    # so all of them dangled and every family fell to Montserrat Thin. See
+    # fontsConf below. tests/sandbox-fonts.sh.
+    extraBwrapArgs = [ "--setenv FONTCONFIG_FILE ${fontsConf}" ];
     # The AppImage ships bin/orca and an orca-ide.desktop; upstream's .deb
     # installs the CLI as `orca-ide`, and that is what the desktop Exec and
     # meta.mainProgram use below. appimageTools keeps the AppImage's own bin
@@ -70,6 +70,22 @@ let
     '';
     meta.mainProgram = "orca-ide";
   };
+  # Hermetic: nixpkgs' own conf.d (store paths, the full standard alias set),
+  # whose 50-user.conf pulls in ~/.config/fontconfig -- home-manager's font
+  # dirs, i.e. the nix-profile fonts every other app here uses. Plus DejaVu:
+  # Orca's Linux terminalFontFamily default is exactly "DejaVu Sans Mono" with
+  # no fallback, and Chromium refuses fontconfig's alias to another mono font,
+  # so without it the terminal lays a proportional fallback out on a mono grid.
+  # Scoped to orca rather than the profile because only orca hardcodes it.
+  fontsConf = pkgs.writeText "orca-fonts.conf" ''
+    <?xml version="1.0"?>
+    <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
+    <fontconfig>
+      <include ignore_missing="no">${pkgs.fontconfig.out}/etc/fonts/conf.d</include>
+      <dir>${pkgs.dejavu_fonts}/share/fonts</dir>
+      <cachedir prefix="xdg">fontconfig</cachedir>
+    </fontconfig>
+  '';
   # Extracted once, shared by the wrapper's extraInstallCommands below;
   # let bindings are recursive, so position in the block does not matter.
   appimageContents = pkgs.appimageTools.extract { inherit pname version src; };

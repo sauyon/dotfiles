@@ -51,7 +51,8 @@ let
     # An env var would work from a shell but not a desktop-file launch, so it
     # is a flag on the command line -- except in node mode: the CLI's `serve`
     # probes ORCA_APP_EXECUTABLE with ELECTRON_RUN_AS_NODE=1 and a script as
-    # argv, and Node rejects the flag ("bad option", exit 9).
+    # argv, and Node rejects the flag ("bad option", exit 9). Nor when the
+    # caller passes its own: Electron serve appends --ozone-platform=x11.
     #
     # The flag lands in extraInstallCommands, not postFixup: wrapType2 is a
     # buildFHSEnv, whose buildCommand short-circuits genericBuild's phase
@@ -61,9 +62,9 @@ let
       mv $out/bin/orca $out/bin/.orca-ide-unwrapped
       cat > $out/bin/orca-ide-app <<'EOF'
       #!${pkgs.runtimeShell}
-      if [ -z "''${ELECTRON_RUN_AS_NODE:-}" ]; then
-        set -- --ozone-platform=wayland "$@"
-      fi
+      case " $* " in *" --ozone-platform"*) ;; *)
+        [ -n "''${ELECTRON_RUN_AS_NODE:-}" ] || set -- --ozone-platform=wayland "$@" ;;
+      esac
       exec ${placeholder "out"}/bin/.orca-ide-unwrapped "$@"
       EOF
       chmod +x $out/bin/orca-ide-app
@@ -105,7 +106,10 @@ let
   orcaGui = config.lib.nixGL.wrap orca;
 
   # The CLI, as `orca-ide` (what the skills run outside an Orca terminal on
-  # Linux) and `orca` (their name for it elsewhere). It is plain JavaScript:
+  # Linux) and `orca`. Upstream avoids bare `orca` on Linux because it is
+  # usually the GNOME screen reader; here it is not installed and the
+  # profile comes first on PATH, so `orca` is the CLI too -- the skills
+  # still say `orca-ide`, and that is always the CLI. It is plain JavaScript:
   # upstream's resources/bin/orca-ide runs it on the bundled Electron in node
   # mode, but nothing in it needs Electron, so it runs on nixpkgs' node of
   # the same major (Electron 43 bundles node 24) with no sandbox -- a plain
@@ -113,9 +117,10 @@ let
   # only reaches an Orca terminal (a shim dir on PATH there, and a
   # ~/.local/bin symlink to a raw store path).
   #
-  # ORCA_APP_EXECUTABLE: `orca-ide open` spawns it, else process.execPath --
-  # node, here. NODE_OPTIONS is handed over as ORCA_NODE_OPTIONS and cleared,
-  # as upstream's shim does, so the CLI decides what its children inherit.
+  # ORCA_APP_EXECUTABLE: the Orca binary for `orca-ide open` and `serve` to
+  # launch; under plain node there is no other, and without it `open` fails
+  # and `serve` refuses to start. NODE_OPTIONS is handed over as
+  # ORCA_NODE_OPTIONS and cleared, as upstream's shim does.
   # tests/orca-cli-skills.sh.
   orcaCli = pkgs.runCommand "orca-cli-${version}" {
     pname = "orca-cli";

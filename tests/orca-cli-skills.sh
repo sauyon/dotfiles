@@ -61,9 +61,10 @@ if grep -q 'exec .*/bin/node ' "$CLI/bin/orca-ide" && ! grep -q bwrap "$CLI/bin/
   pass "the CLI is a plain exec of node"
 else fail "CLI launcher" "$CLI/bin/orca-ide is not a plain node exec"; fi
 
-# `orca-ide open` spawns ORCA_APP_EXECUTABLE, or else process.execPath --
-# which under plain node is node itself. Exactly the profile's GUI: the
-# unwrapped one has an orca-ide-app too, minus nixGL.
+# Under plain node, `orca-ide open` has no Orca binary to spawn but
+# ORCA_APP_EXECUTABLE (without it, it fails, and `serve` refuses to start).
+# Exactly the profile's GUI: the unwrapped one has an orca-ide-app too,
+# minus nixGL.
 app=$(sed -nE 's|.*ORCA_APP_EXECUTABLE:-([^}]*)\}.*|\1|p' "$CLI/bin/orca-ide")
 if [ "$app" = "$GUI/bin/orca-ide-app" ]; then
   pass "orca open launches the profile's nixGL-wrapped GUI"
@@ -77,12 +78,14 @@ if [ "$out" = node-ok ]; then
   pass "orca-ide-app runs in node mode (serve's runtime probe)"
 else fail "orca-ide-app node mode" "${out:-$(tail -1 "$T/node-err")}"; fi
 
-# `orca-ide open` spawns the GUI detached, then exits. Each GUI wrapper layer
-# execs the next, so the GUI's bwrap is the CLI's own child; with
-# --die-with-parent it would be SIGKILLed the moment `open` returns.
+# `orca-ide open` spawns the GUI detached, waits for it (up to 15s), then
+# exits. Each GUI wrapper layer execs the next, so the GUI's bwrap is the
+# CLI's own child; with --die-with-parent it would be SIGKILLed the moment
+# `open` returns. The parent here stays up past bwrap's startup, as `open`
+# does: one that exits first never arms bwrap's parent-death signal at all.
 bash -c 'ELECTRON_RUN_AS_NODE=1 "$1" -e "
-  setTimeout(() => require(\"fs\").writeFileSync(process.argv[1], \"alive\"), 3000);
-  setTimeout(() => process.exit(0), 4000);" "$2" >/dev/null 2>&1 &' _ "$GUI/bin/orca-ide-app" "$T/alive"
+  setTimeout(() => require(\"fs\").writeFileSync(process.argv[1], \"alive\"), 4000);
+  setTimeout(() => process.exit(0), 5000);" "$2" >/dev/null 2>&1 & sleep 2' _ "$GUI/bin/orca-ide-app" "$T/alive"
 for _ in $(seq 75); do [ -s "$T/alive" ] && break; sleep 0.2; done
 if [ -s "$T/alive" ]; then pass "the GUI outlives the parent that spawned it (orca-ide open)"
 else fail "GUI lifetime" "payload died with its spawning parent"; fi
@@ -95,7 +98,8 @@ contents=$(nix-store -qR "$CLI" | while read -r p; do
 manifest="$contents/resources/skills/current-manifest.json"
 
 # Outside an Orca terminal: none of its env, none of its shim dir on PATH.
-# ${!ORCA_@}, not compgen: CI's bash is built without programmable completion.
+# ${!ORCA_@}, not compgen: it works in a bash built without programmable
+# completion too.
 clean_path=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v 'linux-orca-cli-shim' | paste -sd:)
 outside() {
   local u=() v
@@ -120,7 +124,7 @@ if [ "$rc" -eq 1 ]; then pass "an unknown command exits 1"
 else fail "exit status" "unknown command exited $rc"; fi
 
 # The rev is pinned by hand next to the version; the app knows its own.
-rev=$(nix eval --raw "$HM.home.file" --apply 'f: f.".claude/skills/orca-cli".source' | sed -nE 's|.*-orca-skills-([0-9a-f]{40})/.*|\1|p')
+rev=$(nix eval --raw "$HM.home.file" --apply 'f: f.".claude/skills/orca-cli".source' 2>/dev/null | sed -nE 's|.*-orca-skills-([0-9a-f]{40})/.*|\1|p')
 if [ -n "$rev" ] && grep -aqF "sourceCommit:\`$rev\`" "$contents/resources/app.asar"; then
   pass "skills rev ${rev:0:8} is this build's sourceCommit"
 else fail "skills rev" "'${rev:-unparsed}' is not the sourceCommit in app.asar"; fi

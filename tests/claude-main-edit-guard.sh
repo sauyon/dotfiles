@@ -132,7 +132,7 @@ check "refusal falls back to EnterWorktree's own worktree" yes "$(says 'EnterWor
 check "refusal suggests no in-repo git worktree" no "$(says 'git worktree add')"
 check "refusal never says to relaunch with drovr new" no "$(says 'drovr new')"
 check "refusal sends the agent to ask for the override, not set it" yes \
-  "$(says 'Ask the user to relaunch Claude with CLAUDE_ALLOW_MAIN_EDIT=1')"
+  "$(says 'ask the user to relaunch Claude with `CLAUDE_ALLOW_MAIN_EDIT=1 claude --continue`')"
 
 # Every host in the flake, not just this one: the hook text, drovr's own
 # worktrees and the auto-mode cd rules all follow whether Orca is installed.
@@ -153,7 +153,9 @@ for h in $hosts; do
   # Run this host's own refusal program, not just grep it: CI runs the live hook
   # only as an Orca host, so a broken no-Orca branch would otherwise pass here
   # and, as invalid jq, emit nothing -- which lets every edit through.
-  prog=${hook#*--arg r \"\$root\" \'}; prog=${prog%%\'*}  # the jq program between its quotes
+  # The jq program between its quotes. Tied to the hook's exact spelling of
+  # `--arg r "$root" '...'`: a respelling fails every host loudly, not silently.
+  prog=${hook#*--arg r \"\$root\" \'}; prog=${prog%%\'*}
   reason=$(jq -nc --arg r /x "$prog" 2>/dev/null \
     | jq -r 'select(.hookSpecificOutput.permissionDecision == "deny") | .hookSpecificOutput.permissionDecisionReason')
   check "$h: refusal program emits a deny" yes "$([ -n "$reason" ] && echo yes || echo no)"
@@ -162,7 +164,14 @@ for h in $hosts; do
   check "$h: refusal sends a drovr run to drovr path iff drovr makes worktrees" "$wt" \
     "$([ "$(says 'drovr path <run>')" = yes ] && echo true || echo false)"
   check "$h: refusal falls back to EnterWorktree's own worktree" yes "$(says 'EnterWorktree with a name')"
-  check "$h: refusal asks for the override" yes "$(says 'Ask the user to relaunch Claude')"
+  check "$h: refusal asks for the override" yes "$(says 'ask the user to relaunch Claude')"
+  # A drovr phase agent cannot relaunch its own run: it is told to stop and
+  # report, and what the run needs follows from how drovr isolates it here.
+  check "$h: refusal tells a drovr phase agent to stop and report" yes "$(says 'stop and report')"
+  check "$h: refusal relaunches a run from an Orca worktree iff Orca" "$orca" \
+    "$([ "$(says 'relaunched from an Orca worktree')" = yes ] && echo true || echo false)"
+  check "$h: refusal relaunches a run without --no-worktree iff drovr isolates" "$wt" \
+    "$([ "$(says 'relaunched without --no-worktree')" = yes ] && echo true || echo false)"
   allow=$(nix eval --json "$REPO#homeConfigurations.$h.config.programs.claude-code.settings.autoMode.allow") \
     || { echo "could not evaluate $h's auto-mode rules" >&2; exit 1; }
   check "$h: auto mode allows cd into .drovr/wt iff drovr makes them" "$wt" \

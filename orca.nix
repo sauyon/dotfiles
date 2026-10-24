@@ -52,21 +52,27 @@ let
     # is a flag on the command line -- except in node mode: the CLI's `serve`
     # probes ORCA_APP_EXECUTABLE with ELECTRON_RUN_AS_NODE=1 and a script as
     # argv, and Node rejects the flag ("bad option", exit 9). Nor when the
-    # caller names a platform itself (Electron serve appends
-    # --ozone-platform=x11): `--ozone-platform` or `--ozone-platform=...`
-    # before any `--`, the rule Orca's own check uses; a -hint does not count.
+    # caller sets a platform itself (Electron serve appends
+    # --ozone-platform=x11): `--ozone-platform=<value>` before any `--`, which
+    # is what Orca's display gate reads -- a bare `--ozone-platform x11` gives
+    # Chromium an empty value, and a -hint is only a preference. (The flag
+    # also counts as explicit to Orca's own serve-mode X11 restart, so a
+    # hand-run `orca-ide-app --serve` stays on wayland; the CLI's serve
+    # passes x11 itself.)
     #
     # The flag lands in extraInstallCommands, not postFixup: wrapType2 is a
     # buildFHSEnv, whose buildCommand short-circuits genericBuild's phase
-    # list, so postFixup never runs. The bwrap launcher moves aside to
-    # .orca-ide-unwrapped and orca-ide-app execs it, the flag first when due.
+    # list, so postFixup never runs. The bwrap launcher's bin/orca moves aside
+    # to .orca-ide-unwrapped -- `orca` is orcaCli's name in the profile, and
+    # tests/sandbox-fonts.sh finds the launcher by this one -- and
+    # orca-ide-app execs it, the flag first when due.
     extraInstallCommands = ''
       mv $out/bin/orca $out/bin/.orca-ide-unwrapped
       cat > $out/bin/orca-ide-app <<'EOF'
       #!${pkgs.runtimeShell}
       explicit=
       for a in "$@"; do
-        case $a in --) break ;; --ozone-platform|--ozone-platform=*) explicit=1; break ;; esac
+        case $a in --) break ;; --ozone-platform=?*) explicit=1; break ;; esac
       done
       if [ -z "$explicit" ] && [ -z "''${ELECTRON_RUN_AS_NODE:-}" ]; then
         set -- --ozone-platform=wayland "$@"
@@ -114,14 +120,16 @@ let
   # The CLI, as `orca-ide` (what the skills run outside an Orca terminal on
   # Linux) and `orca`. Upstream avoids bare `orca` on Linux because it is
   # usually the GNOME screen reader; it is not installed here, so `orca` is
-  # the CLI too (were it installed, /usr/bin comes first on PATH and would
-  # win) -- the skills say `orca-ide`, and that is always the CLI. It is plain JavaScript:
-  # upstream's resources/bin/orca-ide runs it on the bundled Electron in node
-  # mode, but nothing in it needs Electron, so it runs on nixpkgs' node of
-  # the same major (Electron 43 bundles node 24) with no sandbox -- a plain
-  # exec, so signals and exit codes are the CLI's own. Orca's own installer
-  # puts a shim dir on PATH only in Orca terminals, and a ~/.local/bin
-  # symlink to a raw store path that goes stale on the next bump.
+  # the CLI too. (Were it installed, the profile comes first on PATH --
+  # env.nix -- so `orca` would still be this CLI.) The skills say `orca-ide`.
+  #
+  # It is plain JavaScript: upstream's resources/bin/orca-ide runs it on the
+  # bundled Electron in node mode, but nothing in it needs Electron, so it
+  # runs on nixpkgs' node of the same major (Electron 43 bundles node 24)
+  # with no sandbox -- a plain exec, so signals and exit codes are the CLI's
+  # own. Orca's own installer puts a shim dir on PATH only in Orca
+  # terminals, and a ~/.local/bin symlink to a raw store path that goes
+  # stale on the next bump.
   #
   # ORCA_APP_EXECUTABLE: the Orca binary for `orca-ide open` and `serve` to
   # launch; under plain node there is no other, and without it `open` fails

@@ -46,7 +46,7 @@ echo "testing $CLI and $GUI"
 
 # The skills' own rule: outside an Orca terminal, on Linux, the CLI is
 # `orca-ide`; elsewhere it is `orca`. Both names must be the CLI, and the GUI
-# must not also claim `orca-ide` -- in the profile it would shadow one of them.
+# must not also claim `orca-ide` -- in the profile the two would collide.
 for b in orca orca-ide; do
   if [ -x "$CLI/bin/$b" ]; then pass "orca-cli provides bin/$b"
   else fail "bin/$b" "missing from $CLI"; fi
@@ -72,12 +72,9 @@ else fail "ORCA_APP_EXECUTABLE" "'${app:-unset}', want $GUI/bin/orca-ide-app"; f
 
 # The GUI wrapper's argv decision, on the real generated script with its
 # final exec swapped for a printf, so nothing launches: --ozone-platform=
-# wayland first (Hyprland has no X server, and Orca's gate picks X11 without
-# it), except in node mode or when the caller sets a platform itself --
-# `--ozone-platform=<value>` before any `--`. A bare `--ozone-platform x11`
-# does not count: Chromium takes no switch value from the next word, so
-# Orca's display gate sees an empty one and falls back to X11; nor does a
-# -hint, which the gate ignores.
+# wayland first, except in node mode or when the caller names a platform
+# itself -- `--ozone-platform` or `--ozone-platform=...` before any `--`,
+# the rule of Orca's own hasExplicitOzonePlatform; a -hint does not count.
 inner=$(grep -o '/nix/store/[^ ]*/bin/orca-ide-app' "$GUI/bin/orca-ide-app" | tail -1)
 [ -n "$inner" ] || inner="$GUI/bin/orca-ide-app"  # no nixGL layer
 sed -E 's|^exec .*/\.orca-ide-unwrapped "\$@"$|printf "%s\\n" "$@"|' "$inner" > "$T/argv"
@@ -86,7 +83,8 @@ grep -q '^printf' "$T/argv" && ! grep -q 'orca-ide-unwrapped' "$T/argv" \
 argv() { env -u ELECTRON_RUN_AS_NODE bash "$T/argv" "$@" | paste -sd' '; }
 for c in "open|--ozone-platform=wayland open" \
          "--serve --ozone-platform=x11|--serve --ozone-platform=x11" \
-         "--ozone-platform x11|--ozone-platform=wayland --ozone-platform x11" \
+         "--ozone-platform x11|--ozone-platform x11" \
+         "--ozone-platform=|--ozone-platform=" \
          "--ozone-platform-hint=auto|--ozone-platform=wayland --ozone-platform-hint=auto" \
          "-- --ozone-platform=x11|--ozone-platform=wayland -- --ozone-platform=x11"; do
   in=${c%%|*}; want=${c#*|}
@@ -103,8 +101,8 @@ else fail "GUI argv node mode" "got '$got'"; fi
 # ELECTRON_RUN_AS_NODE=1 and a script as argv, and Node rejects the flag
 # ("bad option", exit 9). With no display, and stdout to a file, not a pipe:
 # were node mode lost, this would be a GUI launch, which timeout cannot
-# reach past bwrap; without a display it exits at Orca's gate instead.
-nodisplay() { env -u WAYLAND_DISPLAY -u DISPLAY "$@"; }
+# reach past bwrap; without a display it exits before any window opens.
+nodisplay() { env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u DISPLAY "$@"; }
 ELECTRON_RUN_AS_NODE=1 nodisplay timeout 60 "$GUI/bin/orca-ide-app" -p '"node-ok"' >"$T/node-out" 2>"$T/node-err"
 node_ok=
 if [ "$(cat "$T/node-out")" = node-ok ]; then

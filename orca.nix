@@ -52,13 +52,12 @@ let
     # is a flag on the command line -- except in node mode: the CLI's `serve`
     # probes ORCA_APP_EXECUTABLE with ELECTRON_RUN_AS_NODE=1 and a script as
     # argv, and Node rejects the flag ("bad option", exit 9). Nor when the
-    # caller sets a platform itself (Electron serve appends
-    # --ozone-platform=x11): `--ozone-platform=<value>` before any `--`, which
-    # is what Orca's display gate reads -- a bare `--ozone-platform x11` gives
-    # Chromium an empty value, and a -hint is only a preference. (The flag
-    # also counts as explicit to Orca's own serve-mode X11 restart, so a
-    # hand-run `orca-ide-app --serve` stays on wayland; the CLI's serve
-    # passes x11 itself.)
+    # caller names a platform itself (the CLI's serve appends
+    # --ozone-platform=x11): `--ozone-platform` or `--ozone-platform=...`
+    # before any `--`, the rule of Orca's own hasExplicitOzonePlatform; a
+    # -hint does not count. (The flag also counts as explicit to Orca's
+    # serve-mode X11 restart, so a hand-run `orca-ide-app --serve` stays on
+    # wayland; the CLI's serve passes x11 itself.)
     #
     # The flag lands in extraInstallCommands, not postFixup: wrapType2 is a
     # buildFHSEnv, whose buildCommand short-circuits genericBuild's phase
@@ -72,7 +71,7 @@ let
       #!${pkgs.runtimeShell}
       explicit=
       for a in "$@"; do
-        case $a in --) break ;; --ozone-platform=?*) explicit=1; break ;; esac
+        case $a in --) break ;; --ozone-platform|--ozone-platform=*) explicit=1; break ;; esac
       done
       if [ -z "$explicit" ] && [ -z "''${ELECTRON_RUN_AS_NODE:-}" ]; then
         set -- --ozone-platform=wayland "$@"

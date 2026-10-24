@@ -1,0 +1,1 @@
+update all my packages, especially claude, to avoid brotli rce;

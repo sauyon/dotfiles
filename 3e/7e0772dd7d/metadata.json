@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "3e7e0772dd7d",
+  "strategy": "manual-commit",
+  "branch": "master",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".drovr/review/emacs-treesit-review-1/001-README.md.diff",
+    ".drovr/review/emacs-treesit-review-1/002-home_emacs_init.el.diff",
+    ".drovr/review/emacs-treesit-review-1/003-home_emacs_lisp_mode-init.el.diff",
+    ".drovr/review/emacs-treesit-review-1/004-tests_emacs-treesit-init.sh.diff",
+    ".drovr/review/emacs-treesit-review-1/index.md",
+    ".drovr/review/emacs-treesit-review-2/001-README.md.diff",
+    ".drovr/review/emacs-treesit-review-2/002-home_emacs_init.el.diff",
+    ".drovr/review/emacs-treesit-review-2/003-home_emacs_lisp_mode-init.el.diff",
+    ".drovr/review/emacs-treesit-review-2/004-tests_emacs-treesit-init.sh.diff",
+    ".drovr/review/emacs-treesit-review-2/index.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3e/7e0772dd7d/0/metadata.json",
+      "transcript": "/3e/7e0772dd7d/0/full.jsonl",
+      "compact_transcript": "/3e/7e0772dd7d/0/transcript.jsonl",
+      "content_hash": "/3e/7e0772dd7d/0/content_hash.txt",
+      "prompt": "/3e/7e0772dd7d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}

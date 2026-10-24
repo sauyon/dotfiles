@@ -1909,11 +1909,12 @@ attr=$attr
             # any other linked worktree pass untouched and need no allowlist.
             #
             # CLAUDE_ALLOW_MAIN_EDIT (any non-empty value) is the way through for
-            # the one-line fix not worth isolating. It is read from Claude's own
-            # environment, so only the user sets it, at launch, and it lifts
-            # the guard for that whole session -- nothing the agent does through
-            # the tools this guard sees can grant it. The refusal tells the agent to ask; that request is the
-            # only trace in the transcript.
+            # the one-line fix not worth isolating. It is read from the hook's
+            # environment -- the user's at launch, or a settings `env` block, so
+            # a repo committing one there switches the guard off for itself --
+            # and it lifts the guard for that whole session. The agent cannot
+            # set it in its own running session; the refusal tells it to ask,
+            # and that request is the only trace in the transcript.
             #
             # `.claude/allow-main-edit` at a repo root opts that repo out
             # permanently. Only for trees small enough to read in one pass.
@@ -1959,12 +1960,13 @@ attr=$attr
               # is EnterWorktree's own .claude/worktrees (globally gitignored),
               # never a bare `git worktree add`, which an agent puts inside the
               # repo, leaving an untracked dir that makes hms refuse the tree.
-                            # The override names this session and its directory: `claude
+              # The override names this session and its project dir: `claude
               # --continue` resumes the most recent conversation there, which
-              # need not be the one refused.
+              # need not be the one refused, and the input's cwd is wherever a
+              # `cd` last left the session rather than where it is stored.
               sid=$(${pkgs.jq}/bin/jq -r '.session_id // "<session id>"' <<<"$input")
-              cwd=$(${pkgs.jq}/bin/jq -r '.cwd // "<this directory>"' <<<"$input")
-              ${pkgs.jq}/bin/jq -nc --arg r "$root" --arg s "$sid" --arg c "$cwd" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout on its default branch. Work in a worktree instead: " + ${if hasOrca then ''"if you are a drovr phase agent, do not move: stop and report that the run must be relaunched from an Orca worktree, which only its driver can do. Otherwise run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the worktree path in its JSON output. If that command fails, EnterWorktree with a name creates one under .claude/worktrees. EnterWorktree on an existing worktree works too."'' else ''"if you are working in a drovr run, it has its own worktree: EnterWorktree on the path `drovr path <run>` prints. If that path is inside this checkout, the run was launched --no-worktree; stop and report that it must be relaunched without --no-worktree, which only its driver can do. Otherwise EnterWorktree with a name creates one under .claude/worktrees, or EnterWorktree on an existing one."''} + " For a genuine one-line fix you will finish and commit yourself (not for a drovr phase agent), ask the user to relaunch this session with `cd " + $c + " && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume " + $s + "`, which lifts this guard for that whole session. You cannot set it yourself, and must not route around this guard through Bash.")}}'
+              cwd=''${CLAUDE_PROJECT_DIR:-$(${pkgs.jq}/bin/jq -r '.cwd // "<this directory>"' <<<"$input")}
+              ${pkgs.jq}/bin/jq -nc --arg r "$root" --arg s "$sid" --arg c "$cwd" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout on its default branch. Work in a worktree instead: " + ${if hasOrca then ''"if you are a drovr phase agent, do not move: stop and report that the run must be relaunched from an Orca worktree, which only its driver can do. Otherwise run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the worktree path in its JSON output. If that command fails, EnterWorktree with a name creates one under .claude/worktrees. EnterWorktree on an existing worktree works too."'' else ''"if you are working in a drovr run, it has its own worktree: EnterWorktree on the path `drovr path <run>` prints -- unless that path is the checkout root itself (" + $r + "), which means the run was launched --no-worktree: then stop and report that it must be relaunched without --no-worktree, which only its driver can do. If you are not in a drovr run, EnterWorktree with a name creates one under .claude/worktrees, or EnterWorktree on an existing one."''} + " For a genuine one-line fix you will finish and commit yourself (not for a drovr phase agent), ask the user to relaunch this session with `cd " + $c + " && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume " + $s + "`, which lifts this guard for that whole session. You cannot set it yourself, and must not route around this guard through Bash.")}}'
             '';
           } ];
         }

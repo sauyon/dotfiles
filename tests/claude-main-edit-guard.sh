@@ -111,9 +111,9 @@ orca_on() { # orca_on <host> -> true | false; exits non-zero on an eval failure,
     || { echo "could not evaluate $1's packages" >&2; exit 1; }
   case "$v" in true|false) echo "$v" ;; *) echo "orca_on $1: got '$v'" >&2; exit 1 ;; esac
 }
-refusal() { # refusal <file path> -> the hook's deny reason, for session sid-1 in /cwd
+refusal() { # refusal <file path> [VAR=value ...] -> deny reason, session sid-1 in /cwd
   printf '{"session_id":"sid-1","cwd":"/cwd","tool_input":{"file_path":"%s"}}' "$1" \
-    | env -u CLAUDE_ALLOW_MAIN_EDIT bash "$T/hook.sh" \
+    | env -u CLAUDE_ALLOW_MAIN_EDIT -u CLAUDE_PROJECT_DIR "${@:2}" bash "$T/hook.sh" \
     | jq -r '.hookSpecificOutput.permissionDecisionReason'
 }
 says() { case "$reason" in *"$1"*) echo yes ;; *) echo no ;; esac; }
@@ -133,6 +133,16 @@ check "refusal falls back to EnterWorktree's own worktree" yes "$(says 'EnterWor
 # most recent conversation there, which need not be the refused one.
 check "refusal names the override for exactly this session" yes \
   "$(says '`cd /cwd && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume sid-1`')"
+# The session is stored under its project dir, not wherever a `cd` left it.
+reason=$(refusal "$R/f" env CLAUDE_PROJECT_DIR=/proj)
+check "the override resumes from the project dir when Claude names one" yes \
+  "$(says '`cd /proj && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume sid-1`')"
+reason=$(printf '{"tool_input":{"file_path":"%s"}}' "$R/f" \
+  | env -u CLAUDE_ALLOW_MAIN_EDIT -u CLAUDE_PROJECT_DIR bash "$T/hook.sh" \
+  | jq -r '.hookSpecificOutput.permissionDecisionReason')
+check "with no session in the input the override still reads as a command" yes \
+  "$(says '`cd <this directory> && CLAUDE_ALLOW_MAIN_EDIT=1 claude --resume <session id>`')"
+reason=$(refusal "$R/f")
 
 # Every host in the flake, not just this one: the hook text, drovr's own
 # worktrees and the auto-mode cd rules all follow whether Orca is installed.
@@ -174,6 +184,13 @@ for h in $hosts; do
   check "$h: refusal tells a drovr phase agent to stop and report" yes "$(says 'stop and report')"
   check "$h: refusal relaunches a run from an Orca worktree iff Orca" "$orca" \
     "$([ "$(says 'relaunched from an Orca worktree')" = yes ] && echo true || echo false)"
+  # drovr's own worktrees are inside the checkout (.drovr/wt), so only the root
+  # itself marks a --no-worktree run; and the generic fallback is for agents
+  # outside a run, not the else of that test.
+  check "$h: a --no-worktree run is the checkout root itself iff drovr isolates" "$wt" \
+    "$([ "$(says 'is the checkout root itself (/x)')" = yes ] && echo true || echo false)"
+  check "$h: the generic fallback is for agents outside a drovr run" "$wt" \
+    "$([ "$(says 'If you are not in a drovr run, EnterWorktree with a name')" = yes ] && echo true || echo false)"
   check "$h: refusal relaunches a run without --no-worktree iff drovr isolates" "$wt" \
     "$([ "$(says 'relaunched without --no-worktree')" = yes ] && echo true || echo false)"
   allow=$(nix eval --json "$REPO#homeConfigurations.$h.config.programs.claude-code.settings.autoMode.allow") \

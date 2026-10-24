@@ -274,6 +274,20 @@ got=$(jq -c '[.["zoom.in"], .["tab.previousTerminal"], .["fileExplorer.delete"]]
   && pass "keysym aliases (KP_Add, lowercase prior) and a bare Delete taken" \
   || fail "keysyms" "zoom.in/tab.previousTerminal/fileExplorer.delete got $got"
 
+# 12e. Hyprland matches the unshifted keysym; Orca sees the shifted key. So
+#      SUPER + SHIFT + equal is the press Orca reads as Cmd+Shift+Plus.
+#      META is a Super alias, and media keysyms skip in any case.
+out=$(gen '["SUPER + SHIFT + equal", "META + T", "xf86audiomute"]')
+got=$(jq -c '[.["zoom.in"], has("tab.newTerminal")]' <<<"$out")
+[ "$got" = '[["Cmd+Equal","Cmd+NumpadAdd"],false]' ] && pass "Shift+equal takes Cmd+Shift+Plus; META, xf86 handled" \
+  || fail "shifted" "zoom.in/tab.newTerminal got $got"
+
+# 12f. A keycode bind is layout-dependent, so it is refused by name rather
+#      than steered into KEYS or NO_CHORD.
+if gen '["SUPER + code:41"]' >/dev/null; then fail "keycode" "code:41 passed"
+elif grep -q 'keycode' "$T/gen.err"; then pass "keycode bind fails with its own message"
+else fail "keycode" "failed for another reason: $(cat "$T/gen.err")"; fi
+
 # 12d. A key it does not know is not assumed harmless: it may be an Orca
 #      chord under a spelling not mapped yet, so the build fails.
 if gen '["SUPER + Frobnicate"]' >/dev/null; then fail "unknown-key" "SUPER + Frobnicate passed as harmless"

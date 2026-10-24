@@ -21,7 +21,7 @@ const kb = require(path.resolve(shared, 'keybindings.js'));
 // else that does not translate fails the build: an unknown name may be an
 // Orca chord spelled another way, and guessing "harmless" ships a dead key.
 const MODS = {
-  SUPER: 'Cmd', WIN: 'Cmd', LOGO: 'Cmd', MOD4: 'Cmd',
+  SUPER: 'Cmd', WIN: 'Cmd', LOGO: 'Cmd', MOD4: 'Cmd', META: 'Cmd',
   CTRL: 'Ctrl', CONTROL: 'Ctrl',
   ALT: 'Alt', MOD1: 'Alt',
   SHIFT: 'Shift',
@@ -33,11 +33,21 @@ const KEYS = {
   kp_add: 'NumpadAdd', kp_subtract: 'NumpadSubtract',
 };
 const NO_CHORD = new Set(['print', 'scroll_lock', 'pause', 'sys_req', 'menu']);
+// Hyprland matches a bind on the unshifted keysym, but Orca matches the key
+// the press produced: Shift+= arrives as "+", which Orca names Plus, and
+// Shift+- as Underscore. Every other punctuation key Orca matches by its
+// unshifted name under Shift (probed against keybindingMatchesInput).
+const SHIFTED = { Equal: 'Plus', Minus: 'Underscore' };
 const taken = new Set();
 for (const chord of JSON.parse(fs.readFileSync(chordsFile, 'utf8'))) {
+  if (typeof chord !== 'string') throw new Error(`Hyprland bind with a non-string key: ${JSON.stringify(chord)}`);
   const parts = chord.split('+').map((s) => s.trim());
   const key = parts.pop();
-  if (/^(mouse[:_]|XF86)/.test(key) || chord.startsWith('switch:')) continue;
+  if (/^(mouse[:_]|xf86)/i.test(key) || chord.startsWith('switch:')) continue;
+  if (/^code:/.test(key)) {
+    // Which key a keycode is depends on the layout; there is no Orca name to check.
+    throw new Error(`Hyprland bind "${chord}" is a keycode bind; bind it by keysym so Orca's chords can be checked`);
+  }
   const mods = parts.map((p) => MODS[p.toUpperCase()]);
   if (!mods.every(Boolean)) throw new Error(`unknown modifier in Hyprland bind "${chord}"`);
   // Bare keys too: Orca's few bare chords (F7, Delete) can be Hyprland's.
@@ -50,6 +60,8 @@ for (const chord of JSON.parse(fs.readFileSync(chordsFile, 'utf8'))) {
     throw new Error(`cannot translate Hyprland bind "${chord}" (${n.error}); map its key in KEYS, or NO_CHORD if Orca has none`);
   }
   taken.add(n.value);
+  const k = n.value.split('+').pop();
+  if (n.value.includes('Shift+') && SHIFTED[k]) taken.add(n.value.replace(/[^+]+$/, SHIFTED[k]));
 }
 // A digit-index action's one binding stands for its whole 1-9 family.
 const isTaken = (id, binding) =>

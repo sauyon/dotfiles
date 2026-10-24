@@ -110,7 +110,7 @@ where it gates the build instead of being checked after the fact.
 ./tests/net-tools.sh             # each net command against the package shipping it, per host
 ./tests/cjk-fonts.sh             # CJK font in every host, and fontconfig sees ja/ko/zh
 ./tests/symbol-fonts.sh          # gap-only Noto Sans Symbols 2 per host: yields to exactly the profile's fonts, covers ⏵, emoji stay colour
-./tests/orca-gui-unsandboxed.sh  # orca's children see the host; renders in a headless sway, sandboxed renderers
+./tests/orca-gui-unsandboxed.sh  # orca's children see the host; headless render, sandboxed renderers; serve dies with its CLI
 ./tests/ligature-nerd-font.sh    # JetBrainsMono Nerd Font installed, with powerline glyphs and ligatures (calt)
 ./tests/brotli-cve-2026-111497.sh # every node in the profile loads a libbrotlidec with the fix
 ./tests/system-secrets.sh        # sources system/secrets.sh, drives 20 cases

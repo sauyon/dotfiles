@@ -51,7 +51,9 @@ else
   sr=$(nix build --no-link --print-out-paths --inputs-from "$FLAKE" 'nixpkgs#systemd^out') \
     || { echo "inside a sandbox and could not build systemd-run" >&2; exit 1; }
   # Through /bin/sh, so the command is looked up on the host's PATH, not here.
-  host() { "$sr/bin/systemd-run" --user --pipe --wait --quiet /bin/sh -c 'exec "$@"' sh "$@"; }
+  # --collect: a probe that exits non-zero must not leave a failed unit on
+  # the live user manager.
+  host() { "$sr/bin/systemd-run" --user --pipe --wait --quiet --collect /bin/sh -c 'exec "$@"' sh "$@"; }
 fi
 HOSTNAME_=$(host cat /etc/hostname) || { echo "cannot reach the host" >&2; exit 1; }
 
@@ -73,8 +75,8 @@ GUI="$ORCA/bin/$exe"
 [ -n "$exe" ] && [ -x "$GUI" ] || { echo "no GUI bin from $ORCA's desktop Exec ('$exe')" >&2; exit 1; }
 echo "testing $GUI"
 
-# Under ~/.cache, not /tmp: the bwrap-era sandbox has its own /tmp, which the
-# host-side probes would not see.
+# Under ~/.cache, not /tmp: the units below run with a private /tmp, as did
+# the bwrap-era sandbox, and the host-side probes must see the same files.
 unit="orca-gui-test-$$"
 mkdir -p "$HOME/.cache"
 T=$(mktemp -d "$HOME/.cache/orca-gui-test.XXXXXX") || { echo "mktemp failed" >&2; exit 1; }
@@ -250,7 +252,7 @@ in_session() { host env -u DISPLAY -u DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR="
 "${sr:+$sr/bin/}systemd-run" --user --quiet --collect --unit="$unit" --property=RuntimeMaxSec=600 \
   --property=PrivateTmp=yes \
   --working-directory="$T/home" \
-  /bin/sh -c 'exec env -i PATH="$PATH" LANG="${LANG:-C.UTF-8}" TZ="${TZ:-}" "$@"' sh \
+  /bin/sh -c 'exec env -i PATH="$PATH" LANG="${LANG:-C.UTF-8}" ${TZ+TZ="$TZ"} "$@"' sh \
     HOME="$T/home" XDG_RUNTIME_DIR="$run" XDG_CURRENT_DESKTOP=sway \
     WLR_BACKENDS=headless WLR_RENDERER=pixman WLR_LIBINPUT_NO_DEVICES=1 \
     "$dbus/bin/dbus-run-session" -- "$sway/bin/sway" -c "$T/sway.conf" \
@@ -340,7 +342,7 @@ fi
 echo "serve via: $cli"
 cat > "$T/serve.sh" <<EOF
 cd "$T/home"
-ORCA_SERVE_RUNTIME=electron ORCA_APP_EXECUTABLE="$GUI" $cli serve --no-pairing > "$T/serve.out" 2>&1 &
+ORCA_SERVE_RUNTIME=electron ORCA_APP_EXECUTABLE="$GUI" $cli serve --no-pairing --port 0 > "$T/serve.out" 2>&1 &
 cli=\$!
 for _ in \$(seq 90); do grep -q 'Orca server ready' "$T/serve.out" && break; sleep 1; done
 grep -q 'Orca server ready' "$T/serve.out" || { echo notready; kill -TERM \$cli; exit; }
@@ -367,8 +369,11 @@ $(grep '^proc ' "$T/serve.res" 2>/dev/null)" ;;
   *) fail "serve" "Electron server orphaned after the CLI was killed: $res" ;;
 esac
 # This build's only: a crash of some other Orca meanwhile is not this one's.
-cores=$(host coredumpctl list --no-legend --since="@$since" 2>/dev/null | grep -F "$APP" || true)
-[ -z "$cores" ] && pass "no coredumps" || fail "coredumps" "$cores"
+# coredumpctl exits 1 when it finds none; anything else is a failure to look.
+cores=$(host coredumpctl list --no-legend --since="@$since" 2>/dev/null); rc=$?
+if [ "$rc" -gt 1 ]; then fail "coredumps" "coredumpctl could not be run (exit $rc)"
+elif grep -qF "$APP" <<< "$cores"; then fail "coredumps" "$(grep -F "$APP" <<< "$cores")"
+else pass "no coredumps"; fi
 
 printf '\n%d/%d passed\n' "$((n-fails))" "$n"
 [ "$fails" -eq 0 ]

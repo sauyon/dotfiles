@@ -104,7 +104,11 @@ else fail "GUI argv node mode" "got '$got'"; fi
 # ("bad option", exit 9). With no display, and stdout to a file, not a pipe:
 # were node mode lost, this would be a GUI launch -- without a display it
 # exits before any window opens, and a file has no writer to wait on.
-nodisplay() { env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u DISPLAY "$@"; }
+# And no way to the live session at all: a runtime dir with no socket in it
+# (unset, Wayland falls back to wayland-0 there) and no session bus.
+mkdir -p -m700 "$T/nodisplay"
+nodisplay() { env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u DISPLAY -u DBUS_SESSION_BUS_ADDRESS \
+  XDG_RUNTIME_DIR="$T/nodisplay" "$@"; }
 ELECTRON_RUN_AS_NODE=1 nodisplay timeout 60 "$GUI/bin/orca-ide-app" -p '"node-ok"' >"$T/node-out" 2>"$T/node-err"
 node_ok=
 if [ "$(cat "$T/node-out")" = node-ok ]; then

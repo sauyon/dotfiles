@@ -36,8 +36,8 @@ let
   # resources/orcad-template holds per-target builds (arm64, musl) that Orca
   # ships to remote hosts; resources/ripgrep is the slots' rg
   # (packagedRipgrep). All run unpatched on a glibc host with an FHS loader,
-  # which Arch is. The AppImage's own usr/lib (libnotify, libappindicator, ...) is
-  # left out for nixpkgs' copies, below.
+  # which Arch is. The AppImage's own usr/lib (libnotify, libappindicator,
+  # ...) is left out for nixpkgs' copies, below.
   #
   # chrome-sandbox ships without the setuid bit (the store cannot hold one);
   # with unprivileged user namespaces, which Arch has, Chromium uses its
@@ -75,8 +75,11 @@ let
       cp -r --no-preserve=ownership . $out/lib/orca
       chmod -R u+w $out/lib/orca
       # AppRun must stay out: Orca's CLI adds --no-sandbox whenever it finds
-      # AppRun beside the executable and `unshare -Ur true` fails (or it runs
-      # as root) -- out/cli/runtime/electron-sandbox-switch.js.
+      # AppRun beside the Electron it launches and `unshare -Ur true` fails
+      # (or it runs as root) -- out/cli/runtime/electron-sandbox-switch.js.
+      # orcaCli launches bin/orca-ide-app, so this guards the raw
+      # lib/orca/orca-ide: what Orca's self-installed CLI and process.execPath
+      # launch.
       rm -r $out/lib/orca/{AppRun,.DirIcon,usr,orca-ide.desktop,orca-ide.png}
       install -Dm444 orca-ide.desktop $out/share/applications/orca-ide.desktop
       for size in 16 24 32 48 64 128 256 512; do
@@ -84,10 +87,10 @@ let
           $out/share/icons/hicolor/''${size}x''${size}/apps/orca-ide.png
       done
       # The AppImage ships its binary as orca-ide, with an AppRun and an
-      # orca-ide.desktop that runs AppRun. Upstream's .deb
-      # puts the CLI on PATH as `orca-ide` and leaves the GUI off it, and
-      # Orca's skills tell agents to run `orca-ide` outside an Orca terminal
-      # -- so `orca-ide` is orcaCli below, and the GUI is `orca-ide-app`,
+      # orca-ide.desktop that runs AppRun. Upstream's .deb puts the CLI on
+      # PATH as `orca-ide` and leaves the GUI off it, and Orca's skills tell
+      # agents to run `orca-ide` outside an Orca terminal -- so `orca-ide` is
+      # orcaCli below, and the GUI is `orca-ide-app`,
       # which the desktop Exec and meta.mainProgram use.
       substituteInPlace $out/share/applications/orca-ide.desktop \
         --replace-fail 'Exec=AppRun' 'Exec=orca-ide-app'
@@ -129,8 +132,9 @@ let
       # A plain exec: signals and exit codes reach Electron directly, so
       # `orca-ide serve`'s Electron server is the CLI's own child, which the
       # CLI takes down on a signal it can catch (TERM, INT, HUP; a SIGKILLed
-      # CLI forwards nothing -- tests/orca-gui-unsandboxed.sh case 6), and `orca-ide
-      # open`'s detached GUI outlives it, with no --die-with-parent to trade.
+      # CLI forwards nothing -- tests/orca-gui-unsandboxed.sh case 6), and
+      # `orca-ide open`'s detached GUI outlives it, with no --die-with-parent
+      # to trade.
       makeWrapper $out/lib/orca/orca-ide $out/bin/orca-ide-app \
         --set FONTCONFIG_FILE ${fontsConf} \
         --run 'explicit=
@@ -166,7 +170,9 @@ let
                | "\(.value)  targets/\($t)/\(.key)")' $t/orcad-template.json \
         | while read -r sha p; do
             f=$t/$p
-            case $p in targets/*/ripgrep/*) [ -e "$f" ] || f=$res/''${p#targets/*/} ;; esac
+            case $p in
+              targets/*/ripgrep/*) [ -e "$f" ] || f=$res/''${p#targets/*/} ;;
+            esac
             echo "$sha  $f"
           done | sha256sum -c --quiet --strict
       pin=$(tr -d '[:space:]' < $t/targets/linux-x64-glibc/.runtime-node)

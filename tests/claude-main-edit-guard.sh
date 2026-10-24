@@ -23,8 +23,9 @@ set -u
 # The flake ref comes from this script's own location, not `.#`, so running it
 # from a worktree tests THAT tree rather than whichever happens to be the cwd.
 # The host is read from /etc/hostname because the CI job writes $TEST_HOST into
-# it before running tests/ (see .forgejo/workflows/nix-eval.yml). Orca's sandbox
-# has no /etc/hostname, and neither does darwin, so fall back to `uname -n`.
+# it before running tests/ (see .forgejo/workflows/nix-eval.yml). A bwrap-era
+# Orca terminal has no /etc/hostname, nor does darwin, so fall back to
+# `uname -n`.
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 host=$(cat /etc/hostname 2>/dev/null || uname -n)
 

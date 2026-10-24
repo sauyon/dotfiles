@@ -103,7 +103,8 @@ check "CLAUDE_ALLOW_MAIN_EDIT=1 lets it through" allow \
 # .drovr/wt worktrees, so it is EnterWorktree, and `drovr path` for a run.
 # Neither suggests a bare in-repo `git worktree add`: its untracked dir makes
 # hms refuse the primary checkout.
-orca_on() { # orca_on <host> -> true | false; any eval failure fails the suite
+orca_on() { # orca_on <host> -> true | false; exits non-zero on an eval failure,
+           # which each call site turns into the suite failing
   local v
   v=$(nix eval --raw "$REPO#homeConfigurations.$1.config.home.packages" \
     --apply 'ps: if builtins.any (p: (p.pname or "") == "orca") ps then "true" else "false"') \
@@ -116,7 +117,7 @@ refusal() { # refusal <file path> -> the hook's deny reason
     | jq -r '.hookSpecificOutput.permissionDecisionReason'
 }
 says() { case "$reason" in *"$1"*) echo yes ;; *) echo no ;; esac; }
-here=$(orca_on "$host")
+here=$(orca_on "$host") || exit 1
 reason=$(refusal "$R/f")
 if [ "$here" = true ]; then
   check "refusal names an Orca worktree of this repo" yes "$(says "orca worktree create --repo path:$R ")"
@@ -130,6 +131,8 @@ fi
 check "refusal falls back to EnterWorktree's own worktree" yes "$(says 'EnterWorktree with a name')"
 check "refusal suggests no in-repo git worktree" no "$(says 'git worktree add')"
 check "refusal never says to relaunch with drovr new" no "$(says 'drovr new')"
+check "refusal sends the agent to ask for the override, not set it" yes \
+  "$(says 'Ask the user to relaunch Claude with CLAUDE_ALLOW_MAIN_EDIT=1')"
 
 # Every host in the flake, not just this one: the hook text, drovr's own
 # worktrees and the auto-mode cd rules all follow whether Orca is installed.
@@ -138,7 +141,7 @@ hosts=$(nix eval --json "$REPO#homeConfigurations" --apply builtins.attrNames) \
 hosts=$(jq -r '.[]' <<<"$hosts")
 with=0; without=0
 for h in $hosts; do
-  orca=$(orca_on "$h")
+  orca=$(orca_on "$h") || exit 1
   if [ "$orca" = true ]; then with=$((with+1)); wt=false; else without=$((without+1)); wt=true; fi
   toml=$(nix eval --raw "$REPO#homeConfigurations.$h.config.xdg.configFile.\"drovr/config.toml\".text") \
     || { echo "could not evaluate $h's drovr config" >&2; exit 1; }
@@ -147,8 +150,19 @@ for h in $hosts; do
   hook=$(nix eval --json "$REPO#homeConfigurations.$h.config.programs.claude-code.settings.hooks.PreToolUse") \
     || { echo "could not evaluate $h's hooks" >&2; exit 1; }
   hook=$(jq -r '[.[] | select(.matcher | test("Edit")) | .hooks[0].command] | first // ""' <<<"$hook")
+  # Run this host's own refusal program, not just grep it: CI runs the live hook
+  # only as an Orca host, so a broken no-Orca branch would otherwise pass here
+  # and, as invalid jq, emit nothing -- which lets every edit through.
+  prog=${hook#*--arg r \"\$root\" \'}; prog=${prog%%\'*}  # the jq program between its quotes
+  reason=$(jq -nc --arg r /x "$prog" 2>/dev/null \
+    | jq -r 'select(.hookSpecificOutput.permissionDecision == "deny") | .hookSpecificOutput.permissionDecisionReason')
+  check "$h: refusal program emits a deny" yes "$([ -n "$reason" ] && echo yes || echo no)"
   check "$h: refusal names orca iff Orca is installed" "$orca" \
-    "$(case "$hook" in *'orca worktree create'*) echo true ;; *) echo false ;; esac)"
+    "$([ "$(says 'orca worktree create --repo path:/x ')" = yes ] && echo true || echo false)"
+  check "$h: refusal sends a drovr run to drovr path iff drovr makes worktrees" "$wt" \
+    "$([ "$(says 'drovr path <run>')" = yes ] && echo true || echo false)"
+  check "$h: refusal falls back to EnterWorktree's own worktree" yes "$(says 'EnterWorktree with a name')"
+  check "$h: refusal asks for the override" yes "$(says 'Ask the user to relaunch Claude')"
   allow=$(nix eval --json "$REPO#homeConfigurations.$h.config.programs.claude-code.settings.autoMode.allow") \
     || { echo "could not evaluate $h's auto-mode rules" >&2; exit 1; }
   check "$h: auto mode allows cd into .drovr/wt iff drovr makes them" "$wt" \

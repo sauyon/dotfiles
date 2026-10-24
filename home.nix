@@ -1898,9 +1898,10 @@ attr=$attr
             # default branch. Sustained agent work there is invisible until it
             # goes wrong: the tree moves under the agent while it reads, HEAD
             # advances past the commit it is reviewing, and a test count gets
-            # reported about a state nobody has any more. Orca gives every task
-            # its own worktree, but only work started from Orca lands in one;
-            # an agent opened in the primary checkout binds to nothing.
+            # reported about a state nobody has any more. Orca (where installed)
+            # gives every task its own worktree, and elsewhere drovr gives each
+            # `drovr new` run one -- but only work started that way lands in
+            # one; inline work in the primary checkout binds to nothing.
             #
             # Detection is structural, not by path: a LINKED worktree has .git
             # as a file pointing at the real gitdir, the primary checkout has a
@@ -1955,7 +1956,7 @@ attr=$attr
               # is EnterWorktree's own .claude/worktrees (globally gitignored),
               # never a bare `git worktree add`, which an agent puts inside the
               # repo, leaving an untracked dir that makes hms refuse the tree.
-              ${pkgs.jq}/bin/jq -nc --arg r "$root" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout on its default branch. Work in a worktree instead: " + ${if hasOrca then ''"run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the path it prints. Where `orca` is not on PATH or does not know this repo, EnterWorktree with a name creates one under .claude/worktrees. EnterWorktree on an existing worktree works too. A drovr run refused here is relaunched from that worktree, not continued by moving its agent."'' else ''"EnterWorktree with a name creates one under .claude/worktrees, or EnterWorktree on an existing one. A drovr run refused here enters its own worktree, at `drovr path <run>`; one launched --no-worktree is relaunched without it."''} + " For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set.")}}'
+              ${pkgs.jq}/bin/jq -nc --arg r "$root" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout on its default branch. Work in a worktree instead: " + ${if hasOrca then ''"run `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` and EnterWorktree on the worktree path in its JSON output. If that command fails, EnterWorktree with a name creates one under .claude/worktrees. EnterWorktree on an existing worktree works too. A drovr run refused here is relaunched from an Orca worktree, not continued by moving its agent."'' else ''"EnterWorktree with a name creates one under .claude/worktrees, or EnterWorktree on an existing one. A drovr run refused here enters its own worktree, at `drovr path <run>`; one launched --no-worktree is relaunched without --no-worktree."''} + " For a genuine one-line fix you will finish and commit yourself: Ask the user to relaunch Claude with CLAUDE_ALLOW_MAIN_EDIT=1 set; you cannot set it, and must not route around this guard through Bash.")}}'
             '';
           } ];
         }

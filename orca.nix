@@ -36,10 +36,11 @@ let
     # wrapper layer execs the next, so this bwrap is the CLI's own child, and
     # --die-with-parent SIGKILLs the window the moment `open` returns. The
     # cost: bwrap forwards no signals, so when `orca-ide serve` is stopped by
-    # a signal to the CLI (not Ctrl-C, which reaches the whole group, nor a
-    # systemd cgroup stop), its Electron server outlives the bwrap it was
-    # under. Deferred, not fixed: unsandboxing the GUI (no bwrap at all)
-    # removes both problems, and is its own change.
+    # a signal to the CLI (not Ctrl-C, which reaches the whole group, unless
+    # `serve --recipe-json` detached it; nor a systemd cgroup stop), its
+    # Electron server outlives the bwrap it was under. Deferred, not fixed:
+    # unsandboxing the GUI (no bwrap at all) removes both problems, and is
+    # its own change.
     dieWithParent = false;
     # The AppImage ships bin/orca and an orca-ide.desktop. Upstream's .deb
     # puts the CLI on PATH as `orca-ide` and leaves the GUI off it, and Orca's

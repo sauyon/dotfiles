@@ -46,12 +46,14 @@ echo "testing $CLI and $GUI"
 
 # The skills' own rule: outside an Orca terminal, on Linux, the CLI is
 # `orca-ide`; elsewhere it is `orca`. Both names must be the CLI, and the GUI
-# must not also claim `orca-ide` or `orca` -- in the profile they would collide.
+# must not also claim `orca-ide` or `orca` -- they would collide in the
+# profile.
 for b in orca orca-ide; do
   if [ -x "$CLI/bin/$b" ]; then pass "orca-cli provides bin/$b"
   else fail "bin/$b" "missing from $CLI"; fi
 done
-if [ -x "$GUI/bin/orca-ide-app" ] && [ ! -e "$GUI/bin/orca-ide" ] && [ ! -e "$GUI/bin/orca" ]; then
+gone() { [ ! -e "$1" ] && [ ! -L "$1" ]; }
+if [ -x "$GUI/bin/orca-ide-app" ] && gone "$GUI/bin/orca-ide" && gone "$GUI/bin/orca"; then
   pass "the GUI is orca-ide-app and leaves orca-ide and orca to the CLI"
 else fail "GUI bin names" "$(ls "$GUI/bin" | paste -sd' ')"; fi
 
@@ -100,10 +102,10 @@ else fail "GUI argv node mode" "got '$got'"; fi
 # And for real: the CLI's `serve` probes ORCA_APP_EXECUTABLE with
 # ELECTRON_RUN_AS_NODE=1 and a script as argv, and Node rejects the flag
 # ("bad option", exit 9). With no display, and stdout to a file, not a pipe:
-# were node mode lost, this would be a GUI launch, which timeout cannot
-# reach past bwrap; without a display it exits before any window opens.
+# were node mode lost, this would be a GUI launch -- without a display it
+# exits before any window opens, and a file has no writer to wait on.
 nodisplay() { env -u WAYLAND_DISPLAY -u WAYLAND_SOCKET -u DISPLAY "$@"; }
-ELECTRON_RUN_AS_NODE=1 nodisplay timeout 60 "$GUI/bin/orca-ide-app" -e 'setTimeout(() => process.exit(1), 10000).unref(); console.log("node-ok")' >"$T/node-out" 2>"$T/node-err"
+ELECTRON_RUN_AS_NODE=1 nodisplay timeout 60 "$GUI/bin/orca-ide-app" -p '"node-ok"' >"$T/node-out" 2>"$T/node-err"
 node_ok=
 if [ "$(cat "$T/node-out")" = node-ok ]; then
   node_ok=1; pass "orca-ide-app runs in node mode (serve's runtime probe)"

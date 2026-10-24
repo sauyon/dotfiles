@@ -34,6 +34,7 @@ fail() { n=$((n+1)); echo "FAIL $1: $2"; fails=$((fails+1)); }
 ORCA="${1:-}"
 if [ -z "$ORCA" ]; then
   FLAKE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+  # /etc/hostname is CI's; Orca's sandbox lacks it, so fall back to uname -n.
   drv=$(nix eval --raw "$FLAKE#homeConfigurations.$(h=$(cat /etc/hostname 2>/dev/null); echo "${h:-$(uname -n)}").config.home.packages" \
     --apply 'ps: (builtins.head (builtins.filter (p: builtins.match ".*orca-[0-9.]+" (p.name or "") != null) ps)).drvPath') \
     || { echo "orca is not in home.packages here" >&2; exit 1; }

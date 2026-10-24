@@ -94,9 +94,10 @@ let
   # and ghostty's super+c/v in home.nix: Orca's own macOS defaults, with Cmd
   # spelled out, which Orca binds to Super (event.metaKey) on Linux. The point
   # is that Ctrl and Meta stay the terminal's -- emacs keys reach the shell --
-  # so no Ctrl- or Alt-only chord is left at all: not the Mac table's own
+  # so no Ctrl- or Alt-only chord is left: not the Mac table's own
   # (Ctrl+1..9 tab select, Alt+Z word wrap, Ctrl+PageUp/Down), not a Linux
-  # default. Only Ctrl+Tab stays: the terminal receives it as a bare Tab.
+  # default. Only Ctrl+Tab stays, which the terminal receives as a bare Tab,
+  # and the few orcaPinned below puts back on purpose.
   #
   # Generated from the app's own keybinding definitions at build time
   # (nix/orca-mac-keybindings.js), so a version bump picks up new actions.
@@ -115,8 +116,9 @@ let
   # C-s is the shell's own search, so terminal search is left unbound.
   #
   # Previous/next worktree, in list order, on Alt+Up/Down: the Mac chord,
-  # Super+Shift+Up/Down, is Hyprland's. This one takes M-<up>/<down> from the
-  # terminal, deliberately.
+  # Super+Shift+Up/Down, is Hyprland's. Orca catches it before any widget, so
+  # this takes M-<up>/<down> from the terminal and the editor's move-line too,
+  # deliberately.
   orcaPinned = {
     "editor.find" = [ "Ctrl+S" ];
     "browser.find" = [ "Ctrl+S" ];

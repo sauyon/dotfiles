@@ -1,0 +1,78 @@
+<task-notification>
+<task-id>ab667baffb8531d4b</task-id>
+<tool-use-id>toolu_0158JEe42VBnHS4rckgZ2UVH</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/tasks/ab667baffb8531d4b.output</output-file>
+<status>completed</status>
+<summary>Agent "Review r1: security+quality" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical issues, five Important ones and nine nits. The Chromium sandbox claim holds: when the sandbox can't start, the app refuses to start rather than running without one. But the safeguard that keeps it that way is neither documented nor tested.
+
+I checked the working tree (clean), the full diff, and the built output: `/nix/store/REDACTED.4.238` is the nixGL wrapper, and the real build is `/nix/store/hpcdlg163wysqyp2qy55xpqql3776sdk-orca-1.4.238`. I also searched `app.asar` and the bundled CLI sources. I did not launch the GUI.
+
+## Critical
+None.
+
+## Important
+
+**I1. `README.md:112` still lists the deleted `tests/sandbox-fonts.sh`.**
+- It's described as "orca's real bwrap launcher resolves...". Anyone running the listed tests gets "No such file".
+- No other stale bwrap, extraInstallCommands or sandbox-fonts references remain in tracked files, apart from the `.drovr/` review artifacts.
+
+**I2. The nixGL GL environment now reaches host Arch programs through Orca's terminals** (`orca.nix:221-224`, combined with the change at `:22-29`).
+- The nixGL wrapper exports `LD_LIBRARY_PATH` (nix mesa, libglvnd, mesa_glxindirect, vdpau), `__EGL_VENDOR_LIBRARY_FILENAMES`, `LIBGL_DRIVERS_PATH`, `LIBVA_DRIVERS_PATH` and `GBM_BACKENDS_PATH`.
+- Every terminal Orca opens inherits these. Under bwrap, terminals ran the sandbox's nix programs, so this was harmless. Now they run Arch's `/usr/bin`.
+- **Failure scenario:** once nixpkgs' glibc is newer than Arch's (both are 2.44 today), GL or video programs started from an Orca terminal fail with `GLIBC_2.4x not found`. Examples: mpv, glxinfo, Electron apps, firefox via `xdg-open`. Or they quietly run nix's mesa.
+- It works today only because the versions happen to match. Either document the trade-off or test whether GPU rendering works without `LD_LIBRARY_PATH`, since the binary is already patched.
+- `FONTCONFIG_FILE` leaks the same way, but that isn't new: the old `--setenv` was inherited too. Host fontconfig is 2.18.3, the same as nix's.
+
+**I3. Deleting `AppRun` is what keeps Orca from running without a sandbox. Neither the comment nor the test says so** (`orca.nix:69`).
+- In `resources/app.asar.unpacked/out/cli/runtime/electron-sandbox-switch.js`, if `AppRun` sits next to the executable, Orca's CLI adds `--no-sandbox` whenever `unshare -Ur true` fails or throws (including when `unshare` isn't on PATH), and whenever it runs as root.
+- The `rm -r .../{AppRun,...}` line removes it today. If someone later trims that list and keeps `AppRun`, `orca serve` or a CLI-started GUI runs unsandboxed with no warning.
+- The rest of the claim holds:
+  - With user namespaces available (`unprivileged_userns_clone=1`, `max_user_namespaces=2147483647`), Chromium uses its namespace sandbox.
+  - Without them, it hits the non-setuid `chrome-sandbox` and aborts. That fails closed.
+  - Every BrowserWindow in `app.asar` sets `sandbox:!0`.
+- **Fix:** say in the comment that `AppRun` must stay out, and add a test check `[ ! -e "$APP/AppRun" ]`.
+
+**I4. A default test run never checks the Chromium sandbox** (`tests/orca-gui-unsandboxed.sh:155-201`).
+- Only the opt-in case 6 (`ORCA_TEST_GUI=1`) checks it, so a regression that adds `--no-sandbox` passes the default run.
+- The user-namespace check is a fair test of Chromium's first sandbox layer, since `--no-sandbox` renderers share the main process's namespace. It doesn't cover the seccomp layer: also check each renderer's `/proc/$p/status` for `Seccomp: 2`.
+
+**I5. The build-output checks run after the fact, against the README's own rule** (`README.md:102-105`, test `:70-75` and `:117-150`).
+- The README says build checks belong in the derivation's `installCheckPhase`, where they stop a bad build.
+- Two checks only inspect the build:
+  - Case 5: the pinned trees diff, and node's sha256 against `.runtime-node`.
+  - Case 1: bubblewrap in the closure.
+- As written, a build that breaks the pin still installs and goes live. Move the `diff -r` and sha256 check into `postFixup` or `installCheckPhase`.
+
+## Nits
+- **N1.** `orca.nix:60-63`: the fixup step that rewrites `#!` lines still runs over the pinned trees (`dontPatchShebangs` is unset). Two files there survive only because `node` and `python3` aren't on the build PATH: `orcad-template/out/cli/index.js` (`#!/usr/bin/env node`) and `computer-use-linux/runtime.py`. I confirmed with `diff -r` against the extracted AppImage that both trees are byte-identical today. Adding nodejs or python3 to the build inputs would silently break the remote template builds; only test case 5 would notice, after install.
+- **N2.** `orca.nix:96-97` (and test `:81`) say "Orca's CLI runs this binary that way", which looks inaccurate. The bundled CLI `resources/bin/orca-ide` runs the raw `lib/orca/orca-ide`, and a CLI-started GUI uses `process.execPath`, also raw. So those launches get no ozone flag, no `FONTCONFIG_FILE` and no nixGL environment, unless they inherit them from an Orca terminal. That predates this change.
+- **N3.** Test `:66`: the `mktemp` result isn't checked. If `~/.cache` is missing, `T` is empty and case 6 runs with `HOME=/home` and `--user-data-dir=/profile`. A comment on why it uses `~/.cache` rather than `/tmp` would also help.
+- **N4.** Test `:66` and `:162-164`: the exit trap doesn't stop the transient systemd unit. Ctrl-C during case 6 leaves a visible second Orca running with its HOME already deleted.
+- **N5.** Test `:157`: when not sandboxed, `host printenv WAYLAND_DISPLAY` reads the script's environment, but the systemd-run unit gets the user manager's. Check `systemctl --user show-environment` instead.
+- **N6.** Test `:163`: `KillSignal=SIGTERM` is already systemd's default, so it's redundant.
+- **N7.** Test `:42-49`: the `systemd-run` path only matters when run from an old bwrap build's terminal. A note to drop it later would keep it from lingering.
+- **N8.** The wrapper doesn't clear `ELECTRON_DISABLE_SANDBOX`, `ORCA_ELECTRON_NO_SANDBOX` or `APPIMAGE` from the user's environment. Not new, and only the user can set them.
+- **N9.** Not new: `resources/package-type` is `AppImage`, so Orca's updater runs in self-update mode against a read-only store path.
+
+## Checked and fine
+- The wrapper is a plain `exec`. Its node-mode guard treats an empty `ELECTRON_RUN_AS_NODE` as unset, matching Electron.
+- The comments at `orca.nix:128` and `:221-223` are accurate after the change.
+- Cases 2-4 use the real HOME but write only the fontconfig cache. Case 6 keeps away from the real `~/.orca` and `~/.claude` through its HOME override and `--user-data-dir`. The user manager sets no `XDG_*_HOME` or `CLAUDE_CONFIG_DIR` that would get around that. `rm -rf "$T"` is quoted and safe, apart from N3.
+
+## Would the tests fail on regression?
+
+| Regression | Caught? |
+|---|---|
+| Back to the bwrap wrapper | Yes: cases 1 and 3 |
+| Ozone flag added in node mode | Yes: case 2 |
+| `FONTCONFIG_FILE` dropped | Yes: case 3's DejaVu check |
+| Pinned trees stripped, patched or with `#!` lines rewritten | Yes: case 5, but only after install (I5, N1) |
+| Missing runtime libraries | Partly: case 4 checks linked libraries only. Libraries loaded at runtime (libsecret, libnotify, libGL) aren't checked. |
+| `--no-sandbox` or `AppRun` restored | Only with `ORCA_TEST_GUI=1`; `AppRun` not at all (I3, I4) |
+| SIGTERM and exit-code passthrough | Only with `ORCA_TEST_GUI=1` |
+
+The findings are also saved at `/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/scratchpad/review-r1-security.md`.</result>
+<usage><subagent_tokens>81339</subagent_tokens><tool_uses>20</tool_uses><duration_ms>298403</duration_ms></usage>
+</task-notification>

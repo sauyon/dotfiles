@@ -92,22 +92,33 @@ let
 
   # Mac-style shortcuts, the same Super-for-Cmd scheme as gtk's mac-bindings
   # and ghostty's super+c/v in home.nix: Orca's own macOS defaults, with Cmd
-  # spelled out, which Orca binds to Super (event.metaKey) on Linux. Ctrl+C is
-  # SIGINT again, not copy; Ctrl+Tab and Ctrl+PageUp/Down cycle tabs, as on a
-  # Mac.
+  # spelled out, which Orca binds to Super (event.metaKey) on Linux. The point
+  # is that Ctrl and Meta stay the terminal's -- emacs keys reach the shell --
+  # so no Ctrl- or Alt-only chord is left at all: not the Mac table's own
+  # (Ctrl+1..9 tab select, Alt+Z word wrap), not a Linux default. Ctrl+Tab and
+  # Ctrl+PageUp/Down stay; no terminal can send them.
   #
   # Generated from the app's own keybinding definitions at build time
   # (nix/orca-mac-keybindings.js), so a version bump picks up new actions.
-  # Chords Hyprland binds are skipped and those actions keep their Linux Ctrl
-  # default -- the compositor would eat them, leaving a dead key. On shiori
-  # that is 19 actions, Super+F (find) and Super+P (go to file) among them,
-  # plus Super+B/N/E, the digits, and their Shift forms; so Ctrl+F/P/B/N/E stay
-  # Orca's. And an action whose Mac chord such a fallback would shadow falls
-  # back too: tab.selectByIndex keeps Alt+1..9, since Ctrl+1..9 stays the
-  # workspaces'. The build log lists every one.
+  # Chords Hyprland binds would be dead keys, so those actions are unbound --
+  # on shiori 19 of them, Super+F (find) and Super+P (go to file) among them,
+  # plus Super+B/N/E, the digits, and their Shift forms. orcaPinned below
+  # rebinds the ones worth having elsewhere. The build log lists every one.
   #
   # A running Orca reads the file once; after a switch, restart it (or run its
-  # keybindings reload) for the new table to apply.
+  # keybindings reload) for the new table to apply. Resetting a generated
+  # shortcut in Orca's settings re-applies the Mac chord at the next switch:
+  # Orca stores a reset, and a pick of its own Linux default, as the same
+  # deletion, so neither sticks -- set some other chord, or unbind, instead.
+  #
+  # Find goes on Ctrl+S, emacs' isearch, everywhere but the terminal; there
+  # C-s is the shell's own search, so terminal search is left unbound.
+  orcaPinned = {
+    "editor.find" = [ "Ctrl+S" ];
+    "browser.find" = [ "Ctrl+S" ];
+    "chat.find" = [ "Ctrl+S" ];
+    "settings.search" = [ "Ctrl+S" ];
+  };
   hyprlandChords = let s = config.wayland.windowManager.hyprland.settings; in
     lib.concatMap
       (k: map (b: if builtins.isAttrs b && b ? _args then builtins.head b._args else b) s.${k})
@@ -120,6 +131,7 @@ let
     mkdir -p $out/share $out/bin
     node ${./nix/orca-mac-keybindings.js} app/out/shared \
       ${pkgs.writeText "hyprland-chords.json" (builtins.toJSON hyprlandChords)} \
+      ${pkgs.writeText "orca-pinned.json" (builtins.toJSON orcaPinned)} \
       > $out/share/orca-mac-keybindings.json
     # The merge runs Orca's conflict check on the merged file at activation,
     # so the keybinding module (and its one sibling import) ships alongside.

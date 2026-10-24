@@ -2,14 +2,19 @@
 # Cases for orca.nix's Mac-style keybindings: Orca's own macOS defaults, with
 # Cmd on Super, merged into ~/.orca/keybindings.json at activation.
 #
-# Three contracts, all silent when broken:
+# Four contracts, all silent when broken:
 #
 #   * **No chord Hyprland owns.** The compositor eats a bound chord before the
-#     window sees it, so a Super+F override is not "find", it is a dead key that
-#     also hides Orca's working Ctrl+F default. The generator drops those and
-#     leaves the action on its Linux default; cases 2-3 pin that against the
-#     live Hyprland bind list, not a copy of it, and 11-13 the digit family,
-#     unreadable binds, and a fallback shadowing a generated chord.
+#     window sees it, so a Super+F override is not "find", it is a dead key.
+#     The generator unbinds those actions; case 2 pins that against the live
+#     Hyprland bind list, not a copy of it, and 11-12f the digit family and
+#     how Hyprland's bind forms translate.
+#
+#   * **Ctrl and Meta stay the terminal's.** The point of Cmd-on-Super is that
+#     emacs keys reach the shell. No Ctrl- or Alt-only chord is left, from the
+#     Mac table or from a Linux default, beyond the few pinned in orca.nix
+#     (find on Ctrl+S) and the tab-cycling chords terminals cannot send.
+#     Cases 3 and 13.
 #
 #   * **The merge owns only its keys.** Orca's settings UI writes into the same
 #     platforms.linux section, so replacing the section would wipe every
@@ -46,6 +51,7 @@ OWNED="$PKG/share/orca-mac-keybindings.json"
 
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 jqo() { jq -c "$1" "$OWNED"; }
+NODE=$(grep -oE '/nix/store/[^ "]+/bin/node' "$MERGE" | head -1)
 
 # 1. The Mac table, on Super: clipboard and tabs are the reason this exists.
 for c in 'terminal.copySelection:["Cmd+C"]' 'terminal.paste:["Cmd+V"]' \
@@ -74,10 +80,11 @@ jq -r '.[][]' "$OWNED" | sort -u > "$T/owned.txt"
 clash=$(comm -12 "$T/hypr.txt" "$T/owned.txt" | tr '\n' ' ')
 [ -z "$clash" ] && pass "no override is a Hyprland chord" || fail "hyprland" "both bind: $clash"
 
-# 3. A chord Hyprland owns leaves its action on Orca's Linux default, not unbound.
-got=$(jqo 'has("editor.find"), has("worktree.quickOpen")' | tr '\n' ' ')
-[ "$got" = "false false " ] && pass "Super+F/Super+P actions keep their Linux defaults" \
-  || fail "fallback" "editor.find/worktree.quickOpen overridden: $got"
+# 3. Find is Ctrl+S outside the terminal; in it, and for go-to-file, nothing
+#    -- C-s and C-p are the shell's. (Super+F/P are Hyprland's.)
+got=$(jqo '[.["editor.find"], .["browser.find"], .["chat.find"], .["settings.search"], .["terminal.search"], .["worktree.quickOpen"]]')
+[ "$got" = '[["Ctrl+S"],["Ctrl+S"],["Ctrl+S"],["Ctrl+S"],[],[]]' ] \
+  && pass "find on Ctrl+S, terminal search and go-to-file unbound" || fail "find" "got $got"
 
 # 4. Fresh box: the file is created in the shape Orca writes.
 H="$T/fresh"; mkdir -p "$H"
@@ -118,14 +125,14 @@ fi
 H="$T/stale"; mkdir -p "$H/.orca"
 cat > "$H/.orca/keybindings.json" <<'EOF'
 {"version":1,"keybindings":{},
- "platforms":{"darwin":{},"linux":{"editor.find":["Cmd+F"],"worktree.quickOpen":["Alt+P"],"tab.close":["Ctrl+Q"]},"win32":{}}}
+ "platforms":{"darwin":{},"linux":{"tab.newAgent.claude":["Cmd+F"],"worktree.quickOpen":["Alt+P"],"tab.close":["Ctrl+Q"]},"win32":{}}}
 EOF
-echo '{"linux":{"editor.find":["Cmd+F"],"worktree.quickOpen":["Cmd+P"],"tab.close":["Cmd+W"]}}' \
+echo '{"linux":{"tab.newAgent.claude":["Cmd+F"],"worktree.quickOpen":["Cmd+P"],"tab.close":["Cmd+W"]}}' \
   > "$H/.orca/keybindings.nix-owned.json"
 # Twice: the second run reads the sidecar the first wrote, which must still
 # know the UI's keys as changed rather than as never owned.
 HOME=$H "$MERGE" >/dev/null 2>&1; HOME=$H "$MERGE" >/dev/null 2>&1
-got=$(jq -c '[.platforms.linux["editor.find"], .platforms.linux["worktree.quickOpen"], .platforms.linux["tab.close"]]' "$H/.orca/keybindings.json")
+got=$(jq -c '[.platforms.linux["tab.newAgent.claude"], .platforms.linux["worktree.quickOpen"], .platforms.linux["tab.close"]]' "$H/.orca/keybindings.json")
 [ "$got" = '[null,["Alt+P"],["Ctrl+Q"]]' ] && pass "stale generated key dropped, UI-changed ones kept" \
   || fail "stale" "got $got"
 
@@ -244,11 +251,11 @@ else
 fi
 
 # 11-12. The generator on fixture chords: a digit-index action's one binding
-#        stands for 1-9, and a bind form it cannot read fails the build.
-NODE=$(grep -oE '/nix/store/[^ "]+/bin/node' "$MERGE" | head -1)
+#        stands for 1-9 -- one taken digit unbinds the family, rather than
+#        leaving it on Ctrl+1..9 -- and a bind form it cannot read fails.
 gen() { echo "$1" > "$T/chords.json"; "$NODE" "$FLAKE/nix/orca-mac-keybindings.js" "$PKG/lib/shared" "$T/chords.json" 2>"$T/gen.err"; }
 got=$(gen '[]' | jq -c '.["workspace.selectByIndex"]'),$(gen '["SUPER + 5"]' | jq -c '.["workspace.selectByIndex"]')
-[ "$got" = '["Cmd+1"],null' ] && pass "Super+5 taken drops the whole Cmd+1..9 family" \
+[ "$got" = '["Cmd+1"],[]' ] && pass "Super+5 taken unbinds the whole Cmd+1..9 family" \
   || fail "digits" "free,taken got $got"
 if gen '["HYPER + T"]' >/dev/null; then fail "unknown-bind" "HYPER + T passed as a free chord"
 elif grep -q 'unknown modifier in Hyprland bind "HYPER + T"' "$T/gen.err"; then pass "unknown Hyprland modifier fails the generator"
@@ -258,9 +265,9 @@ else fail "unknown-bind" "failed for another reason: $(cat "$T/gen.err")"; fi
 #      Print screenshot key, Scroll_Lock, a bare F7 -- while Hyprland's
 #      aliases still count: MOD4 + T is Super+T, tab.newTerminal's.
 if out=$(gen '["Print", "SUPER + Scroll_Lock", "MOD4 + T", "F7"]'); then
-  got=$(jq -c 'has("tab.newTerminal")' <<<"$out")
-  [ "$got" = 'false' ] && pass "unmappable binds skipped, Hyprland aliases taken" \
-    || fail "aliases" "tab.newTerminal still generated under MOD4 + T"
+  got=$(jq -c '.["tab.newTerminal"]' <<<"$out")
+  [ "$got" = '[]' ] && pass "unmappable binds skipped, Hyprland aliases taken" \
+    || fail "aliases" "tab.newTerminal under MOD4 + T got $got"
 else
   fail "aliases" "generator failed: $(cat "$T/gen.err")"
 fi
@@ -278,8 +285,8 @@ got=$(jq -c '[.["zoom.in"], .["tab.previousTerminal"], .["fileExplorer.delete"]]
 #      SUPER + SHIFT + equal is the press Orca reads as Cmd+Shift+Plus.
 #      META is a Super alias, and media keysyms skip in any case.
 out=$(gen '["SUPER + SHIFT + equal", "META + T", "xf86audiomute"]')
-got=$(jq -c '[.["zoom.in"], has("tab.newTerminal")]' <<<"$out")
-[ "$got" = '[["Cmd+Equal","Cmd+NumpadAdd"],false]' ] && pass "Shift+equal takes Cmd+Shift+Plus; META, xf86 handled" \
+got=$(jq -c '[.["zoom.in"], .["tab.newTerminal"]]' <<<"$out")
+[ "$got" = '[["Cmd+Equal","Cmd+NumpadAdd"],[]]' ] && pass "Shift+equal takes Cmd+Shift+Plus; META, xf86 handled" \
   || fail "shifted" "zoom.in/tab.newTerminal got $got"
 
 # 12f. A keycode bind is layout-dependent, so it is refused by name rather
@@ -294,13 +301,19 @@ if gen '["SUPER + Frobnicate"]' >/dev/null; then fail "unknown-key" "SUPER + Fro
 elif grep -q 'Hyprland bind "SUPER + Frobnicate"' "$T/gen.err"; then pass "unknown Hyprland key fails the generator"
 else fail "unknown-key" "failed for another reason: $(cat "$T/gen.err")"; fi
 
-# 13. A generated chord may not land on an action left on its Linux default:
-#     Orca dispatches across scopes, so the conflict check never sees it.
-#     With Super+1..9 Hyprland's, workspace.selectByIndex stays Ctrl+1..9, and
-#     the Mac tab.selectByIndex (also Ctrl+1) would never fire.
-got=$(gen '[]' | jq -c '.["tab.selectByIndex"]'),$(gen '["SUPER + 5"]' | jq -c '.["tab.selectByIndex"]')
-[ "$got" = '["Ctrl+1"],null' ] && pass "Mac Ctrl+1 tabs only while workspaces are on Super" \
-  || fail "shadow" "free,taken got $got"
+# 13. Across the whole effective table -- generated keys over Orca's Linux
+#     defaults -- no chord is Ctrl- or Alt-only, save the pinned finds and the
+#     tab cycling terminals cannot send (Ctrl+Tab, Ctrl+PageUp/Down).
+got=$("$NODE" -e '
+  const kb = require(process.argv[1] + "/keybindings.js"), o = require(process.argv[2]);
+  const ok = new Set(["Ctrl+Tab", "Ctrl+PageUp", "Ctrl+PageDown"]);
+  const pinned = { "editor.find": "Ctrl+S", "browser.find": "Ctrl+S", "chat.find": "Ctrl+S", "settings.search": "Ctrl+S" };
+  const bad = kb.KEYBINDING_DEFINITIONS.flatMap((d) =>
+    (o[d.id] ?? kb.getDefaultBindings(d, "linux"))
+      .filter((b) => /(^|\+)(Mod|Ctrl|Alt)\+/.test(b) && !/(^|\+)Cmd\+/.test(b) && !ok.has(b) && pinned[d.id] !== b)
+      .map((b) => d.id + "=" + b));
+  console.log(bad.join(" "));' "$PKG/lib/shared" "$OWNED")
+[ -z "$got" ] && pass "no Ctrl/Alt-only chord left for the terminal to lose" || fail "terminal-keys" "still bound: $got"
 
 # 14. A sidecar that cannot be read stops the merge: read as empty, it would
 #     let every generated key overwrite the UI's changes to it.

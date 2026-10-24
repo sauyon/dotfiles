@@ -1,8 +1,11 @@
 // Emits Orca's platforms.linux keybinding overrides: every action's macOS
 // default, with Mod (Cmd there, Ctrl here) spelled Cmd, which Orca binds to
-// Super on Linux. See orca.nix.
+// Super on Linux -- and no Ctrl- or Alt-only chord, so emacs keys reach the
+// terminal. See orca.nix.
 //
-//   node orca-mac-keybindings.js <app>/out/shared <hyprland-chords.json>
+//   node orca-mac-keybindings.js <app>/out/shared <hyprland-chords.json> [pinned.json]
+//
+// pinned.json maps action ids to bindings that win over all of the above.
 //
 // Uses Orca's own keybinding module (out/shared/keybindings.js, the stable
 // facade its comment promises) for the definitions, normalisation and the
@@ -11,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const [shared, chordsFile] = process.argv.slice(2);
+const [shared, chordsFile, pinnedFile] = process.argv.slice(2);
 const kb = require(path.resolve(shared, 'keybindings.js'));
 
 // Chords Hyprland binds never reach the window. "SUPER + SHIFT + W" ->
@@ -70,8 +73,6 @@ const isTaken = (id, binding) =>
     : taken.has(binding);
 
 const overrides = {};
-// Actions every one of whose Mac chords Hyprland took: left on Linux defaults.
-const fellBack = new Set();
 for (const def of kb.KEYBINDING_DEFINITIONS) {
   const mac = kb.getDefaultBindings(def, 'darwin').map((binding) => {
     const cmd = binding.split('+').map((t) => (t === 'Mod' ? 'Cmd' : t)).join('+');
@@ -83,36 +84,45 @@ for (const def of kb.KEYBINDING_DEFINITIONS) {
   if (free.length < mac.length) {
     console.error(`${def.id}: ${mac.filter((b) => isTaken(def.id, b)).join(', ')} is Hyprland's`);
   }
-  // Every chord taken: leave the action on its Linux default rather than
-  // unbinding it. No macOS binding at all is different -- unbound there, so
-  // unbound here ([]). Same as the Linux default: nothing to say.
-  if (mac.length > 0 && free.length === 0) {
-    fellBack.add(def.id);
-    continue;
-  }
-  if (JSON.stringify(free) === JSON.stringify(kb.getDefaultBindings(def, 'linux'))) continue;
+  // Every chord taken leaves the action unbound -- not on its Linux default,
+  // which is a Ctrl chord the terminal would lose.
   overrides[def.id] = free;
 }
 
-// A fallback can land on a generated chord the Mac table never had to keep
-// apart from it. Orca dispatches some actions across scopes, ahead of the
-// conflict check's scope groups -- the workspace digits before the tab
-// digits -- so with Super+1..9 Hyprland's, workspace.selectByIndex stays on
-// Ctrl+1..9 and the Mac tab.selectByIndex (Ctrl+1..9) would never fire.
-// Such an action goes back to its own Linux default too, until none is left.
-const identities = (id, bindings) =>
-  bindings.flatMap((b) => kb.keybindingConflictIdentities(id, b, 'linux'));
-for (;;) {
-  const held = new Set(
-    [...fellBack].flatMap((id) => identities(id, kb.getDefaultBindings(kb.getKeybindingDefinition(id), 'linux'))),
-  );
-  const shadowed = Object.keys(overrides).filter((id) => identities(id, overrides[id]).some((i) => held.has(i)));
-  if (shadowed.length === 0) break;
-  for (const id of shadowed) {
-    console.error(`${id}: ${overrides[id].join(', ')} is a fallen-back Linux default's`);
-    delete overrides[id];
-    fellBack.add(id);
+// Ctrl and Meta are the terminal's: emacs, readline. Any chord with Ctrl or
+// Alt and no Super goes -- the Mac table's own (Ctrl+1..9 tab select, Alt+Z
+// word wrap) as much as Linux defaults left standing (Alt+Shift+D split).
+// Tab cycling stays: terminals cannot send Ctrl+Tab or Ctrl+PageUp/Down.
+const TERMINAL_CANNOT_SEND = new Set(['Ctrl+Tab', 'Ctrl+PageUp', 'Ctrl+PageDown']);
+const takesFromTerminal = (b) => {
+  const mods = b.split('+').slice(0, -1);
+  return !mods.includes('Cmd') && mods.some((m) => m === 'Ctrl' || m === 'Alt' || m === 'Mod') && !TERMINAL_CANNOT_SEND.has(b);
+};
+for (const def of kb.KEYBINDING_DEFINITIONS) {
+  const effective = overrides[def.id] ?? kb.getDefaultBindings(def, 'linux');
+  const kept = effective.filter((b) => !takesFromTerminal(b));
+  if (kept.length < effective.length) {
+    console.error(`${def.id}: ${effective.filter(takesFromTerminal).join(', ')} is the terminal's`);
   }
+  overrides[def.id] = kept;
+}
+
+// Pinned bindings (orca.nix) win over everything above.
+if (pinnedFile) {
+  for (const [id, bindings] of Object.entries(JSON.parse(fs.readFileSync(pinnedFile, 'utf8')))) {
+    if (!kb.getKeybindingDefinition(id)) throw new Error(`pinned: unknown Orca action "${id}"`);
+    overrides[id] = bindings.map((b) => {
+      const n = kb.normalizeKeybindingWithOptions(b, kb.normalizeOptionsForAction(id));
+      if (!n.ok) throw new Error(`pinned: ${id}: ${b}: ${n.error}`);
+      if (isTaken(id, n.value)) throw new Error(`pinned: ${id}: ${n.value} is Hyprland's`);
+      return n.value;
+    });
+  }
+}
+
+// Nothing to say where the result is Orca's own Linux default.
+for (const def of kb.KEYBINDING_DEFINITIONS) {
+  if (JSON.stringify(overrides[def.id]) === JSON.stringify(kb.getDefaultBindings(def, 'linux'))) delete overrides[def.id];
 }
 
 // Orca drops every action in a conflicting set at load, with only a line in

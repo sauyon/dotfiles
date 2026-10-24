@@ -19,60 +19,99 @@ let
     hash = "sha512-J1hApmTOvc91BmhiplyCNjI3UMJ99awjQgVlgpj4azkH/sHSKlfJa4c1O2MCcdJhLrxCVm/NVKT+JtghzxoEsQ==";
   };
 
-  # Wrap the AppImage (not autoPatchelf of the .deb) so the Electron stack
-  # runs in appimageTools' FHS env, which works on non-NixOS hosts. Electron
-  # safeStorage wants libsecret at runtime.
-  orca = pkgs.appimageTools.wrapType2 {
-    inherit pname version src;
-    extraPkgs = pkgs: [ pkgs.libsecret ];
-    # The sandbox gets its own fontconfig, the way every other nix GUI app here
-    # gets a nix-generated FONTCONFIG_FILE, instead of the distro's.
-    # buildFHSEnv binds the host's /etc/fonts in, assuming NixOS; Arch's conf.d
-    # links point into /usr/share/fontconfig, which the sandbox's /usr replaces,
-    # so all of them dangled and every family fell to Montserrat Thin. See
-    # fontsConf below. tests/sandbox-fonts.sh.
-    extraBwrapArgs = [ "--setenv FONTCONFIG_FILE ${fontsConf}" ];
-    # The AppImage ships bin/orca and an orca-ide.desktop; upstream's .deb
-    # installs the CLI as `orca-ide`, and that is what the desktop Exec and
-    # meta.mainProgram use below. appimageTools keeps the AppImage's own bin
-    # name, so the wrapper is renamed by hand.
-    #
-    # --ozone-platform=wayland: Orca's startup gate picks X11 when neither
-    # --ozone-platform nor ELECTRON_OZONE_PLATFORM_HINT says otherwise, and on
-    # a Hyprland-only session there is no X server to stat — measured: the
-    # bare launch exits 1 with "needs a usable display server", and the
-    # explicit wayland switch keeps it running (timeout kill at 20s, exit 124).
-    # An env var would work from a shell but not a desktop-file launch, so it
-    # is a flag on the command line.
-    #
-    # The flag lands in extraInstallCommands, not postFixup: wrapType2 is a
-    # buildFHSEnv, whose buildCommand short-circuits genericBuild's phase
-    # list, so postFixup never runs. The bin/orca symlink from buildCommand
-    # is replaced with a wrapper that prepends the flag and passes "$@"
-    # through. buildFHSEnv's builder has no makeWrapper on PATH, so its setup
-    # hook is sourced by hand; and the wrapper must not target its own path
-    # (renaming to orca-ide and wrapping orca-ide in place makes it exec
-    # itself), so the bwrap launcher moves aside to .orca-ide-unwrapped.
-    extraInstallCommands = ''
-      source ${pkgs.makeWrapper}/nix-support/setup-hook
-      mv $out/bin/orca $out/bin/.orca-ide-unwrapped
-      makeShellWrapper $out/bin/.orca-ide-unwrapped $out/bin/orca-ide \
-        --add-flags '--ozone-platform=wayland'
-      install -Dm444 ${appimageContents}/orca-ide.desktop \
-        $out/share/applications/orca-ide.desktop
+  # The AppImage's own tree, unsandboxed: its ELFs patched to store paths with
+  # autoPatchelf and the binary wrapped with makeWrapper, the way nixpkgs
+  # packages slack or vscode. A patched binary runs on Arch as well as NixOS.
+  # This replaced appimageTools.wrapType2, whose bwrap FHS env everything Orca
+  # spawns (its terminals, the agents in them) inherited: no /etc/hostname,
+  # `date` in UTC (/etc/localtime points into a /usr the env replaced), fonts
+  # dangling, and bwrap between every caller and Electron, forwarding no
+  # signals. tests/orca-gui-unsandboxed.sh.
+  #
+  # Two trees stay byte-identical. resources/node-runtime's node is copied
+  # into orcad slots and checked against a sha256 pin (the template's
+  # targets/linux-x64-glibc/.runtime-node); patched -- or stripped -- it
+  # fails the check and Orca downloads stock node instead. resources/
+  # orcad-template holds per-target builds (arm64, musl) that Orca ships to
+  # remote hosts. Both run unpatched on a glibc host with an FHS loader, which
+  # Arch is. The AppImage's own usr/lib (libnotify, libappindicator, ...) is
+  # left out for nixpkgs' copies, below.
+  #
+  # chrome-sandbox ships without the setuid bit (the store cannot hold one);
+  # with unprivileged user namespaces, which Arch has, Chromium uses its
+  # namespace sandbox and never needs it.
+  orca = pkgs.stdenv.mkDerivation {
+    inherit pname version;
+    src = appimageContents;
+    nativeBuildInputs = [ pkgs.autoPatchelfHook pkgs.makeWrapper ];
+    buildInputs = with pkgs; [
+      alsa-lib at-spi2-atk cairo cups dbus expat glib gtk3 libdrm libgbm
+      libxkbcommon nspr nss pango stdenv.cc.cc.lib systemd
+      libx11 libxcomposite libxdamage libxext libxfixes libxrandr libxcb
+    ];
+    # dlopened, so autoPatchelf cannot see them: GL and udev for the GPU
+    # process, libsecret for Electron's safeStorage, notify and appindicator
+    # for notifications and the tray.
+    runtimeDependencies = with pkgs; [
+      libGL systemd libsecret libnotify libappindicator-gtk3
+    ];
+    dontConfigure = true;
+    dontBuild = true;
+    # Both run by hand, or not at all, around the pinned trees: strip would
+    # rewrite the pinned node as surely as patchelf.
+    dontAutoPatchelf = true;
+    dontStrip = true;
+    installPhase = ''
+      runHook preInstall
+      mkdir -p $out/lib/orca $out/share/applications
+      cp -r --no-preserve=ownership . $out/lib/orca
+      chmod -R u+w $out/lib/orca
+      rm -r $out/lib/orca/{AppRun,.DirIcon,usr,orca-ide.desktop,orca-ide.png}
+      install -Dm444 orca-ide.desktop $out/share/applications/orca-ide.desktop
       for size in 16 24 32 48 64 128 256 512; do
-        install -Dm444 \
-          ${appimageContents}/usr/share/icons/hicolor/''${size}x''${size}/apps/orca-ide.png \
+        install -Dm444 usr/share/icons/hicolor/''${size}x''${size}/apps/orca-ide.png \
           $out/share/icons/hicolor/''${size}x''${size}/apps/orca-ide.png
       done
+      # The AppImage ships bin/orca and an orca-ide.desktop; upstream's .deb
+      # names the app orca-ide, and that is what the desktop Exec and
+      # meta.mainProgram use.
       substituteInPlace $out/share/applications/orca-ide.desktop \
         --replace-fail 'Exec=AppRun' 'Exec=orca-ide'
+      runHook postInstall
+    '';
+    postFixup = ''
+      targets=()
+      for p in $out/lib/orca/* $out/lib/orca/resources/*; do
+        case $p in
+          */resources|*/resources/node-runtime|*/resources/orcad-template) ;;
+          *) targets+=("$p") ;;
+        esac
+      done
+      autoPatchelf -- "''${targets[@]}"
+
+      # --ozone-platform=wayland: Orca's startup gate picks X11 when neither
+      # --ozone-platform nor ELECTRON_OZONE_PLATFORM_HINT says otherwise, and
+      # on a Hyprland-only session there is no X server -- a bare launch exits
+      # 1 with "needs a usable display server". A flag, not an env var, so a
+      # desktop-file launch gets it too. Not in node mode: node rejects it
+      # ("bad option", exit 9), and Orca's CLI runs this binary that way.
+      #
+      # FONTCONFIG_FILE: Orca's Linux terminalFontFamily default is exactly
+      # "DejaVu Sans Mono", which the host's fontconfig lacks; see fontsConf.
+      #
+      # A plain exec: signals and exit codes reach Electron directly.
+      makeWrapper $out/lib/orca/orca-ide $out/bin/orca-ide \
+        --set FONTCONFIG_FILE ${fontsConf} \
+        --run '[ -n "''${ELECTRON_RUN_AS_NODE-}" ] || set -- --ozone-platform=wayland "$@"'
     '';
     meta.mainProgram = "orca-ide";
   };
-  # Hermetic: nixpkgs' own conf.d (store paths, the full standard alias set),
-  # whose 50-user.conf pulls in ~/.config/fontconfig -- home-manager's font
-  # dirs, i.e. the nix-profile fonts every other app here uses. Plus DejaVu:
+  # The app's fontconfig, the way every other nix GUI app here gets a
+  # nix-generated FONTCONFIG_FILE instead of the distro's. Hermetic: nixpkgs'
+  # own conf.d (store paths, the full standard alias set), whose 50-user.conf
+  # pulls in ~/.config/fontconfig -- home-manager's font dirs, i.e. the
+  # nix-profile fonts every other app here uses. Plus DejaVu, which the host
+  # does not have:
   # Orca's Linux terminalFontFamily default is exactly "DejaVu Sans Mono" with
   # no fallback, and Chromium refuses fontconfig's alias to another mono font,
   # so without it the terminal lays a proportional fallback out on a mono grid.
@@ -86,8 +125,8 @@ let
       <cachedir prefix="xdg">fontconfig</cachedir>
     </fontconfig>
   '';
-  # Extracted once, shared by the wrapper's extraInstallCommands below;
-  # let bindings are recursive, so position in the block does not matter.
+  # Extracted once, shared by orca and macKeybindings; let bindings
+  # are recursive, so position in the block does not matter.
   appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
 
   # Mac-style shortcuts, the same Super-for-Cmd scheme as gtk's mac-bindings
@@ -179,8 +218,8 @@ in
 {
   home.packages =
     lib.optionals (!isDarwin && isDesktop) [
-    # nixGL wrap: without it the FHS env resolves GBM/DRI via the NixOS-only
-    # /run/opengl-driver path and falls back to software rendering — the
+    # nixGL wrap: without it GBM/DRI resolve via the NixOS-only
+    # /run/opengl-driver path and fall back to software rendering — the
     # same reason parsec gets it.
       (config.lib.nixGL.wrap orca)
     ];

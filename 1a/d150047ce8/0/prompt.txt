@@ -1,5 +1,57 @@
-why does orca not see my fonts? and why does it not have icons
+<task-notification>
+<task-id>a5c9e32fbce851ec1</task-id>
+<tool-use-id>toolu_0113sYWWtfgLf6j4qcvgG6Py</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/d91a6a6c-612c-48bf-ac1b-d1211f6072e2/tasks/a5c9e32fbce851ec1.output</output-file>
+<status>completed</status>
+<summary>Agent "Review symbol-fonts change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical issues. There are 2 Important findings and 6 nits. The nix change is correct; the problems are a misleading cost claim in the comment and gaps in what the test covers.
 
----
+**Checks I ran (all read-only):**
+- **`variants` is a real argument:** `pkgs.noto-fonts.override.__functionArgs` lists `variants` (along with `suffix` and `longDescription`). The nixpkgs version is 2026.10.01.
+- **Both platforms evaluate:** The hosts are chiyari, fujiwara, kyuusaku, shiori and utsuho (x86_64-linux) and mari (aarch64-darwin). On both shiori and mari, `noto-fonts-2026.10.01` shows up in `home.packages` next to `noto-fonts-color-emoji` and `noto-fonts-cjk-sans`.
+- **The output is what the comment says:** shiori's output is one file, `share/fonts/noto/NotoSansSymbols2-Regular.otf`, 396K.
+- **The face covers all three codepoints:** its charset includes `23f1-2426`, `2b12-2b2f` and `1fb00-1fb92`.
+- **The live profile still lacks them:** `fc-list :charset=X` with the current host config returns 0 for all three (shiori hasn't been switched yet).
 
-no it doesn't? I still see boxes
+## Critical
+None.
+
+## Important
+
+1. **home.nix:3270-3275: the comment hides the build cost.** The output is 400 KiB, but this override is not on cache.nixos.org. Whatever machine builds it has to fetch the full upstream source: `notofonts.github.io/archive/refs/tags/noto-monthly-release-2026.10.01.tar.gz`, which is 2,160,507,568 bytes (2.1G) in the store. That applies to every host without a private cache, including mari, and again every month when the release tag changes.
+   - The google-fonts comment a few lines up (around home.nix:3230) states this exact caveat: "The *build* still fetches the whole google/fonts repo; only the output … shrinks."
+   - This comment says "One 400 KiB face, not all of noto-fonts", which suggests it is cheap. The cost should be stated, or weighed against substituting the full cached `noto-fonts`.
+
+2. **tests/symbol-fonts.sh:23,36: only one host is checked, and the host lookup can fail.**
+   - `HOST=$(uname -n)` keeps any domain suffix. On macOS `uname -n` usually returns something like `mari.local`, so the lookup `homeConfigurations.mari.local` fails and the script exits with "home.path did not evaluate". It fails loudly, but it means the test cannot run on mari at all.
+   - Other tests strip the suffix: tests/wif-tpm.sh:54 uses `host="${host%%.*}"` and tests/wif-keygen.sh:101 uses `cut -d. -f1`.
+   - More broadly, tests/cjk-fonts.sh checks every host by reading `homeConfigurations`. This test only checks the host it runs on. If the package were dropped or gated for one host (for example a darwin-only `lib.optionals`), nothing would catch it unless someone runs the test on that host.
+   - A cheap fix: an eval-only check (`--max-jobs 0`) that the package is in every host's `home.packages`, plus the fontconfig check on the local host.
+
+## Nits
+
+3. **tests/symbol-fonts.sh:36: no `--max-jobs 0` on the eval.** tests/cjk-fonts.sh adds it to every `nix eval` and points to tests/hmeval.sh, which says it is the guard that keeps an eval from building. The realise step builds anyway, so this is about consistency, not correctness.
+
+4. **tests/symbol-fonts.sh:38: realise failures are detected correctly.** `set -o pipefail` applies inside the `$(...)` substitution, so a failed `nix-store --realise` makes the assignment fail and the `||` branch runs. Two small points:
+   - Build output on stderr goes straight to the terminal, unlike cjk-fonts.sh:63, which sends it to `&gt;/dev/null 2&gt;&amp;1`.
+   - This builds the whole `home.path` for the host, not just the font package. That's a reasonable choice because it tests the real profile, but it's heavy.
+
+5. **tests/symbol-fonts.sh:53: `fc-list … 2&gt;/dev/null` hides fontconfig errors.** Host fonts can't leak in through the config as written: it has a single `&lt;dir&gt;`, no `&lt;include&gt;` of conf.d or `~/.config/fontconfig`, and a private `&lt;cachedir&gt;`, so `/usr/share/fonts` can't make it pass. The remaining risk is that I believe fontconfig falls back to a built-in default config (the default font dirs) if `FONTCONFIG_FILE` fails to parse; I didn't confirm this. With stderr hidden, that would pass silently.
+   - The heredoc is fixed text and the store path contains no XML special characters, so this is unlikely.
+   - A one-line guard would close it, for example a check that `FONTCONFIG_FILE=… fc-list file` lists only paths under `$out`.
+
+6. **tests/symbol-fonts.sh:52: `printf "\\U…"` needs bash 4.2 or later.** macOS `/bin/bash` 3.2 doesn't support `\U`. With `#!/usr/bin/env bash`, mari probably picks up a nix bash, so this only affects how the glyph displays. Not urgent.
+
+7. **tests/symbol-fonts.sh:53: `head -1` can SIGPIPE `fc-list`.** With pipefail the pipeline status becomes non-zero, but it's ignored (there's no `set -e` and no status check), so `face` is still set correctly. No action needed. Under `set -u`, `$1` is guarded by `${1:-…}` and all other variables are set before use, so that's fine too.
+
+8. **Style and consistency.**
+   - The comment block matches its neighbours' "fails silently" style. However, home.nix:3274 ends with a bare "tests/symbol-fonts.sh.", while the CJK block says what its test checks ("so tests/cjk-fonts.sh checks every host has it"). Adding a few words would match.
+   - The test header (tests/symbol-fonts.sh:1-17) follows the cjk-fonts.sh layout well: the silent-failure story, then "The claim", then usage lines. The `pass`/`fail` helpers and the summary line are copied verbatim, which is consistent.
+
+## Can the test pass for the wrong reason, and would it catch a regression?
+- **Regression:** removing the package would make the test fail on the host where it runs, which matches the reported 0/3 before and 3/3 after. It would not catch a loss on other hosts (Important #2).
+- **Wrong reason:** the fontconfig isolation is sound (nit #5 covers the one remaining risk). It passes if any face in the profile has the codepoint, which is the right claim.
+- **Darwin:** the test only proves the fonts are in `home.path`. That is a fair stand-in for mari only because home-manager also copies the profile's fonts into `~/Library/Fonts` on macOS, where apps look up fonts through the system rather than fontconfig. That copying lives in home-manager, not this repo, and I did not verify it.</result>
+<usage><subagent_tokens>32263</subagent_tokens><tool_uses>7</tool_uses><duration_ms>98406</duration_ms></usage>
+</task-notification>

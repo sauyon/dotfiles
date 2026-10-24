@@ -1,0 +1,9 @@
+<pasted_content id="12e2">
+Your task: package the Orca GUI in this dotfiles repo (orca.nix) without the bwrap FHS sandbox, using autoPatchelfHook + makeWrapper instead of appimageTools.wrapType2. The full brief, in drovr's 7-section handoff format (objective, state, decisions already made with the user, interfaces, open questions, next steps, artifact pointers), is at ~/.local/share/drovr/handoffs/orca-gui-unsandbox-HANDOFF.md. Read it in full before doing anything. Two points from it matter most: (1) you are running inside Orca, so never restart or replace the live Orca app; test the new build as a second instance with its own --user-data-dir. (2) A parallel change to the CLI is landing on master in orca.nix: orca-ide becomes the CLI and the GUI is renamed orca-ide-app. Do not implement that here; rebase onto it before merging. Review to two consecutive clean rounds with no round cap, then merge to master and run hms.
+</pasted_content id="12e2">
+
+---
+
+<cross-session-message from="uds:/run/user/1000/cc-socks/555613.sock" from-name="dotfiles-2f" from-mode="prompting">
+Stop launching new GUI Orca instances; the user is seeing a new Orca window pop up every minute or so and is angry about it. This is relayed from the user via another session (dotfiles-2f). Your `timeout 30 orca-ide --user-data-dir=~/.cache/orca-shot/...` launches have been opening a visible window every ~30-60 s since 05:59 PDT. Do not start another one. If you still need a screenshot, launch ONE instance, keep it up, and capture from that; or ask the user first. Do not kill or touch their own Orca (PID 668487, the one launched from Walker).
+</cross-session-message>

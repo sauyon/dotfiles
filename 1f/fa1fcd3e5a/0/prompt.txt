@@ -1,0 +1,152 @@
+<task-notification>
+<task-id>a0a5db69e6bde545a</task-id>
+<tool-use-id>toolu_01RkunrrTvcoEF7wUrSauQLZ</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/tasks/a0a5db69e6bde545a.output</output-file>
+<status>completed</status>
+<summary>Agent "Review r5: security+quality" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical findings and two Important ones. Both test suites pass. HEAD is 0af5df11 and `git status` is clean.
+
+**Builds and runs**
+- The requested eval returns `/nix/store/sbrpdvarvn22fwswm18kwlf74xvb4d1c-orca-1.4.238` and `/nix/store/1gvmjwxrihml84bbd5dfksr6ffcp6d66-orca-cli-1.4.238`. Both were already built.
+- `tests/orca-gui-unsandboxed.sh`: 25/25 passed (via the systemd-run path, because this shell is a bwrap-era Orca terminal with no `/etc/hostname`). Renderers ran in their own user namespace with seccomp, a window mapped, the launched pid was Electron's, SIGTERM gave exit 0, and serve had `before=7` processes and `after=0`.
+- `tests/orca-cli-skills.sh`: 25/25 passed.
+- Another session ran the GUI test at the same time as mine (unit `orca-gui-test-1083076`). Its leftover `~/.cache/orca-gui-test.*` and its document-portal FUSE mount were gone within about 90s. My own run cleaned up.
+
+**What holds up**
+- **Chromium sandbox:** fails closed. With no setuid bit and no user namespaces, Chromium aborts rather than running unsandboxed.
+- **Ways to `--no-sandbox`:**
+  - The CLI's AppRun check (`electron-sandbox-switch.js`) looks beside `ORCA_APP_EXECUTABLE`, or beside the raw binary when run in node mode. AppRun is removed, and installCheckPhase asserts that.
+  - The `pft` path that appends `--no-sandbox` only applies to the AppImage-runtime daemon (it needs `APPDIR`), and there it is a node-script argument, not a Chromium switch.
+  - The `ORCA_ELECTRON_NO_SANDBOX` path only applies when the user passes `--no-sandbox` themselves.
+- **Lost node mode is safe:** Orca's display gate runs before `requestSingleInstanceLock`, and it fails when `WAYLAND_DISPLAY` is unset. So a node-mode probe that lost `ELECTRON_RUN_AS_NODE` exits 1 before it could contact a live Orca. This also covers `orca-cli-skills.sh`'s `nodisplay`, which keeps the live runtime dir.
+- **Test isolation:** confirmed. The keyring and document portal that D-Bus starts run under the private `$run` and the throwaway HOME (seen in the journal: `couldn't access control socket: …/run/keyring/control`). Orca's writes to `.claude`, `.cursor` and `.orca` went to `$T/home`.
+- **Install-check gates:** these fail closed: `sha256sum -c --strict` on empty input, the `diff -r` and `lsx` diffs, and the Exec equality check.
+- **RUNPATH order:** `patchELF` (shrink-rpath) runs before the manual `autoPatchelf` in postFixup, so the runtimeDependencies dirs survive. The dlopen case confirms it.
+
+**Important**
+
+1. **Case 6's readiness wait never fires** (`tests/orca-gui-unsandboxed.sh:333`).
+   - Every `orca-gui-test-*-serve.service` in the journal took 1min 30.3–31.6s, across 8 runs. That is the full `seq 90` loop plus about 1s of teardown. A loop that matched would finish in seconds.
+   - In this build, `Terminal daemon:` is only printed inside the ready block when `e.health` is present (`wEt` in app.asar). The unconditional marker is `Orca server ready`.
+   - Effect: every run spends 90s waiting, and the CLI is killed at an arbitrary point, maybe mid-startup. So the test does not prove that a *serving* server goes down.
+   - If startup ever takes more than 90s, or the serve process dies, the case proceeds silently. It fails only if no Electron process exists at all.
+   - Fix: wait for `Orca server ready` and fail the case if it never appears.
+   - Regression coverage: the signal-forwarding check itself does still catch a non-exec wrapper.
+
+2. **The fontconfig "takes nothing away" claim is false for language, math and per-character fallback** (`orca.nix:186-190`, `tests/orca-gui-unsandboxed.sh:105-108`).
+   - I compared the host's default config with `orca-fonts.conf` on the host (via `systemd-run`).
+   - Same result for: serif, Helvetica, Times New Roman, Courier New, Verdana, emoji, cursive and ui-monospace.
+   - Different results:
+     - `:lang=ar`: Noto Nastaliq Urdu on the host, DejaVu Sans under Orca.
+     - `:lang=he`: Open Sans on the host, DejaVu Sans under Orca.
+     - `math`: Noto Sans Math on the host, DejaVu Math TeX Gyre under Orca.
+   - Scenario: a browser or editor launched from an Orca terminal renders Hebrew or Arabic in DejaVu Sans, not the host's font. Orca's own Chromium fallback does the same.
+   - Case 3 only checks five generic patterns, so it would not fail on this. Either reword the comment and test header ("adds DejaVu, which wins some language and per-character fallback"), or add `:lang=` and `math` probes and decide whether it matters.
+
+**Nits**
+
+- `orca.nix:86` is stale: "The AppImage ships bin/orca". The extracted AppImage has no `bin/`; `bin/orca` was what wrapType2 produced (the line was carried over from orca-cli-node:45). It should say it ships `orca-ide` at the root, plus AppRun.
+- `orca.nix:146`: "no --no-sandbox carried over from upstream's line" suggests upstream's Exec has one. It is `Exec=AppRun %U`; AppRun adds the flag at runtime. Say "guarding against" instead.
+- `orca.nix:23` says this is packaged "the way nixpkgs packages slack or vscode", but there is no `wrapGAppsHook3`. GSettings schemas come from the host's XDG_DATA_DIRS. That works on shiori because pacman's gtk3 owns `org.gtk.Settings.FileChooser.gschema.xml`. A GUI host without gtk3 would abort on the GTK file chooser with "No GSettings schemas", and no test opens a dialog.
+- `orca.nix:127-131` and `tests/orca-gui-unsandboxed.sh:306-307` say a signal to the CLI takes the server down. True for TERM, INT and HUP, but SIGKILL to the CLI (OOM, `timeout -s KILL`) still orphans Electron, since nothing sets a parent-death signal. Say "a catchable signal".
+- **Shared `/tmp`:** Orca's daemon uses a fixed `/tmp/.orca-daemon-&lt;uid&gt;/terminals/&lt;pid&gt;.json` ledger. The live one exists (`27357.json`). Both test units share `/tmp`, so a test daemon can add entries to the live host-wide terminal ledger, and leave stale ones if SIGKILLed. This contradicts "never touches a running Orca". `--property=PrivateTmp=yes` on both systemd-run units would close it.
+- **Live session D-Bus:** `appnode` (line 83) and `in_session` (line 235) keep the live `DBUS_SESSION_BUS_ADDRESS`. This is harmless for node mode and grim, but the GTK clipboard helper (`--probe`, line 282) connects to the live bus. `-u DBUS_SESSION_BUS_ADDRESS` in both costs nothing. HOME has to stay real for the font comparisons.
+- **Concurrent runs:** the coredump check (line 352) filters by `$APP`, which is shared, so a crash in a concurrent run of the same build would be blamed on this one. This review saw concurrent runs happen.
+- `ORCA_CLI` (line 314) is not in the test's usage header.
+- `orca.nix:39` (82 columns) and `orca.nix:138` are over-long comment lines left from edits; the rest of the comment block wraps at 80.
+- `orca-cli-skills.sh`'s GUI-lifetime case is now close to vacuous: with a plain exec nothing can kill the child. It only guards against a parent-death mechanism coming back. That is fine, but worth knowing.
+
+**Would tests fail on regression?**
+
+| Regression | Caught? | By |
+|---|---|---|
+| AppRun restored, or Exec changed or given `--no-sandbox` | Yes | build fails in installCheckPhase |
+| `--no-sandbox` via the wrapper | Yes | case 5 (`shared-ns` / `no-seccomp`) |
+| Pinned trees or manifest altered | Yes | installCheckPhase |
+| Wrapper stops exec'ing | Yes | case 5 pid check and case 6 |
+| Node mode broken | Yes | case 2 and the skills test |
+| DejaVu missing | Yes | case 3 |
+| Lang/math font divergence | No | — |
+| Serve readiness | No | gate is dead code |
+| Missing gsettings schemas | No | — |
+
+The stale-comment grep turned up nothing else: the remaining bwrap and sandbox mentions describe the old setup or are unrelated.</result>
+<usage><subagent_tokens>135404</subagent_tokens><tool_uses>43</tool_uses><duration_ms>586961</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>a41973e352cb9c058</task-id>
+<tool-use-id>toolu_016d21H2vqUCMCbGxrUXhvF9</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-orca-gui-unsandbox/0f356773-2907-467c-ac73-3e2219018d85/tasks/a41973e352cb9c058.output</output-file>
+<status>completed</status>
+<summary>Agent "Review r5: correctness+errors" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found no Critical issues. There are two Important ones: case 6 failed on one of my two runs, and the font cases in section 3 can pass without testing anything, depending on which terminal runs the script.
+
+**State:** HEAD is 0af5df11 and `git status` was clean before and after. The eval gives `/nix/store/sbrpdvarvn22fwswm18kwlf74xvb4d1c-orca-1.4.238` (GUI) and `/nix/store/1gvmjwxrihml84bbd5dfksr6ffcp6d66-orca-cli-1.4.238` (CLI). The tests left no `~/.cache/orca-gui-test.*` directories behind. `/etc/hostname` is missing in my shell, so the script used its `systemd-run` path.
+
+**Test runs:**
+- `tests/orca-gui-unsandboxed.sh`, run 1: 24/25. Case 6 failed with `FAIL serve: no Electron server started (before=0 after=0): Pairing guidance: ... [autoUpdater] APPIMAGE env is not defined`.
+- `tests/orca-gui-unsandboxed.sh`, run 2: 25/25 (`before=7 processes`).
+- `tests/orca-cli-skills.sh`: 25/25.
+
+## Critical
+None.
+
+## Important
+
+**1. Case 6 is flaky and its failure message is wrong** — `tests/orca-gui-unsandboxed.sh:333-339`, `:347`
+- **What happened:** in run 1, `serve.out` contains the server's ready block. In app.asar, the `Pairing guidance:` line is printed after the `Terminal daemon:` line, and the `[autoUpdater]` lines only come from Electron. So the Electron server did start, yet `servers()` found 0 processes.
+- **What the test reports:** `before=0`, which hits the `before=0*` branch and says "no Electron server started". That is false.
+- **Cause:** not found. Two things are ruled out:
+  - APP resolves to the inner `grx…/lib/orca`, so the exe path matches.
+  - The CLI and app don't use `systemd-run` or scopes, so the server shouldn't be in another cgroup.
+- **Remaining suspects:** `servers()` is a single snapshot taken the moment `Terminal daemon` first appears, and it depends on `readlink /proc/$p/exe` succeeding.
+- **Effect:** about half the time, a healthy build fails this case.
+- **Is it vacuous?** No. A `before=0` run can't pass. An orphaned server still gives `after&gt;0`, so the test catches the regression.
+- **Fix:** on failure, dump `cgroup.procs` with each exe. Wait until `servers()` returns something, rather than waiting only for the log line.
+
+**2. Section 3's font comparisons can be vacuous** — `tests/orca-gui-unsandboxed.sh:44`, used at `:115`, `:127`, `:131`
+- **Cause:** when `/etc/hostname` exists, `host()` is just `"$@"`, so the "host" baseline runs with the caller's own environment.
+- **When it bites:** running the test from a terminal of the new unsandboxed Orca, which is the normal place after deploy. That terminal has `FONTCONFIG_FILE=…-orca-fonts.conf`, so `want` is computed under Orca's fontconfig, not the host's.
+- **Effect:** the `sans-serif`/`sans`/`monospace`/`system-ui`/`Arial` checks and the "all host font files visible" check then compare Orca's fontconfig with itself. A `fontsConf` change that stops matching the host, but matches the live build, would pass.
+- **Fix:** take the baseline with `env -u FONTCONFIG_FILE -u LD_LIBRARY_PATH`, as case 4 already does at `:189`.
+- This is about how the test measures, not the deferred env-leak item (a).
+
+## Nits
+- **`tests/orca-gui-unsandboxed.sh:33`:** the usage example `$(dirname $(dirname $(readlink -f ~/.nix-profile/bin/orca-ide)))` now resolves to the CLI package (`xcsg3z…-orca-cli`, which only has `bin/`). The script then exits with "no GUI bin". It fails loudly, but the example should use `orca-ide-app`.
+- **`tests/orca-gui-unsandboxed.sh:314`:** the `ORCA_CLI` override isn't documented in the header.
+- **`:352`, coredump check:** it passes if `coredumpctl` is missing or can't be reached (`2&gt;/dev/null … || true`). Also, `since` is set at `:236`, so crashes during the node-mode runs in cases 2–4 aren't covered.
+- **Gap-font check, `:142`, `:158`:**
+  - If no file matching `Gaps` is found, it prints a skip and fails nothing. The font-files case would mostly catch a missing gap font.
+  - `strtonum` (`:144`) needs gawk. With mawk the check fails loudly, so it isn't vacuous.
+- **Gap-font check, timing:** it makes 619 `fc-match` calls (143 + 476) under `appnode`'s `timeout 120`. A slower host could time out. That produces a partial line, so it fails rather than passes.
+- **Gap-font parsing:** fine. Node's `execFileSync` stderr is merged in by `2&gt;&amp;1` at `:112`, so a `Fontconfig warning:` line would show up as a bogus extra row and fail. That's fragile, but in the safe direction.
+- **`orca.nix` makeWrapper `--run` snippet:** it assigns `explicit` and `a` in the wrapper's shell. If the caller had either exported, Electron would get the modified value. This is extremely unlikely.
+- **`tests/orca-cli-skills.sh` `nodisplay()`:** not changed by this diff. Unlike the new `appnode`, it doesn't point `XDG_RUNTIME_DIR` at an empty directory, so Wayland's `wayland-0` fallback still works. It could only reach the live desktop if node mode were lost and `ELECTRON_OZONE_PLATFORM_HINT` were set in the caller's environment.
+- **`:233` and `:331`:** `${exec_args[*]}` and `$cli` are unquoted, and `$T`/`$APP` are expanded into generated scripts unquoted (`:157`). This breaks if `$HOME` contains spaces.
+
+## Checked and correct
+- **installCheckPhase:**
+  - stdenv runs with `pipefail`, so a jq schema failure fails the build, and `sha256sum -c` rejects empty input.
+  - The `${p#targets/*/}` ripgrep remap is correct.
+  - It runs after fixup, so it sees the final tree.
+  - The Exec/MimeType assertions match the built desktop file: `Exec=orca-ide-app %U`, and `x-scheme-handler/orca;` is present.
+- **orca-cli-skills.sh exec-swap regex:** it matches the actual generated line, `exec "…/lib/orca/orca-ide"  "$@" ` (including the trailing space).
+- **Inner wrapper:** under `bash -e`, the `||` chain is safe. The nixGL layer execs straight through, and case 5's pid check proves it.
+- **Case 6's CLI choice:** it honours the `ORCA_APP_EXECUTABLE` override (the profile CLI uses `${ORCA_APP_EXECUTABLE:-…}`), so a given `&lt;orca-path&gt;` really is the one served.
+- **Would the tests fail on regression?** Yes for:
+  - a flag injected in node mode (cases 2 and 3);
+  - a wrapper that doesn't exec (pid check, case 6);
+  - DejaVu missing;
+  - the gap font outranking DejaVu (moved &gt; 0);
+  - a lost RUNPATH or dlopen dependency;
+  - unsandboxed renderers;
+  - bwrap coming back (closure grep, and case 6 no longer matching `$APP`).
+
+  The exceptions are Important #2, where host and child are compared under the same fontconfig, and the coredump nit.</result>
+<usage><subagent_tokens>92495</subagent_tokens><tool_uses>32</tool_uses><duration_ms>678011</duration_ms></usage>
+</task-notification>

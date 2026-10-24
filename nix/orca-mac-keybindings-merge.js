@@ -105,12 +105,20 @@ for (const [id, bindings] of Object.entries(owned)) {
 // section over it, with its string shorthand and null/false expanded.
 // Common is the root's action keys in the legacy shape with no .keybindings.
 const common = doc.keybindings === undefined ? doc : isObject(doc.keybindings) ? doc.keybindings : {};
-const expand = (v) =>
-  v === null || v === false ? [] : typeof v === 'string' ? [v]
-    : Array.isArray(v) && v.every((b) => typeof b === 'string') ? v : undefined;
+// Orca's loader (jHn): null/false unbind; a string is a comma list; an array
+// of strings may hold comma lists too; one bad chord rejects the whole value,
+// leaving the action on its default (undefined here).
+const expand = (id, v) => {
+  if (v === null || v === false) return [];
+  const n =
+    typeof v === 'string' ? kb.normalizeKeybindingListForAction(id, v)
+      : Array.isArray(v) && v.every((b) => typeof b === 'string') ? kb.normalizeKeybindingArrayForAction(id, v)
+        : { ok: false };
+  return Array.isArray(n) ? n : n.ok ? [n.value] : undefined;
+};
 const effective = {};
 for (const [id, v] of Object.entries({ ...common, ...linux })) {
-  if (kb.isKeybindingActionId(id) && expand(v) !== undefined) effective[id] = expand(v);
+  if (kb.isKeybindingActionId(id) && expand(id, v) !== undefined) effective[id] = expand(id, v);
 }
 for (;;) {
   const withdrawn = kb
@@ -130,7 +138,7 @@ for (;;) {
       delete linux[id];
     }
     const fallback = id in linux ? linux[id] : common[id];
-    if (kb.isKeybindingActionId(id) && expand(fallback) !== undefined) effective[id] = expand(fallback);
+    if (kb.isKeybindingActionId(id) && expand(id, fallback) !== undefined) effective[id] = expand(id, fallback);
     else delete effective[id];
   }
 }

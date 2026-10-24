@@ -92,21 +92,27 @@ let
 
   # Mac-style shortcuts, the same Super-for-Cmd scheme as gtk's mac-bindings
   # and ghostty's super+c/v in home.nix: Orca's own macOS defaults, with Cmd
-  # spelled out, which Orca binds to Super (event.metaKey) on Linux. Ctrl then
-  # goes back to the terminal: Ctrl+C is SIGINT again, not copy. Except where
-  # the Mac table itself says Ctrl: Ctrl+1..9 selects a tab (Linux: Alt+1..9),
-  # Ctrl+Tab and Ctrl+PageUp/Down cycle them, as on a Mac.
+  # spelled out, which Orca binds to Super (event.metaKey) on Linux. Ctrl+C is
+  # SIGINT again, not copy; Ctrl+Tab and Ctrl+PageUp/Down cycle tabs, as on a
+  # Mac.
   #
   # Generated from the app's own keybinding definitions at build time
   # (nix/orca-mac-keybindings.js), so a version bump picks up new actions.
   # Chords Hyprland binds are skipped and those actions keep their Linux Ctrl
-  # default -- the compositor would eat them, leaving a dead key. That costs
-  # Super+F (find), Super+P (go to file), Super+N and Super+B, which are
-  # Hyprland's emacs-style focus moves; the build log lists every one.
+  # default -- the compositor would eat them, leaving a dead key. On shiori
+  # that is 19 actions, Super+F (find) and Super+P (go to file) among them,
+  # plus Super+B/N/E, the digits, and their Shift forms; so Ctrl+F/P/B/N/E stay
+  # Orca's. And an action whose Mac chord such a fallback would shadow falls
+  # back too: tab.selectByIndex keeps Alt+1..9, since Ctrl+1..9 stays the
+  # workspaces'. The build log lists every one.
+  #
+  # A running Orca reads the file once; after a switch, restart it (or run its
+  # keybindings reload) for the new table to apply.
   hyprlandChords = let s = config.wayland.windowManager.hyprland.settings; in
     lib.concatMap
       (k: map (b: if builtins.isAttrs b && b ? _args then builtins.head b._args else b) s.${k})
-      (builtins.filter (lib.hasPrefix "bind") (builtins.attrNames s));
+      # bind, bindl, binde, ...: the lists. `binds` is a config section, a set.
+      (builtins.filter (k: lib.hasPrefix "bind" k && builtins.isList s.${k}) (builtins.attrNames s));
   macKeybindings = pkgs.runCommand "orca-mac-keybindings" {
     nativeBuildInputs = [ pkgs.nodejs pkgs.asar pkgs.makeWrapper ];
   } ''
@@ -120,10 +126,14 @@ let
     mkdir -p $out/lib/shared
     cp -r app/out/shared/keybindings.js app/out/shared/keybindings \
       app/out/shared/tui-agent-display-names.js $out/lib/shared/
-    # An Orca bump that adds an import fails here, not at activation.
-    node -e "require('$out/lib/shared/keybindings.js')"
     makeWrapper ${pkgs.nodejs}/bin/node $out/bin/orca-mac-keybindings \
       --add-flags "${./nix/orca-mac-keybindings-merge.js} $out/lib/shared $out/share/orca-mac-keybindings.json"
+    # One real merge, so an Orca bump that moves an import or an export the
+    # merge uses fails here, not as a warning at every activation.
+    HOME=$TMPDIR/home $out/bin/orca-mac-keybindings 2> merge.err
+    if [ -s merge.err ] || [ ! -s $TMPDIR/home/.orca/keybindings.json ]; then
+      cat merge.err >&2; exit 1
+    fi
   '';
   # ~/.orca/keybindings.json is Orca's read-write state: its settings UI saves
   # into the same platforms.linux section, by atomic rename, so a home.file

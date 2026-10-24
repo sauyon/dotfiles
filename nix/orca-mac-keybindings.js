@@ -36,6 +36,8 @@ const isTaken = (id, binding) =>
     : taken.has(binding);
 
 const overrides = {};
+// Actions every one of whose Mac chords Hyprland took: left on Linux defaults.
+const fellBack = new Set();
 for (const def of kb.KEYBINDING_DEFINITIONS) {
   const mac = kb.getDefaultBindings(def, 'darwin').map((binding) => {
     const cmd = binding.split('+').map((t) => (t === 'Mod' ? 'Cmd' : t)).join('+');
@@ -50,9 +52,33 @@ for (const def of kb.KEYBINDING_DEFINITIONS) {
   // Every chord taken: leave the action on its Linux default rather than
   // unbinding it. No macOS binding at all is different -- unbound there, so
   // unbound here ([]). Same as the Linux default: nothing to say.
-  if (mac.length > 0 && free.length === 0) continue;
+  if (mac.length > 0 && free.length === 0) {
+    fellBack.add(def.id);
+    continue;
+  }
   if (JSON.stringify(free) === JSON.stringify(kb.getDefaultBindings(def, 'linux'))) continue;
   overrides[def.id] = free;
+}
+
+// A fallback can land on a generated chord the Mac table never had to keep
+// apart from it. Orca dispatches some actions across scopes, ahead of the
+// conflict check's scope groups -- the workspace digits before the tab
+// digits -- so with Super+1..9 Hyprland's, workspace.selectByIndex stays on
+// Ctrl+1..9 and the Mac tab.selectByIndex (Ctrl+1..9) would never fire.
+// Such an action goes back to its own Linux default too, until none is left.
+const identities = (id, bindings) =>
+  bindings.flatMap((b) => kb.keybindingConflictIdentities(id, b, 'linux'));
+for (;;) {
+  const held = new Set(
+    [...fellBack].flatMap((id) => identities(id, kb.getDefaultBindings(kb.getKeybindingDefinition(id), 'linux'))),
+  );
+  const shadowed = Object.keys(overrides).filter((id) => identities(id, overrides[id]).some((i) => held.has(i)));
+  if (shadowed.length === 0) break;
+  for (const id of shadowed) {
+    console.error(`${id}: ${overrides[id].join(', ')} is a fallen-back Linux default's`);
+    delete overrides[id];
+    fellBack.add(id);
+  }
 }
 
 // Orca drops every action in a conflicting set at load, with only a line in

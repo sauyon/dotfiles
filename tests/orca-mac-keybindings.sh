@@ -56,7 +56,7 @@ got=$(jqo '[.[][] | select(test("(^|\\+)Mod\\+"))]')
 # 2. Nothing the generator emits is a Hyprland chord.
 nix eval --json "$HM.wayland.windowManager.hyprland.settings" --apply \
   's: builtins.concatMap (k: map (b: if builtins.isAttrs b && b ? _args then builtins.head b._args else b) s.${k})
-      (builtins.filter (k: builtins.substring 0 4 k == "bind") (builtins.attrNames s))' \
+      (builtins.filter (k: builtins.substring 0 4 k == "bind" && builtins.isList s.${k}) (builtins.attrNames s))' \
   2>/dev/null > "$T/hypr.json" || { echo "could not evaluate Hyprland binds" >&2; exit 1; }
 # Hyprland "SUPER + SHIFT + W" -> Orca "Cmd+Shift+W"; letters upper-cased, the
 # keys Orca spells differently renamed. Mouse and switch binds never match.
@@ -161,6 +161,17 @@ got=$(jq -c '.platforms.linux["tab.newTerminal"]' "$H/.orca/keybindings.json")
 [ "$got" = '["Cmd+Shift+Y"]' ] && pass "UI shortcut on a withdrawn action survives" \
   || fail "clash-later" "got $got"
 
+# 8d. The clash check reads values the way Orca's loader does, shorthand and
+#     all: "Cmd+T, Alt+B" is two chords, one of them a generated key's.
+H="$T/clash-shorthand"; mkdir -p "$H/.orca"
+cat > "$H/.orca/keybindings.json" <<'EOF'
+{"version":1,"keybindings":{},"platforms":{"darwin":{},"linux":{"tab.newBrowser":"Cmd+T, Alt+B"},"win32":{}}}
+EOF
+HOME=$H "$MERGE" >/dev/null 2>&1
+got=$(jq -c '[.platforms.linux["tab.newBrowser"], .platforms.linux["tab.newTerminal"]]' "$H/.orca/keybindings.json")
+[ "$got" = '["Cmd+T, Alt+B",null]' ] && pass "comma-shorthand UI value still wins the clash" \
+  || fail "clash-shorthand" "got $got"
+
 # 9. An empty file is not JSON either: left alone, not "merged" into nothing.
 H="$T/empty"; mkdir -p "$H/.orca"; : > "$H/.orca/keybindings.json"
 if HOME=$H "$MERGE" >/dev/null 2>&1 && [ ! -s "$H/.orca/keybindings.json" ]; then
@@ -188,6 +199,25 @@ got=$(gen '[]' | jq -c '.["workspace.selectByIndex"]'),$(gen '["SUPER + 5"]' | j
   || fail "digits" "free,taken got $got"
 if gen '["MOD4 + T"]' >/dev/null; then fail "unknown-bind" "MOD4 + T passed as a free chord"
 else pass "untranslatable Hyprland bind fails the generator"; fi
+
+# 13. A generated chord may not land on an action left on its Linux default:
+#     Orca dispatches across scopes, so the conflict check never sees it.
+#     With Super+1..9 Hyprland's, workspace.selectByIndex stays Ctrl+1..9, and
+#     the Mac tab.selectByIndex (also Ctrl+1) would never fire.
+got=$(gen '[]' | jq -c '.["tab.selectByIndex"]'),$(gen '["SUPER + 5"]' | jq -c '.["tab.selectByIndex"]')
+[ "$got" = '["Ctrl+1"],null' ] && pass "Mac Ctrl+1 tabs only while workspaces are on Super" \
+  || fail "shadow" "free,taken got $got"
+
+# 14. A sidecar that cannot be read stops the merge: read as empty, it would
+#     let every generated key overwrite the UI's changes to it.
+H="$T/bad-sidecar"; mkdir -p "$H/.orca"
+cat > "$H/.orca/keybindings.json" <<'EOF'
+{"version":1,"keybindings":{},"platforms":{"darwin":{},"linux":{"tab.close":["Ctrl+Q"]},"win32":{}}}
+EOF
+printf '{bad' > "$H/.orca/keybindings.nix-owned.json"
+HOME=$H "$MERGE" >/dev/null 2>&1
+got=$(jq -c '.platforms.linux["tab.close"]' "$H/.orca/keybindings.json")
+[ "$got" = '["Ctrl+Q"]' ] && pass "unreadable sidecar: nothing overwritten" || fail "bad-sidecar" "got $got"
 
 printf '\n%d/%d passed\n' "$((n-fails))" "$n"
 [ "$fails" -eq 0 ]

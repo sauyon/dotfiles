@@ -41,7 +41,8 @@ fi
 D=$(mktemp -d); trap 'rm -rf "$D"' EXIT
 fails=0; n=0
 # A caller's own setting would leak into every case through run() and stand in
-# for the shipped default the two-retry case is there to pin.
+# for the shipped default that "two transient failures in a row" and "three
+# transient failures" are there to pin.
 unset HMS_RETRIES
 
 # A throwaway repo whose origin is a bare repo next to it, so hms's fetch/push
@@ -232,7 +233,8 @@ run() {
   # to be created at all, which ships at 90s. The cases below that exercise it
   # would otherwise sit through that window twice.
   # HMS_RETRIES only when a case sets it: a defaulted value here would be what
-  # every case reads, and the script's own default would go untested.
+  # every case reads, and the script's own default would go untested. Unlike
+  # the two waits, whose shipped values are too long to sit through.
   timeout 180 env -i PATH="$PATH" HOME="$HOME" ${HMS_RETRIES+"HMS_RETRIES=$HMS_RETRIES"} \
     HMS_REPO="$D/repo" HMS_CURL="$D/curl" HMS_TOKEN_CMD="$D/token-cmd" \
     HMS_SWITCH_CMD="$D/switch" HMS_WAIT_SECONDS="${HMS_WAIT_SECONDS:-20}" HMS_FIRST_RUN_SECONDS=1 \
@@ -579,6 +581,18 @@ if [ -f "$D/switched" ] && [ "$(ndisp)" -eq 2 ] \
   report "two transient failures in a row: two retries, then switch" ok
 else
   report "two transient failures in a row: two retries, then switch" no \
+    "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
+fi
+
+# And no more than two: the case above holds for any default of two or more,
+# and every retry past the second is up to two more hours of waiting.
+setup_repo; mktoken good; mkcurl_flaky 3 "$FIX"; mkswitch
+out=$(HMS_WAIT_SECONDS=40 run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(ndisp)" -eq 2 ] \
+   && printf '%s' "$out" | grep -q 'gave up after 2 retr'; then
+  report "three transient failures: the default gives up after two retries" ok
+else
+  report "three transient failures: the default gives up after two retries" no \
     "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
 fi
 

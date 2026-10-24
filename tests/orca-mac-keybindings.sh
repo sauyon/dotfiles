@@ -89,16 +89,19 @@ HOME=$H "$MERGE" >/dev/null 2>&1
 cmp -s "$T/first.json" "$H/.orca/keybindings.json" && pass "second switch changes nothing" \
   || fail "idempotent" "re-running the merge rewrote the file"
 
-# 5. Owned keys win; UI edits to other actions, common and darwin survive.
+# 5. First merge into a file Orca already wrote (no sidecar): a value already
+#    on a generated action is the UI's, kept; the rest of the table goes in.
+#    Common and darwin are untouched. Deleting a bad sidecar (case 14) lands
+#    here, so it must not cost the UI's shortcuts.
 H="$T/edited"; mkdir -p "$H/.orca"
 cat > "$H/.orca/keybindings.json" <<'EOF'
 {"version":1,"keybindings":{"tab.rename":["Alt+R"]},
  "platforms":{"darwin":{"tab.close":["Cmd+Q"]},"linux":{"tab.close":["Ctrl+Q"],"editor.find":["Alt+F"]},"win32":{}}}
 EOF
 HOME=$H "$MERGE" >/dev/null 2>&1
-got=$(jq -c '[.platforms.linux["tab.close"], .platforms.linux["editor.find"], .keybindings, .platforms.darwin]' "$H/.orca/keybindings.json")
-[ "$got" = '[["Cmd+W"],["Alt+F"],{"tab.rename":["Alt+R"]},{"tab.close":["Cmd+Q"]}]' ] \
-  && pass "merge keeps UI edits outside its keys" || fail "merge" "got $got"
+got=$(jq -c '[.platforms.linux["tab.close"], .platforms.linux["tab.newTerminal"], .platforms.linux["editor.find"], .keybindings, .platforms.darwin]' "$H/.orca/keybindings.json")
+[ "$got" = '[["Ctrl+Q"],["Cmd+T"],["Alt+F"],{"tab.rename":["Alt+R"]},{"tab.close":["Cmd+Q"]}]' ] \
+  && pass "first merge keeps the UI's values, adds the rest" || fail "merge" "got $got"
 
 # 6. A file Orca cannot parse is left alone; activation does not fail on it.
 H="$T/broken"; mkdir -p "$H/.orca"; printf '{not json' > "$H/.orca/keybindings.json"
@@ -210,12 +213,13 @@ fi
 # 11-12. The generator on fixture chords: a digit-index action's one binding
 #        stands for 1-9, and a bind form it cannot read fails the build.
 NODE=$(grep -oE '/nix/store/[^ "]+/bin/node' "$MERGE" | head -1)
-gen() { echo "$1" > "$T/chords.json"; "$NODE" "$FLAKE/nix/orca-mac-keybindings.js" "$PKG/lib/shared" "$T/chords.json" 2>/dev/null; }
+gen() { echo "$1" > "$T/chords.json"; "$NODE" "$FLAKE/nix/orca-mac-keybindings.js" "$PKG/lib/shared" "$T/chords.json" 2>"$T/gen.err"; }
 got=$(gen '[]' | jq -c '.["workspace.selectByIndex"]'),$(gen '["SUPER + 5"]' | jq -c '.["workspace.selectByIndex"]')
 [ "$got" = '["Cmd+1"],null' ] && pass "Super+5 taken drops the whole Cmd+1..9 family" \
   || fail "digits" "free,taken got $got"
 if gen '["MOD4 + T"]' >/dev/null; then fail "unknown-bind" "MOD4 + T passed as a free chord"
-else pass "untranslatable Hyprland bind fails the generator"; fi
+elif grep -q 'cannot translate Hyprland bind "MOD4 + T"' "$T/gen.err"; then pass "untranslatable Hyprland bind fails the generator"
+else fail "unknown-bind" "failed for another reason: $(cat "$T/gen.err")"; fi
 
 # 13. A generated chord may not land on an action left on its Linux default:
 #     Orca dispatches across scopes, so the conflict check never sees it.

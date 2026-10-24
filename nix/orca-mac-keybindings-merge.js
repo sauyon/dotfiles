@@ -7,6 +7,7 @@
 // sidecar, keybindings.nix-owned.json, records the values of the last write.
 //   - a key written last time and no longer generated is removed;
 //   - a key whose value the UI has changed since is left as the UI's;
+//   - with no sidecar yet, any value already on a generated key is the UI's;
 //   - everything else in the file is untouched.
 // Then the merged file gets Orca's own conflict check. Orca drops every
 // action in a conflicting set at load, so a generated key that clashes with
@@ -67,6 +68,9 @@ if (!fs.existsSync(dest)) {
   }
 }
 
+// No sidecar over a file that exists: Orca (or a deleted sidecar) wrote
+// what is there, so nothing in it is this table's to overwrite.
+const adopting = fs.existsSync(dest) && !fs.existsSync(sidecar);
 let prev = {};
 try {
   const s = JSON.parse(fs.readFileSync(sidecar, 'utf8'));
@@ -86,7 +90,11 @@ const platforms = isObject(doc.platforms) ? doc.platforms : {};
 const linux = isObject(platforms.linux) ? { ...platforms.linux } : {};
 // Changed since the last write: the UI's now. Absent (reset in the UI)
 // is not a change -- the reset target is this table, so it comes back.
-const theirs = new Set(Object.keys(prev).filter((id) => id in linux && !same(linux[id], prev[id])));
+const theirs = new Set(
+  adopting
+    ? Object.keys(owned).filter((id) => id in linux)
+    : Object.keys(prev).filter((id) => id in linux && !same(linux[id], prev[id])),
+);
 for (const id of Object.keys(prev)) {
   if (!theirs.has(id)) delete linux[id];
 }
@@ -162,5 +170,9 @@ writeJson(dest, doc);
 // the UI's keep the value last written. Either way a later UI value reads as
 // changed, the UI's, rather than as never owned and free to overwrite.
 writeJson(sidecar, {
-  linux: { ...owned, ...Object.fromEntries([...theirs].map((id) => [id, prev[id]])), ...written },
+  linux: {
+    ...owned,
+    ...Object.fromEntries([...theirs].filter((id) => id in prev).map((id) => [id, prev[id]])),
+    ...written,
+  },
 });

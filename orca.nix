@@ -89,6 +89,53 @@ let
   # Extracted once, shared by the wrapper's extraInstallCommands below;
   # let bindings are recursive, so position in the block does not matter.
   appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
+
+  # Mac-style shortcuts, the same Super-for-Cmd scheme as gtk's mac-bindings
+  # and ghostty's super+c/v in home.nix: Orca's own macOS defaults, with Cmd
+  # spelled out, which Orca binds to Super (event.metaKey) on Linux. Ctrl then
+  # goes back to the terminal: Ctrl+C is SIGINT again, not copy.
+  #
+  # Generated from the app's own keybinding definitions at build time
+  # (nix/orca-mac-keybindings.js), so a version bump picks up new actions.
+  # Chords Hyprland binds are skipped and those actions keep their Linux Ctrl
+  # default -- the compositor would eat them, leaving a dead key. That costs
+  # Super+F (find), Super+P (go to file), Super+N and Super+B, which are
+  # Hyprland's emacs-style focus moves; the build log lists every one.
+  hyprlandChords = let s = config.wayland.windowManager.hyprland.settings; in
+    lib.concatMap
+      (k: map (b: if builtins.isAttrs b && b ? _args then builtins.head b._args else b) s.${k})
+      (builtins.filter (lib.hasPrefix "bind") (builtins.attrNames s));
+  macKeybindings = pkgs.runCommand "orca-mac-keybindings" {
+    nativeBuildInputs = [ pkgs.nodejs pkgs.asar pkgs.makeWrapper ];
+  } ''
+    asar extract ${appimageContents}/resources/app.asar app
+    mkdir -p $out/share $out/bin
+    node ${./nix/orca-mac-keybindings.js} app/out/shared \
+      ${pkgs.writeText "hyprland-chords.json" (builtins.toJSON hyprlandChords)} \
+      > $out/share/orca-mac-keybindings.json
+    makeWrapper ${mergeKeybindings} $out/bin/orca-mac-keybindings \
+      --set OWNED $out/share/orca-mac-keybindings.json
+  '';
+  # ~/.orca/keybindings.json is Orca's read-write state: its settings UI saves
+  # into the same platforms.linux section, by atomic rename, so a home.file
+  # symlink would be replaced on the first edit. So the generated keys are
+  # merged over whatever Orca last wrote -- they win, every other action's UI
+  # edit survives -- and the file is replaced via .new + mv. A file jq cannot
+  # parse (Orca's loader would reject it too) is left for Orca to report.
+  # tests/orca-mac-keybindings.sh.
+  mergeKeybindings = pkgs.writeShellScript "orca-mac-keybindings-merge" ''
+    DEST="$HOME/.orca/keybindings.json"
+    mkdir -p "$HOME/.orca"
+    [ -f "$DEST" ] || echo '{"version":1,"keybindings":{},"platforms":{"darwin":{},"linux":{},"win32":{}}}' > "$DEST"
+    if ${pkgs.jq}/bin/jq --slurpfile owned "$OWNED" \
+        '.version = 1 | .keybindings //= {} | .platforms //= {} | .platforms.linux = ((.platforms.linux // {}) + $owned[0])' \
+        "$DEST" > "$DEST.new"; then
+      mv "$DEST.new" "$DEST"
+    else
+      echo "orca: $DEST is not valid JSON; leaving it for Orca to report" >&2
+      rm -f "$DEST.new"
+    fi
+  '';
 in
 {
   home.packages =
@@ -98,4 +145,9 @@ in
     # same reason parsec gets it.
       (config.lib.nixGL.wrap orca)
     ];
+
+  home.activation.orcaMacKeybindings = lib.mkIf (!isDarwin && isDesktop)
+    (lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      $DRY_RUN_CMD ${macKeybindings}/bin/orca-mac-keybindings
+    '');
 }

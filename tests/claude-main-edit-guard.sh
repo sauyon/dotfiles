@@ -23,9 +23,10 @@ set -u
 # The flake ref comes from this script's own location, not `.#`, so running it
 # from a worktree tests THAT tree rather than whichever happens to be the cwd.
 # The host is read from /etc/hostname because the CI job writes $TEST_HOST into
-# it before running tests/ (see .forgejo/workflows/nix-eval.yml).
+# it before running tests/ (see .forgejo/workflows/nix-eval.yml). Orca's sandbox
+# has no /etc/hostname, so fall back to the kernel's, which needs no binary.
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-host=$(cat /etc/hostname 2>/dev/null || hostname)  # Orca's sandbox has no /etc/hostname
+host=$(cat /etc/hostname 2>/dev/null || cat /proc/sys/kernel/hostname)
 
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 fails=0; n=0
@@ -51,7 +52,8 @@ export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 
 verdict() { # verdict <file path> [VAR=value ...] -> allow | deny
   local f=$1 out; shift
-  out=$(printf '{"tool_input":{"file_path":"%s"}}' "$f" | env "$@" bash "$T/hook.sh")
+  out=$(printf '{"tool_input":{"file_path":"%s"}}' "$f" \
+    | env -u CLAUDE_ALLOW_MAIN_EDIT "$@" bash "$T/hook.sh")
   case "$out" in
     "") echo allow ;;
     *'"permissionDecision":"deny"'*) echo deny ;;
@@ -96,11 +98,15 @@ check "primary checkout on master: edit refused" deny "$(verdict "$R/f")"
 check "a file that does not exist yet is refused too" deny "$(verdict "$R/new/dir/g")"
 check "CLAUDE_ALLOW_MAIN_EDIT=1 lets it through" allow \
   "$(verdict "$R/f" CLAUDE_ALLOW_MAIN_EDIT=1)"
-# Worktrees are Orca's now, not drovr's .drovr/wt: the refusal names the way out.
-reason=$(printf '{"tool_input":{"file_path":"%s"}}' "$R/f" | bash "$T/hook.sh" \
+# Worktrees are Orca's now, not drovr's .drovr/wt: the refusal names the way
+# out, for this repo, with plain git for a host Orca is not installed on.
+reason=$(printf '{"tool_input":{"file_path":"%s"}}' "$R/f" \
+  | env -u CLAUDE_ALLOW_MAIN_EDIT bash "$T/hook.sh" \
   | jq -r '.hookSpecificOutput.permissionDecisionReason')
-check "refusal points at an Orca worktree" yes \
-  "$(case "$reason" in *'orca worktree create'*) case "$reason" in *drovr*) echo "names drovr" ;; *) echo yes ;; esac ;; *) echo no ;; esac)"
+says() { case "$reason" in *"$1"*) echo yes ;; *) echo no ;; esac; }
+check "refusal names an Orca worktree of this repo" yes "$(says "orca worktree create --repo path:$R ")"
+check "refusal names plain git where Orca is absent" yes "$(says 'git worktree add')"
+check "refusal no longer names drovr's worktrees" no "$(says 'drovr new')"
 
 git -C "$R" worktree add -q "$T/wt" topic
 check "linked worktree: edit allowed" allow "$(verdict "$T/wt/f")"

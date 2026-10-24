@@ -1943,7 +1943,11 @@ attr=$attr
               done
               br=$(${pkgs.git}/bin/git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)
               case "$br" in main|master) ;; *) exit 0 ;; esac
-              printf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"This is the primary checkout on its default branch. Work in an Orca worktree instead: `orca worktree create --name <task> --no-parent --json`, then EnterWorktree on the path it prints, or EnterWorktree on an existing one. For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set."}}'
+              # The repo is named explicitly: outside an Orca terminal there is
+              # no current Orca worktree to infer it from. `orca` itself is only
+              # on PATH inside Orca, and Orca only on GUI Linux hosts, hence the
+              # plain-git way out.
+              ${pkgs.jq}/bin/jq -nc --arg r "$root" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: ("This is the primary checkout on its default branch. Work in a worktree instead: `orca worktree create --repo path:" + $r + " --name <task> --no-parent --json` (or, where `orca` is not on PATH or does not know this repo, `git worktree add <path> -b <task>`), then EnterWorktree on its path, or EnterWorktree on an existing one. A drovr run refused here is relaunched from that worktree, not continued by moving its agent. For a genuine one-line fix you will finish and commit yourself, re-run with CLAUDE_ALLOW_MAIN_EDIT=1 set.")}}'
             '';
           } ];
         }
@@ -2119,13 +2123,13 @@ attr=$attr
         # prompt, which is what CLAUDE.md's confirm-before-a-PR rule wants.
         "Creating a pull request (`gh pr create`, a `gh api` POST to a repo's pulls endpoint, or mcp__github__create_pull_request) is ALLOWED when the working directory is under ${config.home.homeDirectory}/devel/quite-app."
         "Git Push to Default Branch is allowed when the current working directory is under ${config.home.homeDirectory}/devel/kube. That repo is a personal single-maintainer GitOps tree where direct pushes to main are the intended workflow; no PR review applies."
-        # Orca worktrees live at ~/orca/workspaces/<repo>/<task>: checkouts of
-        # the repo the session is already working in, so a `cd` there is
-        # navigation within the project rather than an escape from it.
+        # Orca worktrees live at ~/orca/workspaces/<repo>/<task>, for every repo
+        # Orca manages, not only the session's own -- still narrower than the
+        # `/.drovr/wt/` substring this replaced, which matched under any root.
         # Expressing this as a permissions .allow rule isn't possible: Bash rules
         # are exact-or-`:*`-prefix, so the only rule that would match is
         # `Bash(cd:*)`, which allows every cd anywhere.
-        "Changing directory into an Orca worktree is ALLOWED: a `cd` whose target path is under `${config.home.homeDirectory}/orca/workspaces/` (for example `cd ${config.home.homeDirectory}/orca/workspaces/dotfiles/some-task`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only."
+        "Changing directory into an Orca worktree is ALLOWED: a `cd` whose target path is under `${config.home.homeDirectory}/orca/workspaces/`, with no `..` segment (for example `cd ${config.home.homeDirectory}/orca/workspaces/dotfiles/some-task`). Judge any command chained after the `cd` on its own merits — this rule covers the directory change only."
       ];
       environment = claudeAutoModeEnvShared ++ private.claudeAutoModeEnvByHost;
     };
@@ -2803,8 +2807,12 @@ in
   # agent editing main while the tree moved under it read stale files and
   # reported a test count from a tree that no longer existed. A second
   # .drovr/wt/<run> inside an Orca worktree is a worktree Orca cannot see.
-  # Launched from the primary checkout instead, the main-edit guard above
-  # refuses the edits and names `orca worktree create`.
+  # So launch runs from an Orca worktree. Launched from the primary checkout
+  # instead, nothing isolates a run: the main-edit guard above stops only
+  # Claude's Edit/Write tools -- not Bash writes, not other agents -- and an
+  # agent it refuses is told to relaunch the run from a worktree, because
+  # moving the agent leaves the run's recorded project dir (and `drovr path`,
+  # and the review diffs) behind on the primary checkout.
   # force: drovr rewrites this path itself — it replaces the symlink with a real
   # file and reserializes only the keys it knows, which is how a key went
   # missing on 2026-09-01 and how switch started aborting at checkLinkTargets.

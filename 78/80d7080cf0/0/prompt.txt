@@ -1,0 +1,5 @@
+help me debug why my phone keeps disconnecting from networks and my car now
+
+---
+
+make a nix shell for phone debugging; you can put it in this repo.

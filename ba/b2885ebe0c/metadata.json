@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.11.3",
+  "checkpoint_id": "bab2885ebe0c",
+  "strategy": "manual-commit",
+  "branch": "orca",
+  "checkpoints_count": 4,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/ba/b2885ebe0c/0/metadata.json",
+      "transcript": "/ba/b2885ebe0c/0/full.jsonl",
+      "compact_transcript": "/ba/b2885ebe0c/0/transcript.jsonl",
+      "content_hash": "/ba/b2885ebe0c/0/content_hash.txt",
+      "prompt": "/ba/b2885ebe0c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 74,
+    "cache_creation_tokens": 36490,
+    "cache_read_tokens": 3959456,
+    "output_tokens": 14848,
+    "api_call_count": 37
+  }
+}

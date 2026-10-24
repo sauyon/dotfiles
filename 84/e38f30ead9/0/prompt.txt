@@ -1,0 +1,87 @@
+<task-notification>
+<task-id>a69aada18d44b5a31</task-id>
+<tool-use-id>toolu_01PQrMSYqreJe1SGxQU44iop</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/a69aada18d44b5a31.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-4 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>**Verdict:** I found no Critical or Important issues, only three minor ones (nits). The tree is clean at 34c0222f, and `bash tests/claude-main-edit-guard.sh` passes all 24 cases on shiori. This host has no `/etc/hostname`, so the run actually used the `/proc/sys/kernel/hostname` fallback.
+
+**Nits**
+1. **`home.nix:1883`, deny reason.** "EnterWorktree on the path it prints" is rejected in two cases. The first is a subagent whose working directory was fixed at launch. The second is a session that has already entered a worktree. In both, EnterWorktree only accepts a `path` under `.claude/worktrees/`.
+   - Scenario: a subagent spawned in the primary checkout is refused, creates an Orca worktree, and then can't enter it.
+   - Cost: one extra round trip. The error is clear and `EnterWorktree name=` still works.
+   - Fix: add "if EnterWorktree rejects that path, use a name".
+2. **`home.nix:2736-2748`, drovr comment.** It doesn't say what `worktree = true` used to guarantee between runs. Two concurrent `drovr new` runs started from the same Orca worktree now edit and commit in the same tree. Fix: add "one run per Orca worktree".
+3. **`home.nix:2747-2748`.** The README supports most of the claim that moving the agent leaves things behind on the primary checkout:
+   - The recorded project dir is supported (README L420, L423).
+   - `drovr path` printing the launch checkout is supported (L420).
+   - "The review diffs" is not. L675 only says "browse its spec, diffs". Either soften that phrase or check it against the drovr source.
+
+**Does the change match the intent?** Yes.
+- `git grep` for `drovr/wt`, `--worktree`, `drovr new` and `no-worktree` finds only the intended history mentions: `home.nix:2061`, `home.nix:2742`, and test lines 101/111/112.
+- `zsh.nix:471` (`clw = "claude --worktree"`) is Claude Code's own worktree flag, not drovr's, and agrees with the fallback.
+- The flags in the suggested `orca worktree create` command all exist in `orca worktree create --help` (v1.4.238).
+- ".claude/worktrees is globally gitignored" holds (`home.nix:4718`).
+- Orca being installed only on GUI hosts holds (`orca.nix` `isDesktop`).
+- The guard matches only `Edit|Write|NotebookEdit` (`home.nix:1822`), so the drovr comment describes it accurately.
+
+**drovr semantics, checked against the README**
+- `worktree = false` is a real config key that does the same as `--no-worktree` (L417).
+- "A run edits the checkout it was launched from" is true (L417, L420).
+- As intended, drovr's wrong-tree warning and its `ENTER IT` line stop firing, because a run without a worktree records none (L497). No comment claims otherwise.
+- "Orca cannot see a nested `.drovr/wt`" is about Orca, so the drovr README can't confirm it. It's plausible.
+
+**Test strength:** good.
+- If jq is missing or the hook emits invalid JSON, the reason comes back empty and the positive checks fail loudly. The negative checks would then pass vacuously, but the positive ones cover them.
+- `env -u CLAUDE_ALLOW_MAIN_EDIT` stops an override already set in the shell from hiding a failure.
+
+Findings are in `/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees-r4.md`.</result>
+<usage><subagent_tokens>60800</subagent_tokens><tool_uses>11</tool_uses><duration_ms>77299</duration_ms></usage>
+</task-notification>
+
+---
+
+<task-notification>
+<task-id>aa7712b7392c2f37b</task-id>
+<tool-use-id>toolu_01SUMhLu6PAUB8U5a885X7SM</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/aa7712b7392c2f37b.output</output-file>
+<status>completed</status>
+<summary>Agent "Round-3 review of worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found one Important problem: `worktree = false` turns off drovr isolation on every host, but Orca only replaces it on two. There are no Critical findings and four nits. The tree is clean at HEAD 34c0222f, and `bash tests/claude-main-edit-guard.sh` passes all 24 cases on shiori, using the `/proc/sys/kernel/hostname` fallback because `/etc/hostname` is absent here.
+
+**Critical:** none.
+- The Nix `''` string is safe: only `${pkgs.jq}` interpolates.
+- The jq program is valid, and `jq -n` doesn't read the stdin the hook already consumed.
+- The hook still exits 0, and `-c` keeps the compact deny string the test matches on.
+- Nothing else in the hook changed.
+
+**Important:**
+1. **home.nix:2763 — drovr isolation is off everywhere.**
+   - drovr is installed on every host (home.nix:3334, no gate), and its README:417 says worktrees are on by default.
+   - Orca is only installed on GUI Linux hosts (`!isDarwin &amp;&amp; isDesktop`, orca.nix:181).
+   - **Failure:** on fujiwara, chiyari, kyuusaku (all headless) or mari (darwin), `drovr new foo` now edits the checkout it was launched from, usually the primary one on master. That is the stale-tree failure the comment at 2736–2748 describes, with no Orca to stop it.
+   - **Fix:** set `worktree = ${lib.boolToString (isDarwin || !isDesktop)}`, then reword the comment so it says this is per host.
+
+**Nits:**
+1. **tests/claude-main-edit-guard.sh:104 — the test can't tell `$root` from `$d`.** The deny message is only checked for `$R/f`, where the walked-up directory and the repo root are the same path. A regression that passed `$d` instead of `$root` to jq would still pass. Checking the message for `$R/new/dir/g` would catch it.
+2. **home.nix:1883 — the suggested EnterWorktree step fails across repos.** EnterWorktree only accepts a path listed in the current repo's `git worktree list`.
+   - Scenario: a session started in repo A edits repo B's primary checkout. It is told to make a B worktree with orca, and EnterWorktree rejects that path.
+   - The "EnterWorktree with a name" fallback then creates the worktree in A, not B.
+   - It's rare; at most, add "from a session started in this repo" to the wording.
+3. **home.nix:1879:** this comment line is 86 characters and wrapped unevenly against its neighbours. Cosmetic.
+4. **tests/claude-main-edit-guard.sh:29:** if `/etc/hostname` exists but is empty, the fallback never runs. The eval then fails loudly on `homeConfigurations.`, so nothing passes silently.
+
+**Checked, no finding:**
+- **autoMode rule (home.nix:2065):** it is anchored to the absolute `~/orca/workspaces/` prefix, excludes `..`, and covers only the `cd`. A non-interactive Bash shell runs no direnv or mise hooks on `cd`, so entering a repo there runs nothing.
+- **Comments:** they match behaviour. `.claude/worktrees` is globally ignored (home.nix:4718), and `orca worktree create --help` accepts every flag the message suggests.
+- **Orca worktrees:** they are real linked worktrees (`.git` is a file, and they show up in `git worktree list`), so the guard lets them through.
+- **Test regressions:** the tests would catch broken JSON or a dropped `-c`. `env -u CLAUDE_ALLOW_MAIN_EDIT` stops an override already set in the environment from turning every deny into an allow.
+- **Leftover references:** no live `.drovr/wt` or `worktree = true` references remain; the ones left are deliberate history.
+
+Next: decide whether to gate `worktree` per host as in Important #1 (about 5 minutes including the comment).
+
+The review is saved at /tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees-r3.md</result>
+<usage><subagent_tokens>65516</subagent_tokens><tool_uses>12</tool_uses><duration_ms>89876</duration_ms></usage>
+</task-notification>

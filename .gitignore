@@ -13,5 +13,8 @@ install/wif/out/
 *.gate.lock*
 
 # Gas City
+# gc/omp agent sessions create these at runtime
+/.gc/
+/.omp/
 .beads/*
 !.beads/identity.toml

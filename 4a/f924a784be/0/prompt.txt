@@ -1,0 +1,41 @@
+<task-notification>
+<task-id>aab9f2671f2ae595c</task-id>
+<tool-use-id>toolu_019aAjsg2af7YNzpEHS5epy3</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/tasks/aab9f2671f2ae595c.output</output-file>
+<status>completed</status>
+<summary>Agent "Read-only review of Orca worktree change" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own. The user can send it another message and resume it, so the same task-id may notify more than once.</note>
+<result>I found 2 Important issues, 5 nits and nothing Critical. The tree is clean, `tests/claude-main-edit-guard.sh` passes 20/20 on shiori, and the deny output is valid JSON.
+
+## Important
+1. **The deny message names a command that is often missing (`home.nix:1877`).**
+   - `orca` is only on PATH inside Orca's own terminals. A plain login shell has `orca-ide` but no `orca`; I checked with `env -i … zsh -lic 'command -v orca'`.
+   - The guard exists for agents opened in the primary checkout, which usually means outside Orca.
+   - **Failure case:** `claude` in a plain terminal in `~/devel/dotfiles` on master. The edit is denied and `orca worktree create` returns "command not found".
+   - The hook ships to every host, but Orca is only installed when `!isDarwin &amp;&amp; isDesktop` (`orca.nix:180`). So on mari and any host without a GUI, the only exit the message names doesn't exist.
+   - **Fix:** keep a fallback in the message (`git worktree add`, then EnterWorktree with `path`), or vary the message by host.
+2. **`worktree = false` leaves the guard as the only isolation for `drovr new`, and the comment overstates the guard (`home.nix:2730-2738`, `2753`).**
+   - With `worktree = false`, a run launched from the primary checkout on master puts its phase agents in that checkout. The drovr README (line 417) says the default is a worktree, so this is a real behaviour change.
+   - **(a)** The guard only blocks Claude's Edit/Write/NotebookEdit tools. Bash writes (`sed -i`, heredocs, `git apply`) and non-Claude agents still edit main in place. That is the stale-tree failure `worktree = true` was there to prevent.
+   - **(b)** When the guard does fire, it sends the phase agent into a new Orca worktree. The work then lands outside the run's recorded project dir, which `drovr path` and the review diffs use. The README (line 497) says a no-worktree run "never warns", so nothing flags it.
+   - **Fix:** correct the comment's "the main-edit guard above refuses the edits". Optionally make the deny say "for a drovr run, relaunch from an Orca worktree" instead of moving the agent.
+
+## nit
+1. **Autoclassifier comment is inaccurate (`home.nix:2053-2055`).** It says `~/orca/workspaces/` holds "checkouts of the repo the session is already working in". It actually holds every repo Orca manages, including work repos, so the rule allows a `cd` from dotfiles into another repo's worktree. This is narrower than the old `/.drovr/wt/` substring match, so not a regression.
+2. **The path check can be escaped (`home.nix:2059`).** "Under `~/orca/workspaces/`" is judged on the text, so `cd ~/orca/workspaces/../../.ssh` passes, and a symlink inside a worktree can also lead out. The only effect is a changed working directory, because commands chained after the `cd` are judged separately. Suggest adding "no `..` segment, not through a symlink".
+3. **Hostname fallback (`tests/claude-main-edit-guard.sh:28`):**
+   - The comment at lines 25-26 still says the host comes from `/etc/hostname`.
+   - If `hostname` isn't installed, `host` is empty and nix eval fails on `homeConfigurations..config` with an unclear error. Reading `/proc/sys/kernel/hostname` needs no binary.
+   - 11 other test scripts still read `/etc/hostname` with no fallback, so they still fail in Orca's sandbox.
+4. **The new check works but is hard to read (`tests/claude-main-edit-guard.sh:100-103`).** It does fail on regressions: a reverted message gives "no", a message naming both tools gives "names drovr", and invalid JSON gives "no". The nested `case` inside `$( )` would read better as a small helper. It also doesn't unset `CLAUDE_ALLOW_MAIN_EDIT`, so it fails falsely if the caller has that exported. The existing `verdict()` has the same gap.
+5. **Leftovers and one unknown:**
+   - The installed `drovr:worktrees` skill still tells agents to use `drovr new --worktree`.
+   - `git worktree list` still shows four live `.drovr/wt/*` worktrees in `~/devel/dotfiles`.
+   - In the repo itself there are no stale `.drovr/wt` references beyond the rewritten comments. `.drovr/review/*` are untracked review files.
+   - Not checked: whether `orca worktree create` without `--repo` picks the repo from the current directory. The deny message depends on that.
+
+Full review: /tmp/claude-1000/-home-sauyon-orca-workspaces-dotfiles-goby/25f9b9fa-5231-411b-b2ea-829a00bcbd29/scratchpad/review-orca-worktrees.md
+
+Next: decide on Important #1 first: either a `git worktree add` fallback in the message or a per-host message.</result>
+<usage><subagent_tokens>66905</subagent_tokens><tool_uses>13</tool_uses><duration_ms>113597</duration_ms></usage>
+</task-notification>

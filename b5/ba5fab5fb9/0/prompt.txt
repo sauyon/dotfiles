@@ -1,0 +1,83 @@
+has nix updated node yet
+
+---
+
+or brotli at least
+
+---
+
+yes
+
+---
+
+why does merging need my ok? just megre
+
+---
+
+eta
+
+---
+
+orca is in this commit right
+
+---
+
+ugh. new commit. can you cancel the last one. can we drop both overlays for now so I install orca, then add them back
+
+---
+
+why the fuck are you doing local
+
+---
+
+status
+
+---
+
+<task-notification>
+<task-id>b0lgxwp9h</task-id>
+<tool-use-id>toolu_01Vykw2fSVBY18BqUf4685qr</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/7cd6a510-fde8-48d3-aa0b-78b6e01e8c96/tasks/b0lgxwp9h.output</output-file>
+<status>failed</status>
+<summary>Background command "Push, wait for CI, switch home-manager" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+hms should clearly not retry 401 the shit
+
+---
+
+get rid of thunderbird then. why is it not on the cache.
+
+---
+
+<task-notification>
+<task-id>b8mk6byry</task-id>
+<tool-use-id>toolu_012ZH7ZifnJ8jskh9DAftn3R</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/7cd6a510-fde8-48d3-aa0b-78b6e01e8c96/tasks/b8mk6byry.output</output-file>
+<status>failed</status>
+<summary>Background command "Push, wait for CI, switch home-manager" failed with exit code 1</summary>
+</task-notification>
+
+---
+
+just get rid of it
+
+---
+
+is orca installed
+
+---
+
+<task-notification>
+<task-id>bwoanm6lb</task-id>
+<tool-use-id>toolu_0117gBQztrUwzd9GF1htdgN3</tool-use-id>
+<output-file>/tmp/claude-1000/-home-sauyon-devel-dotfiles/7cd6a510-fde8-48d3-aa0b-78b6e01e8c96/tasks/bwoanm6lb.output</output-file>
+<status>completed</status>
+<summary>Background command "Push, wait for CI, switch home-manager" completed (exit code 0)</summary>
+</task-notification>
+
+---
+
+why is the orca font so horrible

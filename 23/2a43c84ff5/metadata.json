@@ -3,7 +3,7 @@
   "checkpoint_id": "232a43c84ff5",
   "strategy": "manual-commit",
   "branch": "hms-ci-retry",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "home.nix",
     "tests/hms-ci-poll.sh"
@@ -15,13 +15,27 @@
       "compact_transcript": "/23/2a43c84ff5/0/transcript.jsonl",
       "content_hash": "/23/2a43c84ff5/0/content_hash.txt",
       "prompt": "/23/2a43c84ff5/0/prompt.txt"
+    },
+    {
+      "metadata": "/23/2a43c84ff5/1/metadata.json",
+      "transcript": "/23/2a43c84ff5/1/full.jsonl",
+      "compact_transcript": "/23/2a43c84ff5/1/transcript.jsonl",
+      "content_hash": "/23/2a43c84ff5/1/content_hash.txt",
+      "prompt": "/23/2a43c84ff5/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 60,
-    "cache_creation_tokens": 78927,
-    "cache_read_tokens": 2406063,
-    "output_tokens": 14085,
-    "api_call_count": 30
+    "input_tokens": 78,
+    "cache_creation_tokens": 92593,
+    "cache_read_tokens": 3360482,
+    "output_tokens": 19125,
+    "api_call_count": 38,
+    "subagent_tokens": {
+      "input_tokens": 58,
+      "cache_creation_tokens": 103501,
+      "cache_read_tokens": 1075547,
+      "output_tokens": 20503,
+      "api_call_count": 29
+    }
   }
 }

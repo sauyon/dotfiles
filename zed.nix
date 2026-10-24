@@ -23,14 +23,13 @@ let
   # unauthenticated rather than failing at launch.
   zed = pkgs.symlinkJoin {
     name = "zed-editor-${pkgs.zed-editor.version}-nixgl";
-    # graftNode: zed runs node for LSPs; CVE-2026-111497, see home.nix overlay.
-    paths = [ (pkgs.graftNode pkgs.zed-editor) ];
+    paths = [ pkgs.zed-editor ];
     nativeBuildInputs = [ pkgs.makeWrapper ];
     postBuild = ''
       rm $out/bin/zeditor
       makeWrapper ${nixgl.packages.${system}.nixVulkanIntel}/bin/nixVulkanIntel $out/bin/zeditor \
         --add-flags ${nixgl.packages.${system}.nixGLIntel}/bin/nixGLIntel \
-        --add-flags ${pkgs.graftNode pkgs.zed-editor}/bin/zeditor \
+        --add-flags ${pkgs.zed-editor}/bin/zeditor \
         --run 'if [ -r "${keyFile}" ]; then MODULAR_API_KEY="$(cat "${keyFile}")"; export MODULAR_API_KEY; fi'
     '';
     meta.mainProgram = "zeditor";

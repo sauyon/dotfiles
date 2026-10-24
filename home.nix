@@ -3126,7 +3126,7 @@ in
     # checks every host has it.
     noto-fonts-cjk-sans
 
-    (graftNode claude-agent-acp)  # graftNode: CVE-2026-111497, see overlay
+    claude-agent-acp
     coder
     comma
     cosign
@@ -3135,7 +3135,7 @@ in
     # even-terminal.nix. Listed for every host rather than gated on isDesktop:
     # it is a headless HTTP server that the phone connects to, and the glasses
     # are the display -- a host with no graphical session can still serve it.
-    (graftNode even-terminal)
+    even-terminal
     jq
     jujutsu
     kimi-code  # Moonshot's Kimi Code CLI (binary: kimi); see kimi-code.nix
@@ -3163,7 +3163,7 @@ in
     tcpdump
     whois
     opencode
-    (graftNode pi-coding-agent)  # earendil-works/pi terminal coding agent (binary: pi)
+    pi-coding-agent  # earendil-works/pi terminal coding agent (binary: pi)
     forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg and forge.ko.ag
     bat
     rustup
@@ -3234,7 +3234,7 @@ in
     hyprlock-faillock
     nixGL
 
-    (pkgs.graftNode pkgs.bitwarden-cli)
+    pkgs.bitwarden-cli
     # Desktop app is the biometric backend the browser extension talks to over
     # native messaging (the extension can't unlock with biometrics on its own).
     # Unaffected by the move off firefox: gecko asks for native manifests under
@@ -3266,7 +3266,7 @@ in
     # not flag, so it needs no permittedInsecurePackages entry --
     # tests/insecure-packages.sh is what keeps that true across a lock bump.
     pkgs.vesktop
-    (pkgs.graftNode pkgs.signal-desktop)
+    pkgs.signal-desktop
     # Parsec remote-desktop client. nixGL-wrapped: a nixpkgs GL app
     # on Arch cannot find the host's mesa drivers on its own.
     (config.lib.nixGL.wrap pkgs.parsec-bin)
@@ -3502,72 +3502,6 @@ in
         dontNpmPrune = true;
       };
     })
-    # CVE-2026-111497 (Node.js brotli decoder OOB write, RCE), fixed in Node's
-    # 2026-10-21 security release. nixpkgs-unstable at 5adc508 still ships
-    # 24.21.0 / 22.23.3.
-    #
-    # Grafted, not overridden. Overriding nodejs-slim_2x in the fixpoint
-    # rebuilds everything that merely *builds* with node -- electron (which
-    # embeds its own node, so gains nothing), webkitgtk, thunderbird -- from
-    # source: ~126 extra derivations, hours on the runner. `graftNode pkg`
-    # instead copies pkg's closure with the node store paths rewritten to the
-    # patched build (replaceDependencies; same-length names, so a byte swap),
-    # leaving only node itself to compile. It is applied at the use sites of
-    # the packages that reference node at *runtime* (found with
-    # `nix-store -q --referrers` on the old node paths, intersected with the
-    # profile closure); a new runtime node consumer needs wrapping too.
-    #
-    # The node bump alone does not fix the CVE. The fix is a brotli cherry-pick
-    # (google/brotli 0ed4268a) into node's vendored deps/brotli, and nixpkgs
-    # builds node with --shared-brotli, so node loads nixpkgs' libbrotlidec and
-    # the vendored copy is never compiled. graftNode therefore also swaps in a
-    # patched brotli; the bump stays for the release's other CVEs.
-    # tests/brotli-cve-2026-111497.sh checks the library each node actually
-    # loads, which is what a version check got wrong here.
-    #
-    # It returns a bare store path, not a derivation: read `.version` and
-    # friends from the unwrapped package. Each node bump is gated on
-    # versionOlder, and the brotli patch on brotli still being 1.2.0 (the fix
-    # postdates it, so any later release carries it), so graftNode becomes the
-    # identity once nixpkgs catches up -- delete the block and the call sites
-    # then.
-    (final: prev:
-      let
-        bumpNode = base: version: sha256:
-          base.overrideAttrs (old: {
-            inherit version;
-            src = prev.fetchurl {
-              url = "https://nodejs.org/dist/v${version}/node-v${version}.tar.xz";
-              inherit sha256;
-            };
-          });
-        bumps = lib.filter (b: lib.versionOlder b.old.version b.version) [
-          { old = prev.nodejs-slim_24; version = "24.22.1";
-            sha256 = "4f5379796280cdaeb0c2f358fd04b6a16cc4fb7dfa83b5a8c91a9d963b435231"; }
-          { old = prev.nodejs-slim_22; version = "22.23.4";
-            sha256 = "7b9adc82d612d0a2a863d96c46de2292552e250cee51956ebbe0146c42aacae9"; }
-        ];
-        brotli = lib.optional (prev.brotli.version == "1.2.0") {
-          old = prev.brotli;
-          new = prev.brotli.overrideAttrs (old: {
-            patches = (old.patches or [ ]) ++ [
-              (prev.fetchurl {
-                url = "https://github.com/google/brotli/commit/0ed4268a4401abcb4472096340477cf4af7d1a2b.patch";
-                hash = "sha256-gzyh1x7thb3jwhxjpu4xATh3Qbiqi5qCJRNAlKZ3thk=";
-              })
-            ];
-          });
-        };
-        swaps = map (b: { inherit (b) old; new = bumpNode b.old b.version b.sha256; }) bumps
-          ++ brotli;
-        replacements = lib.concatMap (s:
-          map (o: { oldDependency = s.old.${o}; newDependency = s.new.${o}; }) s.old.outputs
-        ) swaps;
-      in {
-        graftNode = drv:
-          if replacements == [ ] then drv
-          else final.replaceDependencies { inherit drv replacements; };
-      })
     # Newer claude-code than nixpkgs carries (2.1.303 at 5adc508), pulled in
     # with the node bump above. The manifest is upstream's
     # claude-code-releases/<ver>/manifest.zst.json, the same file nixpkgs'

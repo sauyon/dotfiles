@@ -49,10 +49,10 @@ rec {
   QT_WAYLAND_DISABLE_WINDOWDECORATION = "1";
 
   MOZ_ENABLE_WAYLAND = "1";
-  # Load-bearing for exactly one consumer: thunderbird, the only gecko app here
-  # that does not set the var itself (firefox's wrapper set it too, so even
-  # before this the var was not what kept firefox in non-dedicated mode). It is
-  # exported session-wide, so any future gecko app inherits it as well.
+  # Load-bearing for no app right now: its one consumer was thunderbird (removed
+  # 2026-10-23; 158.0 was missing from cache.nixos.org), the only gecko app here
+  # that did not set the var itself. Kept because the zen notes in home.nix
+  # assume it in scope, and any future gecko app inherits it session-wide.
   # What the var does is opt gecko out of dedicated
   # (profile-per-install) mode — it does NOT select ~/.thunderbird over an XDG
   # path, which is a separate legacy-home branch — and nixpkgs' thunderbird

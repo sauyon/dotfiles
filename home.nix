@@ -4207,47 +4207,6 @@ in
       '';
     };
 
-    thunderbird = lib.optionalAttrs (!isDarwin && isDesktop) {
-      enable = true;
-      profiles.default = {
-        isDefault = true;
-        extensions = [
-          (pkgs.fetchFirefoxAddon {
-            name = "tbkeys";
-            url = "https://github.com/wshanks/tbkeys/releases/download/v2.4.3/tbkeys.xpi";
-            hash = "sha256-2e+T5Nr5kc2s8EykFzWKaJZ2jPUDHh9Cqn4hCuDCLaM=";
-          })
-        ];
-      };
-      settings = {
-        "mail.tabs.drawInTitlebar" = false;
-        "ui.key.accelKey" = 91;
-        "ui.key.textcontrol.prefer_native_key_bindings_over_builtin_shortcut_key_definitions" = true;
-        "extensions.tbkeys.mainkeys" = builtins.toJSON {
-          # cycle panes
-          "ctrl+x o" = "eval:document.commandDispatcher.advanceFocus()";
-          # navigation
-          "alt+n" = "cmd:cmd_nextMsg";
-          "alt+p" = "cmd:cmd_previousMsg";
-          # actions
-          "c" = "cmd:cmd_newMessage";
-          "r" = "cmd:cmd_reply";
-          "a" = "cmd:cmd_replyAll";
-          "f" = "cmd:cmd_forward";
-          "d" = "cmd:cmd_delete";
-          "e" = "cmd:cmd_archive";
-          "enter" = "cmd:cmd_openMessage";
-          "u" = "tbkeys:closeMessageAndRefresh";
-          # unset defaults that conflict
-          "j" = "unset";
-          "k" = "unset";
-          "o" = "unset";
-          "x" = "unset";
-          "#" = "unset";
-        };
-      };
-    };
-
     claude-code = {
       enable = true;
       # enableMcpIntegration = true;
@@ -4322,9 +4281,8 @@ in
     # names, and the closure no longer holds a `firefox-<ver>` for it to match
     # — nothing there is named for this browser at all. Whether NVD carries a
     # `zen-beta` product was not checked; a name-keyed scan cannot match
-    # `zen-beta-1.22.3b` either way. thunderbird-156.0 is still in the closure
-    # and is the same gecko line, so a gecko-CVE week will surface something,
-    # just never attributed to the browser. Fixes arrive on `hmu`.
+    # `zen-beta-1.22.3b` either way, and with thunderbird gone nothing gecko-named
+    # is left in the closure for it to match. Fixes arrive on `hmu`.
     #
     # Nothing migrates the old profile either: ~/.mozilla/firefox stays on disk
     # unmanaged (history, logins, and the containers the tridactyl `gC` picker
@@ -4383,7 +4341,7 @@ in
       #
       # The second line is the one that earns its keep. Two reviewers read gecko
       # 156's LegacyHomeExists() as "any existing ~/.mozilla flips this to
-      # ~/.zen" — which, since every host here has ~/.mozilla (thunderbird's
+      # ~/.zen" — which, since every host here has ~/.mozilla (the
       # native-messaging dir alone guarantees it), would mean every file this
       # block writes is never read. It does not, for two independent reasons:
       # the dotted probe is ~/.zen, because Zen patches AppendFromAppData to
@@ -4887,8 +4845,6 @@ in
         "text/html" = "zen-beta.desktop";
         "x-scheme-handler/http" = "zen-beta.desktop";
         "x-scheme-handler/https" = "zen-beta.desktop";
-        "x-scheme-handler/mailto" = "thunderbird.desktop";
-        "message/rfc822" = "thunderbird.desktop";
       };
     };
 

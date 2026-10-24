@@ -129,6 +129,75 @@ let
   # an STS 401 at the next activation — publish first, switch second.
   wifTpmHosts = [ "shiori" "fujiwara" "utsuho" "chiyari" ];
   useWifTpm = useWif && !isDarwin && builtins.elem hostname wifTpmHosts;
+
+  # The full google-fonts is ~2,000 families and a 2.44 GiB output — the single
+  # largest path in every closure, and the one whose NAR used to blow the CI
+  # substituter's ten-minute ceiling. Nothing here names a Google font (the UI
+  # font is NotoSans Nerd Font, from nerd-fonts.noto); this set exists so web
+  # pages and documents find common families rather than falling back.
+  #
+  # Names are matched against TTF filenames, and a name that matches nothing is
+  # silently dropped rather than an error — so verify against
+  # `ls $out/share/fonts/truetype` after changing this, do not trust the build
+  # going green. (The *build* still fetches the whole google/fonts repo; only
+  # the output, which is what gets substituted, shrinks.)
+  googleFonts = pkgs.google-fonts.override {
+    fonts = [
+      # sans
+      "Roboto" "OpenSans" "Lato" "Montserrat" "Inter" "Poppins" "Nunito"
+      "Raleway" "WorkSans" "SourceSans3" "IBMPlexSans" "NotoSans" "DMSans"
+      "Rubik" "Figtree" "FiraSans" "Oswald" "Ubuntu"
+      # serif
+      "Merriweather" "PlayfairDisplay" "SourceSerif4" "NotoSerif" "RobotoSlab"
+      # mono
+      "RobotoMono" "SourceCodePro" "IBMPlexMono" "NotoSansMono" "JetBrainsMono"
+      "FiraCode"
+    ];
+  };
+
+  # Symbols no other font here carries: ⏵ (Claude Code's "⏵⏵ bypass
+  # permissions" line), the legacy-computing sextants TUI graphs draw, ⬢. The
+  # same silent failure as emoji and CJK -- Chromium finds no face with the
+  # codepoint and draws a box, which is how Orca showed it. A running Orca
+  # keeps the fontconfig it started with, so restart it after a switch.
+  #
+  # Noto Sans Symbols 2 has them, but whole it also has ⏸⏹⏺🖥⭐ and ~360 more
+  # that Noto Color Emoji had, plus control pictures and arrows the text fonts
+  # had, and fontconfig ranks it first for many of them -- for a sans request
+  # on fontconfig 2.18 by genericfamily, which no family-order rule in conf.d
+  # outranks. So it is cut down at build time (nix/font-gaps.py) to only the
+  # codepoints none of yieldTo has: it can only be reached for a glyph that
+  # would otherwise be tofu. yieldTo must be exactly the other font packages in
+  # the profile; tests/symbol-fonts.sh checks both directions -- every font it
+  # needs to yield to is in yieldTo (by font files on hosts of the running
+  # machine's system, by name on all), and everything in yieldTo is installed
+  # -- plus the fallback for a mono and a sans request.
+  # It covers the profile only: orca's sandbox DejaVu stays out on purpose --
+  # yielding to it would cut ~480 glyphs that are tofu outside orca, and
+  # inside it fontconfig already ranks DejaVu ahead (measured: nothing moves).
+  #
+  # The source face comes from the cached noto-fonts, not
+  # `noto-fonts.override { variants = ...; }`, whose build needs the whole
+  # monthly release (cache.nixos.org has only the default build: a 27 MB
+  # download). The script fails the build if upstream moves the file.
+  symbolsGapFont = let
+    yieldTo = [
+      googleFonts pkgs.nerd-fonts.jetbrains-mono pkgs.noto-fonts-color-emoji
+      pkgs.noto-fonts-cjk-sans
+    ]
+    # The UI font, only where gtk is on: naming it everywhere made mari fetch
+    # its 1.1 GB just to cut a 300 KiB font.
+    ++ lib.optional (config.gtk.enable && config.gtk.font != null
+      && config.gtk.font.package != null) config.gtk.font.package;
+  in pkgs.runCommand "noto-sans-symbols-2" {
+    nativeBuildInputs = [ (pkgs.python3.withPackages (p: [ p.fonttools ])) ];
+    passthru = { inherit yieldTo; };
+  } ''
+    python3 ${./nix/font-gaps.py} \
+      ${pkgs.noto-fonts}/share/fonts/noto/NotoSansSymbols2-Regular.otf \
+      $out/share/fonts/noto/NotoSansSymbols2-Gaps.otf \
+      ${lib.concatMapStringsSep " " (p: "${p}/share/fonts") yieldTo}
+  '';
   wifKeyFile = "${config.home.homeDirectory}/.config/ko/"
     + (if useWifTpm then "wif-tpm.pem" else "wif.pem");
   wifAudience = private.endpoints.wifAudience;
@@ -3218,30 +3287,8 @@ in
     bfs
     btopPkg
 
-    # The full google-fonts is ~2,000 families and a 2.44 GiB output — the single
-    # largest path in every closure, and the one whose NAR used to blow the CI
-    # substituter's ten-minute ceiling. Nothing here names a Google font (the UI
-    # font is NotoSans Nerd Font, from nerd-fonts.noto); this set exists so web
-    # pages and documents find common families rather than falling back.
-    #
-    # Names are matched against TTF filenames, and a name that matches nothing is
-    # silently dropped rather than an error — so verify against
-    # `ls $out/share/fonts/truetype` after changing this, do not trust the build
-    # going green. (The *build* still fetches the whole google/fonts repo; only
-    # the output, which is what gets substituted, shrinks.)
-    (google-fonts.override {
-      fonts = [
-        # sans
-        "Roboto" "OpenSans" "Lato" "Montserrat" "Inter" "Poppins" "Nunito"
-        "Raleway" "WorkSans" "SourceSans3" "IBMPlexSans" "NotoSans" "DMSans"
-        "Rubik" "Figtree" "FiraSans" "Oswald" "Ubuntu"
-        # serif
-        "Merriweather" "PlayfairDisplay" "SourceSerif4" "NotoSerif" "RobotoSlab"
-        # mono
-        "RobotoMono" "SourceCodePro" "IBMPlexMono" "NotoSansMono" "JetBrainsMono"
-        "FiraCode"
-      ];
-    })
+    # Bound in the let above: the symbols gap font below yields to it.
+    googleFonts
     # A Nerd Font that keeps its ligatures: "JetBrainsMono Nerd Font", not the
     # "JetBrainsMonoNL" (no-ligature) faces the same package also ships.
     # tests/ligature-nerd-font.sh checks the face and that GSUB still has calt.
@@ -3266,6 +3313,9 @@ in
     # the Arch hosts' `pacman -S noto-fonts-cjk`), so tests/cjk-fonts.sh
     # checks every host has it.
     noto-fonts-cjk-sans
+
+    # Bound in the let above: only the glyphs no font here has.
+    symbolsGapFont
 
     claude-agent-acp
     coder

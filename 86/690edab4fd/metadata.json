@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "86690edab4fd",
+  "strategy": "manual-commit",
+  "branch": "symbol-fonts",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "home.nix",
+    "tests/symbol-fonts.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/86/690edab4fd/0/metadata.json",
+      "transcript": "/86/690edab4fd/0/full.jsonl",
+      "compact_transcript": "/86/690edab4fd/0/transcript.jsonl",
+      "content_hash": "/86/690edab4fd/0/content_hash.txt",
+      "prompt": "/86/690edab4fd/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 68,
+    "cache_creation_tokens": 40733,
+    "cache_read_tokens": 2929258,
+    "output_tokens": 15401,
+    "api_call_count": 34
+  }
+}

@@ -113,11 +113,17 @@ let
   #
   # Find goes on Ctrl+S, emacs' isearch, everywhere but the terminal; there
   # C-s is the shell's own search, so terminal search is left unbound.
+  #
+  # Previous/next worktree, in list order, on Alt+Up/Down: the Mac chord,
+  # Super+Shift+Up/Down, is Hyprland's. This one takes M-<up>/<down> from the
+  # terminal, deliberately.
   orcaPinned = {
     "editor.find" = [ "Ctrl+S" ];
     "browser.find" = [ "Ctrl+S" ];
     "chat.find" = [ "Ctrl+S" ];
     "settings.search" = [ "Ctrl+S" ];
+    "worktree.navigateUp" = [ "Alt+ArrowUp" ];
+    "worktree.navigateDown" = [ "Alt+ArrowDown" ];
   };
   hyprlandChords = let s = config.wayland.windowManager.hyprland.settings; in
     lib.concatMap

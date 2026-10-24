@@ -13,7 +13,8 @@
 #   * **Ctrl and Meta stay the terminal's.** The point of Cmd-on-Super is that
 #     emacs keys reach the shell. No Ctrl- or Alt-only chord is left, from the
 #     Mac table or from a Linux default, beyond the few pinned in orca.nix
-#     (find on Ctrl+S) and Ctrl+Tab, which a terminal cannot tell from Tab.
+#     (find on Ctrl+S, worktree up/down on Alt+Up/Down) and Ctrl+Tab, which a
+#     terminal cannot tell from Tab.
 #     Cases 3 and 13.
 #
 #   * **The merge owns only its keys.** Orca's settings UI writes into the same
@@ -85,6 +86,12 @@ clash=$(comm -12 "$T/hypr.txt" "$T/owned.txt" | tr '\n' ' ')
 got=$(jqo '[.["editor.find"], .["browser.find"], .["chat.find"], .["settings.search"], .["terminal.search"], .["worktree.quickOpen"]]')
 [ "$got" = '[["Ctrl+S"],["Ctrl+S"],["Ctrl+S"],["Ctrl+S"],[],[]]' ] \
   && pass "find on Ctrl+S, terminal search and go-to-file unbound" || fail "find" "got $got"
+
+# 3b. Previous/next worktree on Alt+Up/Down, in list order. The Mac chord,
+#     Super+Shift+Up/Down, is Hyprland's (workspace to monitor).
+got=$(jqo '[.["worktree.navigateUp"], .["worktree.navigateDown"]]')
+[ "$got" = '[["Alt+ArrowUp"],["Alt+ArrowDown"]]' ] \
+  && pass "worktree up/down on Alt+Up/Down" || fail "worktree-nav" "got $got"
 
 # 4. Fresh box: the file is created in the shape Orca writes.
 H="$T/fresh"; mkdir -p "$H"
@@ -306,13 +313,14 @@ elif grep -q 'Hyprland bind "SUPER + Frobnicate"' "$T/gen.err"; then pass "unkno
 else fail "unknown-key" "failed for another reason: $(cat "$T/gen.err")"; fi
 
 # 13. Across the whole effective table -- generated keys over Orca's Linux
-#     defaults -- no chord is Ctrl- or Alt-only, save the pinned finds and
+#     defaults -- no chord is Ctrl- or Alt-only, save the pinned ones and
 #     Ctrl+Tab, which xterm.js sends as a bare Tab. (Ctrl+PageUp/Down it does
 #     send, as CSI 5;5~ / 6;5~: emacs' scroll keys.)
 got=$("$NODE" -e '
   const kb = require(process.argv[1] + "/keybindings.js"), o = require(process.argv[2]);
   const ok = new Set(["Ctrl+Tab"]);
-  const pinned = { "editor.find": "Ctrl+S", "browser.find": "Ctrl+S", "chat.find": "Ctrl+S", "settings.search": "Ctrl+S" };
+  const pinned = { "editor.find": "Ctrl+S", "browser.find": "Ctrl+S", "chat.find": "Ctrl+S", "settings.search": "Ctrl+S",
+                   "worktree.navigateUp": "Alt+ArrowUp", "worktree.navigateDown": "Alt+ArrowDown" };
   const bad = kb.KEYBINDING_DEFINITIONS.flatMap((d) =>
     (o[d.id] ?? kb.getDefaultBindings(d, "linux"))
       .filter((b) => /(^|\+)(Mod|Ctrl|Alt)\+/.test(b) && !/(^|\+)Cmd\+/.test(b) && !ok.has(b) && pinned[d.id] !== b)

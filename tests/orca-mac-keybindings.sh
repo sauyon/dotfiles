@@ -2,17 +2,21 @@
 # Cases for orca.nix's Mac-style keybindings: Orca's own macOS defaults, with
 # Cmd on Super, merged into ~/.orca/keybindings.json at activation.
 #
-# Two contracts, both silent when broken:
+# Three contracts, all silent when broken:
 #
 #   * **No chord Hyprland owns.** The compositor eats a bound chord before the
 #     window sees it, so a Super+F override is not "find", it is a dead key that
 #     also hides Orca's working Ctrl+F default. The generator drops those and
 #     leaves the action on its Linux default; cases 2-3 pin that against the
-#     live Hyprland bind list, not a copy of it.
+#     live Hyprland bind list, not a copy of it, and 11-13 the digit family,
+#     unreadable binds, and a fallback shadowing a generated chord.
 #
 #   * **The merge owns only its keys.** Orca's settings UI writes into the same
 #     platforms.linux section, so replacing the section would wipe every
-#     shortcut set in the UI at each switch. Cases 5-6.
+#     shortcut set in the UI at each switch. Cases 4-9 and 14: ownership via
+#     the sidecar, stale keys, clashes with UI shortcuts, files left alone.
+#
+#   * **Activation never fails on it.** Case 10.
 #
 # The merge runs on a throwaway HOME, never the real ~/.orca.
 #
@@ -121,6 +125,19 @@ HOME=$H "$MERGE" >/dev/null 2>&1; HOME=$H "$MERGE" >/dev/null 2>&1
 got=$(jq -c '[.platforms.linux["editor.find"], .platforms.linux["worktree.quickOpen"], .platforms.linux["tab.close"]]' "$H/.orca/keybindings.json")
 [ "$got" = '[null,["Alt+P"],["Ctrl+Q"]]' ] && pass "stale generated key dropped, UI-changed ones kept" \
   || fail "stale" "got $got"
+
+# 7b. A UI value that happens to equal this generation's is still the UI's:
+#     the sidecar keeps the value last written, so a later generation that
+#     drops the key does not take the user's shortcut with it.
+H="$T/coincide"; mkdir -p "$H/.orca"
+cat > "$H/.orca/keybindings.json" <<'EOF'
+{"version":1,"keybindings":{},"platforms":{"darwin":{},"linux":{"tab.close":["Cmd+W"]},"win32":{}}}
+EOF
+echo '{"linux":{"tab.close":["Cmd+X"]}}' > "$H/.orca/keybindings.nix-owned.json"
+HOME=$H "$MERGE" >/dev/null 2>&1
+got=$(jq -c '.linux["tab.close"]' "$H/.orca/keybindings.nix-owned.json")
+[ "$got" = '["Cmd+X"]' ] && pass "UI value equal to a generated one stays the UI's" \
+  || fail "coincide" "sidecar now records $got"
 
 # 8. A UI shortcut on a generated chord: Orca would drop *both* actions at load.
 #    The UI's choice stands; the generated action falls back to its default.

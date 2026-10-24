@@ -116,10 +116,16 @@ const expand = (id, v) => {
         : { ok: false };
   return Array.isArray(n) ? n : n.ok ? [n.value] : undefined;
 };
-const effective = {};
-for (const [id, v] of Object.entries({ ...common, ...linux })) {
-  if (kb.isKeybindingActionId(id) && expand(id, v) !== undefined) effective[id] = expand(id, v);
-}
+// Each section parsed on its own, then layered (q$): a bad platform value is
+// dropped, not allowed to hide a good common one.
+const parse = (section) =>
+  Object.fromEntries(
+    Object.entries(section)
+      .filter(([id, v]) => kb.isKeybindingActionId(id) && expand(id, v) !== undefined)
+      .map(([id, v]) => [id, expand(id, v)]),
+  );
+const commonParsed = parse(common);
+const effective = { ...commonParsed, ...parse(linux) };
 for (;;) {
   const withdrawn = kb
     .findKeybindingConflicts('linux', effective)
@@ -137,8 +143,9 @@ for (;;) {
     } else {
       delete linux[id];
     }
-    const fallback = id in linux ? linux[id] : common[id];
-    if (kb.isKeybindingActionId(id) && expand(id, fallback) !== undefined) effective[id] = expand(id, fallback);
+    const restored = id in linux ? expand(id, linux[id]) : undefined;
+    if (restored !== undefined) effective[id] = restored;
+    else if (id in commonParsed) effective[id] = commonParsed[id];
     else delete effective[id];
   }
 }
@@ -155,5 +162,5 @@ writeJson(dest, doc);
 // the UI's keep the value last written. Either way a later UI value reads as
 // changed, the UI's, rather than as never owned and free to overwrite.
 writeJson(sidecar, {
-  linux: { ...Object.fromEntries([...theirs].map((id) => [id, prev[id]])), ...owned, ...written },
+  linux: { ...owned, ...Object.fromEntries([...theirs].map((id) => [id, prev[id]])), ...written },
 });

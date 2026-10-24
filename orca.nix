@@ -129,7 +129,11 @@ let
     makeWrapper ${pkgs.nodejs}/bin/node $out/bin/orca-mac-keybindings \
       --add-flags "${./nix/orca-mac-keybindings-merge.js} $out/lib/shared $out/share/orca-mac-keybindings.json"
     # One real merge, so an Orca bump that moves an import or an export the
-    # merge uses fails here, not as a warning at every activation.
+    # merge uses fails here, not as a warning at every activation. The seed
+    # is a string (comma-list) value, so the shorthand parser runs too.
+    mkdir -p $TMPDIR/home/.orca
+    echo '{"version":1,"keybindings":{},"platforms":{"linux":{"zoom.reset":"Alt+0, Alt+Shift+0"}}}' \
+      > $TMPDIR/home/.orca/keybindings.json
     HOME=$TMPDIR/home $out/bin/orca-mac-keybindings 2> merge.err
     if [ -s merge.err ] || [ ! -s $TMPDIR/home/.orca/keybindings.json ]; then
       cat merge.err >&2; exit 1

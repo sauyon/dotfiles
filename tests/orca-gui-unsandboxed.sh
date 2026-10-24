@@ -21,14 +21,13 @@
 # falls back to downloading stock node), and resources/orcad-template, whose
 # per-target builds (arm64, musl) are shipped to remote hosts.
 #
-# The GUI case (6) opens a real, visible window on the desktop, so it runs
-# only with ORCA_TEST_GUI=1 -- ask before setting it on someone's session.
-# It starts a second instance with its own --user-data-dir and a throwaway
-# HOME, so it never touches the running Orca's profile, its
-# ~/.orca/agent-hooks or ~/.claude/settings.json.
+# The GUI case (6) needs no desktop and never shows on one: it starts its own
+# headless sway (wlroots' headless backend, a private XDG_RUNTIME_DIR) and
+# runs Orca in that, with its own --user-data-dir and a throwaway HOME, so it
+# never touches a running Orca's profile, ~/.orca/agent-hooks or
+# ~/.claude/settings.json. ORCA_TEST_SHOT=<file.png> keeps its screenshot.
 #
 #   tests/orca-gui-unsandboxed.sh               build this host's orca and test it
-#   ORCA_TEST_GUI=1 tests/orca-gui-unsandboxed.sh   ... and launch it once
 #   tests/orca-gui-unsandboxed.sh <orca-path>   test a given build, e.g. the live one:
 #                                               $(dirname $(dirname $(readlink -f ~/.nix-profile/bin/orca-ide)))
 set -u
@@ -151,55 +150,75 @@ got=$(sha256sum "$node" 2>/dev/null | cut -d' ' -f1)
 [ -n "$pin" ] && [ "$got" = "$pin" ] && pass "bundled node matches orcad's runtime pin" \
   || fail "node pin" "sha256 '$got', pin '${pin:-missing}'"
 
-# 6. A real second instance renders, sandboxes its renderers, and stops on
-# SIGTERM. Its own --user-data-dir and HOME keep it off the live Orca's state.
-if [ "${ORCA_TEST_GUI:-}" != 1 ]; then
-  echo "skip GUI launch: it opens a visible window; set ORCA_TEST_GUI=1"
-elif [ -z "$(host printenv WAYLAND_DISPLAY)" ]; then
-  echo "skip GUI launch: no Wayland session"
+# 6. A real instance renders, sandboxes its renderers, and exits 0 on
+# SIGTERM -- in a headless sway of its own, so it needs no desktop and never
+# appears on one.
+tools=$(nix build --no-link --print-out-paths --inputs-from "$FLAKE" nixpkgs#sway nixpkgs#grim) \
+  || { echo "could not build sway/grim" >&2; exit 1; }
+sway=$(echo "$tools" | grep -- '-sway-'); grim=$(echo "$tools" | grep -- '-grim-')
+run="$T/run"; mkdir -p -m700 "$run"; mkdir -p "$T/home"
+cat > "$T/sway.conf" <<EOF
+output HEADLESS-1 resolution 1280x800
+exec /bin/sh -c '"$GUI" --user-data-dir="$T/profile"; echo \$? > "$T/orca.exit"'
+EOF
+in_session() { host env -u DISPLAY XDG_RUNTIME_DIR="$run" WAYLAND_DISPLAY=wayland-1 "$@"; }
+unit="orca-gui-test-$$"
+since=$(date +%s)
+"${sr:+$sr/bin/}systemd-run" --user --quiet --unit="$unit" --setenv=HOME="$T/home" \
+  --setenv=XDG_RUNTIME_DIR="$run" --setenv=WLR_BACKENDS=headless --setenv=WLR_RENDERER=pixman \
+  --setenv=WLR_LIBINPUT_NO_DEVICES=1 --setenv=WAYLAND_DISPLAY= --setenv=DISPLAY= \
+  "$sway/bin/sway" -c "$T/sway.conf"
+pid=""
+for _ in $(seq 60); do
+  sleep 1
+  sock=$(ls "$run"/sway-ipc.*.sock 2>/dev/null | head -1)
+  [ -n "$sock" ] || continue
+  in_session "$sway/bin/swaymsg" -s "$sock" -t get_tree > "$T/tree.json" 2>/dev/null || continue
+  pid=$(host env ELECTRON_RUN_AS_NODE=1 "$GUI" -e '
+    const walk = n => n.app_id === "orca" ? n.pid : [...n.nodes, ...n.floating_nodes].map(walk).find(Boolean);
+    console.log(walk(JSON.parse(require("fs").readFileSync(process.argv[1]))) || "");' "$T/tree.json")
+  [ -n "$pid" ] && break
+done
+if [ -z "$pid" ]; then
+  fail "window" "no orca window in the headless session after 60s"
+  host journalctl --user -u "$unit" --no-pager -n 20
 else
-  unit="orca-gui-test-$$"
-  mkdir -p "$T/home"
-  since=$(date +%s)
-  "${sr:+$sr/bin/}systemd-run" --user --quiet --unit="$unit" --property=KillSignal=SIGTERM \
-    --setenv=HOME="$T/home" "$GUI" --user-data-dir="$T/profile"
-  pids=""
-  for _ in $(seq 40); do
-    sleep 1
-    pids=$(host systemctl --user show -p MainPID --value "$unit" 2>/dev/null)
-    [ -n "$pids" ] && [ "$pids" != 0 ] \
-      && host hyprctl clients -j 2>/dev/null | grep -q "\"pid\": $pids," && break
-  done
-  if host hyprctl clients -j 2>/dev/null | grep -q "\"pid\": $pids,"; then
-    pass "a window maps (pid $pids)"
-  else
-    fail "window" "no Hyprland client for pid '$pids' after 40s"
-    host journalctl --user -u "$unit" --no-pager -n 20
-  fi
+  pass "a window maps (pid $pid)"
+  # Give the first frame time, then look at it: a blank or solid surface has
+  # a handful of colours, a rendered UI with antialiased text has hundreds.
+  sleep 10
+  in_session "$grim/bin/grim" -t ppm "$T/shot.ppm"
+  colours=$(host env ELECTRON_RUN_AS_NODE=1 "$GUI" -e '
+    const b = require("fs").readFileSync(process.argv[1]);
+    let i = 0, f = 0; const tok = () => { while (/\s/.test(String.fromCharCode(b[i]))) i++;
+      const s = i; while (!/\s/.test(String.fromCharCode(b[i]))) i++; return b.slice(s, i).toString(); };
+    tok(); tok(); tok(); tok(); i++;
+    const seen = new Set(); for (; i + 2 < b.length; i += 3) seen.add((b[i] << 16) | (b[i+1] << 8) | b[i+2]);
+    console.log(seen.size);' "$T/shot.ppm" 2>&1)
+  [ "${colours:-0}" -gt 100 ] 2>/dev/null && pass "it renders a UI ($colours colours on screen)" \
+    || fail "render" "screen has '$colours' colours; blank or broken"
+  if [ -n "${ORCA_TEST_SHOT:-}" ]; then in_session "$grim/bin/grim" "$ORCA_TEST_SHOT"; fi
   # Renderers in their own user namespace = Chromium's namespace sandbox,
   # with chrome-sandbox left unprivileged.
   ns=$(host /bin/sh -c '
-    main=$(readlink /proc/'"$pids"'/ns/user)
-    for p in $(systemctl --user show -p ControlGroup --value '"$unit"' | xargs -I{} cat /sys/fs/cgroup{}/cgroup.procs); do
-      tr "\0" " " < /proc/$p/cmdline | grep -q -- "--type=renderer" || continue
+    main=$(readlink /proc/'"$pid"'/ns/user)
+    for p in $(cat /sys/fs/cgroup$(systemctl --user show -p ControlGroup --value '"$unit"')/cgroup.procs); do
+      tr "\0" " " < /proc/$p/cmdline 2>/dev/null | grep -q -- "--type=renderer" || continue
       [ "$(readlink /proc/$p/ns/user)" != "$main" ] && echo sandboxed || echo unsandboxed
     done' | sort -u | tr '\n' ' ')
   [ "$ns" = "sandboxed " ] && pass "renderers run in their own user namespace" \
     || fail "chromium sandbox" "renderers: '${ns:-none}'"
-  # A transient unit that stopped cleanly is unloaded (show prints nothing);
-  # one whose main process exited non-zero stays loaded as failed, with why.
-  if host systemctl --user stop "$unit"; then
-    res=$(host systemctl --user show -p Result --value "$unit" 2>/dev/null)
-    res=${res:-success}
-  else
-    res="stop failed"
-  fi
-  host systemctl --user reset-failed "$unit" 2>/dev/null
-  [ "$res" = success ] && pass "stops cleanly on SIGTERM" \
-    || fail "SIGTERM" "unit result '$res'"
-  cores=$(host coredumpctl list --no-legend --since="@$since" 2>/dev/null | grep -E "$ORCA|orca-ide" || true)
-  [ -z "$cores" ] && pass "no coredumps" || fail "coredumps" "$cores"
+  # SIGTERM to the window's own pid, which this case started: the wrappers
+  # all exec, so it is Electron itself, with nothing in between.
+  host kill -TERM "$pid"
+  for _ in $(seq 20); do [ -s "$T/orca.exit" ] && break; sleep 1; done
+  code=$(cat "$T/orca.exit" 2>/dev/null)
+  [ "$code" = 0 ] && pass "exits 0 on SIGTERM" || fail "SIGTERM" "exit status '${code:-none after 20s}'"
 fi
+host systemctl --user stop "$unit" 2>/dev/null
+host systemctl --user reset-failed "$unit" 2>/dev/null
+cores=$(host coredumpctl list --no-legend --since="@$since" 2>/dev/null | grep -E "$ORCA|orca-ide" || true)
+[ -z "$cores" ] && pass "no coredumps" || fail "coredumps" "$cores"
 
 printf '\n%d/%d passed\n' "$((n-fails))" "$n"
 [ "$fails" -eq 0 ]

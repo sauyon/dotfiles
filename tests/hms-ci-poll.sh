@@ -230,7 +230,7 @@ run() {
   # would otherwise sit through that window twice.
   timeout 180 env -i PATH="$PATH" HOME="$HOME" HMS_RETRIES="${HMS_RETRIES:-2}" \
     HMS_REPO="$D/repo" HMS_CURL="$D/curl" HMS_TOKEN_CMD="$D/token-cmd" \
-    HMS_SWITCH_CMD="$D/switch" HMS_WAIT_SECONDS=20 HMS_FIRST_RUN_SECONDS=1 \
+    HMS_SWITCH_CMD="$D/switch" HMS_WAIT_SECONDS="${HMS_WAIT_SECONDS:-20}" HMS_FIRST_RUN_SECONDS=1 \
     "$SCRIPT" 2>&1
 }
 
@@ -534,6 +534,25 @@ else
     "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
 fi
 
+# A real failure followed by a flood of transient lines: big enough (~200KB)
+# that `grep -q` quitting on the first line outside the allowlist would SIGPIPE
+# whatever is still writing to it, and under pipefail that 141 reads as
+# "every line was transient".
+big="$D/log-big"
+{ cat "$FIX"
+  printf '2026-10-24T04:47:29.0000000Z %s\n' 'error: builder for /nix/store/x.drv failed with exit code 1'
+  for i in $(seq 5000); do
+    printf '2026-10-24T04:47:29.0000000Z %s\n' 'error: RPC failed; HTTP 503 curl 22 The requested URL returned error: 503'
+  done; } > "$big"
+setup_repo; mktoken good; mkcurl_flaky 1 "$big"; mkswitch
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(ndisp)" -eq 0 ]; then
+  report "a real failure in a 200KB log of 503s is not retried" ok
+else
+  report "a real failure in a 200KB log of 503s is not retried" no \
+    "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$(printf '%s' "$out" | tail -5)]"
+fi
+
 for c in 'error: builder for /nix/store/x.drv failed with exit code 1' \
          'Error: attic push: cache rejected the upload'; do
   setup_repo; mktoken good; mkcurl_flaky 1 "$(with_line "$c")"; mkswitch
@@ -589,8 +608,11 @@ fi
 # A forge blip while waiting for the retry's run is not "nothing is coming":
 # falling through to "switching locally" there is the laptop build hms exists
 # to prevent.
+# The blip costs a 10s poll on top of the two listings the dispatched run is
+# already absent for, so the run shows up near t=30s: past the 21s that the
+# default 20s wait leaves, which made this case flaky on whole-second SECONDS.
 setup_repo; mktoken good; mkcurl_flaky 1 "$FIX" blip; mkswitch
-out=$(run); rc=$?
+out=$(HMS_WAIT_SECONDS=60 run); rc=$?
 if [ -f "$D/switched" ] && [ -f "$D/blipped" ] \
    && printf '%s' "$out" | grep -q 'run 43 green' \
    && ! printf '%s' "$out" | grep -q 'switching locally'; then

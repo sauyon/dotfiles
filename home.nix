@@ -1427,9 +1427,14 @@ let
       # only a retry of *this* commit while origin/master still is it.
       errlines=$(cut -c30- "$log" | ${lib.getExe pkgs.gnugrep} -ai 'error' || true)
       # `failure` only: a run cancelled by hand was someone's decision.
+      # A here-string, not `printf | grep -q`: grep quits on the first line
+      # outside the allowlist -- the evidence of a real failure -- and on a log
+      # past the pipe buffer that SIGPIPEs printf, whose 141 under pipefail the
+      # `!` would read as "every line was transient".
       if [ "$status" = failure ] && [ -n "$errlines" ] \
-         && ! printf '%s\n' "$errlines" | ${lib.getExe pkgs.gnugrep} -qavE \
-              'RPC failed; HTTP 5[0-9]{2}|returned error: 5[0-9]{2}|Could not resolve host|Failed to connect|Connection (timed out|reset)|early EOF'; then
+         && ! ${lib.getExe pkgs.gnugrep} -qavE \
+              'RPC failed; HTTP 5[0-9]{2}|returned error: 5[0-9]{2}|Could not resolve host|Failed to connect|Connection (timed out|reset)|early EOF' \
+              <<< "$errlines"; then
         # Every Linux box's hms waits on this same run, so each of them gets
         # here when it fails. A newer run for this commit already listed is
         # another box's retry: adopt it rather than queue a second build behind

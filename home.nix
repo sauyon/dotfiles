@@ -1429,12 +1429,27 @@ let
       if [ -n "$errlines" ] \
          && ! printf '%s\n' "$errlines" | ${lib.getExe pkgs.gnugrep} -qavE \
               'RPC failed; HTTP 5[0-9]{2}|returned error: 5[0-9]{2}|Could not resolve host|Failed to connect|Connection (timed out|reset)|early EOF'; then
+        # Every Linux box's hms waits on this same run, so each of them gets
+        # here when it fails. A newer run for this commit already listed is
+        # another box's retry: adopt it rather than queue a second full build
+        # behind it, and do not spend a retry on it.
+        newer=""
+        if tasks=$(api "/api/v1/repos/$slug/actions/tasks?limit=20"); then
+          newer=$(printf '%s' "$tasks" | $jq -r --arg s "$sha" --arg m "$run" 'first(.workflow_runs[]
+              | select(.head_sha == $s and .workflow_id == "nix-home.yml"
+                       and .run_number > ($m | tonumber))
+              | .run_number) // empty' 2>/dev/null || true)
+        fi
+        if [ -n "$newer" ]; then
+          echo "hms: transient infra failure — run $newer is already retrying it" >&2
+          min_run=$run; retrying=1
+          continue
         # Said outright: a bare "Fix CI" over a 503 log is what run 252 printed.
         # `! -gt` rather than `-le`, so a non-numeric HMS_RETRIES gives up too.
-        tip=$(git -C "$repo" ls-remote --heads origin master 2>/dev/null | cut -f1 || true)
-        if ! [ "$retries_left" -gt 0 ]; then
-          echo "hms: transient infra failure again — gave up after $retries retries." >&2
-        elif [ -z "$tip" ]; then
+        elif ! [ "$retries_left" -gt 0 ] 2>/dev/null; then
+          echo "hms: transient infra failure — gave up after $retries retries (HMS_RETRIES)." >&2
+        elif ! tip=$(git -C "$repo" ls-remote --heads origin master 2>/dev/null | cut -f1) \
+             || [ -z "$tip" ]; then
           echo "hms: transient failure, but could not read origin/master to retry it." >&2
         elif [ "$tip" != "$sha" ]; then
           echo "hms: transient failure, but origin/master moved on — not retrying a different commit." >&2

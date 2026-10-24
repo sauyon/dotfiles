@@ -462,10 +462,13 @@ fi
 # failed one by number, and wait for it rather than give up.
 #
 # <mode>, optional: "moved" advances origin/master to another commit as the log
-# is fetched (someone pushed mid-run), and "nodispatch" makes the dispatch
-# itself fail with a 503.
-mkcurl_flaky() { # mkcurl_flaky <n-fail> <log-file> [moved|nodispatch]
-  echo 42 > "$D/run-number"; : > "$D/dispatches"; : > "$D/dispatch-tries"; rm -f "$D/pending"
+# is fetched (someone pushed mid-run), "nodispatch" makes the dispatch itself
+# fail with a 503, "theirs" has another box's hms dispatch the retry (run 43,
+# green) while ours is reading the log, and "blip" 502s a listing
+# during the retry wait.
+mkcurl_flaky() { # mkcurl_flaky <n-fail> <log-file> [moved|nodispatch|theirs|blip]
+  echo 42 > "$D/run-number"; : > "$D/dispatches"; : > "$D/dispatch-tries"
+  rm -f "$D/pending" "$D/theirs" "$D/blipped"
   git -C "$D/repo" rev-parse HEAD~1 > "$D/other-sha"
   cp "$2" "$D/log"
   cat > "$D/curl" <<STUB
@@ -484,6 +487,11 @@ case "\$url" in
     printf '\n204\n' ;;
   *actions/tasks*)
     if [ -f "$D/pending" ]; then
+      # The second listing, not the first: only a poll past the give-up
+      # deadline decides anything, and the first one comes before it.
+      if [ '${3:-}' = blip ] && [ ! -f "$D/blipped" ] && [ "\$(cat "$D/pending")" -eq 1 ]; then
+        touch "$D/blipped"; printf 'bad gateway\n502\n'; exit 0
+      fi
       p=\$(cat "$D/pending")
       if [ "\$p" -gt 0 ]; then
         echo \$((p - 1)) > "$D/pending"
@@ -491,11 +499,12 @@ case "\$url" in
       fi
       rm "$D/pending"; echo \$((\$(cat "$D/run-number") + 1)) > "$D/run-number"
     fi
-    if [ "\$(wc -l < "$D/dispatches")" -ge $1 ]; then st=success; else st=failure; fi
+    if [ -f "$D/theirs" ] || [ "\$(wc -l < "$D/dispatches")" -ge $1 ]; then st=success; else st=failure; fi
     listing "\$(cat "$D/run-number")" "\$st" ;;
   *jobs/0*)     printf 'job_id 7 not found\n200\n' ;;
   *jobs/*logs*)
     [ '${3:-}' != moved ] || git -C "$D/origin.git" update-ref refs/heads/master "\$(cat "$D/other-sha")"
+    [ '${3:-}' != theirs ] || { touch "$D/theirs"; echo 43 > "$D/run-number"; }
     cat "$D/log"; printf '200\n' ;;
   *)            printf '{}\n200\n' ;;
 esac
@@ -560,6 +569,34 @@ if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(wc -l < "$D/dispatch-tries"
 else
   report "no retry once origin/master has moved past the failed commit" no \
     "tries=$(wc -l < "$D/dispatch-tries") switched=$(sw) rc=$rc out=[$out]"
+fi
+
+# Every Linux box's hms waits on the same run, so when it fails transiently
+# each of them reaches the dispatch. One retry is enough: a box that finds a
+# newer run for this commit already listed adopts it instead of queueing a
+# second full build behind it.
+setup_repo; mktoken good; mkcurl_flaky 1 "$FIX" theirs; mkswitch
+out=$(run); rc=$?
+if [ -f "$D/switched" ] && [ "$(wc -l < "$D/dispatch-tries")" -eq 0 ] \
+   && printf '%s' "$out" | grep -q 'run 43 green'; then
+  report "a retry another box already dispatched is adopted, not doubled" ok
+else
+  report "a retry another box already dispatched is adopted, not doubled" no \
+    "tries=$(wc -l < "$D/dispatch-tries") switched=$(sw) rc=$rc out=[$out]"
+fi
+
+# A forge blip while waiting for the retry's run is not "nothing is coming":
+# falling through to "switching locally" there is the laptop build hms exists
+# to prevent.
+setup_repo; mktoken good; mkcurl_flaky 1 "$FIX" blip; mkswitch
+out=$(run); rc=$?
+if [ -f "$D/switched" ] && [ -f "$D/blipped" ] \
+   && printf '%s' "$out" | grep -q 'run 43 green' \
+   && ! printf '%s' "$out" | grep -q 'switching locally'; then
+  report "a forge blip during the retry wait keeps waiting" ok
+else
+  report "a forge blip during the retry wait keeps waiting" no \
+    "blipped=$([ -f "$D/blipped" ] && echo y || echo n) switched=$(sw) rc=$rc out=[$out]"
 fi
 
 # A dispatch the forge refuses is the end of it, said once, not a loop.

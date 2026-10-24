@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.11.5",
+  "checkpoint_id": "3f9e6ada357d",
+  "strategy": "manual-commit",
+  "branch": "orca-gui-unsandbox",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/orca-gui-unsandboxed.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3f/9e6ada357d/0/metadata.json",
+      "transcript": "/3f/9e6ada357d/0/full.jsonl",
+      "compact_transcript": "/3f/9e6ada357d/0/transcript.jsonl",
+      "content_hash": "/3f/9e6ada357d/0/content_hash.txt",
+      "prompt": "/3f/9e6ada357d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 24860,
+    "cache_read_tokens": 2288969,
+    "output_tokens": 12768,
+    "api_call_count": 12,
+    "subagent_tokens": {
+      "input_tokens": 64,
+      "cache_creation_tokens": 122859,
+      "cache_read_tokens": 1336636,
+      "output_tokens": 24075,
+      "api_call_count": 32
+    }
+  }
+}

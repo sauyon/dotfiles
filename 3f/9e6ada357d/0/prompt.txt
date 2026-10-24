@@ -1,0 +1,1 @@
+use a fucking separate wayland session if you need to screenshot stuff, why are you writing tests that relies on an environment existing you fucking numpty

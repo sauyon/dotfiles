@@ -3536,6 +3536,10 @@ in
     # all -- deployed separately, this package alone is not enough.
     pkgs.vial
     zoom # wayland wrapper bypassing Zoom's xcb-forcing launcher; see above
+    # wl-copy/wl-paste: tridactyl's externalclipboardcmd and shell pipes. hyprshot
+    # and elephant only reference it by store path, so it is not on PATH
+    # unless listed here; tests/wl-clipboard.sh.
+    pkgs.wl-clipboard
     pkgs.xauth
     pkgs.xdg-utils
   ]

@@ -7,13 +7,13 @@ let
   # (omp.nix).
   #
   # Providers and models for pi (`~/.pi/agent/models.json`). Same endpoint and
-  # same key as opencode's `modular` provider — api.modular.com is public, so
+  # same key as omp's `modular` provider — api.modular.com is public, so
   # only the key is a secret and it is injected at activation below.
   #
-  # pi is NOT opencode's `mcloud`: that one is the internal deployment behind a
-  # sops-held hostname and serves a different, much smaller model set. Keeping
-  # the name `mcloud` here would invite exactly the confusion it caused once
-  # already, so this provider is called `modular`, matching opencode.nix.
+  # The provider is named `modular`, never `mcloud`: mcloud is Modular's
+  # internal deployment behind a sops-held hostname, serving a different, much
+  # smaller model set. Keeping the name `mcloud` here would invite exactly the
+  # confusion it caused once already.
   piModels = {
     providers = {
       modular = {
@@ -111,8 +111,8 @@ let
 in
 {
   # `~/.pi/agent/models.json` is rendered at activation with the Modular key
-  # injected, for the reason opencode.json is: not symlinked from the nix store,
-  # so the secret never lands in a world-readable store path.
+  # injected, not symlinked from the nix store, so the secret never lands in
+  # a world-readable store path.
   home.activation.piModelsConfig = lib.hm.dag.entryAfter [ "writeBoundary" "sops-nix" ] ''
     DEST="$HOME/.pi/agent/models.json"
     TMPL="${modelsTemplate}"

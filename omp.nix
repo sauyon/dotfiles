@@ -7,7 +7,7 @@ let
   # Modular's own `setup-mcloud.py` is the upstream for this list, with two
   # deliberate differences:
   #   - the provider is `modular`, not `mcloud`, for the reason pi.nix gives:
-  #     opencode's `mcloud` is a different, internal deployment.
+  #     `mcloud` is Modular's internal deployment, a different endpoint.
   #   - GLM 5.3's window is the served 1048576, not the script's stale 524288.
   #
   # Every `contextWindow` is the server's own, read off the 400 a ~1.3M-token

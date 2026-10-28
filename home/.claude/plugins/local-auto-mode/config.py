@@ -18,7 +18,7 @@ TIMEOUT = int(os.environ.get("LOCAL_CLASSIFIER_TIMEOUT", "25"))
 
 _KEY_FILE = Path(os.environ.get(
     "LOCAL_CLASSIFIER_API_KEY_FILE",
-    os.path.expanduser("~/.config/opencode/ko-ag-key"),
+    os.path.expanduser("~/.config/local-auto-mode/ko-ag-key"),
 ))
 
 

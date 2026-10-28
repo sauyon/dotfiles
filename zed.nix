@@ -4,7 +4,7 @@ let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
   isDesktop = machine.gui or true;
 
-  # Same key opencode's and pi's `modular` providers read. Read at LAUNCH by the
+  # Same key pi's and omp's `modular` providers read. Read at LAUNCH by the
   # wrapper below, never at build or activation, so it reaches neither the nix
   # store nor settings.json (which Zed rewrites freely).
   keyFile = "${config.home.homeDirectory}/.config/local-auto-mode/api-key";
@@ -45,8 +45,8 @@ in
     mutableUserSettings = true;
     userSettings = {
       language_models.openai_compatible.Modular = {
-        # Same deployment as opencode's and pi's `modular` provider: the public
-        # one carrying the GLM builds, not opencode's internal `mcloud`.
+        # Same deployment as pi's and omp's `modular` provider: the public
+        # one carrying the GLM builds, not Modular's internal `mcloud`.
         api_url = "https://api.modular.com/v1";
         available_models = [
           {

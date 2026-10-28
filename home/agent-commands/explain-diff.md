@@ -9,7 +9,7 @@ Author: Geoffrey Litt (https://github.com/geoffreylitt), retrieved 2026-07-04.
 The gist declares no license; redistributed here for personal use with
 attribution. Lightly modified: renamed from explain-diff-html, frontmatter
 description trimmed, and the delivery step retargeted at Claude Artifacts with
-the original standalone HTML file kept as the fallback for Cursor/opencode.
+the original standalone HTML file kept as the fallback for Cursor.
 -->
 
 # Explain Diff
@@ -30,7 +30,7 @@ Delivery — publish it as a Claude Artifact by default:
 3. Publish with the `Artifact` tool, passing an emoji `favicon` and a one-sentence `description`. Hand me the returned URL as the deliverable.
 4. To revise, edit the same file and publish again — the same file path redeploys to the same URL instead of minting a new one.
 
-If there is no `Artifact` tool (Cursor, opencode) or publishing fails, fall back to a single self-contained HTML file: a complete document this time, with `<meta charset="utf-8">` first in the `<head>` so em-dashes and arrows render even when served without a charset header. Put it outside the code repo, filename starting with today's date in `YYYY-MM-DD-` format so the files stay time-sorted and out of version control — for example `/tmp/2026-01-12-explanation-<slug>.html` — and return the absolute path.
+If there is no `Artifact` tool (Cursor) or publishing fails, fall back to a single self-contained HTML file: a complete document this time, with `<meta charset="utf-8">` first in the `<head>` so em-dashes and arrows render even when served without a charset header. Put it outside the code repo, filename starting with today's date in `YYYY-MM-DD-` format so the files stay time-sorted and out of version control — for example `/tmp/2026-01-12-explanation-<slug>.html` — and return the absolute path.
 
 Format:
 

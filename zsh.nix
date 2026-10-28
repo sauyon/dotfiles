@@ -469,7 +469,6 @@
     # ~/.claude/ under one login.
     cl = "claude";
     clw = "claude --worktree";
-    gm = "gemini";
 
     z = "zellij";
     zs = "zellij -s";

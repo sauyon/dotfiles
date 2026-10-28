@@ -2309,7 +2309,7 @@ attr=$attr
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./opencode.nix ./pi.nix ./omp.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./even-terminal.nix ./zed.nix ./orca.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./pi.nix ./omp.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./even-terminal.nix ./zed.nix ./orca.nix ];
 
   home.stateVersion = "26.05";
 
@@ -2342,29 +2342,17 @@ in
       mode = "0600";
     };
 
-    # ── ko.ag API (opencode provider + local-auto-mode classifier) ─────────────
+    # ── ko.ag API (local-auto-mode classifier) ─────────────────────────────────
     # This is now litellm's MASTER KEY, not the old CF AI Gateway token: ai.ko.ag
-    # was deleted and both consumers dial the router's LAN address directly. The
+    # was deleted and the classifier dials the router's LAN address directly. The
     # same value must exist in the cluster as the `litellm-master-key` Secret in
     # the litellm / hakobiya / opencode namespaces — rotating here without
     # rotating there 401s everything. See the kube repo's docs/litellm-access.md.
     koAgApiKey = {
-      path = "${config.home.homeDirectory}/.config/opencode/ko-ag-key";
+      path = "${config.home.homeDirectory}/.config/local-auto-mode/ko-ag-key";
       mode = "0600";
     };
 
-    # ── Z.AI API (opencode zai / zai-coding-plan providers) ───────────────────
-    zaiApiKey = {
-      path = "${config.home.homeDirectory}/.config/opencode/zai-key";
-      mode = "0600";
-    };
-
-    # ── Modular private endpoint base URL (opencode mcloud provider) ────────────
-    # Kept in sops so the internal hostname never lands in the committed config.
-    modularApiUrl = {
-      path = "${config.home.homeDirectory}/.config/opencode/mcloud-base-url";
-      mode = "0600";
-    };
 
     # ── UniFi API key (unifi-mcp-server) ───────────────────────────────────────
     unifiApiKey = {
@@ -2465,7 +2453,7 @@ in
   # target for a non-nix profile). Bump the pin = bump flake.lock.
   home.file.".local/share/drovr-marketplace".source = drovr.outPath;
 
-  # ── Shared agent slash commands (claude / cursor / opencode) ──────────────
+  # ── Shared agent slash commands (claude / cursor) ──────────────────────────
   # explain-diff prompt by Geoffrey Litt, from
   # https://gist.github.com/geoffreylitt/a29df1b5f9865506e8952488eac3d524
   # (no license declared; see attribution note in the file)
@@ -2473,18 +2461,12 @@ in
     ./home/agent-commands/explain-diff.md;
   home.file.".cursor/commands/explain-diff.md".source =
     ./home/agent-commands/explain-diff.md;
-  xdg.configFile."opencode/command/explain-diff.md".source =
-    ./home/agent-commands/explain-diff.md;
-
   # review-diff: companion to explain-diff — an annotated reviewer's diff
   # (logical grouping, inline annotations, codebase context, severity findings).
   home.file.".claude/commands/review-diff.md".source =
     ./home/agent-commands/review-diff.md;
   home.file.".cursor/commands/review-diff.md".source =
     ./home/agent-commands/review-diff.md;
-  xdg.configFile."opencode/command/review-diff.md".source =
-    ./home/agent-commands/review-diff.md;
-
   # /agy-review slash command → drives the agy-review skill (agy CLI). Claude-only:
   # personal ~/.claude/skills/* aren't exposed as slash commands, so this wrapper
   # is what makes `/agy-review` available, pointing at the skill's SKILL.md pipeline.
@@ -2838,7 +2820,7 @@ in
   xdg.configFile."herdr/config.toml".source = ./home/herdr/config.toml;
 
   # ── drovr ───────────────────────────────────────────────────────────────────
-  # Review panel runs on opencode, at the model pinned in opencode.nix.
+  # Review panel runs on pi, at the model pinned in [agents.pi] below.
   # serve_host: the review server has NO auth, so whatever can reach it reads
   # every run and can answer its asks. Network location is the only thing
   # standing in for authentication, which is why the bind address is a decision
@@ -2885,9 +2867,9 @@ in
   xdg.configFile."drovr/config.toml" = {
     force = true;
     text = ''
-      # pi, not opencode. pi's findings channel is a generated TypeScript
-      # extension rather than an MCP server (pi ships no MCP client), and drovr
-      # writes it per review pass — see cli/src/pi_extension.rs upstream.
+      # pi's findings channel is a generated TypeScript extension rather than
+      # an MCP server (pi ships no MCP client), and drovr writes it per review
+      # pass — see cli/src/pi_extension.rs upstream.
       #
       review_agent = "pi"
       worktree = ${lib.boolToString (!hasOrca)}
@@ -3220,48 +3202,6 @@ in
     Install.WantedBy = [ "graphical-session.target" ];
   };
 
-  # opencode leaks (upstream #16697, unfixed); this records how fast, so a
-  # restart is an informed manual call. Never signals anything.
-  # total_kb sums RSS, which double-counts shared pages: a growth curve, not a
-  # usage figure.
-  systemd.user.services.opencode-memwatch = lib.mkIf (!isDarwin) {
-    Unit.Description = "Record opencode resident memory (observational; never signals)";
-    Service = {
-      Type = "oneshot";
-      ExecStart = pkgs.writeShellScript "opencode-memwatch" ''
-        set -eu
-        PATH=${pkgs.coreutils}/bin:${pkgs.procps}/bin:${pkgs.gawk}/bin
-        STATE="$HOME/.local/state/opencode-memwatch"
-        LOG="$STATE/rss.log"
-        mkdir -p "$STATE"
-        # Match argv, not comm: the kernel truncates comm to `.opencode-wrapp`.
-        ps -eo pid=,rss=,args= | awk -v ts="$(date -Is)" '
-          $3 ~ /opencode/ && $0 !~ /memwatch/ {
-            n++; total += $2;
-            if ($2 > max) max = $2;
-            procs = procs sprintf(" %s:%s", $1, $2);
-          }
-          END { printf "%s\tprocs=%d\ttotal_kb=%d\tmax_kb=%d\tpids=%s\n", \
-                       ts, n+0, total+0, max+0, procs }
-        ' >> "$LOG"
-        # Keep the newest 10k samples (~5 weeks at this interval).
-        if [ "$(wc -l < "$LOG")" -gt 10000 ]; then
-          tail -n 10000 "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"
-        fi
-      '';
-    };
-  };
-
-  systemd.user.timers.opencode-memwatch = lib.mkIf (!isDarwin) {
-    Unit.Description = "Sample opencode resident memory every 5 minutes";
-    Timer = {
-      OnBootSec = "5min";
-      OnUnitActiveSec = "5min";
-      AccuracySec = "1min";
-    };
-    Install.WantedBy = [ "timers.target" ];
-  };
-
   # `clp-rc` == `claude remote-control`: a persistent server
   # letting claude.ai/code and the Claude mobile app drive local sessions in a
   # project. Template unit keyed on the project path so any number can run
@@ -3424,7 +3364,6 @@ in
     nmap  # and ncat
     tcpdump
     whois
-    opencode
     pi-coding-agent  # earendil-works/pi terminal coding agent (binary: pi)
     forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg and forge.ko.ag
     bat

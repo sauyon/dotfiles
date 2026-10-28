@@ -127,7 +127,7 @@ EXCLUDE_PREFIXES = (
 # Generated or vendored: counting these measures a generator, not a person.
 CODE_SKIP = {
     "flake.lock", "SvalHandsDownNeu.vil", "cheatsheet.html", "freq.json",
-    "opencode.json", "secrets.yaml",
+    "secrets.yaml",
 }
 CODE_SKIP_SUFFIX = {".lock", ".png", ".jpg", ".jpeg", ".pdf", ".zst", ".gz", ".vil"}
 

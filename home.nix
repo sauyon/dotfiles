@@ -68,7 +68,7 @@ let
   workHosts = [ "utsuho" "kyuusaku" ];
   isWorkHost = builtins.elem hostname workHosts;
 
-  # Gas City (gc + bd + dolt; nix/gascity.nix): a tmux fleet of Claude sessions
+  # Gas City (gc + bd + dolt; nix/gascity.nix): a fleet of agent sessions
   # that bills while up, so only on the boxes meant to run it, not the laptops.
   # tests/gascity-packages.sh pins this set.
   gascityHosts = [ "fujiwara" "utsuho" ];

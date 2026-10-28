@@ -2,7 +2,7 @@
 # Cases for the Gas City toolchain (gc + bd + dolt + lsof) landing on the Gas City
 # hosts (fujiwara, utsuho) and nowhere else.
 #
-# Gas City is a tmux fleet of Claude sessions that bills while it runs, so it
+# Gas City is a fleet of agent sessions that bills while it runs, so it
 # lives only on the boxes meant to host it. Two ways this breaks quietly:
 #
 #   * a Gas City host loses a piece. gc shells out to `bd` for every bead and runs a

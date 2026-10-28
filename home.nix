@@ -2411,6 +2411,12 @@ in
   # ── Global Claude preferences (loaded into every conversation) ────────────
   home.file.".claude/CLAUDE.md".source = ./home/.claude/CLAUDE.md;
 
+  # Extended key reporting (modifyOtherKeys) for every tmux server, gc's fleet
+  # included: its server starts with no -f flag, so it sources this file.
+  # Without it, modified Enter keys (Shift+Enter etc.) never reach TUIs like
+  # kimi, which prints a banner asking for exactly this on every startup.
+  home.file.".tmux.conf".text = "set -g extended-keys on\n";
+
   # ── Claude statusline ──────────────────────────────────────────────────────
   home.file.".claude/statusline-command.sh" = {
     source = ./home/.claude/statusline-command.sh;

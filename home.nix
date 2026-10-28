@@ -22,9 +22,12 @@ let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
   hostname = machine.hostname;
   isDesktop = machine.gui or true;
-  # Orca (orca.nix) is GUI-Linux only. Where it is, it owns agent worktrees;
-  # elsewhere drovr keeps its own .drovr/wt/<run> ones.
-  hasOrca = !isDarwin && isDesktop;
+  # Orca (orca.nix). Where it is installed it owns agent worktrees — the GUI
+  # app on a desktop, or the `orca serve` runtime (machine.orca-serve) on a
+  # headless host, whose remote terminals run agents in the same
+  # ~/orca/workspaces trees; elsewhere drovr keeps its own .drovr/wt/<run>
+  # ones. hasOrca stays the drovr gate below for exactly that reason.
+  hasOrca = !isDarwin && (isDesktop || (machine.orca-serve or false));
   gpu = machine.gpu or null;
 
   # Values the public repo deliberately does not carry: see the

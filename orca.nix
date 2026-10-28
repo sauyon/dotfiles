@@ -2,6 +2,15 @@
 
 let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
+  isServeHost = !isDarwin && (machine.orca-serve or false);
+  # fujiwara's tailnet address: the address Orca advertises to pairing
+  # clients. Not the LAN one (10.0.7.100) — the same unauthed-LAN reasoning
+  # as drovr's serve_host comment in home.nix. In orca.nix rather than
+  # private.endpoints because a tailnet IP is a private overlay coordinate
+  # but not a LAN map; the ssh matchBlock in home.nix already names hosts by
+  # bare name on the public side.
+  pairingAddress = "100.94.172.21";
+
   isDesktop = machine.gui or true;
 
   # Orca (onorca.dev) — the agent IDE: parallel CLI agents, each in its own
@@ -381,8 +390,13 @@ let
   # tests/orca-mac-keybindings.sh.
 in
 {
+  # The desktop app is GUI-host only. A serve host (machine.orca-serve) gets
+  # the CLI alone: the runtime `serve` launches is the same nix-built Electron
+  # via ORCA_APP_EXECUTABLE, but nothing here starts a desktop session —
+  # serve runs it under its own Xvfb with no DISPLAY.
   home.packages =
-    lib.optionals (!isDarwin && isDesktop) [ orcaGui orcaCli ];
+    lib.optionals (!isDarwin && isDesktop) [ orcaGui ]
+    ++ lib.optionals (!isDarwin && (isDesktop || (machine.orca-serve or false))) [ orcaCli ];
 
   home.file = lib.mkIf (!isDarwin && isDesktop) (lib.listToAttrs (map (name: {
     name = ".claude/skills/${name}";
@@ -393,4 +407,32 @@ in
     (lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       $DRY_RUN_CMD ${macKeybindings}/bin/orca-mac-keybindings
     '');
+  # The headless serve host's unit. The flags mirror `orca serve service
+  # install`'s own unit (`--supervise --no-pairing`, Restart=on-failure): the
+  # supervisor restarts with growing delays, and pairing is off in the service
+  # because the pairing URL only prints to stdout — pair from a terminal run
+  # (stop the service first; it owns the port). KillMode=process, not mixed:
+  # orcad slots its terminal daemon out of the unit's cgroup, and systemd's
+  # mixed kill would tear down those PTYs on every stop; orca-ide's plain exec
+  # forwards signals, and the supervisor exits 3 when another process owns the
+  # profile, which RestartPreventExitStatus=3 leaves stopped.
+  systemd.user.services.orca-serve = lib.mkIf isServeHost {
+    Unit = {
+      Description = "Orca headless serve runtime (orca serve --supervise)";
+      # network-online is not needed for the listener, but pairing checks
+      # reachability at start and restarts read better ordered after it.
+      After = [ "network-online.target" ];
+      Wants = [ "network-online.target" ];
+    };
+    Service = {
+      Type = "simple";
+      ExecStart = "${lib.getExe orcaCli} serve --port 6768 --pairing-address ${pairingAddress} --supervise --no-pairing";
+      Environment = [ "LIBGL_ALWAYS_SOFTWARE=1" ];
+      KillMode = "process";
+      Restart = "on-failure";
+      RestartSec = 10;
+      RestartPreventExitStatus = 3;
+    };
+    Install.WantedBy = [ "default.target" ];
+  };
 }

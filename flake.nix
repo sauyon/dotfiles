@@ -109,9 +109,9 @@
       gui = false;
       gpu = "amd";
       # `orca serve` host (orca.nix): the nix-built CLI and the serve runtime,
-      # no desktop app. The pairing address is fujiwara's tailnet IP; the box
-      # also carries the LAN address 10.0.7.100 (private.endpoints.adminHost),
-      # but pairing belongs on the authenticated overlay, not the unauthed LAN.
+      # no desktop app. Pairing is advertised on the LAN address
+      # (10.0.7.100, private.endpoints.adminHost) for phone clients that are
+      # not on the tailnet — orca.nix's pairingAddress.
       orca-serve = true;
     };
     homeConfigurations.chiyari = linuxHome {

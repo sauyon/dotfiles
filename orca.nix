@@ -3,13 +3,16 @@
 let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
   isServeHost = !isDarwin && (machine.orca-serve or false);
-  # fujiwara's tailnet address: the address Orca advertises to pairing
-  # clients. Not the LAN one (10.0.7.100) — the same unauthed-LAN reasoning
-  # as drovr's serve_host comment in home.nix. In orca.nix rather than
-  # private.endpoints because a tailnet IP is a private overlay coordinate
-  # but not a LAN map; the ssh matchBlock in home.nix already names hosts by
-  # bare name on the public side.
-  pairingAddress = "100.94.172.21";
+  # The address Orca advertises to pairing clients: fujiwara's LAN address,
+  # the same one drovr's serve_host uses on this box (home.nix) — the phone
+  # client is not on the tailnet, and fujiwara.ko.ag resolves publicly to
+  # this IP. orcad itself binds 0.0.0.0, so the LAN can already attempt
+  # pairing; unlike drovr, pairing needs the code and every grant is
+  # revocable, which is the exposure drovr's no-auth note there accepts and
+  # this has more defense against. A tailnet-only advertisement
+  # (`100.94.172.21`) is the stricter posture if every client is on the
+  # overlay.
+  pairingAddress = "10.0.7.100";
 
   isDesktop = machine.gui or true;
 

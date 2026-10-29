@@ -126,6 +126,7 @@ where it gates the build instead of being checked after the fact.
 ./tests/elephant-reindex.sh      # renders each walker host's unit, plus sd-switch's job type
 ./tests/hyprlock-pending-race.sh # reads the pinned hyprlock source, 5 cases
 ./tests/hyprland-graceful-exit.sh # drives the built script under a stub hyprctl
+./tests/hyprland-doctor.sh      # builds the script, drives 10 cases with stubbed hyprctl/systemctl
 ./tests/bootstrap-ssh-finalize.sh # drives install/finalize-ssh.sh, stubbed systemctl
 ./tests/claude-main-edit-guard.sh # drives the evaluated PreToolUse hook, 19 cases on throwaway repos
 ./tests/emacs-treesit-init.sh    # built emacs + grammars, init with an empty elpa, 4 cases

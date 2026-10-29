@@ -14,7 +14,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     walker.url = "github:abenz1267/walker";
-    nixgl.url = "github:guibou/nixGL";
+    # PR #227 switches the wrapper check from pcregrep to pcre2grep; nixpkgs
+    # removed pcre on 2026-10-25. Pinned to the PR head until main merges it.
+    nixgl.url = "github:nix-community/nixGL/320297bd99179701d63e3670e64e636d6165afe2";
     # Follow our nixpkgs: nixGL pins its own, whose mesa (25.0) predates
     # Panther Lake / Xe3 and deadlocked Hyprland on shiori at startup.
     nixgl.inputs.nixpkgs.follows = "nixpkgs";
@@ -26,8 +28,8 @@
     # skill under `${hunk}/skills/`.
     hunk.url = "github:modem-dev/hunk";
     # beads (`bd`), the issue tracker Gas City (nix/gascity.nix) drives. Pinned
-    # to the bd that gc v1.5.0 deps.env pins; nixpkgs' beads lags (1.0.3).
-    beads.url = "github:gastownhall/beads/v1.3.1";
+    # to the bd that gc v1.5.1 deps.env pins; nixpkgs' beads lags (1.0.3).
+    beads.url = "github:gastownhall/beads/v1.3.2";
     beads.inputs.nixpkgs.follows = "nixpkgs";
     # Matt Pocock's agent skills. Not a flake — a plain tree of SKILL.md
     # bundles under skills/<category>/<name>/, consumed by path below.

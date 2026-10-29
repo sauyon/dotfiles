@@ -29,7 +29,7 @@ T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 FLAKE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # /etc/hostname is what CI writes to say which host it is; a bwrap-era Orca
 # terminal has none, so fall back to uname -n there.
-host=$(cat /etc/hostname 2>/dev/null); HM="$FLAKE#homeConfigurations.${host:-$(uname -n)}.config"
+host=$(cat /etc/hostname 2>/dev/null); host=${host:-$(uname -n)}; HM="$FLAKE#homeConfigurations.$host.config"
 SKILLS="orca-cli orchestration computer-use orca-per-workspace-env orca-linear linear-tickets"
 
 pkg_attr() { # pkg_attr <pname> <attr>
@@ -164,9 +164,20 @@ outside "$CLI/bin/orca-ide" no-such-command >/dev/null 2>&1; rc=$?
 if [ "$rc" -eq 1 ]; then pass "an unknown command exits 1"
 else fail "exit status" "unknown command exited $rc"; fi
 
-# The rev is pinned by hand next to the version; the app knows its own.
+# The rev is pinned by hand next to the version; the app knows its own. Newer
+# ASARs do not expose it as a raw string, so search the extracted app's
+# authoritative build-metadata fields, not an arbitrary match elsewhere.
 rev=$(nix eval --raw "$HM.home.file" --apply 'f: f.".claude/skills/orca-cli".source' 2>/dev/null | sed -nE 's|.*-orca-skills-([0-9a-f]{40})/.*|\1|p')
-if [ -n "$rev" ] && grep -aqF "sourceCommit:\`$rev\`" "$contents/resources/app.asar"; then
+asarpkg=$(nix build --no-link --print-out-paths "$FLAKE#homeConfigurations.${host}.pkgs.asar") \
+  || { echo "could not build the configured ASAR tool" >&2; exit 1; }
+asar="$asarpkg/bin/asar"
+[ -x "$asar" ] || { echo "configured ASAR tool is missing: $asar" >&2; exit 1; }
+"$asar" extract "$contents/resources/app.asar" "$T/app" \
+  || { echo "could not extract $contents/resources/app.asar" >&2; exit 1; }
+if [ -n "$rev" ] && {
+  grep -a -q -F "sourceCommit:\`$rev\`" "$T/app/out/main/index.js" \
+    || grep -a -q -F "sourceCommit:\`$rev\`" "$T"/app/out/renderer/assets/use-bundled-skill-install-action-*.js;
+}; then
   pass "skills rev ${rev:0:8} is this build's sourceCommit"
 else fail "skills rev" "'${rev:-unparsed}' is not the sourceCommit in app.asar"; fi
 

@@ -330,7 +330,54 @@ let
   # Gas City: gc + the bd it drives + the dolt it manages as the city's data
   # plane. Only on gascityHosts; tests/gascity-packages.sh.
   gascity-pkg = import ./nix/gascity.nix { inherit pkgs; };
-  beads-pkg = beads.packages.${system}.default;
+  # beads 1.3.2's postPatch edits go.mod's Go version; current Go then quite
+  # correctly refuses the now-stale module metadata in readonly mode. Let the
+  # build reconcile it in the sandbox, keeping upstream's tests disabled.
+  beads-pkg = (pkgs.extend (lib.composeExtensions beads.overlays.default (final: prev: {
+    beads-unwrapped = prev.beads-unwrapped.overrideAttrs (old: {
+      env.GOFLAGS = "${old.env.GOFLAGS or ""} -mod=mod";
+    });
+  }))).beads;
+
+  # CVE-2026-111497: Node 24.22.1 needs the patched Brotli headers at build
+  # time and library at runtime. Keep the patch scoped to this toolchain and
+  # its full-node consumers instead of replacing the global slim package.
+  patchedBrotli =
+    if pkgs.brotli.version == "1.2.0" then
+      pkgs.brotli.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [
+          (pkgs.fetchurl {
+            url = "https://github.com/google/brotli/commit/0ed4268a4401abcb4472096340477cf4af7d1a2b.patch";
+            hash = "sha256-gzyh1x7thb3jwhxjpu4xATh3Qbiqi5qCJRNAlKZ3thk=";
+          })
+        ];
+      })
+    else
+      throw "CVE-2026-111497: review Brotli ${pkgs.brotli.version} before using it";
+  patchedNodejsSlim_24 =
+    let
+      base =
+        if lib.versionOlder pkgs.nodejs-slim_24.version "24.22.1" then
+          pkgs.nodejs-slim_24.overrideAttrs (old: {
+            version = "24.22.1";
+            src = pkgs.fetchurl {
+              url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1.tar.xz";
+              sha256 = "4f5379796280cdaeb0c2f358fd04b6a16cc4fb7dfa83b5a8c91a9d963b435231";
+            };
+          })
+        else if pkgs.nodejs-slim_24.version == "24.22.1" then
+          pkgs.nodejs-slim_24
+        else
+          throw "CVE-2026-111497: review Node ${pkgs.nodejs-slim_24.version} before using it";
+    in
+    base.overrideAttrs (old: {
+      buildInputs = map (d: if builtins.toString d == pkgs.brotli.outPath then patchedBrotli else d) old.buildInputs;
+      configureFlags = map (f: builtins.replaceStrings [ "${pkgs.brotli.lib}" ] [ "${patchedBrotli.lib}" ] f) old.configureFlags;
+    });
+  patchedNodejs_24 = pkgs.callPackage (pkgs.path + "/pkgs/development/web/nodejs/symlink.nix") {
+    nodejs-slim = patchedNodejsSlim_24;
+  };
+
   # drovr — Rust CLI, buildRustPackage on all unix systems; pairs with herdr.
   # These two RunIdentity tests collide on ext4: same-path recreate reuses the
   # inode, and btime is tick-granular, so (dev, ino, born) repeats. Real drovr
@@ -3547,12 +3594,13 @@ in
   # via NIX_CONFIG in both workflows, forcing it back on because the runner image
   # ships sandbox = false and unsandboxed builds fail there.
   nixpkgs.config.allowUnfree = true;
+  _module.args.patchedNodejs_24 = patchedNodejs_24;
 
   nixpkgs.overlays = [
     (final: prev: {
       nur = import (builtins.fetchTarball {
-        url = "https://github.com/nix-community/NUR/archive/96aecc66d33c99f1c6e2896fe6c16eb4c65f1f41.tar.gz";
-        sha256 = "178k629ja0ncyix5gpy3nnjq2d5x2lz0dmlgfa0fqn5ayvsglh91";
+        url = "https://github.com/nix-community/NUR/archive/a9d52e0d2f9fb3fa80ed968ad4a8129051f12585.tar.gz";
+        sha256 = "sha256-0tzBVPDBmx1tLoLAKI1uttapmj1tB8sRALeeQAvX4aA=";
       }) {
         nurpkgs = prev;
         pkgs = prev;
@@ -3662,16 +3710,16 @@ in
       });
     })
     (final: prev: {
-      # Pin coder to match the RDE server (rde.modular.com runs v2.35.7); the
+      # Pin coder to match the RDE server (rde.modular.com runs v2.37.4); the
       # CLI warns on every invocation about a client/server mismatch, in either
       # direction. nixpkgs drifts to both sides of the server — 2.28.6 when this
-      # pin was first written, 2.36.6 as of this bump — so the pin stays even
-      # when nixpkgs looks newer. Read the server's version off its
+      # pin was first written, 2.36.6 as of an earlier bump — so the pin stays
+      # even when nixpkgs looks newer. Read the server's version off its
       # `/api/v2/buildinfo` endpoint before bumping. The nixpkgs derivation just
       # fetches a prebuilt release tarball, so bumping is a version + per-system
       # hash swap (no Go/frontend rebuild).
       coder = prev.coder.overrideAttrs (old: rec {
-        version = "2.35.7";
+        version = "2.37.4";
         # Drop the terraform PATH wrapper: terraform is unfree (never cached) and
         # only wraps coder to run provisioners locally, which the client never does.
         postInstall = "";
@@ -3688,29 +3736,39 @@ in
             in
             "https://github.com/coder/coder/releases/download/v${version}/coder_${version}_${systemName}.${ext}";
           hash = {
-            x86_64-linux = "sha256-w3MnVWTWuMk9FomSPs++e1oXkaKu7eEMEpy4f+hTLJo=";
-            aarch64-linux = "sha256-ZN7mEDVmd+QYXU2Y6e1HN2Prg5MG89jpOhtzRdkPYgs=";
-            x86_64-darwin = "sha256-aoTJXBSGqJU+YAxiuosMFKfwZGjwndNG4lsqtHNIBwE=";
-            aarch64-darwin = "sha256-GeaLUwUd4xIsZ2Ry6FRud3MzvNwovumT7tkTehgy9+c=";
+            x86_64-linux = "sha256-57tsCNejf9YciosdZcYS+muE3JWiPx6HwOhEADfssSw=";
+            aarch64-linux = "sha256-ZGUSW1dCPnW/VJNVVpW6SHujC3MWEVgEveXeQRrg8XY=";
+            x86_64-darwin = "sha256-xVPJkWkpsJos1FxQxvCwJuKIx0V3jje8i2miYzOX5Sk=";
+            aarch64-darwin = "sha256-xeO1MB+OesIzXHC8l+jd1em7GjkMn3d1gXEJyQueWHA=";
           }.${prev.stdenvNoCC.hostPlatform.system};
         };
       });
     })
     (final: prev: {
-      claude-agent-acp = prev.buildNpmPackage rec {
+      claude-agent-acp = (prev.buildNpmPackage.override { nodejs = patchedNodejs_24; }) rec {
         pname = "claude-agent-acp";
-        version = "0.88.0";
+        version = "0.99.0";
         src = prev.fetchFromGitHub {
           owner = "agentclientprotocol";
           repo = "claude-agent-acp";
           rev = "v${version}";
-          hash = "sha256-xLS5aCBOwFEaQgPiRhdUWV7rQFa7H0DQ1vFYtqZRERU=";
+          hash = "sha256-O+5crPHlzBIFYobKh2J4j/I/Ej+CThSSGNJidh5TVL8=";
         };
-        npmDepsHash = "sha256-4rJRg46lpT5ts4JRQEd7FsyA6OUO5zAU41Ctnv9CjZ4=";
+        npmDepsHash = "sha256-KP/Rupaukh3HL23pTDprmh7qKYNhap8QFFjGqm9Ir0o=";
         dontNpmPrune = true;
       };
     })
-    # Newer claude-code than nixpkgs carries (2.1.303 at 5adc508), pulled in
+    # Other runtime consumers of the full Node toolchain. Override each package
+    # interface rather than nodejs_24 itself, which is also a WebKit build input.
+    (final: prev: {
+      asar = prev.asar.override { nodejs = patchedNodejs_24; };
+      pi-coding-agent = prev.pi-coding-agent.override {
+        buildNpmPackage = prev.buildNpmPackage.override { nodejs = patchedNodejs_24; };
+      };
+      signal-desktop = prev.signal-desktop.override { nodejs_24 = patchedNodejs_24; };
+      zed-editor = prev.zed-editor.override { nodejs = patchedNodejs_24; };
+    })
+    # Newer claude-code than nixpkgs carries (2.1.311 at e62746b), pulled in
     # with the node bump above. The manifest is upstream's
     # claude-code-releases/<ver>/manifest.zst.json, the same file nixpkgs'
     # update.sh vendors. Inert once nixpkgs reaches it.
@@ -4283,6 +4341,12 @@ in
           rev = "05945748dccce28bf96d26d8f64a9e69a8dd49ba";
           hash = "sha256-51R3mIt8cLNvh/X5qe9vOqeJCj0U9KRyemVE5y+OhiU=";
         };
+        # nixpkgs substitutes bash's bin/sh here, but current bash-interactive
+        # ships only bin/bash. Use the real executable and keep the full suite.
+        postPatch = ''
+          substituteInPlace include/util/command.hpp \
+            --replace-fail /bin/sh ${lib.getExe' pkgs.bashInteractive "bash"}
+        '';
         # master's binary still self-reports v0.15.0, so the nixpkgs
         # versionCheckHook (asserts --version matches `version`) fails.
         doInstallCheck = false;

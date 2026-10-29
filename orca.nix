@@ -1,4 +1,4 @@
-{ config, lib, pkgs, machine, ... }:
+{ config, lib, pkgs, machine, patchedNodejs_24, ... }:
 
 let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
@@ -25,10 +25,10 @@ let
   # the download with `nix hash to-sri --type sha512 <sha512sum>`.
   # https://github.com/stablyai/orca/releases/latest/download/latest-linux.yml
   pname = "orca";
-  version = "1.4.238";
+  version = "1.4.244";
   src = pkgs.fetchurl {
     url = "https://github.com/stablyai/orca/releases/download/v${version}/orca-linux.AppImage";
-    hash = "sha512-J1hApmTOvc91BmhiplyCNjI3UMJ99awjQgVlgpj4azkH/sHSKlfJa4c1O2MCcdJhLrxCVm/NVKT+JtghzxoEsQ==";
+    hash = "sha512-v4SCAK87NSm3EyF21zXGqrFYVrfm6oLnWwkwReokJ+Cf/Lai0LseRWa2+6I6vUrpxv4qxxaFTgnwTnJziqT7sw==";
   };
 
   # The AppImage's own tree, unsandboxed: its ELFs patched to store paths with
@@ -273,7 +273,7 @@ let
     export ORCA_NODE_OPTIONS="''${NODE_OPTIONS-}"
     export ORCA_NODE_REPL_EXTERNAL_MODULE="''${NODE_REPL_EXTERNAL_MODULE-}"
     unset NODE_OPTIONS NODE_REPL_EXTERNAL_MODULE
-    exec ${pkgs.nodejs_24}/bin/node ${appimageContents}/resources/app.asar.unpacked/out/cli/index.js "$@"
+    exec ${patchedNodejs_24}/bin/node ${appimageContents}/resources/app.asar.unpacked/out/cli/index.js "$@"
     EOF
     chmod +x $out/bin/orca-ide
     ln -s orca-ide $out/bin/orca
@@ -282,8 +282,8 @@ let
   # Orca's agent skills, from the repo at the commit this AppImage was built
   # from: `orca skills install` pins `npx skills add` to it, and the bundled
   # resources/skills/current-manifest.json holds their sha256s. Bump this rev
-  # with the version — it is the `sourceCommit` in out/main/index.js of
-  # app.asar, and the test holds it to that. A fetch in this module rather
+  # with the version — it is the `sourceCommit` embedded in app.asar, and
+  # the test holds it to that. A fetch in this module rather
   # than a flake input, because the rev tracks `version` above, not the
   # repo's head; `nix flake update` does not touch it. The rev is in the
   # store name so a rev bump without a hash bump fails to fetch instead of
@@ -298,8 +298,8 @@ let
     name = "orca-skills-${rev}";
     owner = "stablyai";
     repo = "orca";
-    rev = "e6f7fba58e8e47b45e4343f99101b3ca9e05a5da";
-    hash = "sha256-iBlQxYs2GkXEyzywKiLtNChY5gSQMt72B21HC0dN0TI=";
+    rev = "b8ec5c8d170bcb9988e65de547a3a4e98b2885a9";
+    hash = "sha256-Ur0xTWmQ+kTqwfYVW0wfAFt2X95cV8vYk89v0fPl7Nk=";
   };
   orcaSkills = [
     "orca-cli" "orchestration" "computer-use" "orca-per-workspace-env"
@@ -349,7 +349,7 @@ let
       # bind, bindl, binde, ...: the lists. `binds` is a config section, a set.
       (builtins.filter (k: lib.hasPrefix "bind" k && builtins.isList s.${k}) (builtins.attrNames s));
   macKeybindings = pkgs.runCommand "orca-mac-keybindings" {
-    nativeBuildInputs = [ pkgs.nodejs pkgs.asar pkgs.makeWrapper pkgs.jq ];
+    nativeBuildInputs = [ patchedNodejs_24 pkgs.asar pkgs.makeWrapper pkgs.jq ];
   } ''
     asar extract ${appimageContents}/resources/app.asar app
     mkdir -p $out/share $out/bin
@@ -362,7 +362,7 @@ let
     mkdir -p $out/lib/shared
     cp -r app/out/shared/keybindings.js app/out/shared/keybindings \
       app/out/shared/tui-agent-display-names.js $out/lib/shared/
-    makeWrapper ${pkgs.nodejs}/bin/node $out/bin/orca-mac-keybindings \
+    makeWrapper ${patchedNodejs_24}/bin/node $out/bin/orca-mac-keybindings \
       --add-flags "${./nix/orca-mac-keybindings-merge.js} $out/lib/shared $out/share/orca-mac-keybindings.json"
     # One real merge, so an Orca bump that moves an import or an export the
     # merge uses fails here, not as a warning at every activation. The seed

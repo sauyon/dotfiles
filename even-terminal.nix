@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ lib, patchedNodejs_24, ... }:
 
 # Even Terminal (binary `even-terminal`) — Even Realities' bridge between a
 # terminal coding agent and their G2 glasses: it runs a local HTTP server, spawns
@@ -37,7 +37,7 @@ in
 {
   nixpkgs.overlays = [
     (final: prev: {
-      even-terminal = prev.buildNpmPackage {
+      even-terminal = (prev.buildNpmPackage.override { nodejs = patchedNodejs_24; }) {
         pname = "even-terminal";
         inherit version;
 

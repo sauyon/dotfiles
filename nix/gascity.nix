@@ -2,8 +2,8 @@
 #
 # Gas Town's last release (v1.2.1, Jun 2026) predates beads 1.3, and a fresh
 # `gt install` on bd 1.3.x deadlocks on bd's dirty-table migration guard
-# (gastownhall/beads#6089). Gas City is where the work moved: its v1.5.0
-# deps.env pins bd v1.3.1 and wants dolt >= 2.1.0.
+# (gastownhall/beads#6089). Gas City is where the work moved: its v1.5.1
+# deps.env pins bd v1.3.2 and wants dolt >= 2.2.0.
 #
 # Built from source to carry ../patches/gascity-runtime-dir.patch, which adds
 # GC_RUNTIME_DIR. Upstream couples the runtime dir to GC_HOME: any GC_HOME off
@@ -15,20 +15,20 @@
 # interactive zsh `gc` stays git commit and Gas City is typed as `gascity`.
 # The binary must still be on PATH as `gc`: Gas City calls itself by that name
 # in the hooks and prompts it hands agents (`gc prime`, `gc hook`, `gc mail`,
-# ~89 files at v1.5.0) and in a few exec("gc") calls. Hooks run under sh, where
+# ~89 files at v1.5.1) and in a few exec("gc") calls. Hooks run under sh, where
 # the alias does not apply, so they reach the real binary.
 { pkgs }:
 
 pkgs.buildGoModule rec {
   pname = "gascity";
-  version = "1.5.0";
-  commit = "f66474617d2bb7fbe51a3d746da5f3ceab2b8517";
+  version = "1.5.1";
+  commit = "4f698fe2a7eefae49e545c5e38189f1b63fb9b39";
 
   src = pkgs.fetchFromGitHub {
     owner = "gastownhall";
     repo = "gascity";
     rev = "v${version}";
-    hash = "sha256-le/Cit409xz8VaNwB+MlloxTv7slHGXKEhP3cXbeExw=";
+    hash = "sha256-ZvMkHGt6qG2CME1a+cE/lltB9tfG0nsKXpyExgYuiM4=";
   };
 
   patches = [
@@ -41,7 +41,7 @@ pkgs.buildGoModule rec {
     ../patches/gascity-no-usage-metrics.patch
   ];
 
-  vendorHash = "sha256-+9G0t52oA+nj8uDCoryUwWQioFgx/m2QvJcwYzmNFUs=";
+  vendorHash = "sha256-m5hgZE7DLwdpDSgt91A1PgJnRopzBXndppNT5hDywdo=";
 
   subPackages = [ "cmd/gc" ];
 

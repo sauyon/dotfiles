@@ -52,10 +52,11 @@ lib32-vulkan-icd-loader
 thermald
 
 # WireGuard tooling for the UCG's "Kon WireGuard" overlay: this host reaches
-# utsuho (10.9.0.6, the waypipe pair -- dotfiles-private/waypipe.nix) over WG
-# because utsuho's
+# utsuho over WG (the waypipe pair -- dotfiles-private/waypipe.nix, which also
+# carries the overlay addresses) because utsuho's
 # tailscaled is on the work tailnet and the two tailnets never meet. The
-# client itself is the NetworkManager connection "Kon-shiori" (10.9.0.2),
+# client itself is the NetworkManager connection "Kon-shiori" (its overlay
+# address and routes are in kon-wireguard/Kon-shiori.nmconnection),
 # created by hand in nm-connection-editor -- not wg-quick, so ./deploy's
 # wg-quick step never fires here; this package is what provides `wg show`,
 # the only quick way to tell a live tunnel from one that never handshook

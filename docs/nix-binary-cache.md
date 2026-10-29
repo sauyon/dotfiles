@@ -19,7 +19,7 @@ cache, not a particular hostname. Build/server side lives in the `kube` repo
   the **daemon**, i.e. live under `/etc`, not in home-manager. That is why this
   is wired through `system/deploy` (sudo → `/etc`) rather than `home.nix`.
 - **`trusted-users` is `root sauyon`**, as of the `extra-trusted-users` line in
-  `system/etc/nix/nix.custom.conf`. That does *not* move any of the above into
+  `system/nix-conf/nix.custom.conf`. That does *not* move any of the above into
   home-manager, for two reasons: the grant itself is a restricted setting, so it
   can only be made from `/etc` (a non-trusted user cannot vote itself trusted),
   and the daemon is what fetches from the cache, so the token has to be readable
@@ -41,10 +41,13 @@ through Cloudflare is what produced the 307 / 601 s stream-error class, and the
 fix is to keep Cloudflare out of the path. CI likewise avoids it
 (`.forgejo/workflows/nix-home.yml`); the boxes are now consistent.
 
-1. `system/etc/nix/nix.custom.conf` → `/etc/nix/nix.custom.conf`
+1. `system/nix-conf/nix.custom.conf` → `/etc/nix/nix.custom.conf`
    Determinate `!include`s this from `/etc/nix/nix.conf`. Adds the in-cluster
-   substituter and trusted key with the **`extra-`** forms (append, don't replace
-   — keeps `cache.nixos.org` and FlakeHub).
+   substituter and trusted key with the **`extra-`** forms (append, don't
+   replace — keeps `cache.nixos.org` and FlakeHub). The `builders` line is an
+   `@NIX_BUILDERS@` placeholder spliced from dotfiles-private by
+   `system/nix-conf.sh` at install (its address and host-key pin are
+   topology; see dotfiles-private/docs/darwin-remote-builder.md).
 
 2. `system/etc/determinate/config.json` → `/etc/determinate/config.json`
    ```json

@@ -112,8 +112,8 @@
       gpu = "amd";
       # `orca serve` host (orca.nix): the nix-built CLI and the serve runtime,
       # no desktop app. Pairing is advertised on the LAN address
-      # (10.0.7.100, private.endpoints.adminHost) for phone clients that are
-      # not on the tailnet — orca.nix's pairingAddress.
+      # (dotfiles-private: endpoints.serveHosts.fujiwara) for phone clients
+      # that are not on the tailnet — orca.nix's pairingAddress.
       orca-serve = true;
     };
     homeConfigurations.chiyari = linuxHome {
@@ -156,14 +156,16 @@
           sops.templates."attic-netrc".content = "machine attic.attic.svc.cluster.local password ${config.sops.placeholder.atticPullToken}";
           nix.settings.netrc-file = config.sops.templates."attic-netrc".path;
 
-          # Remote builder: Linux boxes delegate aarch64-darwin builds here over
-          # Tailscale. The gate's ForceCommand would hijack the non-interactive
-          # `nix-store --serve` path if it shared the human `sauyon` login, so the
-          # builder connects as the dedicated `nixremote` user, carved out by the
-          # ssh-oidc-gate Match block below. Both users must be nix trusted-users.
-          # DEPLOY: update the Linux boxes' nix.custom.conf `builders` line from
-          #   ssh-ng://sauyon@100.106.204.103 ...   to   ssh-ng://nixremote@100.106.204.103 ...
-          # and ensure the builder pubkey is in /run/secrets/ssh-oidc-builder-key.pub here.
+          # Remote builder: Linux boxes delegate aarch64-darwin builds here.
+          # The gate's ForceCommand would hijack the non-interactive
+          # `nix-store --serve` path if it shared the human `sauyon` login, so
+          # the builder connects as the dedicated `nixremote` user, carved out
+          # by the ssh-oidc-gate Match block below. Both users must be nix
+          # trusted-users. The builders line itself -- address, user, host-key
+          # pin -- lives in dotfiles-private (endpoints.nix: nixBuildersLine)
+          # and is spliced by system/deploy; the topology is documented in
+          # dotfiles-private/docs/darwin-remote-builder.md. Ensure the
+          # builder pubkey is in /run/secrets/ssh-oidc-builder-key.pub here.
           nix.settings.trusted-users = [ "sauyon" "nixremote" ];
           system.stateVersion = 6;
           nixpkgs.hostPlatform = "aarch64-darwin";

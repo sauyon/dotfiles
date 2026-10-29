@@ -338,9 +338,21 @@ if [ ! -r "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
   exit 1
 fi
 
-# Plain upstream nix only reads /etc/nix/nix.conf; pull in nix.custom.conf so the
-# substituter + trusted key take effect. Idempotent, and a no-op on Determinate
-# (whose own nix.conf already includes it, so the grep matches and we skip).
+# nix.custom.conf is spliced, not plain-copied: its builders line is an
+# @NIX_BUILDERS@ placeholder whose value comes from dotfiles-private via
+# ~/.config/kon/nix-builders (hms materializes it), so it moved out of etc/
+# -- the copy loop there would have installed the raw placeholder. The
+# `!include` below is what makes the daemon read the file at all; it is
+# idempotent and a no-op on Determinate (whose own nix.conf already
+# includes it).
+. ./nix-conf.sh
+if install_nix_conf nix-conf/nix.custom.conf /etc/nix/nix.custom.conf \
+     "$HOME/.config/kon/nix-builders"; then
+  :
+else
+  echo "system/deploy: nix.custom.conf not installed; continuing." >&2
+fi
+
 if ! sudo grep -qF 'nix.custom.conf' /etc/nix/nix.conf 2>/dev/null; then
   echo '!include nix.custom.conf' | sudo tee -a /etc/nix/nix.conf >/dev/null
 fi
@@ -349,9 +361,10 @@ install_secret ../secrets.yaml atticPullToken /etc/determinate/netrc.custom 'mac
 install_secret ../secrets.yaml atticPullToken /etc/nix/netrc 'machine attic.attic.svc.cluster.local password '
 
 # ── remote builder: SSH key the nix daemon uses to reach mari ─────────────────
-# nix.custom.conf delegates aarch64-darwin builds to sauyon@mari-1 over Tailscale;
-# the daemon (root) authenticates with this key. Private key is sops-encrypted in
-# ../secrets.yaml; install root-owned, 0600. Never printed.
+# nix.custom.conf delegates aarch64-darwin builds to the darwin box; the
+# builder line's address and host-key pin come from dotfiles-private (spliced
+# above). The daemon (root) authenticates with this key. Private key is
+# sops-encrypted in ../secrets.yaml; install root-owned, 0600. Never printed.
 install_secret ../secrets.yaml mariBuilderKey /etc/nix/mari-builder-key
 
 # Pick up the new substituter, trusted key, netrc, and builder.

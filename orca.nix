@@ -1,18 +1,21 @@
-{ config, lib, pkgs, machine, patchedNodejs_24, ... }:
+{ config, lib, pkgs, machine, patchedNodejs_24, dotfiles-private, ... }:
 
 let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
   isServeHost = !isDarwin && (machine.orca-serve or false);
-  # The address Orca advertises to pairing clients: fujiwara's LAN address,
-  # the same one drovr's serve_host uses on this box (home.nix) — the phone
-  # client is not on the tailnet, and fujiwara.ko.ag resolves publicly to
-  # this IP. orcad itself binds 0.0.0.0, so the LAN can already attempt
-  # pairing; unlike drovr, pairing needs the code and every grant is
-  # revocable, which is the exposure drovr's no-auth note there accepts and
-  # this has more defense against. A tailnet-only advertisement
-  # (`100.94.172.21`) is the stricter posture if every client is on the
-  # overlay.
-  pairingAddress = "10.0.7.100";
+  # The address Orca advertises to pairing clients: the LAN address drovr's
+  # serve_host uses on this box (home.nix) — the phone client is not on the
+  # tailnet, and the address is topology this public repo does not carry, so
+  # it reads from dotfiles-private (endpoints.nix: serveHosts.fujiwara, the
+  # same value home.nix's drovr block emits; imported here directly because
+  # a home-manager module gets no `private.*` from home.nix's let, the same
+  # trade flake.nix's darwin config makes for wifAudience). orcad itself
+  # binds 0.0.0.0, so the LAN can already attempt pairing; unlike drovr,
+  # pairing needs the code and every grant is revocable, which is the
+  # exposure drovr's no-auth note there accepts and this has more defense
+  # against. A tailnet-only advertisement is the stricter posture if every
+  # client is on the overlay.
+  pairingAddress = (import "${dotfiles-private}/endpoints.nix").serveHosts.fujiwara;
 
   isDesktop = machine.gui or true;
 

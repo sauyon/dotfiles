@@ -130,8 +130,9 @@ kubectl -n bootstrap create secret generic sops-gcp-key \
    intentionally empty in this repo, and a host that does not need the work
    hop (most non-workstation hosts) can stay logged out — `system/deploy`
    still leaves tailscaled running but inactive, which is the intended
-   posture for `shiori`. **mari is not reached over Tailscale** — see
-   `docs/darwin-remote-builder.md`;
+   posture for `shiori`. **mari is not reached over Tailscale** — the builder
+   topology is documented in the private companion repo
+   (`dotfiles-private/docs/darwin-remote-builder.md`), not here;
 5. on exit, however it exits: runs `install/finalize-ssh.sh` (disables sshd
    unless a working ssh-oidc gate is installed), then removes the
    `99-bootstrap` sudoers drop-in from step 3.

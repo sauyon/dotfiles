@@ -72,7 +72,7 @@ cluster network — LAN, or WireGuard (`kon-wireguard`, installed by
 `system/deploy:213` for shiori; the other Linux boxes carry the same tunnel
 out-of-band). The substituter URL itself was switched from
 `https://attic.ko.ag/kube` to `http://attic.attic.svc.cluster.local/kube` in
-`system/etc/nix/nix.custom.conf`; `flake.nix` carries the same change for
+`system/nix-conf/nix.custom.conf`; `flake.nix` carries the same change for
 `mari`. Wires through `system/deploy` are documented in `docs/nix-binary-cache.md`.
 
 The change is the box-side twin of what CI did first: substituting through

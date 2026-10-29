@@ -60,8 +60,9 @@ address1=10.9.0.2/32
 # whenever the tunnel is not carrying traffic every uncached lookup on the host
 # waits 6s per tunnel resolver before falling through -- 8-17s measured, enough
 # to stall every new shell behind gcloud's metadata probe. It was kept for the
-# fleet names, but those resolve publicly now (fujiwara.ko.ag and kanon.ko.ag
-# from 1.1.1.1, measured 2026-10-13), so the search domain alone is enough.
+# fleet names, but those resolve publicly now (measured from 1.1.1.1 on
+# 2026-10-13; the names themselves are in dotfiles-private), so the search
+# domain alone is enough.
 dns-search=ko.ag;
 never-default=true
 route1=10.9.0.0/24

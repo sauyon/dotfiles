@@ -228,6 +228,12 @@ let
   # the same surface sops.environment uses, minus the credential.
   konWgEndpoint = private.endpoints.konWgEndpoint;
 
+  # The nix remote-builder line, materialized from dotfiles-private for
+  # system/deploy to splice into /etc/nix/nix.custom.conf -- the daemon
+  # reads that file at boot, before any home-manager generation exists.
+  # See ~/.config/kon/nix-builders below.
+  nixBuildersLine = private.endpoints.nixBuildersLine;
+
   # Emacs is NOT part of the desktop stack: it runs headless as a daemon and is
   # reached over tty/SSH with `emacsclient -t` (zsh.nix's non_gui branch already
   # assumes exactly that). Only the graphical *frame* needs a GUI, so pick the
@@ -2809,6 +2815,15 @@ in
     text = konWgEndpoint + "\n";
   };
 
+  # The private half of the nix remote-builder line, same file-shape as the
+  # WG endpoint above: system/deploy splices it into /etc/nix/nix.custom.conf
+  # at @NIX_BUILDERS@, because the daemon reads that file at boot, before any
+  # hms generation exists to eval a flake against. Every Arch host deploy
+  # runs on, so no mkIf -- darwin never runs system/deploy.
+  xdg.configFile."kon/nix-builders" = {
+    text = nixBuildersLine + "\n";
+  };
+
   # ── p10k ───────────────────────────────────────────────────────────────────
   xdg.configFile."zsh/.p10k.zsh".source = ./home/p10k.zsh;
 
@@ -2894,15 +2909,16 @@ in
   #
   # fujiwara is on the LAN address as of 2026-10-12, by explicit instruction, to
   # keep the tailnet IP out of the URL. What that accepts, stated once so it is
-  # not rediscovered: the panel answers unauthenticated to all of 10.0.7.0/16,
-  # and to every pod in the cluster, which routes to the node address. A
-  # source-IP allowlist cannot narrow that -- cilium masquerades pod traffic to
-  # the node address, so a pod on meiko arrives as that node's own address,
-  # inside any sane "my LAN" range. An earlier nftables allowlist did work and
-  # was still deleted (`0cce01d`) for exactly this reason.
+  # not rediscovered: the panel answers unauthenticated to its whole segment
+  # (dotfiles-private names the range), and to every pod in the cluster, which
+  # routes to the node address. A source-IP allowlist cannot narrow that --
+  # cilium masquerades pod traffic to the node address, so a pod on meiko
+  # arrives as that node's own address, inside any sane "my LAN" range. An
+  # earlier nftables allowlist did work and was still deleted (`0cce01d`) for
+  # exactly this reason.
   #
-  # The bind that needs no trust in the network is `serve_host = "127.0.0.1"`
-  # reached over `ssh -L 8791:localhost:8791`. For a device that can run neither
+  # The bind that needs no trust in the network is loopback reached over
+  # `ssh -L 8791:localhost:8791`. For a device that can run neither
   # that nor Tailscale, the answer is drovr's `serve_public_host` behind a proxy
   # that authenticates -- never a wider bind and another allowlist.
   # worktree: per host. Where Orca is installed (GUI Linux, orca.nix) it is
@@ -2939,15 +2955,14 @@ in
       #
       review_agent = "pi"
       worktree = ${lib.boolToString (!hasOrca)}
-    '' + lib.optionalString (hostname == "fujiwara") ''
-      # The LAN address, not the tailnet one and not 0.0.0.0. This server has no
-      # auth, so it is reachable unauthenticated from the whole LAN and from
-      # every pod on this node's address; see the block above home.nix emits
-      # this from. `serve_host = "100.94.172.21"` restores the tailnet-only bind.
-      serve_host = "10.0.7.100"
-    '' + lib.optionalString (hostname == "utsuho") ''
-      # wg0, not the tailnet: still one interface whose peers authenticate by key.
-      serve_host = "10.9.0.6"
+    '' + lib.optionalString (hostname == "fujiwara" || hostname == "utsuho") ''
+      # The bind address is a decision, not a detail: this server has no
+      # auth, so whatever can reach it reads every run (the full reasoning is
+      # the drovr block above home.nix emits this from). Which interface each
+      # host binds is topology, so the value comes from dotfiles-private
+      # (endpoints.serveHosts); the tailnet-only bind it names in its own
+      # comment is the stricter posture.
+      serve_host = ${private.endpoints.serveHosts.${hostname}}
     '' + ''
       # Reviews run on gemma, pinned explicitly rather than left to pi's own
       # default so this file says which model reviewed. LAST in the file because
@@ -4958,14 +4973,16 @@ in
           Port = 59049;
         };
         # kanon over the UCG's "Kon WireGuard" overlay, not Tailscale: shiori's
-        # tailscaled is logged out, and kanon is reachable at its LAN address
-        # from any WG client once 10.0.10.0/24 is in the tunnel's routes (kube
-        # repo docs/network-ip-map.md, "A plain WG client needs the home DHCP
-        # pool, not a /32"). Literal IP rather than the bare name so the alias
-        # does not also depend on the overlay's resolver winning in resolv.conf.
-        "kanon" = {
+        # tailscaled is logged out, and kanon is reachable from any WG client
+        # once 10.0.10.0/24 is in the tunnel's routes (kube repo
+        # docs/network-ip-map.md, "A plain WG client needs the home DHCP pool,
+        # not a /32"). The HostName is a literal IP rather than the bare name
+        # so the alias does not also depend on the overlay's resolver winning
+        # in resolv.conf -- and the address itself is topology, so it lives in
+        # dotfiles-private (endpoints.sshKanon), same as the cluster block
+        # below it.
+        "kanon" = private.endpoints.sshKanon // {
           User = "root";
-          HostName = "10.0.10.47";
           Port = 59048;
         };
         "yui mio meiko setsuna ritsu mugi azusa" = private.endpoints.clusterSsh // {
@@ -4979,8 +4996,11 @@ in
           HostName = "52.38.68.189";
           User = "ubuntu";
         };
-        "tf" = {
-          HostName = "kanon.ko.ag";
+        # tf reaches the home server by its public FQDN, which is itself the
+        # query string -- the name to resolve is the one thing this public
+        # repo must not hand out, so it lives in dotfiles-private
+        # (endpoints.kanonFqdn) with the rest of the map.
+        "tf" = private.endpoints.kanonFqdn // {
           Port = 59048;
           ForwardAgent = true;
           RemoteForward = [

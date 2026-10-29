@@ -220,6 +220,13 @@ let
     useTpm = useWifTpm;
     audience = wifAudience;
   };
+  # The Kon WireGuard home endpoint, materialized from dotfiles-private so
+  # system/deploy can splice it into shiori's NetworkManager profile without
+  # the public repo naming it: the DNS name carries the home WAN address, and
+  # the repo is public. A file rather than an env var because deploy runs as a
+  # plain shell script with nothing but the flake and $HOME to read from --
+  # the same surface sops.environment uses, minus the credential.
+  konWgEndpoint = private.endpoints.konWgEndpoint;
 
   # Emacs is NOT part of the desktop stack: it runs headless as a daemon and is
   # reached over tty/SSH with `emacsclient -t` (zsh.nix's non_gui branch already
@@ -2791,6 +2798,15 @@ in
       threshold memory some avg10 15.00
       threshold memory full avg10 5.00
     '';
+  };
+
+  # The private half of the Kon WireGuard endpoint: home.nix's let holds why
+  # this is a file at all (deploy cannot read a nix attrset at runtime). One
+  # line, host:port, no trailing newline games -- `read` strips it anyway.
+  # shiori-only: only its NetworkManager profile has the @WG_ENDPOINT@
+  # placeholder for deploy to fill.
+  xdg.configFile."kon/wg-endpoint" = lib.mkIf (hostname == "shiori") {
+    text = konWgEndpoint + "\n";
   };
 
   # ── p10k ───────────────────────────────────────────────────────────────────

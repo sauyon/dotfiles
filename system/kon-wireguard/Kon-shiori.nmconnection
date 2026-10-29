@@ -3,14 +3,18 @@
 # -- that copy preserves this repo's 644, and NetworkManager ignores a keyfile
 # carrying secrets unless it is 600 and root-owned.
 #
-# Two values are absent on purpose and spliced in at install time from whatever
-# profile is already on the device:
+# Three values are absent on purpose and spliced in at install time: two read
+# back off whatever profile is already on the device, one from a file
+# ~/.config/kon/wg-endpoint (see the endpoint comment below).
 #
 #   private-key               this device's, under [wireguard]
 #   the [wireguard-peer.*] id the home server's public key
+#   endpoint                   the home server's address, @WG_ENDPOINT@
 #
-# Neither belongs in a public repo, and the private key is per-device, so there
-# is nothing to share between hosts anyway.
+# None belongs in a public repo. The private key is per-device, so there is
+# nothing to share between hosts anyway; the peer key and the endpoint name
+# the home server, and the endpoint's name resolves to a residential WAN
+# address -- publishing it would publish that.
 #
 # The shape here is the split tunnel, and it is load-bearing: allowed-ips is
 # 0.0.0.0/0 so the peer may *carry* anything, while ip4-auto-default-route=false
@@ -31,11 +35,18 @@ ip6-auto-default-route=false
 
 [wireguard-peer.@PEER_PUBKEY@]
 allowed-ips=0.0.0.0/0;::/0;
-# A name, not the literal WAN address: the home line is a dynamic residential
-# lease, and NetworkManager re-resolves this on activation. The old profile
-# pinned the IP, so an IP change would have presented exactly as the outage this
-# file is a response to.
-endpoint=kanon.ko.ag:51820
+# A name, not a literal address, and the name is not this file's to name: it
+# carries the home WAN address in public DNS, and this repo is public. The
+# value is spliced in at install time by install_wg_profile, from
+# ~/.config/kon/wg-endpoint (home.nix materializes it from dotfiles-private),
+# alongside the two values this profile already reads back off the device.
+#
+# Why a spliced name rather than the address: the home line is a dynamic
+# residential lease and NetworkManager re-resolves this on every activation,
+# so an address change heals on the next rebind. The old profile pinned the
+# IP, so a lease change presented exactly as the outage this file responds to
+# -- an activated tunnel with zero handshakes ever.
+endpoint=@WG_ENDPOINT@
 # The old profile had no keepalive, so the NAT mapping the home server held for
 # this peer aged out with nothing to re-punch it. 25s is the usual floor for
 # surviving a consumer NAT.

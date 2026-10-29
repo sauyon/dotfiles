@@ -216,7 +216,11 @@ find etc/ -type f | while read -r f; do sudo cp -v "${f}" "/${f}"; done
 #
 # install_wg_profile writes it 600 root:root and carries the two per-device
 # values (this device's private key, the home server's public key) over from
-# whatever is already installed, so neither has to live in this repo.
+# whatever is already installed, and splices the endpoint from
+# ~/.config/kon/wg-endpoint (hms materializes it from dotfiles-private), so
+# none of the three has to live in this repo -- the endpoint's name carries
+# the home WAN address in public DNS, which this public repo must not
+# publish.
 #
 # Reload, but do not bring the tunnel up: this deploy may well be running over
 # it, and `con up` on an active WireGuard profile drops the session for as long
@@ -227,7 +231,8 @@ shiori)
   # shellcheck source=./network.sh
   . ./network.sh
   if install_wg_profile kon-wireguard/Kon-shiori.nmconnection \
-       /etc/NetworkManager/system-connections/Kon-shiori.nmconnection; then
+       /etc/NetworkManager/system-connections/Kon-shiori.nmconnection \
+       "$HOME/.config/kon/wg-endpoint"; then
     sudo nmcli connection reload
     echo "system/deploy: Kon WireGuard profile installed; it takes effect on the profile's next activation."
   else

@@ -103,10 +103,24 @@ else
   report "template carries no private key" ok
 fi
 
-# The home WAN address. The endpoint belongs in the template as a name, not as
-# the literal IP: the name is already public in DNS, and it survives the IP
-# changing under a dynamic residential lease -- which is exactly the failure
-# this profile is being declared to survive.
+# The endpoint is not the template's to name at all: its DNS name carries the
+# home WAN address, and this repo is public. The value arrives from a file at
+# install time (see install_wg_profile), so the committed template must carry
+# the placeholder and no literal. A bare IPv4 is refused for the same reason
+# the name is: a dynamic residential lease is exactly what the spliced name
+# survives and a committed address does not.
+if [ -f "$TEMPLATE" ] && grep -q '^endpoint=@WG_ENDPOINT@$' "$TEMPLATE"; then
+  report "template's endpoint is the @WG_ENDPOINT@ placeholder" ok
+else
+  report "template's endpoint is the @WG_ENDPOINT@ placeholder" no "endpoint is not a splice placeholder"
+fi
+
+if [ -f "$TEMPLATE" ] && grep -qE '^endpoint=[^@]' "$TEMPLATE"; then
+  report "template carries no literal endpoint" no "an endpoint value is committed"
+else
+  report "template carries no literal endpoint" ok
+fi
+
 if [ -f "$TEMPLATE" ] && grep -qE 'endpoint=[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:' "$TEMPLATE"; then
   report "endpoint is a name, not a literal IP" no "a bare IPv4 endpoint is committed"
 else
@@ -137,11 +151,15 @@ else
   report "template sets the ko.ag search domain" no "dns-search is not ko.ag"
 fi
 
+
+FAKE_ENDPOINT="wg.example.test:51820"
+echo "$FAKE_ENDPOINT" > "$D/wg-endpoint"
+
 # ── install_wg_profile: splice the per-device values, never invent them ─────
 
 dest="$D/live.nmconnection"
 stage_live "$dest" "$FAKE_PRIV" "$FAKE_PEER"
-out=$(install_wg_profile "$TEMPLATE" "$dest" 2>&1); rc=$?
+out=$(install_wg_profile "$TEMPLATE" "$dest" "$D/wg-endpoint" 2>&1); rc=$?
 
 if [ "$rc" -eq 0 ]; then
   report "install over a live profile succeeds" ok
@@ -167,10 +185,16 @@ else
   report "the installed profile gains the keepalive" no "keepalive did not reach the destination"
 fi
 
-if grep -q '^endpoint=kanon.ko.ag:51820' "$dest"; then
-  report "the installed profile takes the template endpoint" ok
+if grep -q "^endpoint=$FAKE_ENDPOINT" "$dest"; then
+  report "the installed profile takes the endpoint file's value" ok
 else
-  report "the installed profile takes the template endpoint" no "endpoint was not replaced"
+  report "the installed profile takes the endpoint file's value" no "endpoint was not spliced from the file"
+fi
+
+if grep -q '@WG_ENDPOINT@\|@PEER_PUBKEY@' "$dest"; then
+  report "no placeholder survives the install" no "a @...@ placeholder reached the destination"
+else
+  report "no placeholder survives the install" ok
 fi
 
 mode=$(stat -c '%a' "$dest")
@@ -203,7 +227,7 @@ id=Kon-shiori
 type=wireguard
 NOKEY
 before=$(cat "$dest2")
-install_wg_profile "$TEMPLATE" "$dest2" >/dev/null 2>&1; rc2=$?
+install_wg_profile "$TEMPLATE" "$dest2" "$D/wg-endpoint" >/dev/null 2>&1; rc2=$?
 
 if [ "$rc2" -ne 0 ]; then
   report "a destination with no private key is refused" ok
@@ -218,7 +242,7 @@ else
 fi
 
 dest3="$D/absent.nmconnection"
-out3=$(install_wg_profile "$TEMPLATE" "$dest3" 2>&1); rc3=$?
+out3=$(install_wg_profile "$TEMPLATE" "$dest3" "$D/wg-endpoint" 2>&1); rc3=$?
 if [ "$rc3" -ne 0 ] && [ ! -e "$dest3" ]; then
   report "an absent destination is refused without creating a stub" ok
 else
@@ -229,6 +253,33 @@ if printf '%s' "$out3" | grep -q 'wg genkey\|private key'; then
   report "the refusal says how to seed the key" ok
 else
   report "the refusal says how to seed the key" no "the error does not tell the operator what to do"
+fi
+
+# ── the endpoint file is load-bearing: absent or empty is refused ────────────
+
+dest4="$D/noendpoint.nmconnection"
+stage_live "$dest4" "$FAKE_PRIV" "$FAKE_PEER"
+before=$(cat "$dest4")
+install_wg_profile "$TEMPLATE" "$dest4" "$D/absent-endpoint" >/dev/null 2>&1; rc4=$?
+
+if [ "$rc4" -ne 0 ]; then
+  report "a missing endpoint file is refused" ok
+else
+  report "a missing endpoint file is refused" no "exit 0; endpoint spliced from nothing"
+fi
+
+if [ "$(cat "$dest4")" = "$before" ]; then
+  report "the refused endpoint destination is untouched" ok
+else
+  report "the refused endpoint destination is untouched" no "the existing profile was modified or truncated"
+fi
+
+: > "$D/empty-endpoint"
+install_wg_profile "$TEMPLATE" "$dest4" "$D/empty-endpoint" >/dev/null 2>&1; rc5=$?
+if [ "$rc5" -ne 0 ]; then
+  report "an empty endpoint file is refused" ok
+else
+  report "an empty endpoint file is refused" no "exit 0; an empty endpoint was spliced"
 fi
 
 # ── the dispatcher hook must not bounce the tunnel it is watching ───────────

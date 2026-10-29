@@ -9,23 +9,24 @@
 # me", which the :- form would quietly turn back into sudo.
 
 # Install a WireGuard keyfile, carrying the per-device values over from whatever
-# is already installed.
+# is already installed, plus the endpoint from a file.
 #
-# The repo owns every field except two, and neither is committable: this
-# device's private key, and the home server's public key (which is the
-# [wireguard-peer.*] section's name). Both are read back out of $dest and
-# spliced into the rendered template.
+# The repo owns every field except three, and none is committable: this
+# device's private key and the home server's public key (which is the
+# [wireguard-peer.*] section's name) are read back out of $dest; the endpoint
+# is <endpoint-file>, a one-line host:port maintained in dotfiles-private,
+# because its DNS name carries the home WAN address and this repo is public.
 #
-# A destination with neither is an error, not something to paper over with an
-# empty key. NetworkManager would accept the resulting profile and bring up a
-# device that can never complete a handshake -- provisioned-looking and dead,
+# A destination with no key is an error, not something to paper over with an
+# empty value. NetworkManager would accept the resulting profile and bring up
+# a device that can never complete a handshake -- provisioned-looking and dead,
 # which is the failure mode ../tests/system-secrets.sh case 2 is also about.
 #
 # The key never reaches another process: the splice is pure bash, and the write
 # goes through a `printf` builtin into install's stdin, so it appears in no
 # argv and no environment. See CLAUDE.md on secret handling.
-install_wg_profile() { # install_wg_profile <template> <dest>
-  local template=$1 dest=$2
+install_wg_profile() { # install_wg_profile <template> <dest> <endpoint-file>
+  local template=$1 dest=$2 endpoint_file=$3
 
   if [ ! -r "$template" ]; then
     echo "install_wg_profile: no readable template at $template" >&2
@@ -35,9 +36,18 @@ install_wg_profile() { # install_wg_profile <template> <dest>
   # $dest is 600 root-owned in production, hence SUDO. Failure to read it is
   # indistinguishable here from "it has no key", and both land in the error
   # below, which is the right outcome either way.
-  local priv peer
+  local priv peer endpoint
   priv=$(${SUDO-sudo} sed -n 's/^private-key=\(..*\)$/\1/p' "$dest" 2>/dev/null | head -n1)
   peer=$(${SUDO-sudo} sed -n 's/^\[wireguard-peer\.\(..*\)\]$/\1/p' "$dest" 2>/dev/null | head -n1)
+
+  # First line of the endpoint file, nothing else: an operator's stray second
+  # line must not silently become part of the value.
+  if [ ! -r "$endpoint_file" ]; then
+    echo "install_wg_profile: no readable endpoint file at $endpoint_file" >&2
+    echo "install_wg_profile: hms writes it from dotfiles-private; run 'hms' first, then re-run deploy." >&2
+    return 1
+  fi
+  IFS= read -r endpoint < "$endpoint_file" || [ -n "$endpoint" ]
 
   if [ -z "$priv" ] || [ -z "$peer" ]; then
     cat >&2 <<MSG
@@ -63,6 +73,11 @@ MSG
     return 1
   fi
 
+  if [ -z "$endpoint" ]; then
+    echo "install_wg_profile: $endpoint_file is empty -- refusing to splice an empty endpoint" >&2
+    return 1
+  fi
+
   # Render fully before touching $dest. The ordering is the lesson from
   # ../tests/system-secrets.sh case 2: a producer that fails inside a pipeline
   # has already let `install` create and truncate the destination, so a failed
@@ -76,10 +91,13 @@ MSG
       rendered+="private-key=$priv"$'\n'
     fi
   done < "$template"
+  rendered=${rendered//@WG_ENDPOINT@/$endpoint}
 
   # Belt and braces: if the template ever loses its [wireguard] header or its
   # peer placeholder, the splice silently no-ops and we would install a profile
-  # with no key. Refuse instead.
+  # with no key. Refuse instead. The endpoint check is the same shape: an
+  # unsubstituted @WG_ENDPOINT@ would install a profile that cannot even
+  # resolve its peer.
   case $rendered in
     *"private-key=$priv"*) ;;
     *) echo "install_wg_profile: $template has no [wireguard] section; refusing to install" >&2
@@ -88,6 +106,10 @@ MSG
   case $rendered in
     *"[wireguard-peer.$peer]"*) ;;
     *) echo "install_wg_profile: $template has no @PEER_PUBKEY@ placeholder; refusing to install" >&2
+       return 1 ;;
+  esac
+  case $rendered in
+    *@WG_ENDPOINT@*) echo "install_wg_profile: $template has no @WG_ENDPOINT@ placeholder; refusing to install" >&2
        return 1 ;;
   esac
 

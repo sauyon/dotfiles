@@ -301,6 +301,40 @@ in
             end'')
         ];
       }
+
+      # The 2026-10-28 utsuho incident: a compositor that dies *abnormally*
+      # leaves the WAYLAND_DISPLAY/HYPRLAND_INSTANCE_SIGNATURE it imported at
+      # startup sitting in the systemd/D-Bus activation environment, and
+      # nothing retracts them -- the shutdown path that would (below, and the
+      # module's own) does not run on a crash or a kill. The next session gets
+      # a differently-numbered socket, so the corpse value is never
+      # overwritten either; it sits there until some unit restarts under it
+      # (elephant on 16:24:06) and every launch it makes dies on a stale
+      # socket. Hyprland 0.56's own startCompositor imports at startup
+      # (Compositor.cpp:788) but its death paths never unset, and uwsm is
+      # host-packaged here, outside this flake's reach.
+      #
+      # This handler runs on *graceful* exits only -- hyprland.shutdown does
+      # not fire on a crash, which is exactly the case that left the poison
+      # behind. It still earns its two lines: the graceful path currently
+      # *compounds* the problem (the module's stop of hyprland-session.target
+      # restarts elephant under the about-to-die env, re-caching it), and a
+      # clean unset before that makes graceful exits actually clean. The
+      # crash case has no in-compositor hook to catch it -- that half is the
+      # upstream bug (Hyprland imports env it never retracts on abnormal
+      # death), not something this file can patch from inside the dying
+      # process.
+      {
+        _args = [
+          "hyprland.shutdown"
+          (mkLuaInline ''
+            function()
+              os.execute(
+                "${pkgs.systemd}/bin/systemctl --user unset-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE"
+              )
+            end'')
+        ];
+      }
     ];
 
     bind =

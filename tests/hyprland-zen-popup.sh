@@ -49,6 +49,10 @@ local function dsp(path)
   })
 end
 
+-- os.execute records too (the shutdown handlers shell out). Rendered before
+-- the dispatch trace so the two do not interleave mid-line.
+function os.execute(cmd) trace[#trace + 1] = "os.execute: " .. cmd end
+
 local hl = setmetatable({}, { __index = function(_, k) return dsp(k) end })
 
 function hl.on(event, cb)
@@ -106,6 +110,14 @@ check() {
     printf 'FAIL %d - %s\n      want: [%s]\n      got:  [%s]\n' "$n" "$name" "$want" "$got"
     fails=$((fails + 1))
   fi
+}
+
+# emit_case: check's body minus the assertion -- hands back the raw trace so a
+# case can grep it. Needed when several handlers share one event (their
+# relative order is not this file's to pin) and exact-match would be brittle.
+emit_case() {
+  cat > "$D/events.lua"
+  lua "$D/harness.lua" "$CONFIG" "$D/events.lua" 2>&1
 }
 
 POPUP='Extension: (Bitwarden - Free Password Manager) - Bitwarden — Zen Browser'
@@ -190,6 +202,36 @@ local recycled = { class = "zen-beta", title = [[$POPUP]],
                    initial_title = "Zen Browser", address = "0x1" }
 emit("window.title", recycled)
 LUA
+
+# The shutdown-env unset handler (2026-10-28 incident; see hyprland.nix).
+# os.execute is stubbed to record, so emitting hyprland.shutdown shows exactly
+# which commands the handlers run. Two handlers are registered on the event
+# (ours and the module's hyprland-session.target stop); their relative order
+# is the module's business, not a property to pin, so this case asserts on the
+# full trace with grep rather than exact-match:
+#   - the unset command runs, with the full variable list -- a missing var
+#     there is a silent hole in the cleanup nothing else in the suite covers;
+#   - the store path is matched as /nix/store/<hash>-systemd/bin/systemctl,
+#     NOT a literal hash, so a flake-input bump does not break the case
+#     (the hash lives in the generated lua, which the case reads fresh).
+shutdown_trace=$(emit_case <<'LUA'
+emit("hyprland.shutdown")
+LUA
+)
+n=$((n + 1))
+if printf '%s' "$shutdown_trace" | grep -q -- "--user unset-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE DISPLAY XDG_CURRENT_DESKTOP XDG_SESSION_TYPE"; then
+  printf 'ok %d - shutdown unsets the session env vars\n' "$n"
+else
+  printf 'FAIL %d - shutdown unsets the session env vars\n      trace: [%s]\n' "$n" "$shutdown_trace"
+  fails=$((fails + 1))
+fi
+n=$((n + 1))
+if printf '%s' "$shutdown_trace" | grep -qE "/nix/store/[a-z0-9]+-systemd-[0-9]+/bin/systemctl"; then
+  printf 'ok %d - unset runs the nix systemd, not PATH lookup\n' "$n"
+else
+  printf 'FAIL %d - unset runs the nix systemd, not PATH lookup\n      trace: [%s]\n' "$n" "$shutdown_trace"
+  fails=$((fails + 1))
+fi
 
 printf '\n%d/%d passed\n' "$((n - fails))" "$n"
 [ "$fails" -eq 0 ]

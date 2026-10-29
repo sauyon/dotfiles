@@ -119,7 +119,7 @@ where it gates the build instead of being checked after the fact.
 ./tests/zsh-compinit-once.sh     # drives 4 cases against the live zsh config
 ./tests/hms-ci-poll.sh           # drives 29 cases against the built hms
 ./tests/hmeval.sh                # drives 27 cases against the built hmeval
-./tests/hyprland-zen-popup.sh    # drives 7 cases against the live generated hyprland.lua
+./tests/hyprland-zen-popup.sh    # drives 9 cases against the live generated hyprland.lua
 ./tests/polkit-agent.sh          # evaluates 5 hosts + a synthetic one, 17 cases
 ./tests/insecure-packages.sh     # 2 cases per host, plus mari's darwin system
 ./tests/gnome-keyring-seal.sh    # builds the script, drives 14 cases with stub tpm2

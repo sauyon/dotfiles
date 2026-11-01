@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Keep Twingate from taking system DNS down with it.
+#
+# The 2026-10-30 outage (utsuho, journal window 17:31:40-17:35:40): starting
+# twingate registered its sdwan0 connection as the default-route DNS link with
+# a NEGATIVE dns-priority, which NetworkManager treats as exclusive -- "in
+# presence of at least one negative priority, only DNS servers from the
+# connection with the lowest value will be used" (nm-settings, ipv4). resolved
+# then carried `~.` + DefaultRoute on sdwan0, NM rewrote /etc/resolv.conf to
+# Twingate's relays (100.95.0.251-254), and tailscaled -- which forwards every
+# non-tailnet query to whatever resolv.conf lists -- adopted those relays as
+# its upstream. Every query then died ("context deadline exceeded", 68
+# dropped): the relays are only reachable through the Twingate tunnel, whose
+# connector never came up that session (direct_local 10.42.4.73:56128 and
+# direct_public 3.83.27.46:3754 timed out for the tunnel's whole lifetime).
+# One dead tunnel became a host-wide DNS outage.
+#
+# The fix, at the only layer we control: when NM activates sdwan0, demote the
+# connection's dns-priority to a large positive value. Positive priorities
+# order instead of exclude, so wlan0 (default priority 100) keeps
+# default-route DNS and Twingate's relays stay registered per-link but unused,
+# rather than owning every lookup. The `~.`-carrying search domains are cleared
+# for the same reason. `nmcli device reapply` makes NM act on the modified
+# settings immediately instead of at the next link event, and
+# `resolvectl default-route sdwan0 false` pins resolved directly for any
+# window in between.
+#
+# Deliberately NOT handled here: Twingate's route claims (10.42.0.0/16,
+# 10.43.0.0/16, 100.96.0.0/12 -- the last overlaps tailnet peers) sit in the
+# main routing table, where Tailscale's fwmark rules (5210-5270) outrank them,
+# so peer traffic survives without help. The cost of the demotion is that
+# Twingate's FQDN resources (*.local kube names) stop resolving while Tailscale
+# owns DNS; starting twingate no longer costs the whole net for it.
+#
+# NM dispatcher contract: $1 interface, $2 action. Runs as root; a nonzero exit
+# only logs. Every step warns and continues: a hook that cannot fix the DNS
+# state must never become a new way to break the activation it rides.
+set -u
+
+iface=${1-}
+action=${2-}
+
+[ "$iface" = sdwan0 ] || exit 0
+[ "$action" = up ] || exit 0
+
+NMCLI=${NMCLI-nmcli}
+RESOLVECTL=${RESOLVECTL-resolvectl}
+
+# The connection is D-Bus-created by twingated and named after the interface,
+# but trust the dispatcher's CONNECTION_ID first and the device query second
+# rather than assuming the name.
+con=${CONNECTION_ID-}
+if [ -z "$con" ]; then
+  con=$("$NMCLI" -g GENERAL.CONNECTION device show sdwan0 2>/dev/null || true)
+fi
+[ -n "$con" ] || con=sdwan0
+
+"$NMCLI" connection modify "$con" \
+  ipv4.dns-priority 10000 ipv6.dns-priority 10000 \
+  ipv4.dns-search "" ipv6.dns-search "" \
+  || echo "89-twingate-dns-demote: could not demote '$con' dns-priority" >&2
+
+"$NMCLI" device reapply sdwan0 \
+  || echo "89-twingate-dns-demote: reapply failed; demotion lands on NM's next DNS commit" >&2
+
+"$RESOLVECTL" default-route sdwan0 false \
+  || echo "89-twingate-dns-demote: resolvectl default-route failed" >&2
+
+exit 0

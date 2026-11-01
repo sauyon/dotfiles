@@ -28,10 +28,10 @@ let
   # the download with `nix hash to-sri --type sha512 <sha512sum>`.
   # https://github.com/stablyai/orca/releases/latest/download/latest-linux.yml
   pname = "orca";
-  version = "1.4.244";
+  version = "1.4.245";
   src = pkgs.fetchurl {
     url = "https://github.com/stablyai/orca/releases/download/v${version}/orca-linux.AppImage";
-    hash = "sha512-v4SCAK87NSm3EyF21zXGqrFYVrfm6oLnWwkwReokJ+Cf/Lai0LseRWa2+6I6vUrpxv4qxxaFTgnwTnJziqT7sw==";
+    hash = "sha512-pLVMHIW9Bi8CI27Chbt2MVSJD0qVJeSS4INHP5eYltRwQszZAUmQsWMFeI91zQAJX2BoF9KFEHef1KHIoaCxqQ==";
   };
 
   # The AppImage's own tree, unsandboxed: its ELFs patched to store paths with
@@ -301,8 +301,8 @@ let
     name = "orca-skills-${rev}";
     owner = "stablyai";
     repo = "orca";
-    rev = "b8ec5c8d170bcb9988e65de547a3a4e98b2885a9";
-    hash = "sha256-Ur0xTWmQ+kTqwfYVW0wfAFt2X95cV8vYk89v0fPl7Nk=";
+    rev = "1c6ac8c3c4d2c3dec2cb5966d225ca2a0e0471d3";
+    hash = "sha256-2wZAkV5Q5ZLaeKs9dxK5LoxiCxJk5IdSneJc90fUQ9Y=";
   };
   orcaSkills = [
     "orca-cli" "orchestration" "computer-use" "orca-per-workspace-env"

@@ -2945,6 +2945,27 @@ in
       ];
       mcp.enableProjectConfig = false;
     });
+    # omp's own launcher is `exec bun cli.js`, run in the checkout under
+    # review -- so bun reads that checkout's bunfig.toml (whose `preload`
+    # runs arbitrary code before omp starts) and autoloads its .env files.
+    # This launches the same bun on the same cli.js with both shut off. Both
+    # paths are read out of omp's launcher rather than restated, and the
+    # build fails if that launcher changes shape. omp ALSO reads the
+    # checkout's .env itself, which no flag stops; readonly_displace below
+    # covers that one.
+    ompReviewer = pkgs.runCommand "omp-reviewer" { } ''
+      launcher=${pkgs.omp}/bin/omp
+      bun=$(grep -oE '/nix/store/[^" ]+/bin/bun' "$launcher" | head -n1)
+      cli=$(grep -oE '/nix/store/[^" ]+/dist/cli\.js' "$launcher" | head -n1)
+      [ -x "$bun" ] && [ -f "$cli" ] || { echo "omp launcher changed shape: $launcher" >&2; exit 1; }
+      mkdir -p $out/bin
+      : > $out/bunfig.toml
+      cat > $out/bin/omp-reviewer <<EOF
+      #!${pkgs.runtimeShell}
+      exec $bun --no-env-file --config=$out/bunfig.toml $cli "\$@"
+      EOF
+      chmod +x $out/bin/omp-reviewer
+    '';
   in {
     force = true;
     text = ''
@@ -2994,10 +3015,19 @@ in
       # `glob` covers both, and `--tools` rejects an unknown name at startup.
       # The approval mode is pinned rather than inherited, since a reviewer
       # parked on an approval prompt has nobody to answer it.
+      #
+      # The overlay cannot cover everything: omp reads project settings
+      # (.claude/settings.json and its cursor/gemini/codex/opencode cousins)
+      # BEFORE disabledProviders applies, and some keys there name commands
+      # omp runs (images.urls.command). Those directories are renamed aside
+      # instead, as is .env, which omp loads into its own environment with
+      # no flag to stop it. `command` is a wrapper that keeps bun off the
+      # checkout's bunfig.toml and .env* (ompReviewer above).
+      # tests/omp-reviewer-stance.sh plants each of these.
       [agents.omp]
-      command = "omp"
+      command = "${ompReviewer}/bin/omp-reviewer"
       readonly_flag = "--tools read,grep,glob,submit_findings --no-extensions --no-skills --no-lsp --approval-mode=yolo --config ${ompReviewerOverlay}"
-      readonly_displace = [".omp"]
+      readonly_displace = [".omp", ".claude", ".cursor", ".gemini", ".codex", ".opencode", ".env"]
       system_prompt_flag = "--append-system-prompt"
       model_flag = "--model"
       review_model = "modular/google/gemma-4-31b-it"

@@ -6,7 +6,7 @@
 # omp's `--tools` does not bound this. With the bare flags, omp 18.12.2
 # imports a checkout's .claude/tools/*.ts and spawns the servers in its
 # .mcp.json at startup -- before the model says a word -- and the bun it runs
-# on executes a bunfig.toml `preload` and loads .env. This plants each of
+# on executes a bunfig.toml `preload` and loads .env*. This plants each of
 # those in a scratch checkout, displaces what drovr's readonly_displace names
 # (as drovr does before a reviewer launches), and runs the reviewer exactly as
 # the generated drovr config for this host composes it: `command`, then
@@ -83,8 +83,9 @@ printf '{"mcpServers":{"planted":{"command":"sh","args":["-c","touch %s/mcp-ran"
 printf 'import { writeFileSync } from "node:fs"; writeFileSync("%s/preload-ran", "x");\n' "$t" \
   >"$t/repo/preload.ts"
 printf 'preload = ["./preload.ts"]\n' >"$t/repo/bunfig.toml"
-# .env is omp's own read; .env.local only bun's. Both must stay out.
-printf 'PLANTED_ENV=from-dotenv\n' >"$t/repo/.env"
+# .env.local is bun's read only, so the wrapper keeps it out. (.env itself
+# omp loads too, with no switch: an accepted residual risk, see home.nix, so
+# it is not planted here.)
 printf 'PLANTED_ENV_LOCAL=from-dotenv-local\n' >"$t/repo/.env.local"
 git -C "$t/repo" init -q
 
@@ -101,7 +102,8 @@ cat >"$t/findings.ts" <<TS
 import { Type } from "typebox";
 import { writeFileSync } from "node:fs";
 export default function (pi: any) {
-  writeFileSync("$t/env-seen", [process.env.PLANTED_ENV, process.env.PLANTED_ENV_LOCAL].filter(Boolean).join(" "));
+  writeFileSync("$t/env-seen", process.env.PLANTED_ENV_LOCAL ?? "");
+  writeFileSync("$t/bun-options", process.env.BUN_OPTIONS ?? "");
   pi.registerTool({
     name: "submit_findings", label: "submit_findings",
     description: "Submit review findings. Call exactly once.",
@@ -135,7 +137,16 @@ for m in tool-ran:".claude/tools module" mcp-ran:".mcp.json server" preload-ran:
 done
 seen=$(cat "$t/env-seen" 2>/dev/null)
 if [ ! -e "$t/env-seen" ]; then bad "findings stand-in never loaded; dotenv unchecked"
-elif [ -z "$seen" ]; then ok "planted .env / .env.local stayed out of the environment"
+elif [ -z "$seen" ]; then ok "planted .env.local stayed out of the environment"
 else bad "planted dotenv reached the reviewer: $seen"; fi
+
+# omp's worker processes are `bun cli.js <worker>` in the same checkout and
+# get no flags of their own: only an inherited BUN_OPTIONS keeps them off
+# bunfig.toml and .env*. A single -p run starts none, so check the variable.
+opts=$(cat "$t/bun-options" 2>/dev/null)
+case "$opts" in
+  *--no-env-file*--config=/nix/store/*) ok "BUN_OPTIONS reaches the reviewer's workers" ;;
+  *) bad "BUN_OPTIONS not set for workers: '${opts}'" ;;
+esac
 
 [ "$fails" -eq 0 ]

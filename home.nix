@@ -2948,11 +2948,12 @@ in
     # omp's own launcher is `exec bun cli.js`, run in the checkout under
     # review -- so bun reads that checkout's bunfig.toml (whose `preload`
     # runs arbitrary code before omp starts) and autoloads its .env files.
-    # This launches the same bun on the same cli.js with both shut off. Both
-    # paths are read out of omp's launcher rather than restated, and the
-    # build fails if that launcher changes shape. omp ALSO reads the
-    # checkout's .env itself, which no flag stops; readonly_displace below
-    # covers that one.
+    # This launches the same bun on the same cli.js with both shut off. The
+    # flags go in BUN_OPTIONS as well as on the command line because omp
+    # spawns worker processes (`bun cli.js <worker>`, in the same cwd) that
+    # would otherwise read both again; bun applies BUN_OPTIONS to every
+    # invocation that inherits it. Both paths are read out of omp's launcher
+    # rather than restated, and the build fails if it changes shape.
     ompReviewer = pkgs.runCommand "omp-reviewer" { } ''
       launcher=${pkgs.omp}/bin/omp
       bun=$(grep -oE '/nix/store/[^" ]+/bin/bun' "$launcher" | head -n1)
@@ -2962,6 +2963,7 @@ in
       : > $out/bunfig.toml
       cat > $out/bin/omp-reviewer <<EOF
       #!${pkgs.runtimeShell}
+      export BUN_OPTIONS="--no-env-file --config=$out/bunfig.toml"
       exec $bun --no-env-file --config=$out/bunfig.toml $cli "\$@"
       EOF
       chmod +x $out/bin/omp-reviewer
@@ -3016,18 +3018,26 @@ in
       # The approval mode is pinned rather than inherited, since a reviewer
       # parked on an approval prompt has nobody to answer it.
       #
-      # The overlay cannot cover everything: omp reads project settings
-      # (.claude/settings.json and its cursor/gemini/codex/opencode cousins)
-      # BEFORE disabledProviders applies, and some keys there name commands
-      # omp runs (images.urls.command). Those directories are renamed aside
-      # instead, as is .env, which omp loads into its own environment with
-      # no flag to stop it. `command` is a wrapper that keeps bun off the
-      # checkout's bunfig.toml and .env* (ompReviewer above).
-      # tests/omp-reviewer-stance.sh plants each of these.
+      # `command` is a wrapper that keeps bun, and omp's bun workers, off
+      # the checkout's bunfig.toml and .env* (ompReviewer above).
+      #
+      # RESIDUAL RISK, accepted 2026-11-02: omp reads project settings
+      # (.claude/settings.json, .cursor/, opencode.json and cousins) BEFORE
+      # disabledProviders applies, and some keys there name commands omp
+      # runs (images.urls.command, when the reviewer reads an image). It also
+      # loads the checkout's .env into its own environment, no flag to stop
+      # it. The only lever drovr offers is readonly_displace, which RENAMES
+      # those paths and never puts them back (code_review.rs, "It does not
+      # restore") -- fine for dirs nobody commits, but .claude, .cursor and
+      # .env are commonly tracked or load-bearing, and renaming them would
+      # dirty every reviewed tree, this repo's included. So only the rarely
+      # committed dirs are displaced. Closing the rest needs an omp patch
+      # (skip project settings/.env behind a switch) or a drovr that restores.
+      # tests/omp-reviewer-stance.sh plants what this stance does keep out.
       [agents.omp]
       command = "${ompReviewer}/bin/omp-reviewer"
       readonly_flag = "--tools read,grep,glob,submit_findings --no-extensions --no-skills --no-lsp --approval-mode=yolo --config ${ompReviewerOverlay}"
-      readonly_displace = [".omp", ".claude", ".cursor", ".gemini", ".codex", ".opencode", ".env"]
+      readonly_displace = [".omp", ".gemini", ".codex", ".opencode"]
       system_prompt_flag = "--append-system-prompt"
       model_flag = "--model"
       review_model = "modular/google/gemma-4-31b-it"

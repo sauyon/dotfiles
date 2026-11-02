@@ -3260,6 +3260,20 @@ in
   home.file.".local/share/dbus-1/services/org.freedesktop.impl.portal.Secret.service" =
     lib.mkIf gnomeKeyringHost { text = gnomeKeyringDbusService "org.freedesktop.impl.portal.Secret"; };
 
+  # The daemon draws its unlock/confirm dialogs through a separate prompter it
+  # reaches by D-Bus activation; with none activatable, anything that needs the
+  # keyring unlocked fails instantly with "couldn't create system prompt ... not
+  # activatable" and no UI. NixOS wires this with services.dbus.packages = [ gcr ],
+  # home-manager does not, and the daemon above is nix's, so no pacman package
+  # brings it. gcr_3, not gcr_4: 4.x ships no standalone prompter (GNOME Shell
+  # is expected to be one). Linked into XDG_DATA_HOME next to the shadows above,
+  # the one services dir the user bus is known to search; the files carry an
+  # absolute Exec= into the store.
+  home.file.".local/share/dbus-1/services/org.gnome.keyring.SystemPrompter.service" =
+    lib.mkIf gnomeKeyringHost { source = "${pkgs.gcr_3}/share/dbus-1/services/org.gnome.keyring.SystemPrompter.service"; };
+  home.file.".local/share/dbus-1/services/org.gnome.keyring.PrivatePrompter.service" =
+    lib.mkIf gnomeKeyringHost { source = "${pkgs.gcr_3}/share/dbus-1/services/org.gnome.keyring.PrivatePrompter.service"; };
+
   systemd.user.services.hyprland-cleanup = lib.mkIf (!isDarwin && isDesktop) {
     Unit = {
       Description = "Gracefully close all Hyprland windows on session end";

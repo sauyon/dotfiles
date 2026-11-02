@@ -80,12 +80,12 @@ else bad "codex mutableSettings: want true, got ${mut:-<unset>}"; fi
 # what it objects to, not the TOML, so it is dropped first.
 probe='f: let c = builtins.fromTOML (builtins.unsafeDiscardStringContext f."drovr/config.toml".text); o = c.agents.omp or {}; in
   "${c.review_agent or "-"} ${o.mcp.mechanism or "-"} ${o.mcp.flag or "-"} "
-  + (if builtins.match ".*--tools [^ ]*submit_findings.*--config /nix/store/.*" (o.readonly_flag or "") != null then "stance" else "-")
+  + (if builtins.match ".*--tools [^ ]*submit_findings.* --thinking off .*--config /nix/store/.*" (o.readonly_flag or "") != null then "stance" else "-")
   + " " + builtins.concatStringsSep "," (o.readonly_displace or [])'
 # readonly_displace is pinned exactly: drovr renames each entry aside and never
 # puts it back, so a commonly tracked path here (.claude, .cursor, .env) would
 # dirty every reviewed tree. home.nix says why the list stops where it does.
-want_drovr="omp generated-module --extension stance .omp,.gemini,.codex,.opencode"
+want_drovr="omp generated-module --extension stance .omp,.gemini,.opencode"
 for host in $hosts; do
   got=$(ev "$host" xdg.configFile "$probe" 2>/dev/null) || got=unparseable
   if [ "$got" = "$want_drovr" ]; then

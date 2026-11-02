@@ -468,7 +468,6 @@
     mr = "mise run";
     mrk = "mise run kubeconfig";
 
-    ca = "cursor-agent";
     # `claude` is the raw binary again: the claude-prof wrapper and the
     # ~/.config/claude-<name>/ profile dirs are gone, so all state lives in
     # ~/.claude/ under one login.
@@ -484,5 +483,7 @@
     # hms is a script now (home.nix): it pushes and waits for CI so the switch
     # is a download rather than a local build. `hms --local` is the old alias.
     hmu = "nix flake update --flake ${home}/devel/dotfiles";
+  } // lib.optionalAttrs isCursorHost {
+    ca = "cursor-agent";
   };
 }

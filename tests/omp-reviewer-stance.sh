@@ -3,7 +3,7 @@
 # the reviewer did not write must not get code run under it, or reach its
 # environment.
 #
-# omp's `--tools` does not bound this. With the bare flags, omp 18.12.2
+# omp's `--tools` does not bound this. With the bare flags, omp 18.12.2 (and the pinned 18.13.1)
 # imports a checkout's .claude/tools/*.ts and spawns the servers in its
 # .mcp.json at startup -- before the model says a word -- and the bun it runs
 # on executes a bunfig.toml `preload` and loads .env*. This plants each of
@@ -35,7 +35,9 @@ key() { sed -n "/^\[agents\.omp\]\$/,/^\[/s/^$1 = \(.*\)\$/\1/p" "$src"; }
 cmd=$(key command | tr -d '"')
 flag=$(key readonly_flag | sed 's/^"//; s/"$//')
 displace=$(key readonly_displace | tr -d '[]",')
-[ -n "$cmd" ] && [ -n "$flag" ] || { echo "no [agents.omp] command/readonly_flag in $src" >&2; exit 1; }
+model=$(key review_model | tr -d '"')
+[ -n "$cmd" ] && [ -n "$flag" ] && [ -n "$model" ] \
+  || { echo "no [agents.omp] command/readonly_flag/review_model in $src" >&2; exit 1; }
 # `command` is a store path the config build already realised; nix-store -r
 # makes sure of it when the config came from a substituter.
 nix-store -r "${cmd%/bin/*}" >/dev/null || { echo "could not realise $cmd" >&2; exit 1; }
@@ -120,7 +122,7 @@ TS
 # here is the same split.
 # shellcheck disable=SC2086
 (cd "$t/repo" && timeout 300 "$cmd" -p $flag --extension "$t/findings.ts" \
-  --model modular/google/gemma-4-31b-it \
+  --model "$model" \
   "Call the submit_findings tool once with summary set to ok, then reply done." \
   </dev/null >"$t/out" 2>&1)
 rc=$?

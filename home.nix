@@ -2974,7 +2974,7 @@ in
       # omp is not a drovr built-in; [agents.omp] at the end of this file
       # defines it. Its findings channel is the same generated TypeScript
       # extension drovr writes for pi (cli/src/pi_extension.rs upstream): omp
-      # is a pi fork and loads it unchanged, probed 2026-11-02 on omp 18.12.2.
+      # is a pi fork and loads it unchanged, probed 2026-11-02 on omp 18.12.2 and 18.13.1.
       #
       review_agent = "omp"
       worktree = ${lib.boolToString (!hasOrca)}
@@ -3031,13 +3031,19 @@ in
       # restore") -- fine for dirs nobody commits, but .claude, .cursor and
       # .env are commonly tracked or load-bearing, and renaming them would
       # dirty every reviewed tree, this repo's included. So only the rarely
-      # committed dirs are displaced. Closing the rest needs an omp patch
+      # committed dirs are displaced -- not .codex either, now that codex is
+      # installed here and its project dirs are real.
+      #
+      # `--thinking off` because pi ran gemma without reasoning and every
+      # delivery measurement above was taken that way; omp.nix marks gemma
+      # `reasoning = true` and omp's default level is high. Turning it on is
+      # a review-panel change: re-measure delivery first. Closing the rest needs an omp patch
       # (skip project settings/.env behind a switch) or a drovr that restores.
       # tests/omp-reviewer-stance.sh plants what this stance does keep out.
       [agents.omp]
       command = "${ompReviewer}/bin/omp-reviewer"
-      readonly_flag = "--tools read,grep,glob,submit_findings --no-extensions --no-skills --no-lsp --approval-mode=yolo --config ${ompReviewerOverlay}"
-      readonly_displace = [".omp", ".gemini", ".codex", ".opencode"]
+      readonly_flag = "--tools read,grep,glob,submit_findings --no-extensions --no-skills --no-lsp --approval-mode=yolo --thinking off --config ${ompReviewerOverlay}"
+      readonly_displace = [".omp", ".gemini", ".opencode"]
       system_prompt_flag = "--append-system-prompt"
       model_flag = "--model"
       review_model = "modular/google/gemma-4-31b-it"
@@ -4949,7 +4955,6 @@ in
         "**/.claude/scheduled_tasks.lock"
         "**/.claude/plans"
         "**/.superpowers"
-        ".gemini-review.agent.json" # gemini-review skill's Hunk sidecar artifact
         # Disables the main-checkout edit guard; must stay local, never handed
         # to anyone else. Does not stop a third-party repo shipping its own.
         "**/.claude/allow-main-edit"

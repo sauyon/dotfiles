@@ -1,7 +1,9 @@
 {
   pkgs,
+  lib,
   home,
   xdg,
+  isCursorHost,
   ...
 }:
 {
@@ -109,8 +111,10 @@
       systemctl --user stop "claude-remote-control@$(systemd-escape -p "$d").service"
     }
 
+    ${lib.optionalString isCursorHost ''
     # Cursor Agent pool worker for a project dir (default: cwd), via the
-    # cursor-agent-worker@.service template. Start/stop on the fly.
+    # cursor-agent-worker@.service template. Start/stop on the fly. Only where
+    # that unit exists (isCursorHost in home.nix).
     ca-rc() {
       local d=''${1:-$PWD}
       d=$(realpath "$d") || return 1
@@ -133,6 +137,7 @@
       d=$(realpath "$d") || return 1
       systemctl --user stop "cursor-agent-worker@$(systemd-escape -p "$d").service"
     }
+    ''}
 
     fi
 

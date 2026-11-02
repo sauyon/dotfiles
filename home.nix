@@ -2935,7 +2935,17 @@ in
   # Nothing in here is a secret or runtime state, so let the generation win
   # every time rather than hand-deleting the file each switch. The guarantee is
   # per-switch, not continuous: between switches drovr still owns the file.
-  xdg.configFile."drovr/config.toml" = {
+  xdg.configFile."drovr/config.toml" = let
+    # JSON is valid YAML; omp's --config takes a config.yml-shaped overlay.
+    ompReviewerOverlay = pkgs.writeText "omp-reviewer-overlay.yml" (builtins.toJSON {
+      disabledProviders = [
+        "agent-plugins" "agents" "claude" "claude-plugins" "cline" "codex"
+        "cursor" "custom-context" "gemini" "github" "mcp-json" "omp-plugins"
+        "opencode" "skillshare" "ssh-json" "vscode" "windsurf"
+      ];
+      mcp.enableProjectConfig = false;
+    });
+  in {
     force = true;
     text = ''
       # omp is not a drovr built-in; [agents.omp] at the end of this file
@@ -2952,12 +2962,12 @@ in
       # host binds is topology, so the value comes from dotfiles-private
       # (endpoints.serveHosts); the tailnet-only bind it names in its own
       # comment is the stricter posture.
-      serve_host = ${private.endpoints.serveHosts.${hostname}}
+      serve_host = ${builtins.toJSON private.endpoints.serveHosts.${hostname}}
     '' + ''
       # Reviews run on gemma, pinned explicitly rather than left to omp's own
-      # default (glm-5.3, see omp.nix) so this file says which model reviewed. LAST in the file because
-      # a TOML table swallows every key after it — the top-level settings above
-      # have to be emitted first.
+      # default (glm-5.3, see omp.nix) so this file says which model reviewed.
+      # LAST in the file because a TOML table swallows every key after it —
+      # the top-level settings above have to be emitted first.
       #
       # gemma returns a panel in seconds rather than minutes. That is the model
       # being fast, not a reviewer skipping the diff — read the findings, not
@@ -2971,18 +2981,22 @@ in
       # minutes, then exited without ever calling `submit_findings`. 0 of 4
       # angles, four times running.
       #
-      # The read-only stance stands in for pi's, flag for flag where omp has
-      # one. omp has no `--no-approve` project-trust guard, so what it would
-      # have refused is shut off directly instead: extension and skill
-      # discovery off, and the checkout's .omp/ renamed aside for the review.
-      # omp has no `ls` tool and no usable `find`; `glob` covers both, and
-      # `--tools` rejects an unknown name at startup. The approval mode is
-      # pinned rather than inherited, since a reviewer parked on an approval
-      # prompt has nobody to answer it; with only read tools enabled, `yolo`
-      # approves nothing that writes.
+      # The read-only stance. omp has no `--no-approve` project-trust guard,
+      # and `--tools` does NOT bound it: omp still runs a checkout's
+      # .claude/tools/*.ts, .mcp.json servers and the like, and enables their
+      # tools whatever `--tools` lists (probed 2026-11-02 on 18.12.2 with a
+      # planted tool and MCP server; tests/omp-reviewer-stance.sh). So the
+      # untrusted checkout is shut out at the source: the --config overlay
+      # disables every discovery provider but `native` (.omp, renamed aside
+      # by readonly_displace), `agents-md` and `claude-md` (instruction text,
+      # no code), and turns project MCP config off. Extension and skill
+      # discovery are off by flag. omp has no `ls` tool and no usable `find`;
+      # `glob` covers both, and `--tools` rejects an unknown name at startup.
+      # The approval mode is pinned rather than inherited, since a reviewer
+      # parked on an approval prompt has nobody to answer it.
       [agents.omp]
       command = "omp"
-      readonly_flag = "--tools read,grep,glob,submit_findings --no-extensions --no-skills --no-lsp --approval-mode=yolo"
+      readonly_flag = "--tools read,grep,glob,submit_findings --no-extensions --no-skills --no-lsp --approval-mode=yolo --config ${ompReviewerOverlay}"
       readonly_displace = [".omp"]
       system_prompt_flag = "--append-system-prompt"
       model_flag = "--model"
@@ -5111,6 +5125,7 @@ in
       // {
         xdg = config.xdg;
         home = config.home.homeDirectory;
+        inherit isCursorHost;
       }
     );
 

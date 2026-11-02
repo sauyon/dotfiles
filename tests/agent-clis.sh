@@ -5,12 +5,17 @@
 #   * codex is on every host (programs.codex), with a writable config: codex
 #     records project trust in ~/.codex/config.toml itself.
 #   * cursor-agent is on utsuho only -- the package, the pool-worker unit and
-#     the ~/.cursor tree. Dropping the gate puts it back everywhere, silently.
+#     the ~/.cursor tree. Dropping the gate puts it back everywhere, silently,
+#     so every host is checked, not one on each side of it.
 #   * agy and pi are gone, along with what only they used (the agy-review
 #     skill, pi's herdr extension). A leftover home.file pointing at either
 #     would leave a skill or hook calling a binary that is no longer installed.
 #   * drovr reviews on omp, through an [agents.omp] entry. drovr has no omp
 #     built-in, so review_agent = "omp" without the table fails at launch.
+#     The file is PARSED (builtins.fromTOML) on every host, not grepped: an
+#     unquoted serve_host once made it unloadable on exactly the two hosts
+#     that set one, and a grep reads past that. What the reviewer's stance
+#     actually keeps out is tests/omp-reviewer-stance.sh's job.
 #
 # Evaluation only (--max-jobs 0): this never builds a derivation. An optional
 # first argument is the flake ref to test (default: this checkout), so the same
@@ -37,7 +42,9 @@ files() { # files <host> -- newline-separated home.file targets
   ev "$1" home.file 'fs: builtins.concatStringsSep "\n" (map (f: f.target) (builtins.attrValues fs))'
 }
 
-for host in utsuho shiori; do
+hosts="utsuho fujiwara shiori chiyari kyuusaku mari"
+
+for host in $hosts; do
   have=$(names "$host") || { echo "could not evaluate $host" >&2; exit 1; }
   fl=$(files "$host") || { echo "could not evaluate $host home.file" >&2; exit 1; }
 
@@ -68,15 +75,19 @@ mut=$(ev shiori programs.codex.mutableSettings 'b: if b then "true" else "false"
 if [ "$mut" = true ]; then ok "codex config is writable (mutableSettings)"
 else bad "codex mutableSettings: want true, got ${mut:-<unset>}"; fi
 
-cfg=$(ev shiori 'xdg.configFile."drovr/config.toml".text') \
-  || { echo "could not evaluate drovr config" >&2; exit 1; }
-if printf '%s\n' "$cfg" | grep -qx 'review_agent = "omp"' \
-   && printf '%s\n' "$cfg" | grep -qx '\[agents.omp\]' \
-   && printf '%s\n' "$cfg" | grep -qx 'mechanism = "generated-module"' \
-   && printf '%s\n' "$cfg" | grep -q '^readonly_flag = .*--tools [^ ]*submit_findings'; then
-  ok "drovr reviews on omp, with an [agents.omp] entry carrying submit_findings"
-else
-  bad "drovr config: want review_agent = \"omp\" and a complete [agents.omp]"
-fi
+# One line per host: what the parsed file says, or "unparseable". The text
+# references the overlay's store path, which fromTOML refuses; the context is
+# what it objects to, not the TOML, so it is dropped first.
+probe='f: let c = builtins.fromTOML (builtins.unsafeDiscardStringContext f."drovr/config.toml".text); o = c.agents.omp or {}; in
+  "${c.review_agent or "-"} ${o.mcp.mechanism or "-"} ${o.mcp.flag or "-"} "
+  + (if builtins.match ".*--tools [^ ]*submit_findings.*--config /nix/store/.*" (o.readonly_flag or "") != null then "stance" else "-")'
+for host in $hosts; do
+  got=$(ev "$host" xdg.configFile "$probe" 2>/dev/null) || got=unparseable
+  if [ "$got" = "omp generated-module --extension stance" ]; then
+    ok "$host drovr config parses; reviews on omp with the hardened stance"
+  else
+    bad "$host drovr config: want 'omp generated-module --extension stance', got '$got'"
+  fi
+done
 
 [ "$fails" -eq 0 ]

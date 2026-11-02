@@ -202,9 +202,8 @@ in
       })
   ];
 
-  # config.toml is MERGED, not replaced — the same shape as pi's settings.json
-  # (see pi.nix), for the same reason: kimi treats this file as read-write
-  # state. `/login` rewrites the oauth block, a `/models` refresh rewrites
+  # config.toml is MERGED, not replaced, because kimi treats this file as
+  # read-write state. `/login` rewrites the oauth block, a `/models` refresh rewrites
   # every [models.*] table, `/secondary-model` writes defaults. Rendering it
   # from the store (home.file) would either fight the agent at every switch or
   # lose silently the first time kimi's atomic write replaces the symlink with
@@ -213,8 +212,8 @@ in
   #
   # The file is TOML and jq cannot read TOML, so the merge round-trips through
   # remarshal: toml2json | jq deep-merge (`*`; owned keys win, everything else
-  # survives) | json2toml, written to $DEST.new and renamed into place, per
-  # the pi.nix atomicity pattern.
+  # survives) | json2toml, written to $DEST.new and renamed into place so a
+  # reader never sees a half-written file.
   #
   # The swap is guarded by `kimi doctor config` — kimi's own parser/schema
   # check — run against the merged candidate BEFORE it replaces the live

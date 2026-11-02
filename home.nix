@@ -77,6 +77,11 @@ let
   gascityHosts = [ "fujiwara" "utsuho" ];
   isGascityHost = builtins.elem hostname gascityHosts;
 
+  # Cursor's agent CLI, its pool-worker unit and everything under ~/.cursor:
+  # utsuho only. The overlay (cursor-agent.nix) stays imported everywhere --
+  # it only defines the package; this gates who installs it.
+  isCursorHost = hostname == "utsuho";
+
   # The body of every programs.zen-browser.profiles entry (see the profiles
   # attrset merge down in the zen block for why there is more than one).
   zenSharedProfile = {
@@ -2372,7 +2377,7 @@ attr=$attr
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./pi.nix ./omp.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./even-terminal.nix ./zed.nix ./orca.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./omp.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./even-terminal.nix ./zed.nix ./orca.nix ];
 
   home.stateVersion = "26.05";
 
@@ -2479,12 +2484,6 @@ in
     ./home/.claude/skills/linear-flow/SKILL.md;
   home.file.".claude/skills/linear-flow/DESIGN.md".source =
     ./home/.claude/skills/linear-flow/DESIGN.md;
-  home.file.".claude/skills/agy-review/SKILL.md".source =
-    ./home/.claude/skills/agy-review/SKILL.md;
-  # Transform helper the skill invokes ($SKILL_DIR/findings-to-agent-context.py):
-  # maps agy's JSON findings to a Hunk --agent-context sidecar.
-  home.file.".claude/skills/agy-review/findings-to-agent-context.py".source =
-    ./home/.claude/skills/agy-review/findings-to-agent-context.py;
   # Symlinks the skill bundled with the `hunk` package (hunkdiff) into
   # ~/.claude/skills/ so Claude can drive live Hunk review sessions via the
   # `hunk session *` CLI.
@@ -2506,8 +2505,9 @@ in
 
   # Cursor discovers SKILL.md files recursively and follows directory symlinks.
   # Expose the same pinned drovr skills that Claude loads through its plugin.
-  home.file.".cursor/skills/drovr".source =
-    "${drovr-pkg}/share/drovr/skills";
+  home.file.".cursor/skills/drovr" = lib.mkIf isCursorHost {
+    source = "${drovr-pkg}/share/drovr/skills";
+  };
 
   # The drovr marketplace source tree at the locked rev, as a stable GC-rooted
   # path: the plugin's repo root (skills/, hooks/, .claude-plugin/). Claude is
@@ -2522,20 +2522,16 @@ in
   # (no license declared; see attribution note in the file)
   home.file.".claude/commands/explain-diff.md".source =
     ./home/agent-commands/explain-diff.md;
-  home.file.".cursor/commands/explain-diff.md".source =
-    ./home/agent-commands/explain-diff.md;
+  home.file.".cursor/commands/explain-diff.md" = lib.mkIf isCursorHost {
+    source = ./home/agent-commands/explain-diff.md;
+  };
   # review-diff: companion to explain-diff — an annotated reviewer's diff
   # (logical grouping, inline annotations, codebase context, severity findings).
   home.file.".claude/commands/review-diff.md".source =
     ./home/agent-commands/review-diff.md;
-  home.file.".cursor/commands/review-diff.md".source =
-    ./home/agent-commands/review-diff.md;
-  # /agy-review slash command → drives the agy-review skill (agy CLI). Claude-only:
-  # personal ~/.claude/skills/* aren't exposed as slash commands, so this wrapper
-  # is what makes `/agy-review` available, pointing at the skill's SKILL.md pipeline.
-  home.file.".claude/commands/agy-review.md".source =
-    ./home/agent-commands/agy-review.md;
-
+  home.file.".cursor/commands/review-diff.md" = lib.mkIf isCursorHost {
+    source = ./home/agent-commands/review-diff.md;
+  };
   # /hunk-review slash command → drives the hunk-review skill (bundled with the
   # hunk package). Claude-only: personal ~/.claude/skills/* aren't exposed as
   # slash commands, so this wrapper points at the skill's `hunk session *`
@@ -2566,25 +2562,18 @@ in
   # HERDR_ENV=1. hooks.json is generated here (not vendored) so the absolute
   # script path tracks homeDirectory. Regenerate and bump if `herdr integration
   # status` reports it outdated.
-  home.file.".cursor/herdr-agent-state.sh" = {
+  home.file.".cursor/herdr-agent-state.sh" = lib.mkIf isCursorHost {
     source = ./home/.cursor/herdr-agent-state.sh;
     executable = true;
   };
-  home.file.".cursor/hooks.json".text = builtins.toJSON {
-    hooks.sessionStart = [
-      { command = "bash '${config.home.homeDirectory}/.cursor/herdr-agent-state.sh' session"; }
-    ];
-    version = 1;
+  home.file.".cursor/hooks.json" = lib.mkIf isCursorHost {
+    text = builtins.toJSON {
+      hooks.sessionStart = [
+        { command = "bash '${config.home.homeDirectory}/.cursor/herdr-agent-state.sh' session"; }
+      ];
+      version = 1;
+    };
   };
-
-  # ── herdr integration (pi) ─────────────────────────────────────────────────
-  # Extension auto-loaded by pi from ~/.pi/agent/extensions; reports lifecycle
-  # state and session identity to the local herdr socket. Vendored verbatim from
-  # `herdr integration install pi` (v7); self-contained (no config registration
-  # needed) and inert unless HERDR_ENV=1. Regenerate and bump if `herdr
-  # integration status` reports it outdated.
-  home.file.".pi/agent/extensions/herdr-agent-state.ts".source =
-    ./home/.pi/agent/extensions/herdr-agent-state.ts;
 
   # ── Claude plugins ─────────────────────────────────────────────────────────
   home.file.".claude/plugins/local-auto-mode/hooks.json".source =
@@ -2852,8 +2841,8 @@ in
   # and strictly smaller. Same call system/deploy already makes for the same reason:
   # `./thermald-setup || echo ... continuing`.
   #
-  # entryAfter [ "linkGeneration" ] rather than the bare write boundary, matching
-  # antigravity.nix: this writes into a directory hm also links into, and relying on
+  # entryAfter [ "linkGeneration" ] rather than the bare write boundary: this
+  # writes into a directory hm also links into, and relying on
   # attribute order to land after linkGeneration is an accident rather than an edge.
   #
   # Guarded like the Zoom.desktop sibling below rather than left unconditional: the
@@ -2901,7 +2890,7 @@ in
   xdg.configFile."herdr/config.toml".source = ./home/herdr/config.toml;
 
   # ── drovr ───────────────────────────────────────────────────────────────────
-  # Review panel runs on pi, at the model pinned in [agents.pi] below.
+  # Review panel runs on omp, at the model pinned in [agents.omp] below.
   # serve_host: the review server has NO auth, so whatever can reach it reads
   # every run and can answer its asks. Network location is the only thing
   # standing in for authentication, which is why the bind address is a decision
@@ -2949,11 +2938,12 @@ in
   xdg.configFile."drovr/config.toml" = {
     force = true;
     text = ''
-      # pi's findings channel is a generated TypeScript extension rather than
-      # an MCP server (pi ships no MCP client), and drovr writes it per review
-      # pass — see cli/src/pi_extension.rs upstream.
+      # omp is not a drovr built-in; [agents.omp] at the end of this file
+      # defines it. Its findings channel is the same generated TypeScript
+      # extension drovr writes for pi (cli/src/pi_extension.rs upstream): omp
+      # is a pi fork and loads it unchanged, probed 2026-11-02 on omp 18.12.2.
       #
-      review_agent = "pi"
+      review_agent = "omp"
       worktree = ${lib.boolToString (!hasOrca)}
     '' + lib.optionalString (hostname == "fujiwara" || hostname == "utsuho") ''
       # The bind address is a decision, not a detail: this server has no
@@ -2964,8 +2954,8 @@ in
       # comment is the stricter posture.
       serve_host = ${private.endpoints.serveHosts.${hostname}}
     '' + ''
-      # Reviews run on gemma, pinned explicitly rather than left to pi's own
-      # default so this file says which model reviewed. LAST in the file because
+      # Reviews run on gemma, pinned explicitly rather than left to omp's own
+      # default (glm-5.3, see omp.nix) so this file says which model reviewed. LAST in the file because
       # a TOML table swallows every key after it — the top-level settings above
       # have to be emitted first.
       #
@@ -2981,11 +2971,26 @@ in
       # minutes, then exited without ever calling `submit_findings`. 0 of 4
       # angles, four times running.
       #
-      # Only the REVIEWER is pinned here. pi is reviewer-only now; interactive
-      # use is omp (omp.nix).
-      [agents.pi]
-      command = "pi"
-      review_model = "google/gemma-4-31b-it"
+      # The read-only stance stands in for pi's, flag for flag where omp has
+      # one. omp has no `--no-approve` project-trust guard, so what it would
+      # have refused is shut off directly instead: extension and skill
+      # discovery off, and the checkout's .omp/ renamed aside for the review.
+      # omp has no `ls` tool and no usable `find`; `glob` covers both, and
+      # `--tools` rejects an unknown name at startup. The approval mode is
+      # pinned rather than inherited, since a reviewer parked on an approval
+      # prompt has nobody to answer it; with only read tools enabled, `yolo`
+      # approves nothing that writes.
+      [agents.omp]
+      command = "omp"
+      readonly_flag = "--tools read,grep,glob,submit_findings --no-extensions --no-skills --no-lsp --approval-mode=yolo"
+      readonly_displace = [".omp"]
+      system_prompt_flag = "--append-system-prompt"
+      model_flag = "--model"
+      review_model = "modular/google/gemma-4-31b-it"
+
+      [agents.omp.mcp]
+      mechanism = "generated-module"
+      flag = "--extension"
     '';
   };
 
@@ -3334,7 +3339,7 @@ in
   # `ca-rc` starts a Cursor Agent pool worker for a project dir so cloud/mobile
   # sessions can claim it one agent at a time. Template keyed on project path:
   #   systemctl --user start cursor-agent-worker@$(systemd-escape -p /path/to/proj)
-  systemd.user.services."cursor-agent-worker@" = lib.mkIf (!isDarwin) {
+  systemd.user.services."cursor-agent-worker@" = lib.mkIf isCursorHost {
     Unit = {
       Description = "Cursor Agent worker — %I";
       After = [ "network-online.target" ];
@@ -3459,7 +3464,6 @@ in
     nmap  # and ncat
     tcpdump
     whois
-    pi-coding-agent  # earendil-works/pi terminal coding agent (binary: pi)
     forgejo-cli  # Forgejo-native CLI (binary: fj) for Codeberg and forge.ko.ag
     bat
     rustup
@@ -3489,7 +3493,6 @@ in
 
     # What grip-mode shells out to; top-level `grip` is an unrelated CD ripper.
     pkgs.python3Packages.grip
-    pkgs.cursor-agent-cli
     pkgs.cloudflare-warp
     cryptomator-cli
     # The vault holding the dotfiles paper recovery identity lives in the
@@ -3597,6 +3600,7 @@ in
   # dotfiles-private input comment in flake.nix); this splices its per-host
   # package list.
   ++ private.waypipe.packages
+  ++ lib.optional isCursorHost pkgs.cursor-agent-cli
   ++ lib.optionals isGascityHost [
     gascity-pkg
     beads-pkg
@@ -3807,9 +3811,6 @@ in
     # interface rather than nodejs_24 itself, which is also a WebKit build input.
     (final: prev: {
       asar = prev.asar.override { nodejs = patchedNodejs_24; };
-      pi-coding-agent = prev.pi-coding-agent.override {
-        buildNpmPackage = prev.buildNpmPackage.override { nodejs = patchedNodejs_24; };
-      };
       signal-desktop = prev.signal-desktop.override { nodejs_24 = patchedNodejs_24; };
       zed-editor = prev.zed-editor.override { nodejs = patchedNodejs_24; };
     })
@@ -4506,6 +4507,15 @@ in
         }
         tooltip label { color: @fg; padding: 6px; }
       '';
+    };
+
+    # OpenAI's Codex CLI, stock nixpkgs. Nothing is declared yet, but the
+    # config stays writable: codex records per-project trust and `/model`
+    # choices in ~/.codex/config.toml itself, and the immutable default turns
+    # each of those into a write error against a read-only store symlink.
+    codex = {
+      enable = true;
+      mutableSettings = true;
     };
 
     claude-code = {

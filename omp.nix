@@ -2,12 +2,14 @@
 
 let
   # Providers and models for omp (oh-my-pi, https://omp.sh), the interactive
-  # coding agent. pi stays installed only as drovr's reviewer; see pi.nix.
+  # coding agent, and drovr's review agent ([agents.omp] in home.nix).
   #
   # Modular's own `setup-mcloud.py` is the upstream for this list, with two
   # deliberate differences:
-  #   - the provider is `modular`, not `mcloud`, for the reason pi.nix gives:
-  #     `mcloud` is Modular's internal deployment, a different endpoint.
+  #   - the provider is `modular`, not `mcloud`: `mcloud` is Modular's
+  #     internal deployment behind a sops-held hostname, a different endpoint
+  #     serving a much smaller model set, and sharing the name invites
+  #     exactly the confusion it caused once already.
   #   - GLM 5.3's window is the served 1048576, not the script's stale 524288.
   #
   # Every `contextWindow` is the server's own, read off the 400 a ~1.3M-token
@@ -43,7 +45,7 @@ let
     };
   };
 
-  # JSON is valid YAML, so models.yml is rendered with jq like pi's models.json.
+  # JSON is valid YAML, so models.yml is rendered with jq.
   modelsTemplate = pkgs.writeText "omp-models.yml.tmpl" (builtins.toJSON ompModels);
 in
 {
@@ -55,8 +57,8 @@ in
   home.file.".omp/agent/extensions/herdr-omp-agent-state.ts".source =
     ./home/.omp/agent/extensions/herdr-omp-agent-state.ts;
 
-  # Rendered rather than symlinked, for the reason pi.nix gives: the key must
-  # not land in a world-readable store path. omp would also accept the NAME of
+  # Rendered rather than symlinked: the key must not land in a world-readable
+  # store path. omp would also accept the NAME of
   # an env var as `apiKey`, but that needs the var in every launch environment;
   # a literal key in a 0600 file works from anywhere.
   home.activation.ompModelsConfig = lib.hm.dag.entryAfter [ "writeBoundary" "sops-nix" ] ''

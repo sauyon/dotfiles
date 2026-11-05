@@ -4799,7 +4799,11 @@ in
     };
     ghostty = lib.mkIf (!isDarwin) {
       enable = isDesktop;
-      package = config.lib.nixGL.wrap pkgs.ghostty;
+      # withHostNss: launched bare (the SUPER+return bind), ghostty skips
+      # $SHELL and asks passwd for the shell and home dir. Without the host's
+      # nss-systemd that lookup fails for the homed user and every window
+      # opens `sh` in Hyprland's cwd.
+      package = withHostNss (config.lib.nixGL.wrap pkgs.ghostty);
       enableZshIntegration = true;
       systemd.enable = false;
       # installBatSyntax = true;

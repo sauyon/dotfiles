@@ -3707,9 +3707,12 @@ in
 
   nixpkgs.overlays = [
     (final: prev: {
+      # Bump from NUR's `main`, never `master`: master still takes merges but its
+      # lock froze in 2025-03, so a fresh-looking master commit downgrades every
+      # addon. tests/nur-pin.sh checks both the branch and the bitwarden version.
       nur = import (builtins.fetchTarball {
-        url = "https://github.com/nix-community/NUR/archive/a9d52e0d2f9fb3fa80ed968ad4a8129051f12585.tar.gz";
-        sha256 = "sha256-0tzBVPDBmx1tLoLAKI1uttapmj1tB8sRALeeQAvX4aA=";
+        url = "https://github.com/nix-community/NUR/archive/89b90d863d16fc7423aa5be0aada5ac9235a20b9.tar.gz";
+        sha256 = "sha256-uL6bFukrc6B3Mc8GhBJbKqpbgQqsiUiTONumzMhn3gE=";
       }) {
         nurpkgs = prev;
         pkgs = prev;

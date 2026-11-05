@@ -164,8 +164,8 @@ jobs:
               printf '%s' "$TEST_HOST" > /etc/hostname
               echo "  (as $TEST_HOST)"
 
-              # tests/*.sh are ordinary shell: they want coreutils, grep, sed
-              # and jq, none of which the nix image has. Run them inside a
+              # tests/*.sh are ordinary shell: they want coreutils, grep, sed,
+              # jq and curl, none of which the nix image has. Run them inside a
               # pinned shell rather than teaching each script to cope.
               tools="github:NixOS/nixpkgs/$TOOLS_REV"
               for t in $tests; do
@@ -173,7 +173,7 @@ jobs:
                 if nix shell \
                      "$tools#bash" "$tools#coreutils" "$tools#gnugrep" \
                      "$tools#gnused" "$tools#gawk" "$tools#git" \
-                     "$tools#jq" "$tools#diffutils" \
+                     "$tools#jq" "$tools#diffutils" "$tools#curl" \
                      -c bash "$t"; then
                   echo "  === $t PASSED"
                 else

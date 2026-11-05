@@ -128,6 +128,7 @@ where it gates the build instead of being checked after the fact.
 ./tests/hyprland-graceful-exit.sh # drives the built script under a stub hyprctl
 ./tests/bootstrap-ssh-finalize.sh # drives install/finalize-ssh.sh, stubbed systemctl
 ./tests/claude-main-edit-guard.sh # drives the evaluated PreToolUse hook, 19 cases on throwaway repos
+./tests/nur-pin.sh               # NUR pin is on main, not master; zen bitwarden within 6 months of desktop, per host
 ./tests/emacs-treesit-init.sh    # built emacs + grammars, init with an empty elpa, 4 cases
 
 # The WIF kit. These guard the trust root, so most are offline and static on

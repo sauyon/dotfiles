@@ -41,20 +41,24 @@ pass() { n=$((n+1)); echo "ok   $1"; }
 fail() { n=$((n+1)); echo "FAIL $1: $2"; fails=$((fails+1)); }
 
 # --- the pin is on NUR's default branch --------------------------------------
-revs=$(grep -oE 'nix-community/NUR/archive/[0-9a-f]{40}' "$FLAKE/home.nix" | grep -oE '[0-9a-f]{40}$' | sort -u)
+# NUR_PIN_REV stands in for the rev read from home.nix, so the branch case can be
+# shown to accept an older ancestor of main and refuse a master commit.
+revs=${NUR_PIN_REV:-$(grep -oE 'nix-community/NUR/archive/[0-9a-f]{40}' "$FLAKE/home.nix" | grep -oE '[0-9a-f]{40}$' | sort -u)}
 if [ "$(printf '%s\n' "$revs" | grep -c .)" -ne 1 ]; then
   fail "home.nix pins exactly one NUR rev" "found: $(echo $revs)"
 else
   rev=$revs
-  if ! curl -fsS https://api.github.com/repos/nix-community/NUR >"$D/repo" 2>"$D/err"; then
+  if ! curl -fsS --max-time 30 https://api.github.com/repos/nix-community/NUR >"$D/repo" 2>"$D/err"; then
     fail "NUR $rev is on the default branch" "could not reach GitHub: $(cat "$D/err")"
   else
     branch=$(jq -r .default_branch <"$D/repo")
-    if ! curl -fsS "https://api.github.com/repos/nix-community/NUR/compare/$rev...$branch" >"$D/cmp" 2>"$D/err"; then
+    # $branch as base, the pin as head: status is the pin relative to $branch.
+    # per_page=1 because a master pin diverges by tens of thousands of commits.
+    if ! curl -fsS --max-time 30 "https://api.github.com/repos/nix-community/NUR/compare/$branch...$rev?per_page=1" >"$D/cmp" 2>"$D/err"; then
       fail "NUR $rev is on $branch" "compare failed: $(cat "$D/err")"
     else
       status=$(jq -r .status <"$D/cmp")
-      # behind: $branch has moved on past the pin. identical: the pin is its tip.
+      # behind: the pin is an ancestor $branch has moved past. identical: its tip.
       case "$status" in
         behind|identical) pass "NUR $rev is on $branch ($status)" ;;
         *) fail "NUR $rev is on $branch" \
@@ -71,10 +75,9 @@ fi
 mapfile -t hosts < <(jq -r '.[]' <"$D/hosts")
 [ "${#hosts[@]}" -gt 0 ] || { echo "flake defines no homeConfigurations" >&2; exit 1; }
 
-months() { # months <YYYY.M...> -> YYYY*12+M
-  local y m
-  IFS=. read -r y m _ <<<"$1"
-  echo $(( 10#$y * 12 + 10#$m ))
+months() { # months <YYYY.M...> -> YYYY*12+M; empty for anything else
+  [[ $1 =~ ^([0-9]{4})\.([0-9]{1,2})(\.|$) ]] || return 1
+  echo $(( 10#${BASH_REMATCH[1]} * 12 + 10#${BASH_REMATCH[2]} ))
 }
 
 checked=0
@@ -98,7 +101,11 @@ for host in "${hosts[@]}"; do
   mapfile -t exts < <(jq -r '.ext[]' <"$D/v")
   for ext in ${exts+"${exts[@]}"}; do
     checked=$((checked+1))
-    gap=$(( $(months "$ext") - $(months "$desktop") ))
+    if ! e=$(months "$ext") || ! d=$(months "$desktop"); then
+      fail "$host: zen bitwarden $ext vs desktop $desktop" "not both YYYY.M versions"
+      continue
+    fi
+    gap=$(( e - d ))
     if [ "${gap#-}" -le 6 ]; then
       pass "$host: zen bitwarden $ext is within 6 months of desktop $desktop"
     else

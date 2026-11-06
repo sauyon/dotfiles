@@ -37,9 +37,12 @@ for ev in SessionStart UserPromptSubmit Stop; do
 done
 
 orca_on() { # orca_on <host> -> true | false
+  # orca-cli, not the `orca` GUI: a serve host (fujiwara) runs agents under
+  # `orca serve` with no desktop app, and its panes need the hooks just the same.
+  # orca.nix installs orca-cli on exactly the hosts home.nix calls hasOrca.
   local v
   v=$(nix eval --raw "$REPO#homeConfigurations.$1.config.home.packages" \
-    --apply 'ps: if builtins.any (p: (p.pname or "") == "orca") ps then "true" else "false"') \
+    --apply 'ps: if builtins.any (p: (p.pname or "") == "orca-cli") ps then "true" else "false"') \
     || { echo "could not evaluate $1's packages" >&2; exit 1; }
   case "$v" in true|false) echo "$v" ;; *) echo "orca_on $1: got '$v'" >&2; exit 1 ;; esac
 }
@@ -65,7 +68,7 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
   else fail "$h: Orca hook entries missing" "$(paste -sd' ' <<<"$missing")"; fi
   # Merged, not replaced: the hosts' own SessionStart hooks (kube session,
   # herdr) still run.
-  if jq -e '.SessionStart | any(.hooks[]?; .command | test("herdr-agent-state"))' <<<"$hooks" >/dev/null; then
+  if jq -e '[.SessionStart[].hooks[]?] | any(.command | test("herdr-agent-state"))' <<<"$hooks" >/dev/null; then
     pass "$h: the existing SessionStart hooks survive the merge"
   else fail "$h: SessionStart merge" "herdr's hook is gone"; fi
 done

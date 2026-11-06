@@ -1960,8 +1960,19 @@ attr=$attr
   ];
 
 
+  # Orca's Claude status hooks. They carry the session_id Orca keys a pane's
+  # resume record on, so without them every Claude pane comes back from a
+  # reboot as a bare shell. Orca installs them by rewriting settings.json, which
+  # here is a read-only store symlink, so its installer fails and they are
+  # declared instead. Generated from Orca's own source, not hand-copied: Orca
+  # counts an entry installed only in its exact form. Regenerate with
+  # nix/orca-claude-hooks-gen.ts. Inert outside an Orca pane (the script
+  # returns early without ORCA_PANE_KEY), and it never answers a permission.
+  orcaClaudeHooks = (lib.importJSON ./nix/orca-claude-hooks.json).hooks;
+
   claudeBaseSettings = {
-    hooks = {
+    # Each event's list is this host's own hooks followed by Orca's.
+    hooks = lib.zipAttrsWith (_: lib.concatLists) ([ {
       PreToolUse = [
         {
           matcher = "Edit|Write|NotebookEdit";
@@ -2156,7 +2167,7 @@ attr=$attr
           } ];
         }
       ];
-    };
+    } ] ++ lib.optional hasOrca orcaClaudeHooks);
     permissions = {
       allow = [
         "Bash(mise run:*)"

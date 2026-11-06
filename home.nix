@@ -1795,7 +1795,7 @@ let
     # to the default repo. Not merely "inside a repo" either: `add -A` below
     # would then push the whole enclosing tree.
     top=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null) || top=""
-    if [ -z "$top" ] || [ "$top" != "$(cd "$repo" && pwd -P)" ]; then
+    if [ -z "$top" ] || [ "$top" != "$(CDPATH= cd -- "$repo" && pwd -P)" ]; then
       echo "hmeval: $repo is not a git checkout's top level" >&2; exit 1
     fi
 
@@ -1974,10 +1974,10 @@ attr=$attr
   #
   # Two things this relies on that Orca, not this repo, controls:
   # - The script the commands run, ~/.orca/agent-hooks/claude-hook.sh, is
-  #   Orca's. Its installer still runs at every start (nix writes keys in a
-  #   different order, so the file never matches and it retries) and writes the
-  #   script BEFORE failing on settings.json; that is what creates it on a fresh
-  #   host. If Orca ever reorders that, the hooks find no script and fall back
+  #   Orca's. Its installer runs at every start regardless, and writes the
+  #   script BEFORE it tries settings.json (and fails: nix's key order never
+  #   matches Orca's, so it always attempts the write); that is what creates
+  #   the script on a fresh host. If Orca ever reorders that, the hooks find no script and fall back
   #   to printing {}: harmless, but resume quietly stops working again.
   # - As of 1.4.245 that script only reports status (its curl output goes to
   #   /dev/null) and does nothing without Orca's pane environment, so it never

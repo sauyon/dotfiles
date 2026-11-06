@@ -334,6 +334,8 @@ setup_repo; setup_nix; setup_forge
 mkdir -p "$D/repo/sub"
 rc=$(HMEVAL_REPO_OVERRIDE="$D/repo/sub" run_hmeval --ci utsuho)
 check "--ci: a subdirectory is refused (exit 1)" "$rc" 1
+check "--ci: refused by the top-level guard, not some later exit" \
+  "$(grep -c "is not a git checkout's top level" "$D/err")" 1
 check "--ci: and nothing was pushed" \
   "$(git -C "$D/origin.git" for-each-ref --format='%(refname)' refs/heads/eval | wc -l | tr -d ' ')" 0
 

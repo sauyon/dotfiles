@@ -59,13 +59,23 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
     else fail "$h: Orca hooks without Orca" "$orca_entries entries"; fi
     continue
   fi
-  # Exactly Orca's own entry, byte for byte: Orca counts its hooks present by
-  # matching the generated form, and a near miss reads to it as missing.
-  missing=$(jq -r --slurpfile v "$VENDORED" '
+  # The generated file is only right for the Orca it was generated from: a bump
+  # that changes Orca's wrapper or event list leaves these entries counted as
+  # missing. Same contract as the skills rev in orca.nix -- bump, regenerate.
+  have=$(nix eval --raw "$REPO#homeConfigurations.$h.config.home.packages" \
+    --apply 'ps: (builtins.head (builtins.filter (p: (p.pname or "") == "orca-cli") ps)).version') \
+    || { echo "could not evaluate $h's orca-cli version" >&2; exit 1; }
+  gen=$(jq -r '.orcaVersion' "$VENDORED")
+  if [ "$gen" = "$have" ]; then pass "$h: hooks were generated from this Orca ($have)"
+  else fail "$h: hooks generated from Orca $gen, installed is $have" \
+    "regenerate with nix/orca-claude-hooks-gen.ts"; fi
+  # Each vendored entry, whole, in the host's list for its event.
+  if missing=$(jq -r --slurpfile v "$VENDORED" '
     . as $got | $v[0].hooks | to_entries[]
-    | select(.value[0] as $want | ($got[.key] // []) | index($want) | not) | .key' <<<"$hooks")
-  if [ -z "$missing" ]; then pass "$h: every Orca hook entry is in settings.hooks"
-  else fail "$h: Orca hook entries missing" "$(paste -sd' ' <<<"$missing")"; fi
+    | select(.value[0] as $want | ($got[.key] // []) | index($want) | not) | .key' <<<"$hooks"); then
+    if [ -z "$missing" ]; then pass "$h: every Orca hook entry is in settings.hooks"
+    else fail "$h: Orca hook entries missing" "$(paste -sd' ' <<<"$missing")"; fi
+  else fail "$h: Orca hook entries" "jq could not compare them"; fi
   # Merged, not replaced: the hosts' own SessionStart hooks (kube session,
   # herdr) still run.
   if jq -e '[.SessionStart[].hooks[]?] | any(.command | test("herdr-agent-state"))' <<<"$hooks" >/dev/null; then

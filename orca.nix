@@ -27,6 +27,8 @@ let
   # is the AppImage's, checked against
   # the download with `nix hash to-sri --type sha512 <sha512sum>`.
   # https://github.com/stablyai/orca/releases/latest/download/latest-linux.yml
+  # A bump also regenerates nix/orca-claude-hooks.json (recipe in
+  # nix/orca-claude-hooks-gen.ts); tests/orca-agent-hooks.sh holds it to this.
   pname = "orca";
   version = "1.4.245";
   src = pkgs.fetchurl {

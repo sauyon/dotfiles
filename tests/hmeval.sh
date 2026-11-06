@@ -327,6 +327,16 @@ check "--ci: the worktree's own files are what got pushed" \
   "$(git -C "$D/origin.git" show "$pushed:wtfile" 2>/dev/null)" from-worktree
 git -C "$D/repo" worktree remove --force "$D/wt"
 
+echo "== --ci refuses a directory that is merely inside a checkout"
+# rev-parse alone answers for any subdirectory, and `add -A` would then push
+# the whole enclosing tree; the guard wants the checkout's own top level.
+setup_repo; setup_nix; setup_forge
+mkdir -p "$D/repo/sub"
+rc=$(HMEVAL_REPO_OVERRIDE="$D/repo/sub" run_hmeval --ci utsuho)
+check "--ci: a subdirectory is refused (exit 1)" "$rc" 1
+check "--ci: and nothing was pushed" \
+  "$(git -C "$D/origin.git" for-each-ref --format='%(refname)' refs/heads/eval | wc -l | tr -d ' ')" 0
+
 echo
 echo "$((n - fails))/$n passed"
 [ "$fails" -eq 0 ]

@@ -1790,10 +1790,14 @@ let
     ########################################################################
     # CI: push the working tree to a scratch branch and read the job log.
     ########################################################################
-    # rev-parse, not `-d .git`: a linked worktree -- every Orca workspace -- has
-    # a .git *file*, and refusing it sent those sessions to the default repo.
-    git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 \
-      || { echo "hmeval: $repo is not a git repo" >&2; exit 1; }
+    # The checkout's own top level, not `-d .git`: a linked worktree -- every
+    # Orca workspace -- has a .git *file*, and refusing it sent those sessions
+    # to the default repo. Not merely "inside a repo" either: `add -A` below
+    # would then push the whole enclosing tree.
+    top=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null) || top=""
+    if [ -z "$top" ] || [ "$top" != "$(cd "$repo" && pwd -P)" ]; then
+      echo "hmeval: $repo is not a git checkout's top level" >&2; exit 1
+    fi
 
     # One branch per host, force-pushed over, and deliberately NOT deleted
     # afterwards.
@@ -1963,11 +1967,21 @@ attr=$attr
   # Orca's Claude status hooks. They carry the session_id Orca keys a pane's
   # resume record on, so without them every Claude pane comes back from a
   # reboot as a bare shell. Orca installs them by rewriting settings.json, which
-  # here is a read-only store symlink, so its installer fails and they are
-  # declared instead. Generated from Orca's own source, not hand-copied: Orca
-  # counts an entry installed only in its exact form. Regenerate with
-  # nix/orca-claude-hooks-gen.ts. Inert outside an Orca pane (the script
-  # returns early without ORCA_PANE_KEY), and it never answers a permission.
+  # here is a read-only store symlink, so they are declared instead. Generated
+  # from Orca's own source (nix/orca-claude-hooks-gen.ts), not hand-copied:
+  # Orca recognises its entries by their command string, which changes with its
+  # wrapper. tests/orca-agent-hooks.sh holds the file to orca.nix's version.
+  #
+  # Two things this relies on that Orca, not this repo, controls:
+  # - The script the commands run, ~/.orca/agent-hooks/claude-hook.sh, is
+  #   Orca's. Its installer still runs at every start (nix writes keys in a
+  #   different order, so the file never matches and it retries) and writes the
+  #   script BEFORE failing on settings.json; that is what creates it on a fresh
+  #   host. If Orca ever reorders that, the hooks find no script and fall back
+  #   to printing {}: harmless, but resume quietly stops working again.
+  # - As of 1.4.245 that script only reports status (its curl output goes to
+  #   /dev/null) and does nothing without Orca's pane environment, so it never
+  #   answers a permission prompt.
   orcaClaudeHooks = (lib.importJSON ./nix/orca-claude-hooks.json).hooks;
 
   claudeBaseSettings = {

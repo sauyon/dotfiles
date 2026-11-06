@@ -123,7 +123,7 @@ run_hmeval() {
   CALLS="$D/calls" STATUSFILE="$D/status" BODYFILE="$D/body" SHAFILE="$D/sha" \
   PREFIX="${PREFIX:-2026-10-02T00:00:00.00000000Z}" \
   NIX_ARGV_LOG="$D/nix.argv" \
-  HMEVAL_REPO="$D/repo" HMEVAL_CURL="$D/curl" HMEVAL_TOKEN_CMD="$D/token" \
+  HMEVAL_REPO="${HMEVAL_REPO_OVERRIDE:-$D/repo}" HMEVAL_CURL="$D/curl" HMEVAL_TOKEN_CMD="$D/token" \
   HMEVAL_NIX="$D/nix" HMEVAL_WAIT_SECONDS=5 \
     "$SCRIPT" "$@" > "$D/out" 2> "$D/err"
   echo $?
@@ -307,6 +307,25 @@ if [ "$first" != "$second" ] && [ -n "$first" ] && [ "$first" != none ]; then
 else
   bad "--ci: back-to-back runs push distinct commits" "both were [$first]"
 fi
+
+echo "== --ci from a linked worktree"
+# Every Orca workspace is a `git worktree add` checkout, whose .git is a file
+# naming the main repo's gitdir -- not a directory. Refusing that as "not a git
+# repo" left an Orca session two choices: no CI eval at all, or the default
+# ~/devel/dotfiles, which is some other session's tree. The pushed commit has to
+# be the worktree's own content.
+setup_repo; setup_nix
+git -C "$D/repo" worktree add --quiet -b side "$D/wt"
+echo from-worktree > "$D/wt/wtfile"
+setup_forge success "$(fenced "  utsuho     /nix/store/x-home-manager-generation.drv")"
+( sleep 0.2; arm_forge_for_push ) &
+rc=$(HMEVAL_REPO_OVERRIDE="$D/wt" run_hmeval --ci utsuho)
+wait
+check "--ci: a linked worktree is accepted (exit 0)" "$rc" 0
+pushed=$(cat "$D/sha")
+check "--ci: the worktree's own files are what got pushed" \
+  "$(git -C "$D/origin.git" show "$pushed:wtfile" 2>/dev/null)" from-worktree
+git -C "$D/repo" worktree remove --force "$D/wt"
 
 echo
 echo "$((n - fails))/$n passed"

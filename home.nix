@@ -1790,7 +1790,10 @@ let
     ########################################################################
     # CI: push the working tree to a scratch branch and read the job log.
     ########################################################################
-    [ -d "$repo/.git" ] || { echo "hmeval: $repo is not a git repo" >&2; exit 1; }
+    # rev-parse, not `-d .git`: a linked worktree -- every Orca workspace -- has
+    # a .git *file*, and refusing it sent those sessions to the default repo.
+    git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 \
+      || { echo "hmeval: $repo is not a git repo" >&2; exit 1; }
 
     # One branch per host, force-pushed over, and deliberately NOT deleted
     # afterwards.

@@ -295,7 +295,8 @@ let
   # reusing the old tree. The skills are stubs that call
   # `orca-ide skills get <name>`, so they need orcaCli above.
   #
-  # A subset of the bundled ten: no Jira, no emulator. Each is a read-only
+  # A subset of the bundled eleven: no Jira, no emulator, no plugin authoring
+  # (nothing here writes Orca plugins). Each is a read-only
   # store symlink, so Orca's own Settings > Skills "update" (npx skills add)
   # will fail on them or replace them, and home-manager then refuses to
   # clobber; update by bumping here instead.

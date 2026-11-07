@@ -1794,10 +1794,12 @@ let
     # Orca workspace -- has a .git *file*, and refusing it sent those sessions
     # to the default repo. Not merely "inside a repo" either: `add -A` below
     # would then push the whole enclosing tree.
-    # git's own complaint (dubious ownership, no such dir) is kept for the
-    # message rather than discarded.
-    if ! top=$(git -C "$repo" rev-parse --show-toplevel 2>&1); then
-      echo "hmeval: $repo is not a git checkout: $top" >&2; exit 1
+    # On failure git's own complaint (dubious ownership, no such dir) goes in
+    # the message; on success its stderr (warnings, GIT_TRACE) must not end up
+    # in the path, so the two are only joined when it failed.
+    if ! top=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null); then
+      why=$(git -C "$repo" rev-parse --show-toplevel 2>&1 >/dev/null || true)
+      echo "hmeval: $repo is not a git checkout: $why" >&2; exit 1
     fi
     if [ "$top" != "$(CDPATH= cd -- "$repo" && pwd -P)" ]; then
       echo "hmeval: $repo is not a git checkout's top level ($top is)" >&2; exit 1
@@ -1979,17 +1981,19 @@ attr=$attr
   # Two things this relies on that Orca, not this repo, controls:
   # - The script the commands run, ~/.orca/agent-hooks/claude-hook.sh, is
   #   Orca's. Its installer runs at every start (unless Orca's status hooks are
-  #   off or it finds no claude CLI) and writes the script BEFORE it tries
+  #   off, claude is among its disabled agents, or it finds no claude CLI) and
+  #   writes the script BEFORE it tries
   #   settings.json and fails on the store path -- which it always attempts,
   #   since nix's key order never matches Orca's. That is what creates the
   #   script on a fresh host, so it logs an install failure every start too.
   #   If Orca ever reorders that, the hooks find no script and fall back to
   #   printing {}: harmless, but resume quietly stops working again.
   # - What the script says. Outside an Orca pane (no pane key, port or token)
-  #   it prints {} and posts nothing. Inside one, as of 1.4.251, its PreToolUse
-  #   answer is whatever an installed Orca plugin's `agent.tool.before` returns
-  #   -- {} when there is none -- and it waits up to 8s for that answer.
-  #   Every other event prints {}.
+  #   it prints {} and posts nothing. Inside one, as of 1.4.251, PreToolUse
+  #   waits up to 8s for Orca's answer, which is non-empty only when an
+  #   installed Orca plugin's `agent.tool.before` denies the call or rewrites
+  #   its input -- a plugin can block or alter a tool call, never approve one.
+  #   Otherwise, and for every other event, it prints {}.
   orcaClaudeHooks = (lib.importJSON ./nix/orca-claude-hooks.json).hooks;
 
   claudeBaseSettings = {

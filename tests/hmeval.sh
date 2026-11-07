@@ -339,6 +339,26 @@ check "--ci: refused by the top-level guard, not some later exit" \
 check "--ci: and nothing was pushed" \
   "$(git -C "$D/origin.git" for-each-ref --format='%(refname)' refs/heads/eval | wc -l | tr -d ' ')" 0
 
+echo "== --ci refuses a directory that is no checkout, and says git's reason"
+setup_repo; setup_nix; setup_forge
+mkdir -p "$D/plain"
+rc=$(HMEVAL_REPO_OVERRIDE="$D/plain" run_hmeval --ci utsuho)
+check "--ci: a plain directory is refused (exit 1)" "$rc" 1
+check "--ci: the refusal carries git's own error" \
+  "$(grep -c "is not a git checkout: .*not a git repository" "$D/err")" 1
+check "--ci: and nothing was pushed" \
+  "$(git -C "$D/origin.git" for-each-ref --format='%(refname)' refs/heads/eval | wc -l | tr -d ' ')" 0
+
+echo "== --ci accepts a checkout even when git talks on stderr"
+# Warnings git prints while succeeding (an unreadable config, GIT_TRACE) are
+# not part of the path; mixed into it, they refused a valid checkout.
+setup_repo; setup_nix
+setup_forge success "$(fenced "  utsuho     /nix/store/x-home-manager-generation.drv")"
+( sleep 0.2; arm_forge_for_push ) &
+rc=$(GIT_TRACE=1 run_hmeval --ci utsuho)
+wait
+check "--ci: GIT_TRACE on stderr does not refuse the checkout (exit 0)" "$rc" 0
+
 echo
 echo "$((n - fails))/$n passed"
 [ "$fails" -eq 0 ]

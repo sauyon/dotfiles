@@ -54,7 +54,7 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
   orca=$(orca_on "$h") || exit 1
   hooks=$(nix eval --json "$REPO#homeConfigurations.$h.config.programs.claude-code.settings.hooks") \
     || { echo "could not evaluate $h's Claude hooks" >&2; exit 1; }
-  orca_entries=$(jq '[.[][] | select(any(.hooks[]?; .command | test("\\.orca/agent-hooks/claude-hook\\.sh")))] | length' <<<"$hooks")
+  orca_entries=$(jq '[.[][] | select(any(.hooks[]?; (.command // "") | test("\\.orca/agent-hooks/claude-hook\\.sh")))] | length' <<<"$hooks")
   if [ "$orca" = false ]; then
     if [ "$orca_entries" = 0 ]; then pass "$h: no Orca hooks without Orca"
     else fail "$h: Orca hooks without Orca" "$orca_entries entries"; fi
@@ -72,7 +72,9 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
     "regenerate with nix/orca-agent-hooks-gen.ts"; fi
   # Orca gates events on the Claude version too (PostToolBatch, SessionEnd): a
   # Claude older than the one generated for may reject an event it does not
-  # know -- and with it the whole settings.json, permissions included.
+  # know -- and with it the whole settings.json, permissions included -- and a
+  # newer one may unlock events Orca would install that these entries lack.
+  # Equality on purpose, then: a claude-code bump regenerates these too.
   claude=$(nix eval --raw "$REPO#homeConfigurations.$h.config.programs.claude-code.package.version") \
     || { echo "could not evaluate $h's claude-code version" >&2; exit 1; }
   for_claude=$(jq -r '.claudeVersion' "$VENDORED")
@@ -88,7 +90,7 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
   else fail "$h: Orca hook entries" "jq could not compare them"; fi
   # Merged, not replaced: the hosts' own SessionStart hooks (kube session,
   # herdr) still run.
-  if jq -e '[.SessionStart[].hooks[]?] | any(.command | test("herdr-agent-state"))' <<<"$hooks" >/dev/null; then
+  if jq -e '[.SessionStart[].hooks[]?] | any((.command // "") | test("herdr-agent-state"))' <<<"$hooks" >/dev/null; then
     pass "$h: the existing SessionStart hooks survive the merge"
   else fail "$h: SessionStart merge" "herdr's hook is gone"; fi
 done
@@ -126,7 +128,7 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
     || { echo "could not evaluate $h's Cursor hooks.json" >&2; exit 1; }
   home=$(nix eval --raw "$REPO#homeConfigurations.$h.config.home.homeDirectory") \
     || { echo "could not evaluate $h's homeDirectory" >&2; exit 1; }
-  orca_entries=$(jq '[.hooks[][] | select(.command // "" | test("\\.orca/agent-hooks/cursor-hook\\.sh"))] | length' <<<"$text")
+  orca_entries=$(jq '[.hooks[][] | select((.command // "") | test("\\.orca/agent-hooks/cursor-hook\\.sh"))] | length' <<<"$text")
   # Unreachable while utsuho is the only Cursor host (it has Orca); kept for
   # the day a Cursor host without Orca joins.
   if [ "$orca" = false ]; then
@@ -141,7 +143,7 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
     if [ -z "$missing" ]; then pass "$h: every Orca Cursor hook entry is in hooks.json, at $home"
     else fail "$h: Orca Cursor hook entries missing" "$(paste -sd' ' <<<"$missing")"; fi
   else fail "$h: Orca Cursor hook entries" "jq could not compare them"; fi
-  if jq -e '[.hooks.sessionStart[]?] | any(.command | test("herdr-agent-state"))' <<<"$text" >/dev/null \
+  if jq -e '[.hooks.sessionStart[]?] | any((.command // "") | test("herdr-agent-state"))' <<<"$text" >/dev/null \
      && [ "$(jq '.version' <<<"$text")" = 1 ]; then
     pass "$h: herdr's Cursor sessionStart hook and version 1 survive the merge"
   else fail "$h: Cursor hooks.json merge" "herdr's hook or version gone"; fi

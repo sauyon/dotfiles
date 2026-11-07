@@ -68,7 +68,7 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
   gen=$(jq -r '.orcaVersion' "$VENDORED")
   if [ "$gen" = "$have" ]; then pass "$h: hooks were generated from this Orca ($have)"
   else fail "$h: hooks generated from Orca $gen, installed is $have" \
-    "regenerate with nix/orca-claude-hooks-gen.ts"; fi
+    "regenerate with nix/orca-agent-hooks-gen.ts"; fi
   # Each vendored entry, whole, in the host's list for its event.
   if missing=$(jq -r --slurpfile v "$VENDORED" '
     . as $got | $v[0].hooks | to_entries[]
@@ -81,6 +81,56 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
   if jq -e '[.SessionStart[].hooks[]?] | any(.command | test("herdr-agent-state"))' <<<"$hooks" >/dev/null; then
     pass "$h: the existing SessionStart hooks survive the merge"
   else fail "$h: SessionStart merge" "herdr's hook is gone"; fi
+done
+
+# ── Cursor ──────────────────────────────────────────────────────────────────
+# Same story for cursor-agent: Orca rewrites ~/.cursor/hooks.json, which is a
+# home.file here. Its command embeds the script's absolute path, so the vendored
+# file carries @HOME@ and each host's homeDirectory is substituted in.
+CURSOR="$REPO/nix/orca-cursor-hooks.json"
+if [ -f "$CURSOR" ] && jq -e '.hooks | length > 0' "$CURSOR" >/dev/null 2>&1; then
+  pass "nix/orca-cursor-hooks.json carries hook entries"
+else
+  fail "vendored Cursor hooks" "$CURSOR is missing or has no .hooks"
+  echo "$n cases, $fails failed"; exit 1
+fi
+# A real home in the vendored file is the generating machine's, wrong for every
+# other host -- and a username in a public repo.
+if grep -q '@HOME@/\.orca/agent-hooks/cursor-hook\.sh' "$CURSOR" && ! grep -q '/home/' "$CURSOR"; then
+  pass "vendored Cursor hooks name the script under @HOME@, no real home"
+else fail "vendored Cursor home" "expected @HOME@ and no /home/ path"; fi
+gen=$(jq -r '.orcaVersion' "$CURSOR")
+have=$(jq -r '.orcaVersion' "$VENDORED")
+if [ "$gen" = "$have" ]; then pass "Cursor and Claude hooks come from the same Orca ($gen)"
+else fail "Cursor hooks generated from Orca $gen" "Claude's from $have; regenerate both"; fi
+
+for h in $(jq -r '.[]' <<<"$hosts"); do
+  has_cursor=$(nix eval --raw "$REPO#homeConfigurations.$h.config.home.file" \
+    --apply 'fs: if builtins.any (f: f.target == ".cursor/hooks.json") (builtins.attrValues fs) then "true" else "false"') \
+    || { echo "could not evaluate $h's home.file" >&2; exit 1; }
+  [ "$has_cursor" = true ] || continue
+  orca=$(orca_on "$h") || exit 1
+  text=$(nix eval --raw "$REPO#homeConfigurations.$h.config.home.file.\".cursor/hooks.json\".text") \
+    || { echo "could not evaluate $h's Cursor hooks.json" >&2; exit 1; }
+  home=$(nix eval --raw "$REPO#homeConfigurations.$h.config.home.homeDirectory") \
+    || { echo "could not evaluate $h's homeDirectory" >&2; exit 1; }
+  orca_entries=$(jq '[.hooks[][] | select(.command | test("\\.orca/agent-hooks/cursor-hook\\.sh"))] | length' <<<"$text")
+  if [ "$orca" = false ]; then
+    if [ "$orca_entries" = 0 ]; then pass "$h: no Orca Cursor hooks without Orca"
+    else fail "$h: Orca Cursor hooks without Orca" "$orca_entries entries"; fi
+    continue
+  fi
+  if missing=$(jq -r --slurpfile v "$CURSOR" --arg home "$home" '
+    . as $got | $v[0].hooks | to_entries[]
+    | select((.value[0] | .command |= gsub("@HOME@"; $home)) as $want
+             | ($got.hooks[.key] // []) | index($want) | not) | .key' <<<"$text"); then
+    if [ -z "$missing" ]; then pass "$h: every Orca Cursor hook entry is in hooks.json, at $home"
+    else fail "$h: Orca Cursor hook entries missing" "$(paste -sd' ' <<<"$missing")"; fi
+  else fail "$h: Orca Cursor hook entries" "jq could not compare them"; fi
+  if jq -e '[.hooks.sessionStart[]?] | any(.command | test("herdr-agent-state"))' <<<"$text" >/dev/null \
+     && [ "$(jq '.version' <<<"$text")" = 1 ]; then
+    pass "$h: herdr's Cursor sessionStart hook and version 1 survive the merge"
+  else fail "$h: Cursor hooks.json merge" "herdr's hook or version gone"; fi
 done
 
 echo "$n cases, $fails failed"

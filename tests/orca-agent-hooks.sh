@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cases for Orca's Claude status hooks being declared in home-manager.
+# Cases for Orca's Claude and Cursor status hooks being declared in home-manager.
 #
 # Why this needs a test. Orca resumes a terminal agent after a restart from a
 # record keyed by the agent's provider session id, and the only place that id
@@ -11,7 +11,7 @@
 # holds every host to them.
 #
 # Usage:
-#   tests/orca-agent-hooks.sh    eval every host's Claude settings and test them
+#   tests/orca-agent-hooks.sh    eval every host's Claude and Cursor hooks and test them
 
 set -u
 set -o pipefail
@@ -104,12 +104,14 @@ have=$(jq -r '.orcaVersion' "$VENDORED")
 if [ "$gen" = "$have" ]; then pass "Cursor and Claude hooks come from the same Orca ($gen)"
 else fail "Cursor hooks generated from Orca $gen" "Claude's from $have; regenerate both"; fi
 
+cursor_orca_hosts=0
 for h in $(jq -r '.[]' <<<"$hosts"); do
   has_cursor=$(nix eval --raw "$REPO#homeConfigurations.$h.config.home.file" \
     --apply 'fs: if builtins.any (f: f.target == ".cursor/hooks.json") (builtins.attrValues fs) then "true" else "false"') \
     || { echo "could not evaluate $h's home.file" >&2; exit 1; }
   [ "$has_cursor" = true ] || continue
   orca=$(orca_on "$h") || exit 1
+  [ "$orca" = true ] && cursor_orca_hosts=$((cursor_orca_hosts+1))
   text=$(nix eval --raw "$REPO#homeConfigurations.$h.config.home.file.\".cursor/hooks.json\".text") \
     || { echo "could not evaluate $h's Cursor hooks.json" >&2; exit 1; }
   home=$(nix eval --raw "$REPO#homeConfigurations.$h.config.home.homeDirectory") \
@@ -132,6 +134,9 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
     pass "$h: herdr's Cursor sessionStart hook and version 1 survive the merge"
   else fail "$h: Cursor hooks.json merge" "herdr's hook or version gone"; fi
 done
+# Otherwise a renamed isCursorHost skips every host and the section tests nothing.
+if [ "$cursor_orca_hosts" -gt 0 ]; then pass "Cursor cases ran on $cursor_orca_hosts Orca host(s)"
+else fail "Cursor cases" "no host manages .cursor/hooks.json with Orca"; fi
 
 echo "$n cases, $fails failed"
 [ "$fails" -eq 0 ]

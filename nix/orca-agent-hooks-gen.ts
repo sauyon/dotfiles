@@ -18,8 +18,10 @@
 // embed its absolute path, which is written out as @HOME@ and replaced with
 // homeDirectory in home.nix. The statusLine Orca would
 // also install for Claude is left out: claudeBaseSettings sets its own.
-const [root, agent, claudeVersion] = process.argv.slice(2)
-if (!root || !(agent === 'cursor' || (agent === 'claude' && claudeVersion))) {
+const [rootArg, agent, claudeVersion] = process.argv.slice(2)
+// Absolute: import() resolves a relative path against this file, not the cwd.
+const root = rootArg && (await import('node:path')).resolve(rootArg)
+if (!rootArg || !(agent === 'cursor' || (agent === 'claude' && claudeVersion))) {
   console.error('usage: orca-agent-hooks-gen.ts <orca checkout> claude <claude version>')
   console.error('       orca-agent-hooks-gen.ts <orca checkout> cursor')
   process.exit(2)

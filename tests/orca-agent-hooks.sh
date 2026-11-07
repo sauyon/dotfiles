@@ -4,11 +4,12 @@
 # Why this needs a test. Orca resumes a terminal agent after a restart from a
 # record keyed by the agent's provider session id, and the only place that id
 # comes from is the `session_id` in a hook payload. Orca installs those hooks by
-# rewriting ~/.claude/settings.json -- here a read-only store symlink, so the
-# install fails without a word and every Claude pane comes back from a reboot
-# as a bare shell. The entries are therefore vendored (nix/orca-claude-hooks.json,
-# generated from Orca's own source) and merged into claudeBaseSettings; this
-# holds every host to them.
+# rewriting ~/.claude/settings.json and ~/.cursor/hooks.json -- here read-only
+# store symlinks, so the install fails without a word and every agent pane comes
+# back from a reboot as a bare shell. The entries are therefore vendored
+# (nix/orca-{claude,cursor}-hooks.json, generated from Orca's own source) and
+# merged into claudeBaseSettings and the Cursor hooks.json; this holds every
+# host to them.
 #
 # Usage:
 #   tests/orca-agent-hooks.sh    eval every host's Claude and Cursor hooks and test them
@@ -69,6 +70,15 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
   if [ "$gen" = "$have" ]; then pass "$h: hooks were generated from this Orca ($have)"
   else fail "$h: hooks generated from Orca $gen, installed is $have" \
     "regenerate with nix/orca-agent-hooks-gen.ts"; fi
+  # Orca gates events on the Claude version too (PostToolBatch, SessionEnd): a
+  # Claude older than the one generated for may reject an event it does not
+  # know -- and with it the whole settings.json, permissions included.
+  claude=$(nix eval --raw "$REPO#homeConfigurations.$h.config.programs.claude-code.package.version") \
+    || { echo "could not evaluate $h's claude-code version" >&2; exit 1; }
+  for_claude=$(jq -r '.claudeVersion' "$VENDORED")
+  if [ "$for_claude" = "$claude" ]; then pass "$h: hooks were generated for this Claude ($claude)"
+  else fail "$h: hooks generated for Claude $for_claude, installed is $claude" \
+    "regenerate with nix/orca-agent-hooks-gen.ts"; fi
   # Each vendored entry, whole, in the host's list for its event.
   if missing=$(jq -r --slurpfile v "$VENDORED" '
     . as $got | $v[0].hooks | to_entries[]
@@ -116,7 +126,9 @@ for h in $(jq -r '.[]' <<<"$hosts"); do
     || { echo "could not evaluate $h's Cursor hooks.json" >&2; exit 1; }
   home=$(nix eval --raw "$REPO#homeConfigurations.$h.config.home.homeDirectory") \
     || { echo "could not evaluate $h's homeDirectory" >&2; exit 1; }
-  orca_entries=$(jq '[.hooks[][] | select(.command | test("\\.orca/agent-hooks/cursor-hook\\.sh"))] | length' <<<"$text")
+  orca_entries=$(jq '[.hooks[][] | select(.command // "" | test("\\.orca/agent-hooks/cursor-hook\\.sh"))] | length' <<<"$text")
+  # Unreachable while utsuho is the only Cursor host (it has Orca); kept for
+  # the day a Cursor host without Orca joins.
   if [ "$orca" = false ]; then
     if [ "$orca_entries" = 0 ]; then pass "$h: no Orca Cursor hooks without Orca"
     else fail "$h: Orca Cursor hooks without Orca" "$orca_entries entries"; fi

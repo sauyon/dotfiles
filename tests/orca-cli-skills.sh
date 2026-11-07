@@ -30,7 +30,7 @@ FLAKE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # /etc/hostname is what CI writes to say which host it is; a bwrap-era Orca
 # terminal has none, so fall back to uname -n there.
 host=$(cat /etc/hostname 2>/dev/null); host=${host:-$(uname -n)}; HM="$FLAKE#homeConfigurations.$host.config"
-SKILLS="orca-cli orchestration computer-use orca-per-workspace-env orca-linear linear-tickets"
+SKILLS="orca-cli orchestration orca-computer-use orca-per-workspace-env orca-linear linear-tickets"
 
 pkg_attr() { # pkg_attr <pname> <attr>
   nix eval --raw "$HM.home.packages" \

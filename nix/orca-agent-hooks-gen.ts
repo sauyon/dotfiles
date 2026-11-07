@@ -4,8 +4,12 @@
 // their command string, which changes with its wrapper. home.nix declares them
 // because both files are read-only store symlinks Orca cannot write.
 //
-// Regenerate both on every Orca bump (tests/orca-agent-hooks.sh holds the
-// files to orca.nix's version):
+// Regenerate both on every Orca bump, and the Claude file on every claude-code
+// version change too -- a manifest bump or a flake update that moves nixpkgs'
+// claude-code past it -- since Orca gates events on Claude's version.
+// tests/orca-agent-hooks.sh holds the files to both versions and, on a
+// mismatch, names the claude-code version the config installs; pass that one
+// (claude on PATH is the one installed, which before a switch may differ):
 //
 //   git -C ~/devel/orca checkout v<orca version>   # a clone of stablyai/orca
 //   mkdir -p ~/devel/orca/node_modules/@orca

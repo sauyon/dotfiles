@@ -3934,7 +3934,10 @@ in
     # Newer claude-code than nixpkgs carries (2.1.311 at e62746b), pulled in
     # with the node bump above. The manifest is upstream's
     # claude-code-releases/<ver>/manifest.zst.json, the same file nixpkgs'
-    # update.sh vendors. Inert once nixpkgs reaches it.
+    # update.sh vendors. Inert once nixpkgs reaches it. Any change to the
+    # resulting claude-code version (this manifest, or nixpkgs passing it)
+    # also regenerates nix/orca-claude-hooks.json -- see
+    # nix/orca-agent-hooks-gen.ts; tests/orca-agent-hooks.sh holds it to this.
     (final: prev:
       let manifest = lib.importJSON ./nix/claude-code-manifest.zst.json; in {
         claude-code =

@@ -364,10 +364,13 @@ let
       ${pkgs.writeText "orca-pinned.json" (builtins.toJSON orcaPinned)} \
       > $out/share/orca-mac-keybindings.json
     # The merge runs Orca's conflict check on the merged file at activation,
-    # so the keybinding module (and its one sibling import) ships alongside.
-    mkdir -p $out/lib/shared
-    cp -r app/out/shared/keybindings.js app/out/shared/keybindings \
-      app/out/shared/tui-agent-display-names.js $out/lib/shared/
+    # so the keybinding module ships alongside, with the one directory outside
+    # it that it imports (agent-launch/catalog, its tui-agent names; at
+    # out/shared/ top level until 1.4.251). The merge check below fails the
+    # build if a bump moves an import again.
+    mkdir -p $out/lib/shared/agent-launch
+    cp -r app/out/shared/keybindings.js app/out/shared/keybindings $out/lib/shared/
+    cp -r app/out/shared/agent-launch/catalog $out/lib/shared/agent-launch/
     makeWrapper ${patchedNodejs_24}/bin/node $out/bin/orca-mac-keybindings \
       --add-flags "${./nix/orca-mac-keybindings-merge.js} $out/lib/shared $out/share/orca-mac-keybindings.json"
     # One real merge, so an Orca bump that moves an import or an export the

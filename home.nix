@@ -1982,8 +1982,8 @@ attr=$attr
   # - The script the commands run, ~/.orca/agent-hooks/claude-hook.sh, is
   #   Orca's. Its installer runs at every start (unless Orca's status hooks are
   #   off, claude is among its disabled agents, or it finds no claude CLI) and
-  #   writes the script BEFORE it tries
-  #   settings.json and fails on the store path -- which it always attempts,
+  #   writes the script BEFORE it tries settings.json and fails on the store
+  #   path -- which it always attempts,
   #   since nix's key order never matches Orca's. That is what creates the
   #   script on a fresh host, so it logs an install failure every start too.
   #   If Orca ever reorders that, the hooks find no script and fall back to

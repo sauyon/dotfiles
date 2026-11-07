@@ -342,7 +342,9 @@ check "--ci: and nothing was pushed" \
 echo "== --ci refuses a directory that is no checkout, and says git's reason"
 setup_repo; setup_nix; setup_forge
 mkdir -p "$D/plain"
-rc=$(HMEVAL_REPO_OVERRIDE="$D/plain" run_hmeval --ci utsuho)
+# The ceiling keeps git from finding a repo above $D (a TMPDIR inside a
+# checkout), which would be the top-level refusal instead of this one.
+rc=$(GIT_CEILING_DIRECTORIES="$D" HMEVAL_REPO_OVERRIDE="$D/plain" run_hmeval --ci utsuho)
 check "--ci: a plain directory is refused (exit 1)" "$rc" 1
 check "--ci: the refusal carries git's own error" \
   "$(grep -c "is not a git checkout: .*not a git repository" "$D/err")" 1

@@ -482,6 +482,9 @@
     hm = "home-manager";
     # hms is a script now (home.nix): it pushes and waits for CI so the switch
     # is a download rather than a local build. `hms --local` is the old alias.
+    # An update that moves claude-code's version also regenerates
+    # nix/orca-claude-hooks.json (nix/orca-agent-hooks-gen.ts);
+    # tests/orca-agent-hooks.sh goes red until it is.
     hmu = "nix flake update --flake ${home}/devel/dotfiles";
   } // lib.optionalAttrs isCursorHost {
     ca = "cursor-agent";

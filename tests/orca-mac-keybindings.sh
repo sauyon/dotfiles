@@ -36,7 +36,10 @@ pass() { n=$((n+1)); echo "ok   $1"; }
 fail() { n=$((n+1)); echo "FAIL $1: $2"; fails=$((fails+1)); }
 
 FLAKE=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-HM="$FLAKE#homeConfigurations.$(hostname).config"
+# /etc/hostname is what CI writes to say which host it is (its tool shell has
+# no hostname command); uname -n where there is none.
+host=$(cat /etc/hostname 2>/dev/null); host=${host:-$(uname -n)}
+HM="$FLAKE#homeConfigurations.$host.config"
 
 PKG="${1:-}"
 if [ -z "$PKG" ]; then

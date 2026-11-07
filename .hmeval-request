@@ -1,0 +1,4 @@
+mode=tests
+hosts=utsuho fujiwara shiori chiyari kyuusaku mari
+tests=tests/orca-mac-keybindings.sh
+attr=

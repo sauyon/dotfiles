@@ -4960,6 +4960,7 @@ in
     gh = {
       enable = true;
       gitCredentialHelper.enable = true;
+      extensions = [ pkgs.gh-stack ];
     };
     ripgrep = {
       enable = true;

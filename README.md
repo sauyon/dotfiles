@@ -120,7 +120,7 @@ where it gates the build instead of being checked after the fact.
 ./tests/hms-ci-poll.sh           # drives 29 cases against the built hms
 ./tests/hmeval.sh                # drives 38 cases against the built hmeval
 ./tests/orca-agent-hooks.sh      # Orca's Claude + Cursor hooks on every Orca host, generated from this Orca
-./tests/orca-cli-skills.sh       # orca-ide/orca are the CLI, the GUI is orca-ide-app, skills match this Orca's manifest
+./tests/orca-cli-skills.sh       # orca-ide/orca are the CLI, the GUI is orca-ide-app, skills match this Orca's manifest; GUI argv flags (ozone, password-store)
 ./tests/hyprland-zen-popup.sh    # drives 9 cases against the live generated hyprland.lua
 ./tests/polkit-agent.sh          # evaluates 5 hosts + a synthetic one, 17 cases
 ./tests/insecure-packages.sh     # 2 cases per host, plus mari's darwin system

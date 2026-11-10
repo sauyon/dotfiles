@@ -77,25 +77,43 @@ else fail "ORCA_APP_EXECUTABLE" "'${app:-unset}', want $GUI/bin/orca-ide-app"; f
 # wayland first, except in node mode or when the caller names a platform
 # itself -- `--ozone-platform` or `--ozone-platform=...` before any `--`,
 # the rule of Orca's own hasExplicitOzonePlatform; a -hint does not count.
+# Likewise --password-store=gnome-libsecret, unless the caller names a store
+# before any `--`, or it is serve mode by Orca's rule (`--serve` anywhere, or
+# a first positional `serve` before `--`): Orca's own probe picks libsecret only if
+# the keyring is already unlocked, and a launch that loses that race cannot
+# read the last run's v11 account session (utsuho, 2026-11-05: signed out).
+# bash -e: the wrapper's own shebang flag.
 inner=$(grep -o '/nix/store/[^ ]*/bin/orca-ide-app' "$GUI/bin/orca-ide-app" | tail -1)
 [ -n "$inner" ] || inner="$GUI/bin/orca-ide-app"  # no nixGL layer
 sed -E 's|^exec .*/lib/orca/orca-ide" +"\$@" *$|printf "%s\\n" "$@"|' "$inner" > "$T/argv"
 grep -q '^printf' "$T/argv" && ! grep -q '^exec ' "$T/argv" \
   || { echo "could not swap the one exec line in $inner" >&2; exit 1; }
-argv() { env -u ELECTRON_RUN_AS_NODE bash "$T/argv" "$@" | paste -sd' '; }
-for c in "open|--ozone-platform=wayland open" \
+argv() { env -u ELECTRON_RUN_AS_NODE bash -e "$T/argv" "$@" | paste -sd' '; }
+ls=--password-store=gnome-libsecret
+for c in "open|--ozone-platform=wayland $ls open" \
          "--serve --ozone-platform=x11|--serve --ozone-platform=x11" \
-         "--ozone-platform x11|--ozone-platform x11" \
-         "--ozone-platform=|--ozone-platform=" \
-         "--ozone-platform-hint=auto|--ozone-platform=wayland --ozone-platform-hint=auto" \
-         "-- --ozone-platform=x11|--ozone-platform=wayland -- --ozone-platform=x11"; do
+         "--serve|--ozone-platform=wayland --serve" \
+         "--ozone-platform x11|$ls --ozone-platform x11" \
+         "--ozone-platform=|$ls --ozone-platform=" \
+         "--ozone-platform-hint=auto|--ozone-platform=wayland $ls --ozone-platform-hint=auto" \
+         "-- --ozone-platform=x11|--ozone-platform=wayland $ls -- --ozone-platform=x11" \
+         "--password-store=basic|--ozone-platform=wayland --password-store=basic" \
+         "--password-store basic|--ozone-platform=wayland --password-store basic" \
+         "-- --password-store=basic|--ozone-platform=wayland $ls -- --password-store=basic" \
+         "--ozone-platform=x11 --password-store=basic|--ozone-platform=x11 --password-store=basic" \
+         "-- --serve|--ozone-platform=wayland -- --serve" \
+         "serve|--ozone-platform=wayland serve" \
+         "--no-sandbox serve|--ozone-platform=wayland --no-sandbox serve" \
+         "open serve|--ozone-platform=wayland $ls open serve" \
+         "-- serve|--ozone-platform=wayland $ls -- serve" \
+         "--serve=1|--ozone-platform=wayland $ls --serve=1"; do
   in=${c%%|*}; want=${c#*|}
   # shellcheck disable=SC2086
   got=$(argv $in)
   if [ "$got" = "$want" ]; then pass "GUI argv: '$in' -> '$want'"
   else fail "GUI argv '$in'" "got '$got', want '$want'"; fi
 done
-got=$(ELECTRON_RUN_AS_NODE=1 bash "$T/argv" -e 1 | paste -sd' ')
+got=$(ELECTRON_RUN_AS_NODE=1 bash -e "$T/argv" -e 1 | paste -sd' ')
 if [ "$got" = "-e 1" ]; then pass "GUI argv: node mode gets no flag"
 else fail "GUI argv node mode" "got '$got'"; fi
 

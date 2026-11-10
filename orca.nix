@@ -147,6 +147,23 @@ let
       # serve-mode X11 restart, so a hand-run `orca-ide-app --serve` stays on
       # wayland; the CLI's serve passes x11 itself.)
       #
+      # --password-store=gnome-libsecret: on Hyprland Chromium cannot tell
+      # which keyring the desktop has, so Orca probes the default collection
+      # at startup and names libsecret only if it is already unlocked --
+      # otherwise basic_text. The account session is sealed with that run's
+      # key, so a launch that beat gnome-keyring-tpm's unlock could not read
+      # the last run's v11 blob and signed the account out (utsuho,
+      # 2026-11-05). Named outright, a still-locked keyring prompts instead.
+      # Every host here runs gnome-keyring or pass-secret-service, both
+      # libsecret. Same rules as the ozone flag: not in node mode, and not
+      # over a caller's own before `--`. Nor in serve mode (`orca-ide
+      # serve`, fujiwara's orca-serve unit): headless, nobody answers an
+      # unlock prompt, so serve keeps Orca's own probe, which never names a
+      # locked store. Serve mode by Orca's own rule: `--serve` anywhere, even
+      # past `--`, or a first positional `serve` before it (Orca also skips
+      # known flags' values when finding that positional; this does not).
+      # Cases: tests/orca-cli-skills.sh.
+      #
       # FONTCONFIG_FILE: Orca's Linux terminalFontFamily default is exactly
       # "DejaVu Sans Mono", which the host's fontconfig lacks; see fontsConf.
       #
@@ -159,11 +176,22 @@ let
       # to trade.
       makeWrapper $out/lib/orca/orca-ide $out/bin/orca-ide-app \
         --set FONTCONFIG_FILE ${fontsConf} \
-        --run 'explicit=
+        --run 'explicit= store= pos= past=
       for a in "$@"; do
-        case $a in --) break ;; --ozone-platform|--ozone-platform=*) explicit=1; break ;; esac
+        case $a in --serve) store=1 ;; esac
+        [ -z "$past" ] || continue
+        case $a in
+          --) past=1 ;;
+          --ozone-platform|--ozone-platform=*) explicit=1 ;;
+          --password-store|--password-store=*) store=1 ;;
+          -*) ;;
+          *) [ -n "$pos" ] || [ "$a" != serve ] || store=1; pos=1 ;;
+        esac
       done
-      [ -n "$explicit" ] || [ -n "''${ELECTRON_RUN_AS_NODE:-}" ] || set -- --ozone-platform=wayland "$@"'
+      if [ -z "''${ELECTRON_RUN_AS_NODE:-}" ]; then
+        [ -n "$store" ] || set -- --password-store=gnome-libsecret "$@"
+        [ -n "$explicit" ] || set -- --ozone-platform=wayland "$@"
+      fi'
     '';
     # Checked where it gates the build. The pinned trees: byte for byte, and
     # exec bit for exec bit, the AppImage's (fixup's patchShebangs and

@@ -72,6 +72,19 @@ let
   moveToWorkspaceBinds = lib.imap1 (
     i: k: dsp "${mainMod} + SHIFT + ${k}" "hl.dsp.window.move({ workspace = ${toString i} })"
   ) wsKeys;
+
+  # Built-in keyboards typed in Colemak. The window.active hook below re-issues
+  # hl.device for each of these, so the static `device` list and the hook must
+  # agree on names and options -- hence one definition.
+  colemakKeyboards = [
+    "framework-laptop-16-keyboard-module---ansi-keyboard"
+    "at-translated-set-2-keyboard"
+  ];
+  kbOptions = "ctrl:nocaps,ctrl:swapcaps";
+
+  # Windows that get plain US QWERTY while focused. steam_app_230410 is
+  # Warframe (Proton), its Steam app id as Xwayland WM_CLASS.
+  qwertyClasses = [ "steam_app_230410" ];
 in
 {
   enable = true;
@@ -188,20 +201,12 @@ in
       ];
     };
 
-    device = [
-      {
-        name = "framework-laptop-16-keyboard-module---ansi-keyboard";
-        kb_layout = "us";
-        kb_variant = "colemak";
-        kb_options = "ctrl:nocaps,ctrl:swapcaps";
-      }
-      {
-        name = "at-translated-set-2-keyboard";
-        kb_layout = "us";
-        kb_variant = "colemak";
-        kb_options = "ctrl:nocaps,ctrl:swapcaps";
-      }
-    ];
+    device = map (name: {
+      inherit name;
+      kb_layout = "us";
+      kb_variant = "colemak";
+      kb_options = kbOptions;
+    }) colemakKeyboards;
 
     # exec-once equivalents. The module already emits a hyprland.start hook for
     # the systemd/D-Bus activation env, so we only add our own programs. The
@@ -278,6 +283,41 @@ in
                 hl.dispatch(hl.dsp.window.float({ action = "enable", window = tw }))
               end)
               subs[w.address] = sub
+            end'')
+        ];
+      }
+
+      # Per-window keyboard layout: QWERTY while a qwertyClasses window has
+      # focus, Colemak everywhere else. Hyprland has no per-window layout and
+      # the Lua API no switchxkblayout, so this re-issues hl.device with the
+      # variant swapped -- a full keymap change rather than a group switch.
+      #
+      # Known and accepted: resolve_binds_by_sym matches binds by the letter
+      # the active keymap produces, so while QWERTY is live every letter bind
+      # moves physical key. Colemak Super+Shift+F (move right) lands on
+      # Super+Shift+E -- hyprland-graceful-exit. Don't use WM letter binds in
+      # the game.
+      #
+      # kbVariantApplied skips the keymap recompile on the common
+      # Colemak-to-Colemak focus change. It is a global, but a reload rebuilds
+      # the Lua state (measured: globals read nil after `hyprctl reload`), and
+      # the reload re-applies the static `device` list too, so the cache never
+      # outlives the keymap it describes. hl.device on an absent keyboard is a
+      # silent no-op, so listing the Framework 16 module on a 13 is harmless.
+      {
+        _args = [
+          "window.active"
+          (mkLuaInline ''
+            function(w)
+              local qwerty = { ${lib.concatMapStringsSep ", " (c: ''["${c}"] = true'') qwertyClasses} }
+              local variant = (w and qwerty[w.class]) and "" or "colemak"
+              if variant == kbVariantApplied then return end
+              for _, name in ipairs({ ${lib.concatMapStringsSep ", " (n: ''"${n}"'') colemakKeyboards} }) do
+                hl.device({ name = name, kb_layout = "us", kb_variant = variant, kb_options = "${kbOptions}" })
+              end
+              -- After the loop: a failed hl.device must not mark the
+              -- variant applied, or the next focus change skips the retry.
+              kbVariantApplied = variant
             end'')
         ];
       }

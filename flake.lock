@@ -388,6 +388,7 @@
         "nixpkgs": "nixpkgs_2",
         "sops-nix": "sops-nix",
         "ssh-oidc": "ssh-oidc",
+        "token-economizer": "token-economizer",
         "walker": "walker",
         "zen-browser": "zen-browser"
       }
@@ -487,6 +488,22 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default-linux",
+        "type": "github"
+      }
+    },
+    "token-economizer": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1794902195,
+        "narHash": "sha256-94KPNL1c+ITbQPQbSP4jKYytjmijz9VufH2TBxvQhms=",
+        "owner": "microsoft",
+        "repo": "TokenEconomizer",
+        "rev": "b57d03f81585a18b936a0eaecbd1eb51cdcecf71",
+        "type": "github"
+      },
+      "original": {
+        "owner": "microsoft",
+        "repo": "TokenEconomizer",
         "type": "github"
       }
     },

@@ -10,6 +10,7 @@
   beads,
   mattpocock-skills,
   cloudflare-security-audit-skill,
+  token-economizer,
   zen-browser,
   dotfiles-private,
   machine,
@@ -2313,6 +2314,10 @@ attr=$attr
         source = "directory";
         path = drovr.outPath;
       };
+      tokeneconomizer.source = {
+        source = "directory";
+        path = token-economizer.outPath;
+      };
     };
     enabledPlugins = {
       "rust-analyzer-lsp@claude-plugins-official" = true;
@@ -2322,7 +2327,15 @@ attr=$attr
       "code-simplifier@claude-plugins-official" = true;
       "ralph-loop@claude-plugins-official" = true;
       "drovr@drovr" = true;
+      "tokeneconomizer@tokeneconomizer" = true;
     };
+    # TokenEconomizer's hooks need Python 3.10+ and, with none on the hook's
+    # PATH, fall back to mari's 3.9 /usr/bin/python3 -- so hand them a store
+    # one. `env` reaches every Claude session and its Bash, not just plugins.
+    env.TE_PYTHON = "${pkgs.python3}/bin/python3";
+    # Upstream's "auto" applies deny rules to each repo's
+    # .claude/settings.local.json on its own; propose only suggests them.
+    env.TE_TOOLPRUNE = "propose";
     # unifi `cat`s its key at launch rather than degrading without it, so it is
     # registered only where sops writes that key (see isSecretsHost).
     mcpServers = lib.optionalAttrs isSecretsHost {

@@ -6,7 +6,6 @@
   walker,
   nixgl,
   drovr,
-  hunk,
   beads,
   mattpocock-skills,
   cloudflare-security-audit-skill,
@@ -344,8 +343,6 @@ let
       pkgs.writeShellScriptBin "nixGL" ''
         exec ${nixgl.packages.${system}.${nixGLVendor}}/bin/${nixGLVendor} "$@"
       '';
-  # hunk builds on all four systems, so no darwin guard needed.
-  hunk-pkg = hunk.packages.${system}.default;
   # Gas City: gc + the bd it drives + the dolt it manages as the city's data
   # plane. Only on gascityHosts; tests/gascity-packages.sh.
   gascity-pkg = import ./nix/gascity.nix { inherit pkgs; };
@@ -2442,7 +2439,7 @@ attr=$attr
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./omp.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./even-terminal.nix ./zed.nix ./orca.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./omp.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./zed.nix ./orca.nix ];
 
   home.stateVersion = "26.05";
 
@@ -2549,11 +2546,6 @@ in
     ./home/.claude/skills/linear-flow/SKILL.md;
   home.file.".claude/skills/linear-flow/DESIGN.md".source =
     ./home/.claude/skills/linear-flow/DESIGN.md;
-  # Symlinks the skill bundled with the `hunk` package (hunkdiff) into
-  # ~/.claude/skills/ so Claude can drive live Hunk review sessions via the
-  # `hunk session *` CLI.
-  home.file.".claude/skills/hunk-review/SKILL.md".source =
-    "${hunk-pkg}/skills/hunk-review/SKILL.md";
   # /teach — stateful tutor that treats the cwd as a learning workspace
   # (MISSION.md, lessons/, learning-records/). Whole-directory symlink: the
   # skill reads its own *-FORMAT.md siblings by relative path. Pinned via
@@ -2597,12 +2589,6 @@ in
   home.file.".cursor/commands/review-diff.md" = lib.mkIf isCursorHost {
     source = ./home/agent-commands/review-diff.md;
   };
-  # /hunk-review slash command → drives the hunk-review skill (bundled with the
-  # hunk package). Claude-only: personal ~/.claude/skills/* aren't exposed as
-  # slash commands, so this wrapper points at the skill's `hunk session *`
-  # workflow for a live Hunk review session.
-  home.file.".claude/commands/hunk-review.md".source =
-    ./home/agent-commands/hunk-review.md;
 
   # ── herdr integration (Claude) ─────────────────────────────────────────────
   # SessionStart hook script referenced by claudeBaseSettings.hooks.SessionStart
@@ -3572,11 +3558,6 @@ in
     comma
     cosign
     entire  # git-hook layer checkpointing AI agent sessions alongside commits
-    # Even Realities' G2/R1 bridge for a terminal coding agent; see
-    # even-terminal.nix. Listed for every host rather than gated on isDesktop:
-    # it is a headless HTTP server that the phone connects to, and the glasses
-    # are the display -- a host with no graphical session can still serve it.
-    even-terminal
     jq
     jujutsu
     kimi-code  # Moonshot's Kimi Code CLI (binary: kimi); see kimi-code.nix
@@ -3618,7 +3599,6 @@ in
       tree-sitter-tsx
       tree-sitter-typescript
     ]))
-    hunk-pkg
     drovr-pkg
   ]) ++ lib.optionals (!isDarwin) [
     # The rest of the network tools (see the list above). macOS answers route,

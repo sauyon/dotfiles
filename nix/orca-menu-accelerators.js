@@ -38,22 +38,25 @@ const before = main;
 
 // Each entry: [needle, replacement, why]. All must match exactly once.
 const PATCHES = [
-  // Quit (Dce): CmdOrCtrl+Q on every platform but win32. Empty accelerator:
-  // the label keeps no chord, nothing registers.
-  ['{accelerator:`CmdOrCtrl+Q`}', '{accelerator:``}', 'quit accelerator'],
+  // Quit (ise): CmdOrCtrl+Q on every platform but win32, since 1.4.262
+  // spread from a platform ternary. Empty accelerator: the label keeps no
+  // chord, nothing registers.
+  ['...process.platform===`win32`?{}:{accelerator:`CmdOrCtrl+Q`}', '...process.platform===`win32`?{}:{accelerator:``}', 'quit accelerator'],
   // Edit > Paste: CmdOrCtrl+V. The click handler stays; terminal.paste's
   // Cmd+V (Super+V) is the keybinding table's.
   ['accelerator:`CmdOrCtrl+V`', 'accelerator:``', 'paste accelerator'],
   // Edit > Cut role: Electron registers Ctrl+X for it. The terminal keeps
-  // C-x (emacs C-x C-s, etc).
-  ['{role:`cut`}', '{role:`cut`,registerAccelerator:!1}', 'cut role'],
+  // C-x (emacs C-x C-s, etc). Since 1.4.262 the item is built by the
+  // Ku(role, key, label) helper ({role:e,label:x.a(t,n)}), so the call is
+  // replaced with the same object plus registerAccelerator:!1.
+  ['Ku(`cut`,`menu.cut`,`Cut`)', '{role:`cut`,label:x.a(`menu.cut`,`Cut`),registerAccelerator:!1}', 'cut role'],
   // Window > Zoom role: Ctrl+= / Ctrl+- / Ctrl+0. zoom.in/out/reset are
   // Cmd+Equal / Cmd+Minus in the table (zoom.reset unbound: Super+0 is
-  // Hyprland's workspace 10).
-  ['{role:`zoom`}', '{role:`zoom`,registerAccelerator:!1}', 'zoom role'],
+  // Hyprland's workspace 10). Same Ku shape as cut.
+  ['Ku(`zoom`,`menu.zoom`,`Zoom`)', '{role:`zoom`,label:x.a(`menu.zoom`,`Zoom`),registerAccelerator:!1}', 'zoom role'],
   // View > Toggle Full Screen role: F11. Bare key, not a Ctrl chord, but a
-  // terminal F11 (less, etc) should reach the shell too.
-  ['{role:`togglefullscreen`}', '{role:`togglefullscreen`,registerAccelerator:!1}', 'fullscreen role'],
+  // terminal F11 (less, etc) should reach the shell too. Same Ku shape.
+  ['Ku(`togglefullscreen`,`menu.toggleFullScreen`,`Toggle Full Screen`)', '{role:`togglefullscreen`,label:x.a(`menu.toggleFullScreen`,`Toggle Full Screen`),registerAccelerator:!1}', 'fullscreen role'],
   // View > Toggle Developer Tools: the role MenuItem's accelerator
   // (Ctrl+Shift+I on Linux) was passed through. Drop it; the click still
   // toggles.

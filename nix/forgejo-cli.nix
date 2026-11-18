@@ -48,19 +48,19 @@
 { pkgs, base ? pkgs.forgejo-cli }:
 
 let
-  rev = "23323337ad5936b0c39d3d3d0bad41240d108d68";
+  rev = "bc79265f8aad2c38f2ce2c748c72ea1bdf8e9956";
 in
 base.overrideAttrs (old: {
   # The fork's Cargo.toml version, not nixpkgs': nixpkgs' versionCheckHook
   # greps `fj version` for this string, and a fork rev built under nixpkgs'
   # newer version label (0.7.0 at the 5adc508 bump) fails that check.
-  version = "0.6.0";
+  version = "0.8.0-dev";
   src = pkgs.fetchFromGitea {
     domain = "forge.ko.ag";
     owner = "sauyon";
     repo = "forgejo-cli";
     inherit rev;
-    hash = "sha256-RbO6759Pr/sj1APXXsSQXOxmOrmfX6xvrCKwhMMBNjE=";
+    hash = "sha256-FkoXqzl0fU2Lh0TWieiJhymp8bz+Xd2VgPORzxQLxPM=";
   };
 
   # nixpkgs derives cargoDeps from its own cargoHash against v0.6.0's lockfile.

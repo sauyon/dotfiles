@@ -1,29 +1,29 @@
 { lib, ... }:
 
 let
-  version = "2026.10.22-27dcf5f";
+  version = "2026.11.17-f532c45";
 
   platformSpec = system:
     {
       x86_64-linux = {
         os = "linux";
         arch = "x64";
-        hash = "sha256-hSlpRORgCoPEt2T1eNFQK/nEFtsgDTOlk+jz7Kv9wpQ=";
+        hash = "sha256-GJ7UHYljzSLc2vu9YvByzFWsCDdMki29BK7lJfQBirY=";
       };
       aarch64-linux = {
         os = "linux";
         arch = "arm64";
-        hash = "sha256-IqNt+XIIMGaMzU1wflGQIEq5yKDvsvBozJFIlfgE0+w=";
+        hash = "sha256-3/kp5eWs4s7YgCkAld9ZOFRSZ9c/0dhL5mm+ddvcFVg=";
       };
       x86_64-darwin = {
         os = "darwin";
         arch = "x64";
-        hash = "sha256-ejz78Pz7l5tiE/61+f0Q+8fNTlGrKMO1cruTXgsRSWE=";
+        hash = "sha256-KRmV5XsUKQq/DXoVQFWhRgokuJdwdUgSrXC09yO9j6Y=";
       };
       aarch64-darwin = {
         os = "darwin";
         arch = "arm64";
-        hash = "sha256-L1sKPdX7lRzs/6yBOGfYoI2BDlmDfVn9XxLWm5IjmNc=";
+        hash = "sha256-LkpnnEmNmOsnBq19kMzSVuXrL2yz/iy0qd1/Lb0+/OA=";
       };
     }.${system} or null;
 in

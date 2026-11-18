@@ -17,17 +17,17 @@
 # which is a different packaging shape (bundle, not tarball + patchelf); add it
 # the day a darwin host actually wants Delta rather than blind.
 let
-  version = "0.23.0";
+  version = "0.27.2";
 
   platformSpec = system:
     {
       x86_64-linux = {
         arch = "x86_64";
-        hash = "sha256-3j2W4+JAo0hq3+mZZbnJPfEjpP+HQjKMFAp1+jUuZcY=";
+        hash = "sha256-s8/5ZZvnXUnWLE7ATzlFMS8z3RDpboCr2BywH/Iss9w=";
       };
       aarch64-linux = {
         arch = "aarch64";
-        hash = "sha256-AnW5zuHR0jkuO+YIhGuh13v/4iKq63H+/KtDqQqzod4=";
+        hash = "sha256-o082eOnzITs7FryWEMXnMeDcXvuYXC7kuDKyDTBbs30=";
       };
     }.${system} or null;
 in

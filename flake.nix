@@ -14,11 +14,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     walker.url = "github:abenz1267/walker";
-    # PR #227 switches the wrapper check from pcregrep to pcre2grep; nixpkgs
-    # removed pcre on 2026-10-25. Pinned to the PR head until main merges it.
-    nixgl.url = "github:nix-community/nixGL/320297bd99179701d63e3670e64e636d6165afe2";
-    # Follow our nixpkgs: nixGL pins its own, whose mesa (25.0) predates
-    # Panther Lake / Xe3 and deadlocked Hyprland on shiori at startup.
+    # PR #227 (pcre2grep switch) merged 2026-11-04; the pin that held the PR
+    # head is gone. Follows our nixpkgs still: nixGL's own mesa (25.0)
+    # predates Panther Lake / Xe3 and deadlocked Hyprland on shiori.
+    nixgl.url = "github:nix-community/nixGL";
     nixgl.inputs.nixpkgs.follows = "nixpkgs";
     # drovr — CLI for single-writer/compressed-handoff agent phases; ships the
     # `drovr` binary plus drovr:* Claude skills under share/drovr/.

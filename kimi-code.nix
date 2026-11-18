@@ -28,7 +28,7 @@
 # `checksum` in the manifest is the bare binary; the `zstd` block alongside it
 # is a different artifact with a different hash. Take `checksum`.
 let
-  version = "2.4.0";
+  version = "2.6.3";
 
   # code.kimi.ai is the global mirror; code.kimi.com is the mainland-CN
   # channel. Same versions, same bytes, but the installer derives a `region`
@@ -39,19 +39,19 @@ let
     {
       x86_64-linux = {
         target = "linux-x64";
-        hash = "sha256-giGiLzQXZWokfP4mJA5zprz7okVtaykn5yCf6ZXx2mg=";
+        hash = "sha256-WZm3ELGjTBnpOYmXPFSo8cFn34+L7C+/MXG/wwT2vbk=";
       };
       aarch64-linux = {
         target = "linux-arm64";
-        hash = "sha256-KlyiONSWsvlSv+66Y9KR/Su8/vtlf0UEM9eJbh5r0fQ=";
+        hash = "sha256-TpfvHnwyq61f1YGkiEER4RNIZ3qlEgdJDAVo6a8Cjq4=";
       };
       x86_64-darwin = {
         target = "darwin-x64";
-        hash = "sha256-LoCefLylzWjfaJpBUKuOawo2VEXbRmUy7xgOezy4ScI=";
+        hash = "sha256-Z9tmPb+7PceHBGQNfQYzqZv6nMpJiSlKReW+gREb5eM=";
       };
       aarch64-darwin = {
         target = "darwin-arm64";
-        hash = "sha256-OevWtDREdXSHa8ZrBa5AnI6ZsjlJSz/vYrOjTszrn9g=";
+        hash = "sha256-3wnPRUDDifJ2edWmfKfXy5F93fc0Y3eP88EU1GcFKyI=";
       };
     }.${system} or null;
 

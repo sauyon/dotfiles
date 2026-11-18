@@ -358,11 +358,14 @@ let
     });
   }))).beads;
 
-  # CVE-2026-111497: Node 24.22.1 needs the patched Brotli headers at build
-  # time and library at runtime. Keep the patch scoped to this toolchain and
-  # its full-node consumers instead of replacing the global slim package.
+  # CVE-2026-111497: fixed in Brotli 1.2.1 (2026-10-21) and Node 24.22.2.
+  # nixpkgs has both now, so the patched-toolchain shims below are inert
+  # overrides that keep the review gates: a future bump onto an unreviewed
+  # Brotli or Node still throws rather than silently shipping.
   patchedBrotli =
-    if pkgs.brotli.version == "1.2.0" then
+    if lib.versionAtLeast pkgs.brotli.version "1.2.1" then
+      pkgs.brotli
+    else if pkgs.brotli.version == "1.2.0" then
       pkgs.brotli.overrideAttrs (old: {
         patches = (old.patches or [ ]) ++ [
           (pkgs.fetchurl {
@@ -376,7 +379,9 @@ let
   patchedNodejsSlim_24 =
     let
       base =
-        if lib.versionOlder pkgs.nodejs-slim_24.version "24.22.1" then
+        if lib.versionAtLeast pkgs.nodejs-slim_24.version "24.22.2" then
+          pkgs.nodejs-slim_24
+        else if lib.versionOlder pkgs.nodejs-slim_24.version "24.22.1" then
           pkgs.nodejs-slim_24.overrideAttrs (old: {
             version = "24.22.1";
             src = pkgs.fetchurl {
@@ -3785,8 +3790,8 @@ in
       # lock froze in 2025-03, so a fresh-looking master commit downgrades every
       # addon. tests/nur-pin.sh checks both the branch and the bitwarden version.
       nur = import (builtins.fetchTarball {
-        url = "https://github.com/nix-community/NUR/archive/89b90d863d16fc7423aa5be0aada5ac9235a20b9.tar.gz";
-        sha256 = "sha256-uL6bFukrc6B3Mc8GhBJbKqpbgQqsiUiTONumzMhn3gE=";
+        url = "https://github.com/nix-community/NUR/archive/1dcdc7e10b4a2bfb83d0095b328dacd44d12294a.tar.gz";
+        sha256 = "sha256-zwzBK9dhQRDF31Xc5fLkHd293VEWAINeIBj92S53lcc=";
       }) {
         nurpkgs = prev;
         pkgs = prev;
@@ -3933,14 +3938,14 @@ in
     (final: prev: {
       claude-agent-acp = (prev.buildNpmPackage.override { nodejs = patchedNodejs_24; }) rec {
         pname = "claude-agent-acp";
-        version = "0.99.0";
+        version = "0.108.0";
         src = prev.fetchFromGitHub {
           owner = "agentclientprotocol";
           repo = "claude-agent-acp";
           rev = "v${version}";
-          hash = "sha256-O+5crPHlzBIFYobKh2J4j/I/Ej+CThSSGNJidh5TVL8=";
+          hash = "sha256-eD93t64ckwZaxMkdJjVJhcs+cB1224gTAhpUAk5ZbsU=";
         };
-        npmDepsHash = "sha256-KP/Rupaukh3HL23pTDprmh7qKYNhap8QFFjGqm9Ir0o=";
+        npmDepsHash = "sha256-OrSRpEyh9Z04uiisVFCxDNjsdwC61CJvB83dwk29vVc=";
         dontNpmPrune = true;
       };
     })
@@ -4511,32 +4516,11 @@ in
     in {
       enable = !isDarwin && isDesktop;
       systemd.enable = !isDarwin && isDesktop;
-      # Released waybar (0.15.0, 2026-02) predates the fix for Hyprland's Lua IPC
-      # dispatch protocol, so workspace clicks silently no-op under
-      # `configType = "lua"`. Pin to the master commit with Alexays/waybar PR
-      # #5013, which probes the socket and emits `hl.dsp.focus({ workspace })`.
-      # Drop once a release > 0.15.0 ships the fix.
-      # cavaSupport=false: master vendors a newer libcava than nixpkgs 0.15.0
-      # pins, so the cava subproject can't resolve offline. We don't use cava, so
-      # disable it rather than vendor the matching libcava.
-      package = (pkgs.waybar.override { cavaSupport = false; }).overrideAttrs (old: {
-        version = "0.15.0-unstable-2026-05-04";
-        src = pkgs.fetchFromGitHub {
-          owner = "Alexays";
-          repo = "waybar";
-          rev = "05945748dccce28bf96d26d8f64a9e69a8dd49ba";
-          hash = "sha256-51R3mIt8cLNvh/X5qe9vOqeJCj0U9KRyemVE5y+OhiU=";
-        };
-        # nixpkgs substitutes bash's bin/sh here, but current bash-interactive
-        # ships only bin/bash. Use the real executable and keep the full suite.
-        postPatch = ''
-          substituteInPlace include/util/command.hpp \
-            --replace-fail /bin/sh ${lib.getExe' pkgs.bashInteractive "bash"}
-        '';
-        # master's binary still self-reports v0.15.0, so the nixpkgs
-        # versionCheckHook (asserts --version matches `version`) fails.
-        doInstallCheck = false;
-      });
+      # Waybar 0.16.0 (nixpkgs) ships Alexays/waybar PR #5013, the Hyprland
+      # Lua IPC dispatch fix the old master pin existed for; the pin is gone.
+      # cavaSupport=false: we don't use cava, and the subproject resolves
+      # against a libcava that may not match the release's vendored copy.
+      package = pkgs.waybar.override { cavaSupport = false; };
       settings = [
         (shared // {
           output = [ "eDP-1" ];

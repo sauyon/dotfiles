@@ -37,14 +37,18 @@ const { homedir } = await import('node:os')
 const emit = (value: unknown) =>
   console.log(JSON.stringify(value, null, 2).replaceAll(`${homedir()}/.orca/`, '@HOME@/.orca/'))
 const orcaVersion = (await Bun.file(`${root}/package.json`).json()).version
-const { getSharedManagedScriptPath, buildManagedCommandDefinition } = await import(
-  `${root}/src/main/agent-hooks/installer-utils.ts`
+const { getSharedManagedScriptPath } = await import(
+  `${root}/src/main/agent-hooks/installation/scripts/managed-hook-script-path.ts`
+)
+const { buildManagedCommandDefinition } = await import(
+  `${root}/src/main/agent-hooks/installation/configuration/hook-config-schema.ts`
 )
 const hooks: Record<string, unknown[]> = {}
 
 if (agent === 'claude') {
-  const { getClaudeManagedHookPlan } = await import(`${root}/src/main/claude/claude-managed-hook-events.ts`)
-  const { getManagedEventHook, getManagedScriptPath } = await import(`${root}/src/main/claude/hook-settings.ts`)
+  const { getClaudeManagedHookPlan } = await import(`${root}/src/main/claude/hooks/claude-managed-hook-events.ts`)
+  const { getManagedEventHook } = await import(`${root}/src/main/claude/hooks/claude-managed-event-hook.ts`)
+  const { getManagedScriptPath } = await import(`${root}/src/main/claude/hooks/hook-settings.ts`)
   const scriptPath = getManagedScriptPath()
   for (const event of getClaudeManagedHookPlan(claudeVersion).install) {
     // The definition's `hooks` is a placeholder; install() fills in the command.

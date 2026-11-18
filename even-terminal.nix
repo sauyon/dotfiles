@@ -51,7 +51,7 @@ in
           cp ${./even-terminal-package-lock.json} package-lock.json
         '';
 
-        npmDepsHash = "sha256-mRt3kITsBhL0Ds7r3UXyKrRXN3lETU8qfI+cn/cY0fk=";
+        npmDepsHash = "sha256-tNIPg85T7ijQbeNqro4XN9eHt/0BbxvVpCv4ueDWLZQ=";
 
         # `dist/` is published prebuilt and there is no `build` worth rerunning:
         # the package's own build script is `rm -rf dist && tsc`, so running it

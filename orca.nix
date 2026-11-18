@@ -30,10 +30,10 @@ let
   # A bump also regenerates nix/orca-{claude,cursor}-hooks.json (recipe in
   # nix/orca-agent-hooks-gen.ts); tests/orca-agent-hooks.sh holds it to this.
   pname = "orca";
-  version = "1.4.251";
+  version = "1.4.262";
   src = pkgs.fetchurl {
     url = "https://github.com/stablyai/orca/releases/download/v${version}/orca-linux.AppImage";
-    hash = "sha512-03eShr3r4AcHorSCF0SDDvCgfeY5IwSQx/zbRYXVdowR5iELHHRgcndyhh17r2se5JgdAfZ2eVcic22O6NXPvQ==";
+    hash = "sha512-/O6O0E4sWjw5j9T8KJi5qc/PJ4uoUrODPpz/s/KVwD1lDRrL40McjoD5762CQNPkiiXEsQln6neTt62WYsKBaA==";
   };
 
   # The AppImage's own tree, unsandboxed: its ELFs patched to store paths with
@@ -139,6 +139,13 @@ let
           *) targets+=("$p") ;;
         esac
       done
+      # 1.4.262 ships @koromix/koffi with a musl_x64/ prebuild beside the
+      # glibc one; koffi picks by the running node's loader, and Orca's
+      # bundled node-runtime is glibc, so the musl copy is dead weight that
+      # autoPatchelf cannot satisfy (libc.musl-x86_64.so.1). Drop it from the
+      # tree entirely rather than from just the patch set: nothing on a
+      # glibc host can load it.
+      rm -rf $out/lib/orca/resources/node_modules/@koromix/koffi-linux-x64/musl_x64
       autoPatchelf -- "''${targets[@]}"
       # runtimeDependencies only reach executables, but Chromium's bundled GL
       # (ANGLE, SwiftShader) dlopens libEGL/libGL itself, and a dlopen
@@ -358,8 +365,8 @@ let
     name = "orca-skills-${rev}";
     owner = "stablyai";
     repo = "orca";
-    rev = "a162e08b29b2883b02d8a0dfcc99e26c80b2cfe7";
-    hash = "sha256-xMgPzVJVT0UH20DVxwUrsrJ9sVpcsceoCtbmc2bGGt4=";
+    rev = "13619bc1c1f07bf10af2aba61def9a4cc532e108";
+    hash = "sha256-emoiJhdCJ++tloT/ynJEu4AP0T6FdLkY9jy+8W3mbog=";
   };
   orcaSkills = [
     "orca-cli" "orchestration" "orca-computer-use" "orca-per-workspace-env"
@@ -412,6 +419,9 @@ let
     nativeBuildInputs = [ patchedNodejs_24 pkgs.asar pkgs.makeWrapper pkgs.jq ];
   } ''
     asar extract ${appimageContents}/resources/app.asar app
+    # 1.4.262 dropped the keybindings.js facade the generator requires;
+    # nix/orca-keybindings-facade.js stands in for it (see the copy below).
+    cp ${./nix/orca-keybindings-facade.js} app/out/shared/keybindings.js
     mkdir -p $out/share $out/bin
     node ${./nix/orca-mac-keybindings.js} app/out/shared \
       ${pkgs.writeText "hyprland-chords.json" (builtins.toJSON hyprlandChords)} \
@@ -419,11 +429,13 @@ let
       > $out/share/orca-mac-keybindings.json
     # The merge runs Orca's conflict check on the merged file at activation,
     # so the keybinding module ships alongside, with the one directory outside
-    # it that it imports (agent-launch/catalog, its tui-agent names; at
-    # out/shared/ top level until 1.4.251). The merge check below fails the
-    # build if a bump moves an import again.
+    # it that it imports (agent-launch/catalog, its tui-agent names). 1.4.262
+    # dropped the keybindings.js facade 1.4.251 had, so the vendored
+    # nix/orca-keybindings-facade.js stands in for it; the merge check below
+    # still fails the build if a bump moves an import or an export.
     mkdir -p $out/lib/shared/agent-launch
-    cp -r app/out/shared/keybindings.js app/out/shared/keybindings $out/lib/shared/
+    cp ${./nix/orca-keybindings-facade.js} $out/lib/shared/keybindings.js
+    cp -r app/out/shared/keybindings $out/lib/shared/
     cp -r app/out/shared/agent-launch/catalog $out/lib/shared/agent-launch/
     makeWrapper ${patchedNodejs_24}/bin/node $out/bin/orca-mac-keybindings \
       --add-flags "${./nix/orca-mac-keybindings-merge.js} $out/lib/shared $out/share/orca-mac-keybindings.json"

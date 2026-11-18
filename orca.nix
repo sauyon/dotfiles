@@ -70,7 +70,7 @@ let
   orca = pkgs.stdenv.mkDerivation {
     inherit pname version;
     src = appimageContents;
-    nativeBuildInputs = [ pkgs.autoPatchelfHook pkgs.makeWrapper ];
+    nativeBuildInputs = [ pkgs.autoPatchelfHook pkgs.makeWrapper pkgs.asar ];
     buildInputs = with pkgs; [
       alsa-lib at-spi2-atk cairo cups dbus expat glib gtk3 libdrm libgbm
       libxkbcommon nspr nss pango stdenv.cc.cc.lib systemd
@@ -95,6 +95,20 @@ let
       mkdir -p $out/lib/orca $out/share/applications
       cp -r --no-preserve=ownership . $out/lib/orca
       chmod -R u+w $out/lib/orca
+      # Super, not Ctrl, as the accelerator key: the app menu's registered
+      # accelerators (quit CmdOrCtrl+Q, paste CmdOrCtrl+V, the cut, zoom,
+      # devtools and fullscreen roles) fire in the main process before the
+      # terminal sees the key, so they are dropped from the repacked
+      # app.asar -- the keybinding table already gives every one of them a
+      # Super chord (nix/orca-menu-accelerators.js, which fails the build on
+      # a bundle that drifted). The menu items stay clickable.
+      ${patchedNodejs_24}/bin/node ${./nix/orca-menu-accelerators.js} \
+        $out/lib/orca/resources/app.asar $out/lib/orca/resources/app.asar.patched
+      mv $out/lib/orca/resources/app.asar.patched $out/lib/orca/resources/app.asar
+      # asar pack copies every unpacked file again beside the output; the
+      # tree it copied from is the one that shipped, byte for byte, so drop
+      # the duplicate.
+      rm -r $out/lib/orca/resources/app.asar.patched.unpacked
       # AppRun must stay out: Orca's CLI adds --no-sandbox whenever it finds
       # AppRun beside the Electron it launches and `unshare -Ur true` fails
       # (or it runs as root) -- out/cli/runtime/electron-sandbox-switch.js.
@@ -202,7 +216,7 @@ let
     # against a --no-sandbox in some future upstream line; orca:// still
     # handled.
     doInstallCheck = true;
-    nativeInstallCheckInputs = [ pkgs.jq ];
+    nativeInstallCheckInputs = [ pkgs.jq patchedNodejs_24 ];
     installCheckPhase = ''
       runHook preInstallCheck
       res=$out/lib/orca/resources
@@ -230,6 +244,18 @@ let
       [ ! -e $out/lib/orca/AppRun ]
       [ "$(grep '^Exec=' $out/share/applications/orca-ide.desktop)" = 'Exec=orca-ide-app %U' ]
       grep -q '^MimeType=.*x-scheme-handler/orca;' $out/share/applications/orca-ide.desktop
+      # The repacked app.asar: no Ctrl accelerator left in the menu bundle,
+      # and the same files outside the archive as the stock one kept there
+      # (the spawned entries -- daemon-entry.js, computer-sidecar.js, ... --
+      # load from app.asar.unpacked by path). Sizes are in the comparison
+      # too, so a repack that dropped or truncated a file fails here.
+      grep -q 'CmdOrCtrl' $res/app.asar && {
+        echo "orca: app.asar still names a CmdOrCtrl accelerator" >&2; exit 1; }
+      ${patchedNodejs_24}/bin/node ${./nix/orca-asar-header.js} $res/app.asar | sort > out.hdr
+      ${patchedNodejs_24}/bin/node ${./nix/orca-asar-header.js} $src/resources/app.asar | sort > src.hdr
+      # out/main/index.js is the one file the repack changes, by design.
+      diff src.hdr out.hdr | grep -v '/out/main/index.js' | grep -q '^[<>]' && {
+        echo "orca: repacked app.asar differs from the stock layout beyond out/main/index.js" >&2; exit 1; }
       runHook postInstallCheck
     '';
     meta.mainProgram = "orca-ide-app";

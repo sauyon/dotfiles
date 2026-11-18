@@ -2354,6 +2354,13 @@ attr=$attr
       };
     };
     model = "claude-opus-5-5";
+    # Auto-compact at 200k tokens instead of the model-tuned near-limit
+    # (~92% of the 1M window). Long-lived sessions were riding 400-900k
+ # context for days: every turn re-read the whole prefix at cache-read
+    # pricing, and idle gaps over the 1h cache TTL re-paid 1.25x on the
+    # full prefix. 200k keeps a turn's context cost bounded (~$0.30
+    # worst case) and shrinks idle re-cache cost ~4x.
+    autoCompactWindow = 200000;
     theme = "dark";
     editorMode = "normal";
     # Ghost-text next-prompt suggestions render in the composer's input line, so

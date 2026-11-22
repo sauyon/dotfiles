@@ -30,10 +30,10 @@ let
   # A bump also regenerates nix/orca-{claude,cursor}-hooks.json (recipe in
   # nix/orca-agent-hooks-gen.ts); tests/orca-agent-hooks.sh holds it to this.
   pname = "orca";
-  version = "1.4.262";
+  version = "1.4.271";
   src = pkgs.fetchurl {
     url = "https://github.com/stablyai/orca/releases/download/v${version}/orca-linux.AppImage";
-    hash = "sha512-/O6O0E4sWjw5j9T8KJi5qc/PJ4uoUrODPpz/s/KVwD1lDRrL40McjoD5762CQNPkiiXEsQln6neTt62WYsKBaA==";
+    hash = "sha512-aeuw9FugHPPnHwOl39+BRTFGZqFphWvu37H3gV/7E9YoYudaw0tcYE+4q6JyEuFUrIJPQ0+bs+8DipG3C6X1+Q==";
   };
 
   # The AppImage's own tree, unsandboxed: its ELFs patched to store paths with
@@ -365,8 +365,8 @@ let
     name = "orca-skills-${rev}";
     owner = "stablyai";
     repo = "orca";
-    rev = "13619bc1c1f07bf10af2aba61def9a4cc532e108";
-    hash = "sha256-emoiJhdCJ++tloT/ynJEu4AP0T6FdLkY9jy+8W3mbog=";
+    rev = "6e73dac4be63619d7c870c21648f469a0998a54a";
+    hash = "sha256-jmSB8ztw5r5mgEN8MquxLeKNzr48N8jJLAbkS73lpHU=";
   };
   orcaSkills = [
     "orca-cli" "orchestration" "orca-computer-use" "orca-per-workspace-env"

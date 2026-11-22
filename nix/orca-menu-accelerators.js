@@ -46,17 +46,18 @@ const PATCHES = [
   // Cmd+V (Super+V) is the keybinding table's.
   ['accelerator:`CmdOrCtrl+V`', 'accelerator:``', 'paste accelerator'],
   // Edit > Cut role: Electron registers Ctrl+X for it. The terminal keeps
-  // C-x (emacs C-x C-s, etc). Since 1.4.262 the item is built by the
-  // Ku(role, key, label) helper ({role:e,label:x.a(t,n)}), so the call is
+  // C-x (emacs C-x C-s, etc). The item is built by a minified
+  // (role, key, label) helper -- md({role:e,label:u.a(t,n)}) as of 1.4.271,
+  // renamed by the minifier on most bumps -- so the call is
   // replaced with the same object plus registerAccelerator:!1.
-  ['Ku(`cut`,`menu.cut`,`Cut`)', '{role:`cut`,label:x.a(`menu.cut`,`Cut`),registerAccelerator:!1}', 'cut role'],
+  ['md(`cut`,`menu.cut`,`Cut`)', '{role:`cut`,label:u.a(`menu.cut`,`Cut`),registerAccelerator:!1}', 'cut role'],
   // Window > Zoom role: Ctrl+= / Ctrl+- / Ctrl+0. zoom.in/out/reset are
   // Cmd+Equal / Cmd+Minus in the table (zoom.reset unbound: Super+0 is
-  // Hyprland's workspace 10). Same Ku shape as cut.
-  ['Ku(`zoom`,`menu.zoom`,`Zoom`)', '{role:`zoom`,label:x.a(`menu.zoom`,`Zoom`),registerAccelerator:!1}', 'zoom role'],
+  // Hyprland's workspace 10). Same md shape as cut.
+  ['md(`zoom`,`menu.zoom`,`Zoom`)', '{role:`zoom`,label:u.a(`menu.zoom`,`Zoom`),registerAccelerator:!1}', 'zoom role'],
   // View > Toggle Full Screen role: F11. Bare key, not a Ctrl chord, but a
-  // terminal F11 (less, etc) should reach the shell too. Same Ku shape.
-  ['Ku(`togglefullscreen`,`menu.toggleFullScreen`,`Toggle Full Screen`)', '{role:`togglefullscreen`,label:x.a(`menu.toggleFullScreen`,`Toggle Full Screen`),registerAccelerator:!1}', 'fullscreen role'],
+  // terminal F11 (less, etc) should reach the shell too. Same md shape.
+  ['md(`togglefullscreen`,`menu.toggleFullScreen`,`Toggle Full Screen`)', '{role:`togglefullscreen`,label:u.a(`menu.toggleFullScreen`,`Toggle Full Screen`),registerAccelerator:!1}', 'fullscreen role'],
   // View > Toggle Developer Tools: the role MenuItem's accelerator
   // (Ctrl+Shift+I on Linux) was passed through. Drop it; the click still
   // toggles.

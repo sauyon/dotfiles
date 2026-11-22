@@ -1,5 +1,5 @@
 {
-  "orcaVersion": "1.4.262",
+  "orcaVersion": "1.4.271",
   "hooks": {
     "beforeSubmitPrompt": [
       {
@@ -15,7 +15,7 @@
     ],
     "preToolUse": [
       {
-        "command": "/bin/sh -c 'if [ -n \"${ORCA_PANE_KEY-}${ORCA_AGENT_PANE-}\" ] && [ -f '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -r '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -x '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ]; then ORCA_CURSOR_HOOK_RESPONSE='\"'\"'{\"permission\":\"allow\"}'\"'\"' /bin/sh '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"'; else printf '\"'\"'%s'\"\\\\\"'n'\"'\"' '\"'\"'{\"permission\":\"allow\"}'\"'\"'; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'",
+        "command": "/bin/sh -c 'if [ -n \"${ORCA_PANE_KEY-}${ORCA_AGENT_PANE-}\" ] && [ -f '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -r '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -x '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ]; then ORCA_CURSOR_HOOK_RESPONSE='\"'\"'{}'\"'\"' /bin/sh '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"'; else printf '\"'\"'%s'\"\\\\\"'n'\"'\"' '\"'\"'{}'\"'\"'; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'",
         "timeout": 10
       }
     ],
@@ -33,13 +33,13 @@
     ],
     "beforeShellExecution": [
       {
-        "command": "/bin/sh -c 'if [ -n \"${ORCA_PANE_KEY-}${ORCA_AGENT_PANE-}\" ] && [ -f '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -r '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -x '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ]; then ORCA_CURSOR_HOOK_RESPONSE='\"'\"'{\"permission\":\"allow\"}'\"'\"' /bin/sh '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"'; else printf '\"'\"'%s'\"\\\\\"'n'\"'\"' '\"'\"'{\"permission\":\"allow\"}'\"'\"'; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'",
+        "command": "/bin/sh -c 'if [ -n \"${ORCA_PANE_KEY-}${ORCA_AGENT_PANE-}\" ] && [ -f '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -r '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -x '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ]; then ORCA_CURSOR_HOOK_RESPONSE='\"'\"'{}'\"'\"' /bin/sh '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"'; else printf '\"'\"'%s'\"\\\\\"'n'\"'\"' '\"'\"'{}'\"'\"'; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'",
         "timeout": 10
       }
     ],
     "beforeMCPExecution": [
       {
-        "command": "/bin/sh -c 'if [ -n \"${ORCA_PANE_KEY-}${ORCA_AGENT_PANE-}\" ] && [ -f '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -r '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -x '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ]; then ORCA_CURSOR_HOOK_RESPONSE='\"'\"'{\"permission\":\"allow\"}'\"'\"' /bin/sh '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"'; else printf '\"'\"'%s'\"\\\\\"'n'\"'\"' '\"'\"'{\"permission\":\"allow\"}'\"'\"'; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'",
+        "command": "/bin/sh -c 'if [ -n \"${ORCA_PANE_KEY-}${ORCA_AGENT_PANE-}\" ] && [ -f '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -r '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ] && [ -x '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"' ]; then ORCA_CURSOR_HOOK_RESPONSE='\"'\"'{}'\"'\"' /bin/sh '\"'\"'@HOME@/.orca/agent-hooks/cursor-hook.sh'\"'\"'; else printf '\"'\"'%s'\"\\\\\"'n'\"'\"' '\"'\"'{}'\"'\"'; { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi'",
         "timeout": 10
       }
     ],

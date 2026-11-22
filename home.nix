@@ -3099,15 +3099,17 @@ in
       # committed dirs are displaced -- not .codex either, now that codex is
       # installed here and its project dirs are real.
       #
-      # `--thinking off` because pi ran gemma without reasoning and every
-      # delivery measurement above was taken that way; omp.nix marks gemma
-      # `reasoning = true` and omp's default level is high. Turning it on is
-      # a review-panel change: re-measure delivery first. Closing the rest needs an omp patch
+      # `--thinking medium`: pi ran gemma without reasoning and the delivery
+      # measurements above were taken that way; omp.nix marks gemma
+      # `reasoning = true` and omp's default level is high. medium (2026-11-22)
+      # is a middle ground pending re-measured delivery -- if angles start
+      # coming back undelivered (budget or timeout before submit_findings),
+      # drop it back to off. Closing the rest needs an omp patch
       # (skip project settings/.env behind a switch) or a drovr that restores.
       # tests/omp-reviewer-stance.sh plants what this stance does keep out.
       [agents.omp]
       command = "${ompReviewer}/bin/omp-reviewer"
-      readonly_flag = "--tools read,grep,glob,submit_findings --no-extensions --no-skills --no-lsp --approval-mode=yolo --thinking off --config ${ompReviewerOverlay}"
+      readonly_flag = "--tools read,grep,glob,submit_findings --no-extensions --no-skills --no-lsp --approval-mode=yolo --thinking medium --config ${ompReviewerOverlay}"
       readonly_displace = [".omp", ".gemini", ".opencode"]
       system_prompt_flag = "--append-system-prompt"
       model_flag = "--model"

@@ -5117,7 +5117,7 @@ in
           User = "root";
           Port = 59048;
         };
-        "yui mio meiko setsuna ritsu mugi azusa" = private.endpoints.clusterSsh // {
+        "yui mio meiko setsuna unzan ritsu mugi azusa" = private.endpoints.clusterSsh // {
           ForwardAgent = true;
         };
         "testserver" = {

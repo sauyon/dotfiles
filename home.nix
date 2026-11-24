@@ -4664,13 +4664,32 @@ in
       # burned the window at the sdk-cli rate. The label is honest: these are
       # Orca's own runs, and Orca's chat sessions already carry "orca".
       # --set-default, so an explicit label from any caller still wins.
+      #
+      # CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: claude's strongest telemetry
+      # opt-out ("essential-traffic" mode, 2.1.327 bytecode cLn/Eb/tf). It
+      # withholds every claude.ai-side call except the BX allowlist — 1P event
+      # logging (which posts device id, session id, account/org UUID, git
+      # email), error reports, feedback, plugin directory, MCP registry,
+      # worker events — while the model API, OAuth, claude.ai MCP connectors,
+      # title/branch generation and the auto-mode classifier all still run
+      # (verified: a real mcp__claude_ai_Claude_Docs__guide call succeeds
+      # under it; 13 outbound connections per -p run drop to 5, the model API
+      # and OAuth only). DISABLE_TELEMETRY is the weaker opt-out (10
+      # connections) and also breaks the remote-control version floor, which
+      # essential-traffic does not. One cost, accepted: the GrowthBook flag
+      # payload stops refreshing (the disk cache in ~/.claude.json, 1491
+      # features, is still read), so a flag flipped server-side after the last
+      # default-mode run takes effect only when some claude runs without this
+      # env — fujiwara's gc bots do, on their raw binary. --set-default, so
+      # any caller can still turn telemetry back on.
       package = if isDarwin then pkgs.claude-code else
         pkgs.claude-code.overrideAttrs (old: {
           postFixup = (old.postFixup or "") + ''
             wrapProgram $out/bin/claude \
               --set-default ALSA_PLUGIN_DIR ${pkgs.pipewire}/lib/alsa-lib \
               --run '[ "$CLAUDE_CODE_ENTRYPOINT" = orca ] && export CLAUDE_CODE_ENTRYPOINT=claude-coworker-terminal || true' \
-              --set-default CLAUDE_CODE_ENTRYPOINT orca
+              --set-default CLAUDE_CODE_ENTRYPOINT orca \
+              --set-default CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC 1
           '';
         });
     };

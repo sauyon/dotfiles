@@ -4653,12 +4653,24 @@ in
       # entrypoint that has no other behavior (only a telemetry label). The
       # allowlist lives in precompiled bytecode, so a binary patch is not
       # practical. TODO(sauyon): drop once claude knows "orca" as attended.
+      #
+      # A default label for every other headless run: claude -p with no
+      # CLAUDE_CODE_ENTRYPOINT labels itself "sdk-cli", and Anthropic weights
+      # sdk-* labels ~2x against the 5-hour window per token (measured
+      # repeatedly in anthropics/claude-code#97074; a custom label is metered
+      # like the interactive CLI). Orca's one-shot text generations (chat
+      # titles, branch names, commit messages, PR details, model-list probes)
+      # all run `claude -p` with no entrypoint set, so every one of them
+      # burned the window at the sdk-cli rate. The label is honest: these are
+      # Orca's own runs, and Orca's chat sessions already carry "orca".
+      # --set-default, so an explicit label from any caller still wins.
       package = if isDarwin then pkgs.claude-code else
         pkgs.claude-code.overrideAttrs (old: {
           postFixup = (old.postFixup or "") + ''
             wrapProgram $out/bin/claude \
               --set-default ALSA_PLUGIN_DIR ${pkgs.pipewire}/lib/alsa-lib \
-              --run '[ "$CLAUDE_CODE_ENTRYPOINT" = orca ] && export CLAUDE_CODE_ENTRYPOINT=claude-coworker-terminal || true'
+              --run '[ "$CLAUDE_CODE_ENTRYPOINT" = orca ] && export CLAUDE_CODE_ENTRYPOINT=claude-coworker-terminal || true' \
+              --set-default CLAUDE_CODE_ENTRYPOINT orca
           '';
         });
     };

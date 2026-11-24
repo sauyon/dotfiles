@@ -55,22 +55,29 @@ against three checks:
 Hold back or fix anything that fails audit, and escalate to the user if a
 suspicious change or breaking regression requires a decision.
 
-## 3. Evaluate & Test
+## 3. Evaluate & Test (on CI)
 
-1. Evaluate all hosts:
+Always offload evaluation and test builds to the CI runner — **do not run local
+`hmeval`, local `nix build`, or local `tests/*.sh` that realise derivations**,
+since concurrent local builds can saturate and lock up the host:
+
+1. Evaluate all hosts on the runner:
    ```bash
-   hmeval
+   hmeval --ci
    ```
-   (Use `hmeval --ci` if local evaluation needs a builder.)
-2. Run relevant suites in `tests/` — at minimum:
-   - `tests/insecure-packages.sh`
-   - `tests/brotli-cve-2026-111497.sh`
-   - `tests/nur-pin.sh`
-   - `tests/hyprlock-pending-race.sh`
-   - For Orca bumps: `tests/orca-cli-skills.sh`, `tests/orca-agent-hooks.sh`,
-     `tests/orca-mac-keybindings.sh`, `tests/orca-gui-unsandboxed.sh`
-   - Plus any test covering other bumped components (`agent-clis.sh`,
-     `gascity-packages.sh`, etc.).
+2. Run relevant suites on the runner via `hmeval --tests` — at minimum:
+   ```bash
+   hmeval --tests \
+     tests/insecure-packages.sh \
+     tests/brotli-cve-2026-111497.sh \
+     tests/nur-pin.sh \
+     tests/hyprlock-pending-race.sh
+   ```
+   - For Orca bumps, also pass `tests/orca-cli-skills.sh`,
+     `tests/orca-agent-hooks.sh`, `tests/orca-mac-keybindings.sh`, and
+     `tests/orca-gui-unsandboxed.sh`.
+   - Include any other `tests/*.sh` covering bumped components
+     (`tests/agent-clis.sh`, `tests/gascity-packages.sh`, etc.).
 
 ## 4. Commit & Push to `master`
 

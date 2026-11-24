@@ -7,7 +7,7 @@ let
   # Same key omp's `modular` provider reads. Read at LAUNCH by the
   # wrapper below, never at build or activation, so it reaches neither the nix
   # store nor settings.json (which Zed rewrites freely).
-  keyFile = "${config.home.homeDirectory}/.config/local-auto-mode/api-key";
+  keyFile = "${config.home.homeDirectory}/.config/modular/api-key";
 
   # Zed renders through Vulkan (blade), not GL, so config.lib.nixGL.wrap alone
   # is not enough: it adds the Vulkan half only when

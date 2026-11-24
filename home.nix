@@ -1934,18 +1934,6 @@ attr=$attr
 
   args = { inherit config lib pkgs; };
 
-  # The local auto-mode classifier's PreToolUse entry. Currently unregistered —
-  # add it back to `claudeBaseSettings.hooks.PreToolUse` to re-enable (the
-  # plugin's files are still installed by home.file below).
-  localAutoModeHook = {
-    matcher = ".*";
-    hooks = [ {
-      type = "command";
-      command = "python3 ${config.home.homeDirectory}/.claude/plugins/local-auto-mode/classifier.py";
-      timeout = 15;
-    } ];
-  };
-
   # The whole of Claude Code's settings, rendered into ~/.claude/settings.json by
   # `programs.claude-code` below. This used to be a base that three profile
   # overlays sat on top of; the profiles are gone and this is the only config.
@@ -2459,23 +2447,11 @@ in
   # Every secret is behind isSecretsHost, as one set: a single one declared for
   # a host outside the fleet switches the whole sops-nix module back on there.
   sops.secrets = lib.mkIf isSecretsHost {
-    # ── Modular API (local auto-mode classifier) ────────────────────────────────
+    # ── Modular API (omp, zed) ──────────────────────────────────────────────────
     modularApiKey = {
-      path = "${config.home.homeDirectory}/.config/local-auto-mode/api-key";
+      path = "${config.home.homeDirectory}/.config/modular/api-key";
       mode = "0600";
     };
-
-    # ── ko.ag API (local-auto-mode classifier) ─────────────────────────────────
-    # This is now litellm's MASTER KEY, not the old CF AI Gateway token: ai.ko.ag
-    # was deleted and the classifier dials the router's LAN address directly. The
-    # same value must exist in the cluster as the `litellm-master-key` Secret in
-    # the litellm / hakobiya / opencode namespaces — rotating here without
-    # rotating there 401s everything. See the kube repo's docs/litellm-access.md.
-    koAgApiKey = {
-      path = "${config.home.homeDirectory}/.config/local-auto-mode/ko-ag-key";
-      mode = "0600";
-    };
-
 
     # ── UniFi API key (unifi-mcp-server) ───────────────────────────────────────
     unifiApiKey = {
@@ -2632,19 +2608,6 @@ in
       version = 1;
     };
   };
-
-  # ── Claude plugins ─────────────────────────────────────────────────────────
-  home.file.".claude/plugins/local-auto-mode/hooks.json".source =
-    ./home/.claude/plugins/local-auto-mode/hooks.json;
-  home.file.".claude/plugins/local-auto-mode/classifier.py".source =
-    ./home/.claude/plugins/local-auto-mode/classifier.py;
-  home.file.".claude/plugins/local-auto-mode/prompt.py".source =
-    ./home/.claude/plugins/local-auto-mode/prompt.py;
-  # Substituted rather than copied: the router's LAN address comes from the
-  # private input, so the checked-in file carries a placeholder.
-  home.file.".claude/plugins/local-auto-mode/config.py".text =
-    builtins.replaceStrings [ "@LOCAL_CLASSIFIER_URL@" ] [ private.endpoints.localClassifierUrl ]
-      (builtins.readFile ./home/.claude/plugins/local-auto-mode/config.py);
 
   # settings.local.json is deliberately NOT nix-managed. Leaving it unmanaged
   # keeps it writable for Claude Code's own user-scope "don't ask again" saves,

@@ -48,7 +48,7 @@ let
       # the old key until restarted. Baking the key in at activation instead
       # went stale: the step ran "after sops-nix" yet still read the old
       # secret on the first switch after a rotation.
-      apiKey = "!${pkgs.coreutils}/bin/cat ${config.home.homeDirectory}/.config/local-auto-mode/api-key";
+      apiKey = "!${pkgs.coreutils}/bin/cat ${config.home.homeDirectory}/.config/modular/api-key";
       models = [
         (model "zai-org/glm-5.3" 1048576 false)
         (model "minimax/minimax-m3" 1048576 true)

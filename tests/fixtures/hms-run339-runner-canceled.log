@@ -1,0 +1,6 @@
+2026-11-24T12:14:35.0000000Z Runner 196f4137-ea67-4bd1-afee-0db26b91b5e5 (version:v13.0.0) received task 1333 of job build-and-push, triggered by event: push
+2026-11-24T12:14:35.1000000Z workflow prepared
+2026-11-24T12:14:35.2000000Z 🚀  Start image=nixos/nix@sha256:1a711b619c8a713eff32c3f8d8781b3b4d0130cb91c0a57f67e87abfeeb90b01
+2026-11-24T12:18:46.0329400Z building '/nix/store/ghzbkp1wrygyb63yakgkli9kiyg7h46j-waybar.service.drv'...
+2026-11-24T12:19:32.1679871Z ⚙️ [runner]: context canceled\nunable to copy "/var/run/act/workflow/SUMMARY.md" from container to host: Get "http://%2Fsock%2Fdocker.sock/v1.56/containers/323d29dd0064cbb41a80effdcc0e15e2bc9a23e3251aaafdbdb14551e9c56f75/archive?path=%2Fvar%2Frun%2Fact%2Fworkflow%2FSUMMARY.md": context canceled
+2026-11-24T12:19:32.1680835Z 🏁  Job failed

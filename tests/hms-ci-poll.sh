@@ -29,7 +29,7 @@ set -u
 
 SCRIPT="${1:-}"
 if [ -z "$SCRIPT" ]; then
-  host=$(uname -n)
+  host=$(cat /etc/hostname 2>/dev/null || uname -n); host=${host%%.*}
   drv=$(nix eval --raw ".#homeConfigurations.$host.config.home.packages" \
     --apply 'ps: (builtins.head (builtins.filter (p: p.name or "" == "hms") ps)).drvPath') \
     || { echo "could not evaluate hms for $host" >&2; exit 1; }
@@ -236,7 +236,7 @@ run() {
   # every case reads, and the script's own default would go untested. Unlike
   # the two waits, whose shipped values are too long to sit through.
   timeout 180 env -i PATH="$PATH" HOME="$HOME" ${HMS_RETRIES+"HMS_RETRIES=$HMS_RETRIES"} \
-    HMS_REPO="$D/repo" HMS_CURL="$D/curl" HMS_TOKEN_CMD="$D/token-cmd" \
+    HMS_HOST="utsuho" HMS_REPO="$D/repo" HMS_CURL="$D/curl" HMS_TOKEN_CMD="$D/token-cmd" \
     HMS_SWITCH_CMD="$D/switch" HMS_WAIT_SECONDS="${HMS_WAIT_SECONDS:-20}" HMS_FIRST_RUN_SECONDS=1 \
     "$SCRIPT" 2>&1
 }
@@ -674,6 +674,48 @@ else
   report "a refused dispatch hands the failure back" no \
     "tries=$(wc -l < "$D/dispatch-tries") switched=$(sw) rc=$rc out=[$out]"
 fi
+
+# --- Forgejo JSON job-id response (post-Forgejo 13) --------------------------
+setup_repo; mktoken good; mkcurl good failure; mkswitch
+sed -i 's|printf '\''job_id 7 not found\\n200\\n'\''|printf '\''{"state":{"run":{"jobs":[{"id":7,"name":"build-and-push"}]}}}\\n200\\n'\''|' "$D/curl"
+out=$(run); rc=$?
+if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] \
+   && printf '%s' "$out" | grep -q 'error: the build broke'; then
+  report "JSON jobs[0].id response resolves job id and prints CI error lines" ok
+else
+  report "JSON jobs[0].id response resolves job id and prints CI error lines" no \
+    "switched=$(sw) rc=$rc out=[$out]"
+fi
+
+# --- runner context canceled (run 339: pod restart mid-build) ----------------
+# Run 339 (2026-11-24) died mid-build on `[runner]: context canceled` with zero
+# `error` lines and no non-zero step exitcode. hms must print the runner line,
+# re-dispatch, wait for the retry, and switch once green — unless a real build
+# error or non-zero step exitcode is also in the log.
+FIX339="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/fixtures/hms-run339-runner-canceled.log"
+setup_repo; mktoken good; mkcurl_flaky 1 "$FIX339"; mkswitch
+out=$(run); rc=$?
+if [ -f "$D/switched" ] && [ "$(ndisp)" -eq 1 ] \
+   && printf '%s' "$out" | grep -q '\[runner\]: context canceled' \
+   && printf '%s' "$out" | grep -q 'run 43 green'; then
+  report "runner context canceled with no build error is retried and switches" ok
+else
+  report "runner context canceled with no build error is retried and switches" no \
+    "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
+fi
+
+for badline in 'error: builder for /nix/store/x.drv failed with exit code 1' \
+               "⚙️ [runner]: exitcode '1': failure"; do
+  { cat "$FIX339"; printf '2026-11-24T12:19:30.0000000Z %s\n' "$badline"; } > "$D/log-339-bad-$n"
+  setup_repo; mktoken good; mkcurl_flaky 1 "$D/log-339-bad-$n"; mkswitch
+  out=$(run); rc=$?
+  if [ ! -f "$D/switched" ] && [ "$rc" -ne 0 ] && [ "$(ndisp)" -eq 0 ]; then
+    report "runner context canceled alongside '${badline%%:*}: ...' is not retried" ok
+  else
+    report "runner context canceled alongside '${badline%%:*}: ...' is not retried" no \
+      "dispatches=$(ndisp) switched=$(sw) rc=$rc out=[$out]"
+  fi
+done
 
 
 

@@ -331,6 +331,16 @@ got=$("$NODE" -e '
   console.log(bad.join(" "));' "$PKG/lib/shared" "$OWNED")
 [ -z "$got" ] && pass "no Ctrl/Alt-only chord left for the terminal to lose" || fail "terminal-keys" "still bound: $got"
 
+# 13b. The legacy-seeded actions (getLegacySearchBindings, LEGACY_TAB_SWITCH_
+#      BINDINGS) are claimed even when the generated value equals the Linux
+#      default: profiles on the legacy seed inherit those chords as defaults,
+#      so an absent entry there means the legacy chord. terminal.clear's is
+#      Mod+K -- Ctrl+K on Linux, the shell's kill-line, which Orca's terminal
+#      handler eats under orca-first policy before the PTY sees it.
+got=$(jqo '[.["terminal.clear"], .["worktree.palette"], .["tab.nextSameType"], .["tab.previousSameType"], .["tab.nextAllTypes"], .["tab.previousAllTypes"]]')
+[ "$got" = '[[],["Cmd+K"],["Cmd+Alt+BracketRight"],["Cmd+Alt+BracketLeft"],["Cmd+Shift+BracketRight"],["Cmd+Shift+BracketLeft"]]' ] \
+  && pass "legacy-seeded actions claimed (terminal.clear unbound)" || fail "legacy-seed" "got $got"
+
 # 14. A sidecar that cannot be read stops the merge: read as empty, it would
 #     let every generated key overwrite the UI's changes to it.
 H="$T/bad-sidecar"; mkdir -p "$H/.orca"

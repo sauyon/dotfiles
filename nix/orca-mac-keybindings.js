@@ -122,8 +122,16 @@ if (pinnedFile) {
   }
 }
 
-// Nothing to say where the result is Orca's own Linux default.
+// Nothing to say where the result is Orca's own Linux default -- except for
+// the legacy-seeded actions (getLegacySearchBindings, LEGACY_TAB_SWITCH_BINDINGS):
+// profiles on the legacy seed inherit those chords as defaults, so an absent
+// entry there means the legacy chord, not the Linux default. terminal.clear's
+// is Mod+K -- Ctrl+K on Linux, the shell's kill-line -- so those stay,
+// claimed at [].
+const legacySeeded = (id) =>
+  id in kb.getLegacySearchBindings('linux') || id in kb.LEGACY_TAB_SWITCH_BINDINGS;
 for (const def of kb.KEYBINDING_DEFINITIONS) {
+  if (legacySeeded(def.id)) continue;
   if (JSON.stringify(overrides[def.id]) === JSON.stringify(kb.getDefaultBindings(def, 'linux'))) delete overrides[def.id];
 }
 

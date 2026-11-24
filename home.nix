@@ -2999,7 +2999,7 @@ in
       disabledProviders = [
         "agent-plugins" "agents" "claude" "claude-plugins" "cline" "codex"
         "cursor" "custom-context" "gemini" "github" "mcp-json" "omp-plugins"
-        "opencode" "skillshare" "ssh-json" "vscode" "windsurf"
+        "opencode" "skillshare" "ssh-config" "ssh-json" "vscode" "windsurf"
       ];
       mcp.enableProjectConfig = false;
     });
@@ -3092,17 +3092,19 @@ in
       # committed dirs are displaced -- not .codex either, now that codex is
       # installed here and its project dirs are real.
       #
-      # `--thinking medium`: pi ran gemma without reasoning and the delivery
-      # measurements above were taken that way; omp.nix marks gemma
-      # `reasoning = true` and omp's default level is high. medium (2026-11-22)
-      # is a middle ground pending re-measured delivery -- if angles start
-      # coming back undelivered (budget or timeout before submit_findings),
-      # drop it back to off. Closing the rest needs an omp patch
-      # (skip project settings/.env behind a switch) or a drovr that restores.
+      # `--thinking max`: the reviewer runs gemma, which ignores the level
+      # (measured 2026-11-23: ~318 reasoning tokens at low/medium/high/max
+      # alike, 0 with no reasoning field -- on/off only), so this pin is
+      # inert today and exists so a future review_model switch to glm-5.3
+      # lands on its deep-reasoning tier rather than omp's high default.
+      # glm-5.3's own levels are real (same probe: ~8/12/419 reasoning
+      # tokens at low/high/max), which is why the pin says max and not
+      # medium: medium maps to high on the wire, and the 2026-11-22
+      # medium compromise predates knowing the levels bind at all.
       # tests/omp-reviewer-stance.sh plants what this stance does keep out.
       [agents.omp]
       command = "${ompReviewer}/bin/omp-reviewer"
-      readonly_flag = "--tools read,grep,glob,submit_findings --no-extensions --no-skills --no-lsp --approval-mode=yolo --thinking medium --config ${ompReviewerOverlay}"
+      readonly_flag = "--tools read,grep,glob,submit_findings --no-extensions --no-skills --no-lsp --approval-mode=yolo --thinking max --config ${ompReviewerOverlay}"
       readonly_displace = [".omp", ".gemini", ".opencode"]
       system_prompt_flag = "--append-system-prompt"
       model_flag = "--model"

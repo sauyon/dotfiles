@@ -18,9 +18,15 @@ let
   #
   # `reasoning` is true on all four, gemma included: measured 2026-10-21, gemma
   # returns a `reasoning_content` thinking block when asked and answers a
-  # bat-and-ball prompt wrong when not. It is on/off only — `low` produced more
-  # thinking than `high`. `thinkingFormat = "openrouter"` makes omp send
-  # `reasoning: {effort}`, which is the shape that toggles it.
+  # bat-and-ball prompt wrong when not. `thinkingFormat = "openrouter"` makes
+  # omp send `reasoning: {effort}`, which is the shape that toggles it.
+  # Effort levels, re-probed 2026-11-23 (reasoning_tokens on a bat-and-ball
+  # prompt, 3 runs each): glm-5.3 has three real tiers -- ~8 at low, ~12 at
+  # high/medium (medium maps to high), ~419 at max/xhigh (xhigh maps to
+  # max); the 2026-10-21 "on/off only" reading was gemma's, and gemma is
+  # still level-inert (~318 at every level, 0 with no field). qwen3.8 is
+  # inert-to-inverted on this prompt (~213 at low, ~66 at high/max), and
+  # minimax-m3 is not routed on api.modular.com at all.
   #
   # `input` image flags are taken from setup-mcloud.py unprobed; it notes omp
   # guesses vision wrong and compaction 400s if they are left unset.

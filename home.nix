@@ -1182,7 +1182,7 @@ let
     # to seconds rather than the hour it ships with, and the retry count set
     # per case.
     repo="''${HMS_REPO:-$HOME/devel/dotfiles}"
-    host="$(uname -n)"
+    host="''${HMS_HOST:-$(uname -n)}"
     forge="https://forge.ko.ag"
     slug="sauyon/dotfiles"
     curl="''${HMS_CURL:-${lib.getExe pkgs.curl}}"
@@ -1563,11 +1563,14 @@ let
     fi
 
     echo "hms: run $run $status" >&2
-    # Forgejo 13 exposes no run->job API, but the web job endpoint names the job
-    # id in its error body, and /actions/jobs/<id>/logs then serves the log.
-    job=$(api_raw "/$slug/actions/runs/$run/jobs/0" -X POST \
-            -H 'Content-Type: application/json' -d '{"logCursors":[]}' \
-          | ${lib.getExe pkgs.gnugrep} -o 'job_id [0-9]*' | tr -dc '0-9' || true)
+    # Forgejo exposes no run->job API on /api/v1, so read the job id from the
+    # web job endpoint: current Forgejo returns HTTP 200 JSON with
+    # .state.run.jobs[0].id; Forgejo 13 returned a 404 body naming `job_id <N>`,
+    # kept as a fallback. /actions/jobs/<id>/logs then serves the log.
+    job_body=$(api_raw "/$slug/actions/runs/$run/jobs/0" -X POST \
+                 -H 'Content-Type: application/json' -d '{"logCursors":[]}' || true)
+    job=$(printf '%s' "$job_body" | $jq -r '.state.run.jobs[0].id // empty' 2>/dev/null || true)
+    [ -n "$job" ] || job=$(printf '%s' "$job_body" | ${lib.getExe pkgs.gnugrep} -o 'job_id [0-9]*' | tr -dc '0-9' || true)
     if [ -n "$job" ]; then
       log="$tmp/job.log"
       if ! api "/api/v1/repos/$slug/actions/jobs/$job/logs" > "$log"; then
@@ -1581,23 +1584,25 @@ let
       # Timestamps are a fixed 29-char prefix; drop them so the errors read.
       # A pipeline's status is its last command, so grep's miss has to be
       # captured rather than tested through `cut | tail`.
-      errs=$(${lib.getExe pkgs.gnugrep} -aE "^.{29}(error:|.*Job failed)" "$log" || true)
+      errs=$(${lib.getExe pkgs.gnugrep} -aE "^.{29}(error:|.*\[runner\]: context canceled|.*Job failed)" "$log" || true)
       if [ -n "$errs" ]; then
         printf '%s\n' "$errs" | cut -c30- | tail -30 >&2
       else
         tail -30 "$log" | cut -c30- >&2
       fi
-      # Retry a run that failed on the plumbing rather than the build: run 252
-      # (2026-10-24) died on `error: RPC failed; HTTP 503`, the forge 503ing
-      # the runner's git fetch, and the cure was a workflow_dispatch and a
-      # second wait (tests/fixtures/hms-run252-git-503.log is that log). Only
-      # when *every* line of the whole log that says "error", in any case, is
-      # that shape -- one `builder ... failed` or attic `Error:` among them is
-      # a real failure, and a re-run would just rebuild it. A step that fails
-      # without the word "error" after a 503 that recovered would still be
-      # retried; that costs a build, not a wrong switch. Forgejo has no re-run
-      # API (see nix-home.yml), and a dispatch builds the branch tip, so it is
-      # only a retry of *this* commit while origin/master still is it.
+      # Retry a run that failed on the plumbing rather than the build:
+      #  1. run 252 (2026-10-24) died on `error: RPC failed; HTTP 503`, the
+      #     forge 503ing the runner's git fetch (tests/fixtures/hms-run252-git-503.log).
+      #  2. run 339 (2026-11-24) died mid-build on `[runner]: context canceled`
+      #     with no error lines and no non-zero step exitcode — a runner pod
+      #     eviction/restart (tests/fixtures/hms-run339-runner-canceled.log).
+      # Only when *every* line of the whole log that says "error", in any case,
+      # is transient-shaped — one `builder ... failed` or attic `Error:` among
+      # them is a real failure, and a re-run would just rebuild it — and for
+      # `[runner]: context canceled`, only when no step exited non-zero either.
+      # Forgejo has no re-run API (see nix-home.yml), and a dispatch builds the
+      # branch tip, so it is only a retry of *this* commit while origin/master
+      # still is it.
       errlines=$(cut -c30- "$log" | ${lib.getExe pkgs.gnugrep} -ai 'error' || true)
       # `failure` only: a run cancelled by hand was someone's decision.
       # A here-string, not `printf | grep -q`: grep quits on the first line
@@ -1605,10 +1610,20 @@ let
       # past the pipe buffer that SIGPIPEs printf, whose 141 under pipefail the
       # `!` would read as "every line was transient". And exit 1 exactly, not
       # "nonzero": grep's own exit 2 is not evidence of anything either.
-      if [ "$status" = failure ] && [ -n "$errlines" ] \
-         && { ${lib.getExe pkgs.gnugrep} -qavE \
+      all_errors_transient=0
+      if [ -z "$errlines" ] \
+         || { ${lib.getExe pkgs.gnugrep} -qavE \
                 'RPC failed; HTTP 5[0-9]{2}|returned error: 5[0-9]{2}|Could not resolve host|Failed to connect|Connection (timed out|reset)' \
                 <<< "$errlines"; [ $? -eq 1 ]; }; then
+        all_errors_transient=1
+      fi
+      runner_canceled=0
+      if cut -c30- "$log" | ${lib.getExe pkgs.gnugrep} -aqF '[runner]: context canceled' \
+         && ! cut -c30- "$log" | ${lib.getExe pkgs.gnugrep} -aqE "\[runner\]: exitcode '[1-9]"; then
+        runner_canceled=1
+      fi
+      if [ "$status" = failure ] && [ "$all_errors_transient" -eq 1 ] \
+         && { [ -n "$errlines" ] || [ "$runner_canceled" -eq 1 ]; }; then
         # Every Linux box's hms waits on this same run, so each of them gets
         # here when it fails. A newer run for this commit already listed is
         # another box's retry: adopt it rather than queue a second build behind
@@ -1654,6 +1669,8 @@ let
           echo "hms: check $forge/$slug/actions — a timed-out dispatch may have queued anyway." >&2
         fi
       fi
+    else
+      echo "hms: could not find job id for run $run — read it at $forge/$slug/actions/runs/$run" >&2
     fi
     echo "hms: not switching. Fix CI, or 'hms --local' to build here." >&2
     exit 1
@@ -1686,7 +1703,6 @@ let
 
     # Seams, all defaulted to the real thing — tests/hmeval.sh drives the built
     # script through them, the way tests/hms-ci-poll.sh drives hms.
-    repo="''${HMEVAL_REPO:-$HOME/devel/dotfiles}"
     forge="https://forge.ko.ag"
     slug="sauyon/dotfiles"
     curl="''${HMEVAL_CURL:-${lib.getExe pkgs.curl}}"
@@ -1698,6 +1714,20 @@ let
     nix_cmd="''${HMEVAL_NIX:-nix}"
     quota="''${HMEVAL_CPUQUOTA:-200%}"
     memmax="''${HMEVAL_MEMORYMAX:-8G}"
+
+    # When HMEVAL_REPO is unset, auto-detect if invoked inside any checkout or
+    # linked worktree (e.g. an Orca workspace) of this repo so bare `hmeval --ci`
+    # evaluates the tree you are editing instead of silently pushing
+    # ~/devel/dotfiles. Outside a dotfiles checkout, fall back to ~/devel/dotfiles.
+    if [ -n "''${HMEVAL_REPO:-}" ]; then
+      repo="$HMEVAL_REPO"
+    elif top=$(git rev-parse --show-toplevel 2>/dev/null) \
+         && [ -f "$top/flake.nix" ] && [ -f "$top/home.nix" ] \
+         && git -C "$top" remote get-url origin 2>/dev/null | "$grep" -qE "(^|/)$slug(\.git)?$"; then
+      repo="$top"
+    else
+      repo="$HOME/devel/dotfiles"
+    fi
 
     # Hardcoded for the same reason hms hardcodes its CI-host list: asking the
     # flake which configurations exist costs a full evaluation, which is the
@@ -1775,10 +1805,10 @@ let
 
       rc=0
       if [ "$mode" = attr ]; then
-        eval_one "$attr" ".#$attr" || rc=1
+        eval_one "$attr" "$repo#$attr" || rc=1
       else
         for h in $hosts; do
-          eval_one "$h" ".#homeConfigurations.$h.activationPackage.drvPath" || rc=1
+          eval_one "$h" "$repo#homeConfigurations.$h.activationPackage.drvPath" || rc=1
         done
       fi
       if [ "$rc" -ne 0 ]; then

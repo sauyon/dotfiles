@@ -83,18 +83,21 @@ api_why() {
 # place Forgejo 13 names the job id. Failing on it would throw that away.
 api_raw() { local p="$1"; shift; write_curlrc || true; $curl -K "$tmp/curlrc" "$forge$p" "$@"; }
 
-# Fetch a finished run's job log to $1. Forgejo 13 exposes no run->job API, but
-# the web job endpoint names the job id in its error body, and
-# /actions/jobs/<id>/logs then serves the log.
+# Fetch a finished run's job log to $2. Forgejo exposes no run->job API on
+# /api/v1, so read the job id from the web job endpoint: current Forgejo
+# returns HTTP 200 JSON with .state.run.jobs[0].id; Forgejo 13 returned a 404
+# body naming `job_id <N>`, kept as a fallback. /actions/jobs/<id>/logs then
+# serves the log.
 #
-# Returns 1 and leaves $1 absent when the log could not be fetched, so the
+# Returns 1 and leaves $2 absent when the log could not be fetched, so the
 # caller can say so rather than print an empty "--- CI error ---", which reads
 # as "the run failed silently" — a different and much more alarming bug.
 fetch_job_log() {
-  local run="$1" dest="$2" job
-  job=$(api_raw "/$slug/actions/runs/$run/jobs/0" -X POST \
-          -H 'Content-Type: application/json' -d '{"logCursors":[]}' \
-        | "$grep" -o 'job_id [0-9]*' | tr -dc '0-9' || true)
+  local run="$1" dest="$2" body job
+  body=$(api_raw "/$slug/actions/runs/$run/jobs/0" -X POST \
+           -H 'Content-Type: application/json' -d '{"logCursors":[]}' || true)
+  job=$(printf '%s' "$body" | "$jq" -r '.state.run.jobs[0].id // empty' 2>/dev/null || true)
+  [ -n "$job" ] || job=$(printf '%s' "$body" | "$grep" -o 'job_id [0-9]*' | tr -dc '0-9' || true)
   [ -n "$job" ] || return 1
   api "/api/v1/repos/$slug/actions/jobs/$job/logs" > "$dest" || return 1
 }

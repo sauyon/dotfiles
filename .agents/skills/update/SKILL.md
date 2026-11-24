@@ -74,10 +74,13 @@ since concurrent local builds can saturate and lock up the host:
      tests/hyprlock-pending-race.sh
    ```
    - For Orca bumps, also pass `tests/orca-cli-skills.sh`,
-     `tests/orca-agent-hooks.sh`, `tests/orca-mac-keybindings.sh`, and
-     `tests/orca-gui-unsandboxed.sh`.
+     `tests/orca-agent-hooks.sh`, and `tests/orca-mac-keybindings.sh`
+     (`tests/orca-gui-unsandboxed.sh` probes the live desktop host's
+     fontconfig/systemd/coredumpctl, so run it on the desktop host after
+     `hms` if needed rather than inside `hmeval --tests`).
    - Include any other `tests/*.sh` covering bumped components
-     (`tests/agent-clis.sh`, `tests/gascity-packages.sh`, etc.).
+     (`tests/agent-clis.sh`, `tests/gascity-packages.sh`,
+     `tests/zed-modular.sh`, etc.).
 
 ## 4. Commit & Push to `master`
 

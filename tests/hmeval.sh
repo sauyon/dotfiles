@@ -361,6 +361,85 @@ rc=$(GIT_TRACE=1 run_hmeval --ci utsuho)
 wait
 check "--ci: GIT_TRACE on stderr does not refuse the checkout (exit 0)" "$rc" 0
 
+echo "== --ci parses Forgejo's JSON job-id response"
+# Forgejo past 13 returns HTTP 200 JSON {.state.run.jobs[0].id} from
+# POST /actions/runs/<n>/jobs/0 instead of a 404 body naming `job_id <N>`.
+setup_repo; setup_nix
+setup_forge success "$(fenced "  utsuho     /nix/store/json-job-id.drv")"
+sed -i 's|printf '\''oh no job_id 42 not found'\''|printf '\''{"state":{"run":{"jobs":[{"id":42,"name":"eval"}]}}}'\''|' "$D/curl"
+( sleep 0.2; arm_forge_for_push ) &
+rc=$(run_hmeval --ci utsuho)
+wait
+check "--ci: JSON jobs[0].id exits 0" "$rc" 0
+check "--ci: JSON jobs[0].id prints the fenced result" \
+  "$(grep -c 'json-job-id.drv' "$D/out")" 1
+
+echo "== --ci auto-detects a dotfiles worktree when HMEVAL_REPO is unset"
+# Running bare `hmeval --ci` inside an Orca linked worktree must push THAT
+# worktree (and from a subdirectory of it too), not silently push ~/devel/dotfiles.
+# Outside a dotfiles checkout, it must still fall back to ~/devel/dotfiles.
+rm -rf "$D/sauyon" "$D/fakehome" "$D/wt-auto" "$D/other-repo"
+mkdir -p "$D/sauyon" "$D/fakehome/devel"
+git init --quiet --bare "$D/sauyon/dotfiles.git"
+git init --quiet "$D/fakehome/devel/dotfiles"
+git -C "$D/fakehome/devel/dotfiles" config user.email "t@t"
+git -C "$D/fakehome/devel/dotfiles" config user.name "t"
+printf '{ }\n' > "$D/fakehome/devel/dotfiles/flake.nix"
+printf '{ }\n' > "$D/fakehome/devel/dotfiles/home.nix"
+echo from-main > "$D/fakehome/devel/dotfiles/marker"
+git -C "$D/fakehome/devel/dotfiles" add flake.nix home.nix marker
+git -C "$D/fakehome/devel/dotfiles" commit --quiet -m init
+git -C "$D/fakehome/devel/dotfiles" branch -M master
+git -C "$D/fakehome/devel/dotfiles" remote add origin "$D/sauyon/dotfiles.git"
+git -C "$D/fakehome/devel/dotfiles" push --quiet -u origin master
+git -C "$D/fakehome/devel/dotfiles" worktree add --quiet -b wt-auto "$D/wt-auto"
+echo from-worktree-auto > "$D/wt-auto/marker"
+mkdir -p "$D/wt-auto/sub/dir"
+
+arm_auto_push() {
+  git -C "$D/sauyon/dotfiles.git" rev-parse "refs/heads/eval/$(uname -n)" > "$D/sha" 2>/dev/null \
+    || echo none > "$D/sha"
+}
+run_hmeval_auto() {
+  local cwd="$1"; shift
+  ( cd "$cwd"
+    unset HMEVAL_REPO
+    HOME="$D/fakehome" \
+    CALLS="$D/calls" STATUSFILE="$D/status" BODYFILE="$D/body" SHAFILE="$D/sha" \
+    PREFIX="2026-10-02T00:00:00.00000000Z" NIX_ARGV_LOG="$D/nix.argv" \
+    HMEVAL_CURL="$D/curl" HMEVAL_TOKEN_CMD="$D/token" HMEVAL_NIX="$D/nix" \
+    HMEVAL_WAIT_SECONDS=5 \
+      "$SCRIPT" "$@" > "$D/out" 2> "$D/err" )
+  echo $?
+}
+
+setup_nix
+setup_forge success "$(fenced "  utsuho     /nix/store/wt-root.drv")"
+( sleep 0.2; arm_auto_push ) &
+rc=$(run_hmeval_auto "$D/wt-auto" --ci utsuho)
+wait
+check "auto-detect: linked worktree root exits 0" "$rc" 0
+check "auto-detect: linked worktree root pushed worktree content, not ~/devel/dotfiles" \
+  "$(git -C "$D/sauyon/dotfiles.git" show "$(cat "$D/sha"):marker" 2>/dev/null)" from-worktree-auto
+
+setup_forge success "$(fenced "  utsuho     /nix/store/wt-sub.drv")"
+( sleep 0.2; arm_auto_push ) &
+rc=$(run_hmeval_auto "$D/wt-auto/sub/dir" --ci utsuho)
+wait
+check "auto-detect: linked worktree subdir exits 0" "$rc" 0
+check "auto-detect: linked worktree subdir pushed worktree content" \
+  "$(git -C "$D/sauyon/dotfiles.git" show "$(cat "$D/sha"):marker" 2>/dev/null)" from-worktree-auto
+
+git init --quiet "$D/other-repo"
+setup_forge success "$(fenced "  utsuho     /nix/store/fallback.drv")"
+( sleep 0.2; arm_auto_push ) &
+rc=$(run_hmeval_auto "$D/other-repo" --ci utsuho)
+wait
+check "auto-detect: unrelated repo falls back to ~/devel/dotfiles (exit 0)" "$rc" 0
+check "auto-detect: unrelated repo pushed ~/devel/dotfiles content" \
+  "$(git -C "$D/sauyon/dotfiles.git" show "$(cat "$D/sha"):marker" 2>/dev/null)" from-main
+git -C "$D/fakehome/devel/dotfiles" worktree remove --force "$D/wt-auto"
+
 echo
 echo "$((n - fails))/$n passed"
 [ "$fails" -eq 0 ]

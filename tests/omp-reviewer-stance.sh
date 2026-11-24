@@ -24,7 +24,9 @@
 set -u
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-host="${1:-$(hostname -s)}"
+# /etc/hostname is what CI writes to say which host it is (its tool shell has
+# no hostname command); fall back to uname -n where there is none.
+host="${1:-$(cat /etc/hostname 2>/dev/null || uname -n)}"; host="${host%%.*}"
 
 src=$(nix build --no-link --print-out-paths \
   "$repo#homeConfigurations.$host.config.xdg.configFile.\"drovr/config.toml\".source") \

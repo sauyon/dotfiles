@@ -430,10 +430,10 @@ let
   # on other hosts.
   clawpatrol = pkgs.stdenv.mkDerivation rec {
     pname = "clawpatrol";
-    version = "0.5.14";
+    version = "0.5.15";
     src = pkgs.fetchurl {
       url = "https://github.com/denoland/clawpatrol/releases/download/v${version}/clawpatrol-linux-amd64";
-      sha256 = "adc38871c2064e6d7beb348ccf99aa2d688b751e6f859b49ea4adf422b7b2356";
+      sha256 = "dc68ac3f6b610f51804502a9fbe753502498e3e82be381d120df039f262a546c";
     };
     dontUnpack = true;
     nativeBuildInputs = [ pkgs.autoPatchelfHook ];
@@ -3730,8 +3730,8 @@ in
       # lock froze in 2025-03, so a fresh-looking master commit downgrades every
       # addon. tests/nur-pin.sh checks both the branch and the bitwarden version.
       nur = import (builtins.fetchTarball {
-        url = "https://github.com/nix-community/NUR/archive/1dcdc7e10b4a2bfb83d0095b328dacd44d12294a.tar.gz";
-        sha256 = "sha256-zwzBK9dhQRDF31Xc5fLkHd293VEWAINeIBj92S53lcc=";
+        url = "https://github.com/nix-community/NUR/archive/ada7297039ad494127aad0b8c73c59eae44b995a.tar.gz";
+        sha256 = "sha256-L1I0xwrxHOgvHVsGlocS8vxv17Srd9uU33TeZlVOEpw=";
       }) {
         nurpkgs = prev;
         pkgs = prev;
@@ -3878,14 +3878,14 @@ in
     (final: prev: {
       claude-agent-acp = (prev.buildNpmPackage.override { nodejs = patchedNodejs_24; }) rec {
         pname = "claude-agent-acp";
-        version = "0.108.0";
+        version = "0.110.1";
         src = prev.fetchFromGitHub {
           owner = "agentclientprotocol";
           repo = "claude-agent-acp";
           rev = "v${version}";
-          hash = "sha256-eD93t64ckwZaxMkdJjVJhcs+cB1224gTAhpUAk5ZbsU=";
+          hash = "sha256-PHpXFksSXEfQaLqpNOJIhvr/ebsteq8aRP/9w6N5br0=";
         };
-        npmDepsHash = "sha256-OrSRpEyh9Z04uiisVFCxDNjsdwC61CJvB83dwk29vVc=";
+        npmDepsHash = "sha256-TAAEI7Lfzsnt+S1P9nUgJszMmak7ld7FpiVKg6mB9d0=";
         dontNpmPrune = true;
       };
     })

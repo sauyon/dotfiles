@@ -3,7 +3,7 @@ aws = { version = "latest", symlink_bins = "true" }
 fnox = "latest"
 helm = "latest"
 usage = "latest"
-uv = "0.13.8"
+uv = "0.13.9"
 gcloud = "latest"
 sops = "latest"
 python = "3.12"

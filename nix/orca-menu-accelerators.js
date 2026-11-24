@@ -47,17 +47,17 @@ const PATCHES = [
   ['accelerator:`CmdOrCtrl+V`', 'accelerator:``', 'paste accelerator'],
   // Edit > Cut role: Electron registers Ctrl+X for it. The terminal keeps
   // C-x (emacs C-x C-s, etc). The item is built by a minified
-  // (role, key, label) helper -- md({role:e,label:u.a(t,n)}) as of 1.4.271,
+  // (role, key, label) helper -- Td({role:e,label:p.a(t,n)}) as of 1.4.273,
   // renamed by the minifier on most bumps -- so the call is
   // replaced with the same object plus registerAccelerator:!1.
-  ['md(`cut`,`menu.cut`,`Cut`)', '{role:`cut`,label:u.a(`menu.cut`,`Cut`),registerAccelerator:!1}', 'cut role'],
+  ['Td(`cut`,`menu.cut`,`Cut`)', '{role:`cut`,label:p.a(`menu.cut`,`Cut`),registerAccelerator:!1}', 'cut role'],
   // Window > Zoom role: Ctrl+= / Ctrl+- / Ctrl+0. zoom.in/out/reset are
   // Cmd+Equal / Cmd+Minus in the table (zoom.reset unbound: Super+0 is
-  // Hyprland's workspace 10). Same md shape as cut.
-  ['md(`zoom`,`menu.zoom`,`Zoom`)', '{role:`zoom`,label:u.a(`menu.zoom`,`Zoom`),registerAccelerator:!1}', 'zoom role'],
+  // Hyprland's workspace 10). Same Td shape as cut.
+  ['Td(`zoom`,`menu.zoom`,`Zoom`)', '{role:`zoom`,label:p.a(`menu.zoom`,`Zoom`),registerAccelerator:!1}', 'zoom role'],
   // View > Toggle Full Screen role: F11. Bare key, not a Ctrl chord, but a
-  // terminal F11 (less, etc) should reach the shell too. Same md shape.
-  ['md(`togglefullscreen`,`menu.toggleFullScreen`,`Toggle Full Screen`)', '{role:`togglefullscreen`,label:u.a(`menu.toggleFullScreen`,`Toggle Full Screen`),registerAccelerator:!1}', 'fullscreen role'],
+  // terminal F11 (less, etc) should reach the shell too. Same Td shape.
+  ['Td(`togglefullscreen`,`menu.toggleFullScreen`,`Toggle Full Screen`)', '{role:`togglefullscreen`,label:p.a(`menu.toggleFullScreen`,`Toggle Full Screen`),registerAccelerator:!1}', 'fullscreen role'],
   // View > Toggle Developer Tools: the role MenuItem's accelerator
   // (Ctrl+Shift+I on Linux) was passed through. Drop it; the click still
   // toggles.
@@ -86,7 +86,7 @@ fs.writeFileSync(file, main);
 // as a header diff in the installCheck below, not as a broken spawn.
 asar([
   'pack', work, dest,
-  '--unpack-dir', '{out/cli,out/main/agent-hooks,out/main/chunks,out/main/filesystem,out/main/gitlab,out/main/orca-profiles,out/main/orcad,out/main/persistence,out/main/plugins,out/main/skills,out/main/startup,out/mobile-web,out/renderer,out/shared,resources}',
-  '--unpack', '{**/{browser-extension-native-host-supervisor-entry,computer-sidecar,daemon-entry,foreign-sqlite-reader-entry,parcel-watcher-process-entry,plugin-host-entry,session-scanner-service-entry,wsl-transcript-fs-process-entry}.js,**/out/package.json,*.{png,woff2,html,css,woff,ttf,webp,svg,wasm,mjs,bcmap,pfb,sh,TXT,md,txt,py,mp3}}',
+  '--unpack-dir', '{out/cli,out/main/agent-hooks,out/main/backend,out/main/chunks,out/main/daemon,out/main/environment-doctor,out/main/filesystem,out/main/gitlab,out/main/orca-profiles,out/main/orcad,out/main/persistence,out/main/plugins,out/main/skills,out/main/startup,out/main/worker-threads,out/mobile-web,out/renderer,out/shared,resources}',
+  '--unpack', '{**/{agent-identity-worker-entry,bots-db-worker-entry,browser-extension-native-host-supervisor-entry,computer-sidecar,daemon-entry,foreign-sqlite-reader-entry,journal-sql-reader-entry,journal-sql-worker-entry,orchestration-reader-entry,parcel-watcher-process-entry,plugin-host-entry,session-scanner-service-entry,session-search-worker-entry,wsl-transcript-fs-process-entry}.js,**/out/package.json,*.{png,woff2,html,css,woff,ttf,webp,svg,wasm,mjs,bcmap,pfb,sh,TXT,md,txt,py,mp3}}',
 ]);
 fs.rmSync(work, { recursive: true, force: true });

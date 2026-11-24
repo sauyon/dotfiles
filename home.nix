@@ -4654,30 +4654,28 @@ in
       # allowlist lives in precompiled bytecode, so a binary patch is not
       # practical. TODO(sauyon): drop once claude knows "orca" as attended.
       #
-      # A default label for every other headless run: claude -p with no
-      # CLAUDE_CODE_ENTRYPOINT labels itself "sdk-cli", and Anthropic weights
-      # sdk-* labels ~2x against the 5-hour window per token (measured
-      # repeatedly in anthropics/claude-code#97074; a custom label is metered
-      # like the interactive CLI). Orca's one-shot text generations (chat
-      # titles, branch names, commit messages, PR details, model-list probes)
-      # all run `claude -p` with no entrypoint set, so every one of them
-      # burned the window at the sdk-cli rate. The label is honest: these are
-      # Orca's own runs, and Orca's chat sessions already carry "orca".
-      # --set-default, so an explicit label from any caller still wins.
+      # No default label: a headless `claude -p` with no CLAUDE_CODE_ENTRYPOINT
+      # self-labels "sdk-cli", exactly like every stock headless invocation, and
+      # Anthropic weights sdk-* labels against the 5-hour window (intended;
+      # anthropics/claude-code#97074). Relabeling to a custom string would meter
+      # those runs like the interactive CLI, but it would also be the only
+      # non-stock thing about the request — the point here is that nothing
+      # distinguishes these runs from a stock CLI, so the label stays whatever
+      # the caller (or the CLI itself) set it to.
       #
       # Deliberately NOT CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC or any other
-      # telemetry opt-out: those change behavior beyond the label (withhold the
-      # 1P event batch, client-data bootstrap, MCP registry, served-catalog
-      # refresh — the /model picker falls back to the compiled list — and stop
-      # the GrowthBook flag cache from refreshing). The goal is a stock CLI
-      # whose headless runs carry an honest label, nothing else.
+      # telemetry opt-out either: those change behavior beyond the label (withhold
+      # the 1P event batch, client-data bootstrap, MCP registry, served-catalog
+      # refresh — the /model picker falls back to the compiled list — and stop the
+      # GrowthBook flag cache from refreshing). The goal is a stock CLI, nothing
+      # else. The rename above is the only addition, and it only fires on Orca's
+      # own chat sessions (which set the variable themselves).
       package = if isDarwin then pkgs.claude-code else
         pkgs.claude-code.overrideAttrs (old: {
           postFixup = (old.postFixup or "") + ''
             wrapProgram $out/bin/claude \
               --set-default ALSA_PLUGIN_DIR ${pkgs.pipewire}/lib/alsa-lib \
-              --run '[ "$CLAUDE_CODE_ENTRYPOINT" = orca ] && export CLAUDE_CODE_ENTRYPOINT=claude-coworker-terminal || true' \
-              --set-default CLAUDE_CODE_ENTRYPOINT orca
+              --run '[ "$CLAUDE_CODE_ENTRYPOINT" = orca ] && export CLAUDE_CODE_ENTRYPOINT=claude-coworker-terminal || true'
           '';
         });
     };

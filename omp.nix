@@ -35,7 +35,14 @@ let
     providers.modular = {
       baseUrl = "https://api.modular.com/v1";
       api = "openai-completions";
-      # apiKey injected at activation; see the jq filter below.
+      # A leading `!` makes omp run the rest via /bin/sh and use its trimmed
+      # stdout as the key (verified on 18.20.1: `!echo bogus` 401s). It runs
+      # once per omp process and caches the result for that process's life, so
+      # a rotation reaches every omp started after it; running sessions keep
+      # the old key until restarted. Baking the key in at activation instead
+      # went stale: the step ran "after sops-nix" yet still read the old
+      # secret on the first switch after a rotation.
+      apiKey = "!${pkgs.coreutils}/bin/cat ${config.home.homeDirectory}/.config/local-auto-mode/api-key";
       models = [
         (model "zai-org/glm-5.3" 1048576 false)
         (model "minimax/minimax-m3" 1048576 true)
@@ -45,8 +52,8 @@ let
     };
   };
 
-  # JSON is valid YAML, so models.yml is rendered with jq.
-  modelsTemplate = pkgs.writeText "omp-models.yml.tmpl" (builtins.toJSON ompModels);
+  # JSON is valid YAML.
+  modelsTemplate = pkgs.writeText "omp-models.yml" (builtins.toJSON ompModels);
 in
 {
   home.packages = [ pkgs.omp ];
@@ -57,23 +64,13 @@ in
   home.file.".omp/agent/extensions/herdr-omp-agent-state.ts".source =
     ./home/.omp/agent/extensions/herdr-omp-agent-state.ts;
 
-  # Rendered rather than symlinked: the key must not land in a world-readable
-  # store path. omp would also accept the NAME of
-  # an env var as `apiKey`, but that needs the var in every launch environment;
-  # a literal key in a 0600 file works from anywhere.
-  home.activation.ompModelsConfig = lib.hm.dag.entryAfter [ "writeBoundary" "sops-nix" ] ''
+  # Copied rather than symlinked so the file stays writable, as before. It holds
+  # no secret now -- the key is read at use time (see apiKey above) -- so the
+  # step no longer waits on sops-nix.
+  home.activation.ompModelsConfig = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     DEST="$HOME/.omp/agent/models.yml"
-    TMPL="${modelsTemplate}"
-    KEY_FILE="$HOME/.config/local-auto-mode/api-key"
     $DRY_RUN_CMD mkdir -p -m 0700 "$HOME/.omp/agent"
-    if [ -r "$KEY_FILE" ]; then
-      $DRY_RUN_CMD ${pkgs.jq}/bin/jq --rawfile key "$KEY_FILE" \
-        '.providers.modular.apiKey = ($key | sub("\n$"; ""))' \
-        "$TMPL" > "$DEST.new"
-    else
-      $DRY_RUN_CMD cp "$TMPL" "$DEST.new"
-    fi
-    $DRY_RUN_CMD chmod 0600 "$DEST.new"
+    $DRY_RUN_CMD install -m 0600 "${modelsTemplate}" "$DEST.new"
     $DRY_RUN_CMD mv "$DEST.new" "$DEST"
   '';
 

@@ -4644,11 +4644,19 @@ in
       # fails and claude falls back to `arecord`/SoX `rec`, neither installed.
       # Point the plugin dir at nixpkgs' pipewire (same libc as alsa-lib, unlike
       # the host's /usr/lib/alsa-lib). --set-default leaves an explicit value be.
+      #
+      # Orca chat forces CLAUDE_CODE_ENTRYPOINT=orca, which is not on claude's
+      # attended-entrypoint allowlist, so a stream-json Orca chat counts as
+      # unattended and idle compaction never arms. Rename it to an allowlisted
+      # entrypoint that has no other behavior (only a telemetry label). The
+      # allowlist lives in precompiled bytecode, so a binary patch is not
+      # practical. TODO(sauyon): drop once claude knows "orca" as attended.
       package = if isDarwin then pkgs.claude-code else
         pkgs.claude-code.overrideAttrs (old: {
           postFixup = (old.postFixup or "") + ''
             wrapProgram $out/bin/claude \
-              --set-default ALSA_PLUGIN_DIR ${pkgs.pipewire}/lib/alsa-lib
+              --set-default ALSA_PLUGIN_DIR ${pkgs.pipewire}/lib/alsa-lib \
+              --run '[ "$CLAUDE_CODE_ENTRYPOINT" = orca ] && export CLAUDE_CODE_ENTRYPOINT=claude-coworker-terminal || true'
           '';
         });
     };

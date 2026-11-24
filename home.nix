@@ -2432,7 +2432,7 @@ attr=$attr
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./omp.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./zed.nix ./orca.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./omp.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./zed.nix ./orca.nix ];
 
   home.stateVersion = "26.05";
 

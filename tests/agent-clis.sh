@@ -4,12 +4,9 @@
 #
 #   * codex is on every host (programs.codex), with a writable config: codex
 #     records project trust in ~/.codex/config.toml itself.
-#   * cursor-agent is on utsuho only -- the package, the pool-worker unit and
-#     the ~/.cursor tree. Dropping the gate puts it back everywhere, silently,
-#     so every host is checked, not one on each side of it.
-#   * agy and pi are gone, along with what only they used (the agy-review
-#     skill, pi's herdr extension). A leftover home.file pointing at either
-#     would leave a skill or hook calling a binary that is no longer installed.
+#   * agy is on every host (antigravity.nix, programs.antigravity-cli):
+#     Orca's terminal tab launches it from PATH and its Antigravity chat reads
+#     the settings.json the module seeds.
 #   * drovr reviews on omp, through an [agents.omp] entry. drovr has no omp
 #     built-in, so review_agent = "omp" without the table fails at launch.
 #     The file is PARSED (builtins.fromTOML) on every host, not grepped: an
@@ -49,16 +46,10 @@ for host in $hosts; do
   fl=$(files "$host") || { echo "could not evaluate $host home.file" >&2; exit 1; }
 
   case " $have " in *" codex "*) ok "$host has codex" ;; *) bad "$host is missing codex" ;; esac
+  case " $have " in *" antigravity-cli "*)
+    ok "$host has agy (antigravity-cli)" ;;
+  *) bad "$host is missing agy (antigravity-cli)" ;; esac
 
-  leaked=""
-  for p in antigravity-cli pi-coding-agent; do
-    case " $have " in *" $p "*) leaked="$leaked $p" ;; esac
-  done
-  if printf '%s\n' "$fl" | grep -qE '^\.(pi/|claude/(skills|commands)/agy-review)'; then
-    leaked="$leaked <agy/pi home.file>"
-  fi
-  if [ -z "$leaked" ]; then ok "$host carries no agy or pi"
-  else bad "$host still carries:$leaked"; fi
 
   cursor_pkg=no; case " $have " in *" cursor-agent-cli "*) cursor_pkg=yes ;; esac
   cursor_files=no; printf '%s\n' "$fl" | grep -q '^\.cursor/' && cursor_files=yes
@@ -80,7 +71,7 @@ else bad "codex mutableSettings: want true, got ${mut:-<unset>}"; fi
 # what it objects to, not the TOML, so it is dropped first.
 probe='f: let c = builtins.fromTOML (builtins.unsafeDiscardStringContext f."drovr/config.toml".text); o = c.agents.omp or {}; in
   "${c.review_agent or "-"} ${o.mcp.mechanism or "-"} ${o.mcp.flag or "-"} "
-  + (if builtins.match ".*--tools [^ ]*submit_findings.* --thinking medium .*--config /nix/store/.*" (o.readonly_flag or "") != null then "stance" else "-")
+  + (if builtins.match ".*--tools [^ ]*submit_findings.* --thinking max .*--config /nix/store/.*" (o.readonly_flag or "") != null then "stance" else "-")
   + " " + builtins.concatStringsSep "," (o.readonly_displace or [])'
 # readonly_displace is pinned exactly: drovr renames each entry aside and never
 # puts it back, so a commonly tracked path here (.claude, .cursor, .env) would

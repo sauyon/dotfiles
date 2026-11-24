@@ -3753,6 +3753,7 @@ in
   # ships sandbox = false and unsandboxed builds fail there.
   nixpkgs.config.allowUnfree = true;
   _module.args.patchedNodejs_24 = patchedNodejs_24;
+  _module.args.isCursorHost = isCursorHost;
 
   nixpkgs.overlays = [
     (final: prev: {

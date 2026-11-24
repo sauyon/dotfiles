@@ -1,4 +1,4 @@
-{ config, lib, pkgs, machine, patchedNodejs_24, dotfiles-private, ... }:
+{ config, lib, pkgs, machine, patchedNodejs_24, dotfiles-private, isCursorHost, ... }:
 
 let
   isDarwin = pkgs.stdenv.hostPlatform.isDarwin;
@@ -18,6 +18,7 @@ let
   pairingAddress = (import "${dotfiles-private}/endpoints.nix").serveHosts.fujiwara;
 
   isDesktop = machine.gui or true;
+  hasOrca = !isDarwin && (isDesktop || isServeHost);
 
   # Orca (onorca.dev) — the agent IDE: parallel CLI agents, each in its own
   # worktree. Closed-source Electron app, not in nixpkgs (nixpkgs' `orca` is
@@ -360,9 +361,19 @@ let
   # `orca-ide skills get <name>`, so they need orcaCli above.
   #
   # A subset of the bundled eleven: no Jira, no emulator, no plugin authoring
-  # (nothing here writes Orca plugins). Each is a read-only
-  # store symlink, so Orca's own Settings > Skills "update" (npx skills add)
-  # will fail on them or replace them, and home-manager then refuses to
+  # (nothing here writes Orca plugins). Installed on every Orca host (hasOrca:
+  # desktop Linux and headless orca-serve hosts) into the same global roots
+  # Orca's own `orca skills install` targets (SKILL_INSTALL_PROVIDERS in
+  # out/shared/skills/installation/skill-install-providers.js):
+  #   - .agents/skills: shared root read directly by Codex, OMP, Kimi, etc.
+  #   - .claude/skills: Claude Code
+  #   - .gemini/config/skills: Antigravity (`agy`), and Orca's native
+  #     Antigravity chat automatically symlinks $GEMINI_HOME/config/skills ->
+  #     ~/.gemini/config/skills when that directory exists
+  #   - .cursor/skills: Cursor, gated on isCursorHost (tests/agent-clis.sh
+  #     pins ~/.cursor/* to isCursorHost only)
+  # Each entry is a read-only store symlink, so Orca's own Settings > Skills
+  # "update" will skip or replace them, and home-manager then refuses to
   # clobber; update by bumping here instead.
   orcaSkillsSrc = pkgs.fetchFromGitHub rec {
     name = "orca-skills-${rev}";
@@ -375,6 +386,11 @@ let
     "orca-cli" "orchestration" "orca-computer-use" "orca-per-workspace-env"
     "orca-linear" "linear-tickets"
   ];
+  orcaSkillDirs = [
+    ".agents/skills"
+    ".claude/skills"
+    ".gemini/config/skills"
+  ] ++ lib.optional isCursorHost ".cursor/skills";
 
   # Mac-style shortcuts, the same Super-for-Cmd scheme as gtk's mac-bindings
   # and ghostty's super+c/v in home.nix: Orca's own macOS defaults, with Cmd
@@ -477,12 +493,14 @@ in
   # serve runs it under its own Xvfb with no DISPLAY.
   home.packages =
     lib.optionals (!isDarwin && isDesktop) [ orcaGui ]
-    ++ lib.optionals (!isDarwin && (isDesktop || (machine.orca-serve or false))) [ orcaCli ];
+    ++ lib.optionals hasOrca [ orcaCli ];
 
-  home.file = lib.mkIf (!isDarwin && isDesktop) (lib.listToAttrs (map (name: {
-    name = ".claude/skills/${name}";
-    value.source = "${orcaSkillsSrc}/skills/${name}";
-  }) orcaSkills));
+  home.file = lib.mkIf hasOrca (lib.listToAttrs (lib.concatMap (dir:
+    map (name: {
+      name = "${dir}/${name}";
+      value.source = "${orcaSkillsSrc}/skills/${name}";
+    }) orcaSkills
+  ) orcaSkillDirs));
 
   home.activation.orcaMacKeybindings = lib.mkIf (!isDarwin && isDesktop)
     (lib.hm.dag.entryAfter [ "writeBoundary" ] ''

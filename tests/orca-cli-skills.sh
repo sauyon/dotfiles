@@ -2,7 +2,8 @@
 # Cases for the claims orca.nix makes about the Orca CLI and its agent skills:
 # that `orca-ide` and `orca` are the CLI and run from any shell, not only an
 # Orca terminal; that the GUI is `orca-ide-app` and the CLI can launch it; and
-# that the skills in ~/.claude/skills are the bytes this Orca build expects.
+# that the skills in the agent skill roots are the bytes this Orca build expects
+# and land on every Orca host (desktop Linux and headless orca-serve).
 #
 # Why this needs a test. Orca's own installer only reaches an Orca terminal: it
 # puts a shim dir on PATH there (ORCA_CLI_BIN_DIR) and symlinks
@@ -40,8 +41,18 @@ drv=$(pkg_attr orca-cli drvPath) || { echo "no orca-cli in home.packages here" >
 want_version=$(pkg_attr orca-cli version) && [ -n "$want_version" ] \
   || { echo "orca-cli has no version" >&2; exit 1; }
 CLI=$(nix-store --realise "$drv" | tail -1) || { echo "could not build orca-cli" >&2; exit 1; }
-gui_drv=$(pkg_attr orca drvPath) || { echo "no orca in home.packages here" >&2; exit 1; }
-GUI=$(nix-store --realise "$gui_drv" | tail -1) || { echo "could not build orca" >&2; exit 1; }
+gui_in_profile=1
+if gui_drv=$(pkg_attr orca drvPath 2>/dev/null); then
+  GUI=$(nix-store --realise "$gui_drv" | tail -1) || { echo "could not build orca" >&2; exit 1; }
+else
+  # Serve-only host (machine.orca-serve without gui): orcaGui is referenced by
+  # orcaCli's ORCA_APP_EXECUTABLE rather than placed on PATH directly.
+  gui_in_profile=0
+  app=$(sed -nE 's|.*ORCA_APP_EXECUTABLE:-([^}]*)\}.*|\1|p' "$CLI/bin/orca-ide")
+  GUI=${app%/bin/orca-ide-app}
+  [ -n "$GUI" ] && [ -x "$GUI/bin/orca-ide-app" ] \
+    || { echo "no orca in home.packages and ORCA_APP_EXECUTABLE unusable: ${app:-unset}" >&2; exit 1; }
+fi
 echo "testing $CLI and $GUI"
 
 # The skills' own rule: outside an Orca terminal, on Linux, the CLI is
@@ -65,11 +76,15 @@ else fail "CLI launcher" "$CLI/bin/orca-ide is not a plain node exec"; fi
 
 # Under plain node, `orca-ide open` has no Orca binary to spawn but
 # ORCA_APP_EXECUTABLE (without it, it fails, and `serve` refuses to start).
-# Exactly the profile's GUI: the unwrapped one has an orca-ide-app too,
-# minus nixGL.
+# On a desktop host this is the profile's nixGL-wrapped GUI; on a serve-only
+# host it is the unwrapped runtime.
 app=$(sed -nE 's|.*ORCA_APP_EXECUTABLE:-([^}]*)\}.*|\1|p' "$CLI/bin/orca-ide")
 if [ "$app" = "$GUI/bin/orca-ide-app" ]; then
-  pass "orca open launches the profile's nixGL-wrapped GUI"
+  if [ "$gui_in_profile" -eq 1 ]; then
+    pass "orca open launches the profile's nixGL-wrapped GUI"
+  else
+    pass "orca serve/open launches the unwrapped Orca runtime"
+  fi
 else fail "ORCA_APP_EXECUTABLE" "'${app:-unset}', want $GUI/bin/orca-ide-app"; fi
 
 # The GUI wrapper's argv decision, on the real generated script with its
@@ -212,6 +227,39 @@ for s in $SKILLS; do
   if out=$(cd "$src" 2>/dev/null && printf '%s\n' "$want" | sha256sum --quiet -c - 2>&1); then
     pass "$s matches this build's manifest ($(printf '%s\n' "$want" | wc -l) files)"
   else fail "$s" "${out:-$src is missing}"; fi
+done
+
+# Fleet-wide skill root placement (eval-only, --max-jobs 0): every Orca host
+# (desktop Linux + headless orca-serve) gets all skills across the shared,
+# Claude, and Antigravity roots, plus Cursor on isCursorHost (utsuho) only;
+# non-Orca hosts get none.
+all_roots='[ ".agents/skills" ".claude/skills" ".gemini/config/skills" ".cursor/skills" ]'
+skills_nix='[ "orca-cli" "orchestration" "orca-computer-use" "orca-per-workspace-env" "orca-linear" "linear-tickets" ]'
+for spec in \
+  "utsuho|.agents/skills .claude/skills .gemini/config/skills .cursor/skills" \
+  "shiori|.agents/skills .claude/skills .gemini/config/skills" \
+  "fujiwara|.agents/skills .claude/skills .gemini/config/skills" \
+  "chiyari|" \
+  "kyuusaku|" \
+  "mari|"; do
+  h=${spec%%|*}; want_dirs=${spec#*|}
+  got=$(nix eval --max-jobs 0 --raw "$FLAKE#homeConfigurations.$h.config.home.file" --apply "
+    f: let
+      roots = $all_roots;
+      skills = $skills_nix;
+      present = d: builtins.filter (s: f ? \"\${d}/\${s}\") skills;
+      okRoot = d:
+        let p = present d; in
+        if p == skills then d
+        else if p == [] then \"\"
+        else \"partial:\${d}\" + \"(\" + toString (builtins.length p) + \")\";
+    in builtins.concatStringsSep \" \" (builtins.filter (x: x != \"\") (map okRoot roots))
+  " 2>/dev/null) || { fail "$h skill roots" "eval failed"; continue; }
+  if [ "$got" = "$want_dirs" ]; then
+    pass "$h skill roots: ${got:-none}"
+  else
+    fail "$h skill roots" "got '${got:-none}', want '${want_dirs:-none}'"
+  fi
 done
 
 printf '\n%d/%d passed\n' "$((n-fails))" "$n"

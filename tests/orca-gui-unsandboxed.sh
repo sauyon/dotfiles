@@ -77,9 +77,11 @@ echo "testing $GUI"
 
 # Under ~/.cache, not /tmp: the units below run with a private /tmp, as did
 # the bwrap-era sandbox, and the host-side probes must see the same files.
-unit="orca-gui-test-$$"
 mkdir -p "$HOME/.cache"
 T=$(mktemp -d "$HOME/.cache/orca-gui-test.XXXXXX") || { echo "mktemp failed" >&2; exit 1; }
+# Named after $T, unique on the box, not $$: a run in another PID namespace
+# (the sandboxed path above) can share a PID, and the trap stops it by name.
+unit="orca-gui-test-${T##*.}"
 # chmod first: Orca may copy read-only store trees into the throwaway HOME.
 trap 'host systemctl --user stop "$unit" "$unit-serve" 2>/dev/null; chmod -R u+w "$T" 2>/dev/null; rm -rf "$T"' EXIT
 
@@ -263,9 +265,12 @@ in_session() { host env -u DISPLAY -u DBUS_SESSION_BUS_ADDRESS XDG_RUNTIME_DIR="
 # env -i, then an allowlist: the user manager's environment carries the live
 # session's sockets and real-home paths (GNUPGHOME, SSH_TPM_AUTH_SOCK, ...).
 # PrivateTmp: Orca's terminal daemon keeps a host-wide ledger under
-# /tmp/.orca-daemon-<uid>, which a live Orca shares.
+# /tmp/.orca-daemon-<uid>, which a live Orca shares. The empty
+# /run/user/<uid>: it starts that daemon as a scope of the user manager it
+# finds at the canonical runtime dir's bus, ahead of XDG_RUNTIME_DIR -- the
+# live session's -- where it outlived this unit.
 "${sr:+$sr/bin/}systemd-run" --user --quiet --collect --unit="$unit" --property=RuntimeMaxSec=600 \
-  --property=PrivateTmp=yes \
+  --property=PrivateTmp=yes --property=TemporaryFileSystem="/run/user/$(id -u)" \
   --working-directory="$T/home" \
   /bin/sh -c 'exec env -i PATH="$PATH" LANG="${LANG:-C.UTF-8}" ${TZ+TZ="$TZ"} "$@"' sh \
     HOME="$T/home" XDG_RUNTIME_DIR="$run" XDG_CURRENT_DESKTOP=sway \
@@ -377,7 +382,8 @@ for _ in \$(seq 15); do [ -z "\$(servers)" ] && break; sleep 1; done
 echo "before=\$before after=\$(servers | wc -l)"
 EOF
 res=$("${sr:+$sr/bin/}systemd-run" --user --quiet --collect --pipe --wait --unit="$unit-serve" \
-  --property=RuntimeMaxSec=300 --property=PrivateTmp=yes --working-directory="$T/home" \
+  --property=RuntimeMaxSec=300 --property=PrivateTmp=yes --property=TemporaryFileSystem="/run/user/$(id -u)" \
+  --working-directory="$T/home" \
   /bin/sh -c 'x=$1; shift; exec env -i PATH="$x:$PATH" LANG="${LANG:-C.UTF-8}" "$@"' sh "$xvfb/bin" \
     HOME="$T/home" XDG_RUNTIME_DIR="$run" "$dbus/bin/dbus-run-session" -- /bin/sh "$T/serve.sh" 2>/dev/null \
   | tee "$T/serve.res" | grep -o 'notready\|before=[0-9]* after=[0-9]*')

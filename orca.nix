@@ -96,12 +96,14 @@ let
       cp -r --no-preserve=ownership . $out/lib/orca
       chmod -R u+w $out/lib/orca
       # Super, not Ctrl, as the accelerator key: the app menu's registered
-      # accelerators (quit CmdOrCtrl+Q, paste CmdOrCtrl+V, the cut, zoom,
-      # devtools and fullscreen roles) fire in the main process before the
-      # terminal sees the key, so they are dropped from the repacked
-      # app.asar -- the keybinding table already gives every one of them a
-      # Super chord (nix/orca-menu-accelerators.js, which fails the build on
-      # a bundle that drifted). The menu items stay clickable.
+      # accelerators (quit, paste, the cut role, devtools, fullscreen's
+      # F11) fired in the main process before the terminal saw the key, and
+      # Copy/Select All had none at all off macOS. The repacked app.asar
+      # gives every item its Mac chord on Super, registers none, and
+      # dispatches them page first (nix/orca-menu-accelerators.js, which
+      # fails the build on a bundle that drifted, or that sets a menu any way
+      # but the one Menu.setApplicationMenu call its runtime unregistering
+      # wraps). tests/orca-menu-accelerators.sh.
       ${patchedNodejs_24}/bin/node ${./nix/orca-menu-accelerators.js} \
         $out/lib/orca/resources/app.asar $out/lib/orca/resources/app.asar.patched
       mv $out/lib/orca/resources/app.asar.patched $out/lib/orca/resources/app.asar
@@ -251,7 +253,8 @@ let
       [ ! -e $out/lib/orca/AppRun ]
       [ "$(grep '^Exec=' $out/share/applications/orca-ide.desktop)" = 'Exec=orca-ide-app %U' ]
       grep -q '^MimeType=.*x-scheme-handler/orca;' $out/share/applications/orca-ide.desktop
-      # The repacked app.asar: no Ctrl accelerator left in the menu bundle,
+      # The repacked app.asar: no CmdOrCtrl accelerator left in the menu
+      # bundle (role defaults are unregistered at runtime -- see the script),
       # and the same files outside the archive as the stock one kept there
       # (the spawned entries -- daemon-entry.js, computer-sidecar.js, ... --
       # load from app.asar.unpacked by path). Sizes are in the comparison

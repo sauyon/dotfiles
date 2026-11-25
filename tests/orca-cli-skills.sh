@@ -262,5 +262,30 @@ for spec in \
   fi
 done
 
+# Fleet-wide orca-serve switch method (eval-only, --max-jobs 0): every host
+# defining systemd.user.services.orca-serve must set X-SwitchMethod=keep-old so
+# hms/sd-switch does not stop a running Orca server (and kill active sessions or
+# itself) when the unit changes.
+serve_hosts=0
+for h in utsuho shiori fujiwara chiyari kyuusaku mari; do
+  method=$(nix eval --max-jobs 0 --raw "$FLAKE#homeConfigurations.$h.config.systemd.user.services" --apply '
+    s: if s ? orca-serve then (s.orca-serve.Unit."X-SwitchMethod" or "unset") else "none"
+  ' 2>/dev/null) || { fail "$h orca-serve X-SwitchMethod" "eval failed"; continue; }
+  case "$method" in
+    none) ;;
+    keep-old)
+      serve_hosts=$((serve_hosts+1))
+      pass "$h orca-serve uses X-SwitchMethod=keep-old" ;;
+    *)
+      serve_hosts=$((serve_hosts+1))
+      fail "$h orca-serve X-SwitchMethod" "got '$method', want 'keep-old'" ;;
+  esac
+done
+if [ "$serve_hosts" -gt 0 ]; then
+  pass "at least one host defines orca-serve ($serve_hosts)"
+else
+  fail "orca-serve hosts" "no host defines systemd.user.services.orca-serve"
+fi
+
 printf '\n%d/%d passed\n' "$((n-fails))" "$n"
 [ "$fails" -eq 0 ]

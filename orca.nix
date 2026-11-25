@@ -522,6 +522,16 @@ in
       # reachability at start and restarts read better ordered after it.
       After = [ "network-online.target" ];
       Wants = [ "network-online.target" ];
+      # Leave a running orca-serve untouched across switches: sd-switch's
+      # default stop-start stops the unit before daemon-reload and before
+      # updating current-home, which kills Electron and evicts active agent
+      # sessions. When hms itself runs inside an Orca session, sd-switch dies
+      # mid-stop, leaving orca-serve down and current-home stuck on the old
+      # generation so every subsequent hms repeats the stop. Fresh installs
+      # (or a stopped unit) still start via WantedBy=default.target; restart
+      # manually (`systemctl --user restart orca-serve`) when ready to pick
+      # up a new Orca build.
+      X-SwitchMethod = "keep-old";
     };
     Service = {
       Type = "simple";

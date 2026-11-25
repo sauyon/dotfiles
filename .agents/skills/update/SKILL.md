@@ -23,7 +23,7 @@ every change before accepting it, verify, push to `master`, and apply with
 3. Check hand-pinned packages in the repo for newer releases and bump versions,
    revs, and hashes where available (e.g. `orca.nix` + its skills rev and
    generated hooks, `cursor-agent.nix`, `kimi-code.nix`, `delta.nix`,
-   `nix/gascity.nix`, `nix/forgejo-cli.nix`, NUR / `claude-code` /
+   `gwscli.nix`, `nix/gascity.nix`, `nix/forgejo-cli.nix`, NUR / `claude-code` /
    `claude-agent-acp` pins in `home.nix`, and `uv` in `mise.toml`).
 
 ## 2. Audit Every Change

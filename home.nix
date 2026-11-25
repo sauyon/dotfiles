@@ -2450,7 +2450,7 @@ attr=$attr
   '';
 in
 {
-  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./omp.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./zed.nix ./orca.nix ];
+  imports = [ sops-nix.homeManagerModules.sops walker.homeManagerModules.default zen-browser.homeModules.default ./antigravity.nix ./omp.nix ./cursor-agent.nix ./kimi-code.nix ./delta.nix ./zed.nix ./orca.nix ./gwscli.nix ];
 
   home.stateVersion = "26.05";
 
@@ -3548,12 +3548,6 @@ in
     comma
     cosign
     entire  # git-hook layer checkpointing AI agent sessions alongside commits
-    # Google Workspace CLI (googleworkspace/cli): Gmail/Drive/Calendar/Docs for
-    # agents (agy, claude) to shell out to -- 0.22 has no MCP mode. One-time
-    # auth is manual and per host: `gws auth setup` (makes the OAuth client;
-    # needs gcloud, which comes from mise, not nix), then `gws auth login`;
-    # creds land in ~/.config/gws, not here.
-    gws
     jq
     jujutsu
     kimi-code  # Moonshot's Kimi Code CLI (binary: kimi); see kimi-code.nix
